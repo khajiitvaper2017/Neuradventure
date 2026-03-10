@@ -86,6 +86,29 @@ export interface GenerateCharacterResponse {
   custom_traits: string[]
 }
 
+export interface GenerateCharacterAppearanceResponse {
+  physical_description: string
+  current_clothing: string
+}
+
+export interface GenerateCharacterClothingResponse {
+  current_clothing: string
+}
+
+export interface GenerateCharacterTraitsResponse {
+  personality_traits: string[]
+  custom_traits: string[]
+}
+
+export interface GenerateCharacterContext {
+  name: string
+  race: string
+  gender: string
+  appearance: CharacterAppearance
+  personality_traits: string[]
+  custom_traits: string[]
+}
+
 export interface GenerateStoryResponse {
   title: string
   opening_scenario: string
@@ -199,6 +222,21 @@ export const api = {
       request<GenerateCharacterResponse>("/api/generate/character", {
         method: "POST",
         body: JSON.stringify({ description }),
+      }),
+    characterAppearance: (context: GenerateCharacterContext) =>
+      request<GenerateCharacterAppearanceResponse>("/api/generate/character/part", {
+        method: "POST",
+        body: JSON.stringify({ part: "appearance", context }),
+      }),
+    characterClothing: (context: GenerateCharacterContext) =>
+      request<GenerateCharacterClothingResponse>("/api/generate/character/part", {
+        method: "POST",
+        body: JSON.stringify({ part: "clothing", context }),
+      }),
+    characterTraits: (context: GenerateCharacterContext) =>
+      request<GenerateCharacterTraitsResponse>("/api/generate/character/part", {
+        method: "POST",
+        body: JSON.stringify({ part: "traits", context }),
       }),
     story: (description: string, characterName: string, characterTraits: string[]) =>
       request<GenerateStoryResponse>("/api/generate/story", {

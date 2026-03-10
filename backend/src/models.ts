@@ -76,6 +76,20 @@ export const GenerateCharacterResponseSchema = z.object({
   custom_traits: z.array(z.string()),
 })
 
+export const GenerateCharacterAppearanceResponseSchema = z.object({
+  physical_description: z.string(),
+  current_clothing: z.string(),
+})
+
+export const GenerateCharacterClothingResponseSchema = z.object({
+  current_clothing: z.string(),
+})
+
+export const GenerateCharacterTraitsResponseSchema = z.object({
+  personality_traits: z.array(z.string()).max(5),
+  custom_traits: z.array(z.string()),
+})
+
 export const GenerateStoryResponseSchema = z.object({
   title: z.string(),
   opening_scenario: z.string(),
@@ -135,4 +149,7 @@ export type CreateCharacterRequest = z.infer<typeof CreateCharacterRequestSchema
 export type CreateStoryRequest = z.infer<typeof CreateStoryRequestSchema>
 export type TakeTurnRequest = z.infer<typeof TakeTurnRequestSchema>
 export type GenerateCharacterResponse = z.infer<typeof GenerateCharacterResponseSchema>
+export type GenerateCharacterAppearanceResponse = z.infer<typeof GenerateCharacterAppearanceResponseSchema>
+export type GenerateCharacterClothingResponse = z.infer<typeof GenerateCharacterClothingResponseSchema>
+export type GenerateCharacterTraitsResponse = z.infer<typeof GenerateCharacterTraitsResponseSchema>
 export type GenerateStoryResponse = z.infer<typeof GenerateStoryResponseSchema>

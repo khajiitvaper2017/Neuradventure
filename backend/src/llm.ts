@@ -4,9 +4,18 @@ import { fileURLToPath } from "url"
 import { dirname, join } from "path"
 import { zodToJsonSchema } from "zod-to-json-schema"
 import {
-  TurnResponseSchema, GenerateCharacterResponseSchema, GenerateStoryResponseSchema,
+  TurnResponseSchema,
+  GenerateCharacterResponseSchema,
+  GenerateCharacterAppearanceResponseSchema,
+  GenerateCharacterClothingResponseSchema,
+  GenerateCharacterTraitsResponseSchema,
+  GenerateStoryResponseSchema,
   type MainCharacterState, type NPCState, type TurnResponse, type WorldState,
-  type GenerateCharacterResponse, type GenerateStoryResponse,
+  type GenerateCharacterResponse,
+  type GenerateCharacterAppearanceResponse,
+  type GenerateCharacterClothingResponse,
+  type GenerateCharacterTraitsResponse,
+  type GenerateStoryResponse,
 } from "./models.js"
 import type { TurnRow } from "./db.js"
 
@@ -19,6 +28,7 @@ const __dirname = dirname(fileURLToPath(import.meta.url))
 type PromptConfig = {
   systemPromptLines: string[]
   generateCharacterPrompt: string[]
+  generateCharacterPartPrompt: string[]
   generateStoryPrompt: string[]
 }
 
@@ -160,6 +170,96 @@ export async function generateCharacter(description: string): Promise<GenerateCh
     1000
   )
   return GenerateCharacterResponseSchema.parse(result)
+}
+
+type CharacterGenerationContext = {
+  name: string
+  race: string
+  gender: string
+  appearance: {
+    physical_description: string
+    current_clothing: string
+  }
+  personality_traits: string[]
+  custom_traits: string[]
+}
+
+function formatCharacterContext(
+  context: CharacterGenerationContext,
+  part: "appearance" | "traits" | "clothing"
+): string {
+  const lines = [
+    `Name: ${context.name || "Unknown"}`,
+    `Race: ${context.race || "Unknown"}`,
+    `Gender: ${context.gender || "Unknown"}`,
+  ]
+
+  if (part === "traits") {
+    const appearance = [
+      context.appearance.physical_description,
+      context.appearance.current_clothing,
+    ]
+      .map((v) => v.trim())
+      .filter(Boolean)
+      .join(" | ")
+    lines.push(`Appearance: ${appearance || "Unknown"}`)
+  } else if (part === "appearance") {
+    lines.push(`Personality traits: ${context.personality_traits.join(", ") || "Unknown"}`)
+    lines.push(`Custom traits: ${context.custom_traits.join(", ") || "None"}`)
+  } else {
+    lines.push(`Physical description: ${context.appearance.physical_description.trim() || "Unknown"}`)
+    lines.push(`Personality traits: ${context.personality_traits.join(", ") || "Unknown"}`)
+    lines.push(`Custom traits: ${context.custom_traits.join(", ") || "None"}`)
+  }
+
+  return lines.join("\n")
+}
+
+export async function generateCharacterPart(
+  part: "appearance" | "traits" | "clothing",
+  context: CharacterGenerationContext
+): Promise<GenerateCharacterAppearanceResponse | GenerateCharacterTraitsResponse | GenerateCharacterClothingResponse> {
+  const schema = part === "appearance"
+    ? zodToJsonSchema(GenerateCharacterAppearanceResponseSchema, { name: "GenerateCharacterAppearanceResponse" })
+    : part === "traits"
+      ? zodToJsonSchema(GenerateCharacterTraitsResponseSchema, { name: "GenerateCharacterTraitsResponse" })
+      : zodToJsonSchema(GenerateCharacterClothingResponseSchema, { name: "GenerateCharacterClothingResponse" })
+
+  const prompt = getConfig().generateCharacterPartPrompt.join("\n")
+    + `\n\nAvailable personality traits: ${npcTraits.join(", ")}`
+  const userContent = [
+    `Regenerate: ${part}`,
+    "",
+    "Character context:",
+    formatCharacterContext(context, part),
+    "",
+    "Instruction: Use the context above to regenerate ONLY the requested section.",
+    part === "appearance"
+      ? "Do not reuse or paraphrase the current appearance/clothing. Keep it consistent with the identity and traits."
+      : part === "traits"
+        ? "Do not reuse the current personality traits or custom traits. Keep them consistent with the identity and appearance."
+        : "Do not reuse or paraphrase the current clothing. Keep it consistent with the identity, appearance, and traits.",
+  ].join("\n")
+
+  const result = await callLLMRaw<unknown>(
+    [
+      { role: "system", content: prompt },
+      { role: "user", content: userContent },
+    ],
+    part === "appearance"
+      ? "GenerateCharacterAppearanceResponse"
+      : part === "traits"
+        ? "GenerateCharacterTraitsResponse"
+        : "GenerateCharacterClothingResponse",
+    schema,
+    500
+  )
+
+  return part === "appearance"
+    ? GenerateCharacterAppearanceResponseSchema.parse(result)
+    : part === "traits"
+      ? GenerateCharacterTraitsResponseSchema.parse(result)
+      : GenerateCharacterClothingResponseSchema.parse(result)
 }
 
 export async function generateStory(

@@ -42,6 +42,9 @@
 
   let generateDescription = ""
   let generating = false
+  let regeneratingAppearance = false
+  let regeneratingClothing = false
+  let regeneratingTraits = false
 
   async function generate() {
     if (!generateDescription.trim()) return
@@ -136,7 +139,7 @@
     return null
   }
 
-  function buildCharacterData() {
+  function buildCharacterContext() {
     const seen = new Set<string>()
     const uniquePersonality = (traits: string[]) => {
       const out: string[] = []
@@ -160,6 +163,53 @@
       },
       personality_traits: uniquePersonality([...selectedTraits, ...customPersonalityTraits]).slice(0, 5),
       custom_traits: customTraits,
+    }
+  }
+
+  function buildCharacterData() {
+    return buildCharacterContext()
+  }
+
+  async function regenerateAppearance() {
+    if (regeneratingAppearance) return
+    regeneratingAppearance = true
+    try {
+      const result = await api.generate.characterAppearance(buildCharacterContext())
+      physicalDescription = result.physical_description
+      currentClothing = result.current_clothing
+    } catch (err) {
+      showError(err instanceof Error ? err.message : "Regeneration failed")
+    } finally {
+      regeneratingAppearance = false
+    }
+  }
+
+  async function regenerateTraits() {
+    if (regeneratingTraits) return
+    regeneratingTraits = true
+    try {
+      const result = await api.generate.characterTraits(buildCharacterContext())
+      const split = splitPersonalityTraits(result.personality_traits)
+      selectedTraits = split.selected
+      customPersonalityTraits = split.custom
+      customTraits = result.custom_traits
+    } catch (err) {
+      showError(err instanceof Error ? err.message : "Regeneration failed")
+    } finally {
+      regeneratingTraits = false
+    }
+  }
+
+  async function regenerateClothing() {
+    if (regeneratingClothing) return
+    regeneratingClothing = true
+    try {
+      const result = await api.generate.characterClothing(buildCharacterContext())
+      currentClothing = result.current_clothing
+    } catch (err) {
+      showError(err instanceof Error ? err.message : "Regeneration failed")
+    } finally {
+      regeneratingClothing = false
     }
   }
 
@@ -256,7 +306,14 @@
     </div>
 
     <div class="field">
-      <label for="char-appearance">Appearance</label>
+      <div class="label-row">
+        <label for="char-appearance">Appearance</label>
+        <button
+          class="btn-ghost btn-mini"
+          onclick={regenerateAppearance}
+          disabled={generating || regeneratingAppearance}
+        >{regeneratingAppearance ? "Regenerating..." : "Regenerate"}</button>
+      </div>
       <textarea
         id="char-appearance"
         bind:value={physicalDescription}
@@ -266,7 +323,14 @@
     </div>
 
     <div class="field">
-      <label for="char-clothing">Starting Clothing</label>
+      <div class="label-row">
+        <label for="char-clothing">Starting Clothing</label>
+        <button
+          class="btn-ghost btn-mini"
+          onclick={regenerateClothing}
+          disabled={generating || regeneratingClothing}
+        >{regeneratingClothing ? "Regenerating..." : "Regenerate"}</button>
+      </div>
       <textarea
         id="char-clothing"
         bind:value={currentClothing}
@@ -276,7 +340,14 @@
     </div>
 
     <div class="field">
-      <label id="traits-label">Personality Traits <span class="hint">(pick up to 5)</span></label>
+      <div class="label-row">
+        <label id="traits-label">Personality Traits <span class="hint">(pick up to 5)</span></label>
+        <button
+          class="btn-ghost btn-mini"
+          onclick={regenerateTraits}
+          disabled={generating || regeneratingTraits}
+        >{regeneratingTraits ? "Regenerating..." : "Regenerate"}</button>
+      </div>
       <div class="chips">
         {#each PERSONALITY_OPTIONS as trait}
           <button
@@ -381,6 +452,17 @@
     display: flex;
     flex-direction: column;
     gap: 0.5rem;
+  }
+  .label-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+  }
+  .btn-mini {
+    padding: 0.35rem 0.6rem;
+    font-size: 0.75rem;
+    min-height: 32px;
   }
   label {
     font-size: 0.85rem;
