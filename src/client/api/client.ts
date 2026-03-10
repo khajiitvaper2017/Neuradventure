@@ -280,10 +280,15 @@ export const api = {
 
   turns: {
     list: (storyId: number) => request<TurnSummary[]>(`/api/turns/${storyId}`),
-    take: (storyId: number, playerInput: string, actionMode: "do" | "say" | "story") =>
+    take: (storyId: number, playerInput: string, actionMode: "do" | "say" | "story", requestId?: string) =>
       request<TurnResult>("/api/turns", {
         method: "POST",
-        body: JSON.stringify({ story_id: storyId, player_input: playerInput, action_mode: actionMode }),
+        body: JSON.stringify({
+          story_id: storyId,
+          player_input: playerInput,
+          action_mode: actionMode,
+          request_id: requestId,
+        }),
       }),
     regenerateLast: (storyId: number, actionMode: "do" | "say" | "story") =>
       request<TurnResult>("/api/turns/regenerate-last", {

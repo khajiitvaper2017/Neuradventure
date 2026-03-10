@@ -9,9 +9,17 @@ import {
   UndoCancelRequestSchema,
   UpdateTurnRequestSchema,
 } from "../models.js"
-import { cancelLastTurn, processTurn, regenerateLastTurn, selectTurnVariant, undoCancelLastTurn } from "../game.js"
+import {
+  buildTurnResultFromRow,
+  cancelLastTurn,
+  processTurn,
+  regenerateLastTurn,
+  selectTurnVariant,
+  undoCancelLastTurn,
+} from "../game.js"
 
 const turns = new Hono()
+const inFlight = new Map<string, ReturnType<typeof processTurn>>()
 
 turns.post("/", zValidator("json", TakeTurnRequestSchema), async (c) => {
   const body = c.req.valid("json")
@@ -19,8 +27,22 @@ turns.post("/", zValidator("json", TakeTurnRequestSchema), async (c) => {
   if (!story) return c.json({ error: "Story not found" }, 404)
 
   try {
-    const result = await processTurn(body.story_id, body.player_input, body.action_mode)
-    return c.json(result)
+    const requestId = body.request_id?.trim() || undefined
+    if (requestId) {
+      const existing = db.getTurnByRequestId(requestId)
+      if (existing) return c.json(buildTurnResultFromRow(existing))
+      const inflight = inFlight.get(requestId)
+      if (inflight) return c.json(await inflight)
+    }
+
+    const task = processTurn(body.story_id, body.player_input, body.action_mode, requestId)
+    if (requestId) inFlight.set(requestId, task)
+    try {
+      const result = await task
+      return c.json(result)
+    } finally {
+      if (requestId) inFlight.delete(requestId)
+    }
   } catch (err) {
     const message = err instanceof Error ? err.message : "Unknown error"
     if (message.includes("ECONNREFUSED") || message.includes("fetch failed")) {

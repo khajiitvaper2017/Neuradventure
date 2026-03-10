@@ -153,6 +153,7 @@ export function initDb() {
       turn_number               INTEGER NOT NULL,
       action_mode               TEXT NOT NULL DEFAULT 'do',
       active_variant_id         INTEGER,
+      request_id                TEXT,
       player_input              TEXT NOT NULL,
       narrative_text            TEXT NOT NULL,
       character_snapshot_json   TEXT NOT NULL,
@@ -238,6 +239,10 @@ export function initDb() {
 
   const turnColumns = database.prepare("PRAGMA table_info(turns)").all() as { name: string }[]
   const turnColumnNames = new Set(turnColumns.map((c) => c.name))
+  if (!turnColumnNames.has("request_id")) {
+    database.exec("ALTER TABLE turns ADD COLUMN request_id TEXT")
+  }
+  database.exec("CREATE UNIQUE INDEX IF NOT EXISTS idx_turns_request_id ON turns(request_id)")
   if (!turnColumnNames.has("action_mode")) {
     database.exec("ALTER TABLE turns ADD COLUMN action_mode TEXT NOT NULL DEFAULT 'do'")
   }
@@ -451,6 +456,7 @@ export interface TurnRow {
   turn_number: number
   action_mode: string
   active_variant_id: number | null
+  request_id: string | null
   player_input: string
   narrative_text: string
   character_snapshot_json: string
@@ -498,6 +504,10 @@ export function getTurn(id: number): TurnRow | undefined {
   return getDb().prepare("SELECT * FROM turns WHERE id = ?").get(id) as TurnRow | undefined
 }
 
+export function getTurnByRequestId(request_id: string): TurnRow | undefined {
+  return getDb().prepare("SELECT * FROM turns WHERE request_id = ?").get(request_id) as TurnRow | undefined
+}
+
 export function getLastTurnForStory(story_id: number): TurnRow | undefined {
   return getDb().prepare("SELECT * FROM turns WHERE story_id = ? ORDER BY turn_number DESC LIMIT 1").get(story_id) as
     | TurnRow
@@ -515,6 +525,7 @@ export function createTurn(
   story_id: number,
   turn_number: number,
   action_mode: string,
+  request_id: string | null,
   player_input: string,
   narrative_text: string,
   character: MainCharacterState,
@@ -523,14 +534,15 @@ export function createTurn(
 ): number {
   const result = getDb()
     .prepare(
-      `INSERT INTO turns (story_id, turn_number, action_mode, player_input, narrative_text,
+      `INSERT INTO turns (story_id, turn_number, action_mode, request_id, player_input, narrative_text,
        character_snapshot_json, world_snapshot_json, npc_snapshot_json)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     )
     .run(
       story_id,
       turn_number,
       action_mode,
+      request_id,
       player_input,
       narrative_text,
       JSON.stringify(character),

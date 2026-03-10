@@ -60,6 +60,54 @@
 
   let initialScrollDone = $state(false)
   let userActed = $state(false)
+  let resumeAttemptedFor = ""
+
+  const PENDING_TURN_KEY = "pending_turn"
+  type PendingTurn = {
+    storyId: number
+    actionMode: ActionMode
+    playerInput: string
+    requestId: string
+    lastTurnId: number | null
+    createdAt: number
+  }
+
+  function getPendingTurn(): PendingTurn | null {
+    try {
+      const raw = window.localStorage.getItem(PENDING_TURN_KEY)
+      if (!raw) return null
+      return JSON.parse(raw) as PendingTurn
+    } catch {
+      return null
+    }
+  }
+
+  function setPendingTurn(pending: PendingTurn) {
+    try {
+      window.localStorage.setItem(PENDING_TURN_KEY, JSON.stringify(pending))
+    } catch {
+      // ignore storage failures
+    }
+  }
+
+  function clearPendingTurn() {
+    try {
+      window.localStorage.removeItem(PENDING_TURN_KEY)
+    } catch {
+      // ignore storage failures
+    }
+  }
+
+  function lastTurnId(): number | null {
+    return $turns.length > 0 ? $turns[$turns.length - 1].id : null
+  }
+
+  function createRequestId(): string {
+    if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+      return crypto.randomUUID()
+    }
+    return `req_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`
+  }
 
   function triggerSceneFlash() {
     flashScene = true
@@ -109,13 +157,24 @@
 
   async function sendTurn() {
     const rawText = input.trim()
-    const text = normalizePlayerInput(rawText, actionMode)
-    if (!text || $isGenerating || !$currentStoryId) return
+    const isEmpty = rawText.length === 0
+    const sendMode = isEmpty ? "story" : actionMode
+    const text = isEmpty ? "" : normalizePlayerInput(rawText, actionMode)
+    if ((!isEmpty && !text) || $isGenerating || !$currentStoryId) return
+    const requestId = createRequestId()
+    setPendingTurn({
+      storyId: $currentStoryId,
+      actionMode: sendMode,
+      playerInput: text,
+      requestId,
+      lastTurnId: lastTurnId(),
+      createdAt: Date.now(),
+    })
     input = ""
     userActed = true
     isGenerating.set(true)
     try {
-      const result = await api.turns.take($currentStoryId, text, actionMode)
+      const result = await api.turns.take($currentStoryId, text, sendMode, requestId)
       character.set(result.character)
       worldState.set(result.world)
       npcs.set(result.npcs)
@@ -123,7 +182,7 @@
       const newTurn: TurnSummary = {
         id: result.turn_id,
         turn_number: result.turn_number,
-        action_mode: actionMode,
+        action_mode: sendMode,
         player_input: text,
         narrative_text: result.narrative_text,
         world: result.world,
@@ -134,6 +193,7 @@
       await loadVariants(result.turn_id, true)
       await tick()
       scrollToBottom(true)
+      clearPendingTurn()
     } catch (err) {
       if (err instanceof ApiError) {
         showError(err.message)
@@ -144,6 +204,66 @@
       isGenerating.set(false)
     }
   }
+
+  async function resumePendingTurn(pending: PendingTurn) {
+    if ($isGenerating) return
+    if (!$currentStoryId || pending.storyId !== $currentStoryId) return
+    if (lastTurnId() !== pending.lastTurnId) {
+      clearPendingTurn()
+      return
+    }
+    isGenerating.set(true)
+    try {
+      const result = await api.turns.take($currentStoryId, pending.playerInput, pending.actionMode, pending.requestId)
+      character.set(result.character)
+      worldState.set(result.world)
+      npcs.set(result.npcs)
+      markLlmUpdate()
+      const exists = $turns.some((t) => t.id === result.turn_id)
+      if (!exists) {
+        const newTurn: TurnSummary = {
+          id: result.turn_id,
+          turn_number: result.turn_number,
+          action_mode: pending.actionMode,
+          active_variant_id: null,
+          player_input: pending.playerInput,
+          narrative_text: result.narrative_text,
+          world: result.world,
+          created_at: new Date().toISOString(),
+        }
+        turns.update((t) => [...t, newTurn])
+      }
+      clearPendingTurn()
+      await loadVariants(result.turn_id, true)
+      await tick()
+      scrollToBottom(true)
+    } catch (err) {
+      if (err instanceof ApiError) {
+        showError(err.message)
+      } else {
+        showError("Failed to resume generation")
+      }
+    } finally {
+      isGenerating.set(false)
+    }
+  }
+
+  $effect(() => {
+    if (typeof window === "undefined") return
+    if (!$currentStoryId) return
+    const pending = getPendingTurn()
+    if (!pending) return
+    if (pending.storyId !== $currentStoryId) return
+    if (pending.requestId === resumeAttemptedFor) return
+    if (lastTurnId() !== pending.lastTurnId) {
+      clearPendingTurn()
+      return
+    }
+    resumeAttemptedFor = pending.requestId
+    window.setTimeout(() => {
+      void resumePendingTurn(pending)
+    }, 500)
+  })
 
   async function regenerateLastTurn() {
     if ($isGenerating || !$currentStoryId || $turns.length === 0) return
@@ -616,7 +736,9 @@
       {:else}
         <!-- Player action inline — matches AI Dungeon's "pencil" style -->
         <div class="action-inline" class:fresh={userActed && i === $turns.length - 1 && !$isGenerating}>
-          <IconPencilSquare className="pencil-icon" size={12} strokeWidth={2} />
+          {#if turn.player_input.trim().length > 0}
+            <IconPencilSquare className="pencil-icon" size={12} strokeWidth={2} />
+          {/if}
           {turn.player_input}
           <button class="edit-btn inline" onclick={() => startEditTurn(turn)} disabled={$isGenerating}>Edit</button>
           <button class="delete-btn inline" onclick={() => deleteTurn(turn.id)} disabled={$isGenerating} title="Delete turn">
@@ -708,7 +830,7 @@
         ↻
       </button>
 
-      <button class="send-btn" onclick={sendTurn} disabled={$isGenerating || !input.trim()} aria-label="Send">
+      <button class="send-btn" onclick={sendTurn} disabled={$isGenerating} aria-label="Send">
         {#if $isGenerating}
           <IconSpinner className="spin" size={16} strokeWidth={2.2} />
         {:else}

@@ -183,6 +183,40 @@ function escapeForInlineJson(value: string): string {
   return value.replace(/\\/g, "\\\\").replace(/"/g, '\\"')
 }
 
+function derefJsonSchema(schema: object): object {
+  const root = schema as Record<string, unknown>
+  const definitions =
+    root && typeof root === "object" && "definitions" in root && typeof root.definitions === "object"
+      ? (root.definitions as Record<string, unknown>)
+      : {}
+
+  const derefNode = (node: unknown): unknown => {
+    if (Array.isArray(node)) return node.map(derefNode)
+    if (!node || typeof node !== "object") return node
+
+    const obj = node as Record<string, unknown>
+    const ref = obj.$ref
+    if (typeof ref === "string" && ref.startsWith("#/definitions/")) {
+      const key = ref.slice("#/definitions/".length)
+      const target = definitions[key]
+      if (target) return derefNode(target)
+    }
+
+    const out: Record<string, unknown> = {}
+    for (const [k, v] of Object.entries(obj)) {
+      if (k === "definitions") continue
+      out[k] = derefNode(v)
+    }
+    return out
+  }
+
+  const resolved = derefNode(root)
+  if (resolved && typeof resolved === "object" && root.$schema && !(resolved as Record<string, unknown>).$schema) {
+    ;(resolved as Record<string, unknown>).$schema = root.$schema
+  }
+  return (resolved ?? schema) as object
+}
+
 function formatNPCs(npcs: NPCState[]): string {
   if (npcs.length === 0) return ""
   return npcs
@@ -205,8 +239,7 @@ function formatRecentHistoryEntries(turns: TurnRow[], maxTurns = 8): string[] {
   if (turns.length === 0) return []
   const recent = turns.slice(-maxTurns)
   return recent.map(
-    (t) =>
-      `> Player: ${t.player_input}\n  Story: ${t.narrative_text.slice(0, 400)}${t.narrative_text.length > 400 ? "..." : ""}`,
+    (t) => `> Player: ${t.player_input}\n  Story: ${t.narrative_text}`,
   )
 }
 
@@ -270,10 +303,15 @@ export function buildTurnMessages(
 
   // Story mode: player injects narrative text directly; AI continues from it
   // Do/Say modes: player action that the AI responds to
+  const hasPlayerInput = playerInput.trim().length > 0
   const actionSection =
     actionMode === "story"
-      ? `=== STORY CONTINUATION (continue naturally from this) ===\n${playerInput}`
-      : `=== PLAYER'S ACTION ===\n${actionMode === "say" ? `You say: ${playerInput}` : playerInput}`
+      ? hasPlayerInput
+        ? `=== STORY CONTINUATION (continue naturally from this) ===\n${playerInput}`
+        : ""
+      : hasPlayerInput
+        ? `=== PLAYER'S ACTION ===\n${actionMode === "say" ? `You say: ${playerInput}` : playerInput}`
+        : ""
 
   const prefixSections = [
     `=== INITIAL CHARACTER (STORY START) ===\n` +
@@ -295,7 +333,7 @@ export function buildTurnMessages(
   ].filter(Boolean) as string[]
 
   const prefix = prefixSections.join("\n\n") + "\n"
-  const suffix = `\n\n${actionSection}`
+  const suffix = actionSection ? `\n\n${actionSection}` : ""
   const baseTokens = estimateTokens(prefix + suffix)
   const history = buildHistoryBlock(recentTurns, world, ctxLimit, baseTokens)
 
@@ -379,7 +417,7 @@ async function callLLMRaw<T>(
     ...sampling,
     response_format: {
       type: "json_schema",
-      json_schema: { name: schemaName, schema },
+      json_schema: { name: schemaName, schema: derefJsonSchema(schema) },
     } as OpenAI.ResponseFormatJSONSchema,
   })
   const content = res.choices[0]?.message?.content

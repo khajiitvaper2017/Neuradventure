@@ -139,9 +139,14 @@ export const UpdateTurnRequestSchema = z.object({
 
 export const TakeTurnRequestSchema = z.object({
   story_id: z.number().int(),
-  player_input: z.string().min(1),
+  player_input: z.string(),
   action_mode: z.enum(["do", "say", "story"]).default("do"),
+  request_id: z.string().min(1).optional(),
 })
+  .refine(
+    (v) => v.action_mode === "story" || v.player_input.trim().length > 0,
+    { message: "player_input is required unless action_mode is story" },
+  )
 
 export const RegenerateLastRequestSchema = z.object({
   story_id: z.number().int(),

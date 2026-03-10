@@ -63,7 +63,12 @@ export interface TurnResult {
   npcs: NPCState[]
 }
 
-export async function processTurn(storyId: number, playerInput: string, actionMode: string): Promise<TurnResult> {
+export async function processTurn(
+  storyId: number,
+  playerInput: string,
+  actionMode: string,
+  requestId?: string,
+): Promise<TurnResult> {
   const story = db.getStory(storyId)
   if (!story) throw new Error(`Story ${storyId} not found`)
 
@@ -88,6 +93,7 @@ export async function processTurn(storyId: number, playerInput: string, actionMo
     storyId,
     turnNumber,
     actionMode,
+    requestId ?? null,
     playerInput,
     turnResponse.narrative_text,
     newCharacter,
@@ -113,6 +119,19 @@ function parseTurnSnapshot(turn: db.TurnRow): { character: MainCharacterState; w
   const world = WorldStateSchema.parse(JSON.parse(turn.world_snapshot_json))
   const npcs = (JSON.parse(turn.npc_snapshot_json) as unknown[]).map((n) => NPCStateSchema.parse(n))
   return { character, world, npcs }
+}
+
+export function buildTurnResultFromRow(turn: db.TurnRow): TurnResult {
+  const snapshot = parseTurnSnapshot(turn)
+  return {
+    turn_id: turn.id,
+    story_id: turn.story_id,
+    turn_number: turn.turn_number,
+    narrative_text: turn.narrative_text,
+    character: snapshot.character,
+    world: snapshot.world,
+    npcs: snapshot.npcs,
+  }
 }
 
 function parseTurnVariantSnapshot(variant: db.TurnVariantRow): {
@@ -233,6 +252,7 @@ export function undoCancelLastTurn(storyId: number): UndoCancelResult {
     storyId,
     canceled.turn_number,
     canceled.action_mode,
+    null,
     canceled.player_input,
     canceled.narrative_text,
     canceled.character,
