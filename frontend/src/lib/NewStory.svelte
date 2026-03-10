@@ -14,6 +14,26 @@
   } from "../stores/game.js"
 
   let submitting = false
+  let generateDescription = ""
+  let generating = false
+
+  async function generate() {
+    if (!generateDescription.trim() || !$pendingCharacter) return
+    generating = true
+    try {
+      const result = await api.generate.story(
+        generateDescription.trim(),
+        $pendingCharacter.name,
+        [...$pendingCharacter.personality_traits, ...$pendingCharacter.custom_traits]
+      )
+      pendingStoryTitle.set(result.title)
+      pendingStoryScenario.set(result.opening_scenario)
+    } catch (err) {
+      showError(err instanceof Error ? err.message : "Generation failed")
+    } finally {
+      generating = false
+    }
+  }
 
   $: charData = $pendingCharacter
 
@@ -58,6 +78,23 @@
   </header>
 
   <div class="form-scroll">
+    <div class="field generate-field">
+      <label for="story-generate">Generate from Description</label>
+      <div class="generate-row">
+        <textarea
+          id="story-generate"
+          bind:value={generateDescription}
+          placeholder="e.g. a heist in a magical library full of forbidden knowledge"
+          rows="2"
+        ></textarea>
+        <button
+          class="btn-ghost generate-btn"
+          onclick={generate}
+          disabled={generating || !generateDescription.trim()}
+        >{generating ? "Generating..." : "✦ Generate"}</button>
+      </div>
+    </div>
+
     <div class="field">
       <label for="story-title">Story Title</label>
       <input id="story-title" type="text" bind:value={$pendingStoryTitle} placeholder="Name your adventure..." />
@@ -195,4 +232,20 @@
     border-top: 1px solid var(--border);
   }
   .full { width: 100%; }
+  .generate-field {
+    background: var(--bg-raised);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 0.75rem;
+  }
+  .generate-row {
+    display: flex;
+    gap: 0.5rem;
+    align-items: flex-start;
+  }
+  .generate-row textarea { flex: 1; }
+  .generate-btn {
+    white-space: nowrap;
+    align-self: stretch;
+  }
 </style>

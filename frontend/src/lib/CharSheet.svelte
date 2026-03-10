@@ -15,7 +15,7 @@
     {#if $character}
       <div class="panel-body">
         <div class="section-label">Identity</div>
-        <div class="value">{$character.name} · {$character.gender}</div>
+        <div class="value">{$character.name} · {$character.race} · {$character.gender}</div>
 
         <div class="section-label">Appearance</div>
         <div class="value">{$character.appearance.physical_description}</div>

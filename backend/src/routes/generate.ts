@@ -1,0 +1,38 @@
+import { Hono } from "hono"
+import { zValidator } from "@hono/zod-validator"
+import { z } from "zod"
+import { generateCharacter, generateStory } from "../llm.js"
+
+const generate = new Hono()
+
+generate.post(
+  "/character",
+  zValidator("json", z.object({ description: z.string().min(1) })),
+  async (c) => {
+    const { description } = c.req.valid("json")
+    try {
+      return c.json(await generateCharacter(description))
+    } catch (err) {
+      return c.json({ error: err instanceof Error ? err.message : "Generation failed" }, 500)
+    }
+  }
+)
+
+generate.post(
+  "/story",
+  zValidator("json", z.object({
+    description: z.string().min(1),
+    character_name: z.string(),
+    character_traits: z.array(z.string()),
+  })),
+  async (c) => {
+    const { description, character_name, character_traits } = c.req.valid("json")
+    try {
+      return c.json(await generateStory(description, character_name, character_traits))
+    } catch (err) {
+      return c.json({ error: err instanceof Error ? err.message : "Generation failed" }, 500)
+    }
+  }
+)
+
+export default generate

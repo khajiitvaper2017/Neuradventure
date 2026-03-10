@@ -34,6 +34,7 @@
         {#each $npcs as npc}
           <div class="npc-card">
             <div class="npc-name">{npc.name}</div>
+            <div class="npc-race">{npc.race}</div>
             <div class="npc-rel" style="color: {relationshipColor(npc.relationship_to_player)}">
               {npc.relationship_to_player}
             </div>
@@ -125,6 +126,11 @@
     font-family: var(--font-story);
     color: var(--text);
     font-size: 1rem;
+  }
+  .npc-race {
+    font-size: 0.8rem;
+    color: var(--text-dim);
+    font-style: italic;
   }
   .npc-rel {
     font-size: 0.8rem;

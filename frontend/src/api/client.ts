@@ -12,7 +12,8 @@ export interface CharacterAppearance {
 
 export interface MainCharacterState {
   name: string
-  gender: "male" | "female" | "other"
+  race: string
+  gender: string
   appearance: CharacterAppearance
   personality_traits: string[]
   custom_traits: string[]
@@ -21,6 +22,7 @@ export interface MainCharacterState {
 
 export interface NPCState {
   name: string
+  race: string
   last_known_location: string
   appearance: CharacterAppearance
   personality_traits: string[]
@@ -72,6 +74,21 @@ export interface TurnSummary {
   player_input: string
   narrative_text: string
   created_at: string
+}
+
+export interface GenerateCharacterResponse {
+  name: string
+  race: string
+  gender: string
+  physical_description: string
+  current_clothing: string
+  personality_traits: string[]
+  custom_traits: string[]
+}
+
+export interface GenerateStoryResponse {
+  title: string
+  opening_scenario: string
 }
 
 export interface TurnResult {
@@ -147,6 +164,19 @@ export const api = {
       request<TurnResult>("/api/turns", {
         method: "POST",
         body: JSON.stringify({ story_id: storyId, player_input: playerInput, action_mode: actionMode }),
+      }),
+  },
+
+  generate: {
+    character: (description: string) =>
+      request<GenerateCharacterResponse>("/api/generate/character", {
+        method: "POST",
+        body: JSON.stringify({ description }),
+      }),
+    story: (description: string, characterName: string, characterTraits: string[]) =>
+      request<GenerateStoryResponse>("/api/generate/story", {
+        method: "POST",
+        body: JSON.stringify({ description, character_name: characterName, character_traits: characterTraits }),
       }),
   },
 }

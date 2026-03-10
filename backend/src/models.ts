@@ -14,7 +14,8 @@ export const CharacterAppearanceSchema = z.object({
 
 export const MainCharacterStateSchema = z.object({
   name: z.string(),
-  gender: z.enum(["male", "female", "other"]),
+  race: z.string(),
+  gender: z.string().min(1),
   appearance: CharacterAppearanceSchema,
   personality_traits: z.array(z.string()),
   custom_traits: z.array(z.string()),
@@ -23,6 +24,7 @@ export const MainCharacterStateSchema = z.object({
 
 export const NPCStateSchema = z.object({
   name: z.string(),
+  race: z.string(),
   last_known_location: z.string(),
   appearance: CharacterAppearanceSchema,
   personality_traits: z.array(z.string()),
@@ -62,11 +64,29 @@ export const TurnResponseSchema = z.object({
   new_npcs: z.array(NPCStateSchema).default([]),
 })
 
+// ─── Generation Response Schemas ─────────────────────────────────────────────
+
+export const GenerateCharacterResponseSchema = z.object({
+  name: z.string(),
+  race: z.string(),
+  gender: z.string().min(1),
+  physical_description: z.string(),
+  current_clothing: z.string(),
+  personality_traits: z.array(z.string()).max(5),
+  custom_traits: z.array(z.string()),
+})
+
+export const GenerateStoryResponseSchema = z.object({
+  title: z.string(),
+  opening_scenario: z.string(),
+})
+
 // ─── API Request / Response Bodies ────────────────────────────────────────────
 
 export const CreateCharacterRequestSchema = z.object({
   name: z.string().min(1),
-  gender: z.enum(["male", "female", "other"]),
+  race: z.string(),
+  gender: z.string().min(1),
   appearance: CharacterAppearanceSchema,
   personality_traits: z.array(z.string()),
   custom_traits: z.array(z.string()),
@@ -81,7 +101,8 @@ export const CreateStoryRequestSchema = z.object({
   character_data: z
     .object({
       name: z.string().min(1),
-      gender: z.enum(["male", "female", "other"]),
+      race: z.string(),
+      gender: z.string().min(1),
       appearance: CharacterAppearanceSchema,
       personality_traits: z.array(z.string()),
       custom_traits: z.array(z.string()),
@@ -113,3 +134,5 @@ export type NPCStateUpdate = z.infer<typeof NPCStateUpdateSchema>
 export type CreateCharacterRequest = z.infer<typeof CreateCharacterRequestSchema>
 export type CreateStoryRequest = z.infer<typeof CreateStoryRequestSchema>
 export type TakeTurnRequest = z.infer<typeof TakeTurnRequestSchema>
+export type GenerateCharacterResponse = z.infer<typeof GenerateCharacterResponseSchema>
+export type GenerateStoryResponse = z.infer<typeof GenerateStoryResponseSchema>

@@ -3,35 +3,10 @@
   import { api } from "../api/client.js"
   import { activeScreen, showError } from "../stores/ui.js"
   import { pendingCharacter } from "../stores/game.js"
+  import config from "../config.json"
 
   // Ordered as opposite pairs — each adjacent pair blocks each other
-  const PERSONALITY_OPTIONS = [
-    "Ambitious",    "Complacent",
-    "Curious",      "Closed-minded",
-    "Idealistic",   "Cynical",
-    "Passionate",   "Apathetic",
-    "Iconoclastic", "Conformist",
-    "Resourceful",  "Helpless",
-    "Courageous",   "Cowardly",
-    "Arrogant",     "Humble",
-    "Greedy",       "Ascetic",
-    "Impulsive",    "Deliberate",
-    "Naive",        "Shrewd",
-    "Selfish",      "Selfless",
-    "Rigid",        "Adaptable",
-    "Deceitful",    "Honest",
-    "Empathetic",   "Callous",
-    "Loyal",        "Treacherous",
-    "Domineering",  "Submissive",
-    "Trusting",     "Paranoid",
-    "Secretive",    "Transparent",
-    "Stubborn",     "Yielding",
-    "Indecisive",   "Decisive",
-    "Obsessive",    "Indifferent",
-    "Vindictive",   "Forgiving",
-    "Honorable",    "Unscrupulous",
-    "Vulnerable",   "Stoic",
-  ]
+  const PERSONALITY_OPTIONS = config.personalityOptions
 
   const OPPOSITES: Record<string, string> = Object.fromEntries(
     PERSONALITY_OPTIONS.reduce<[string, string][]>((acc, _, i, arr) => {
@@ -42,8 +17,35 @@
 
   const existing = get(pendingCharacter)
 
+  let generateDescription = ""
+  let generating = false
+
+  async function generate() {
+    if (!generateDescription.trim()) return
+    generating = true
+    try {
+      const result = await api.generate.character(generateDescription.trim())
+      name = result.name
+      race = result.race
+      gender = result.gender
+      physicalDescription = result.physical_description
+      currentClothing = result.current_clothing
+      selectedTraits = result.personality_traits.filter(t => PERSONALITY_OPTIONS.includes(t)).slice(0, 5)
+      customTraits = result.custom_traits
+    } catch (err) {
+      showError(err instanceof Error ? err.message : "Generation failed")
+    } finally {
+      generating = false
+    }
+  }
+
   let name = existing?.name ?? ""
-  let gender: "male" | "female" | "other" = existing?.gender ?? "female"
+  let race = existing?.race ?? ""
+  let gender: string = existing?.gender ?? "female"
+  $: genderCustom = gender !== "male" && gender !== "female" ? gender : ""
+  function setGenderCustom(val: string) {
+    gender = val || "female"
+  }
   let physicalDescription = existing?.appearance.physical_description ?? ""
   let currentClothing = existing?.appearance.current_clothing ?? ""
   let selectedTraits: string[] = existing?.personality_traits.filter(t => PERSONALITY_OPTIONS.includes(t)) ?? []
@@ -77,6 +79,7 @@
 
   function validate() {
     if (!name.trim()) return "Name is required"
+    if (!race.trim()) return "Race is required"
     if (!physicalDescription.trim()) return "Appearance description is required"
     if (!currentClothing.trim()) return "Current clothing is required"
     return null
@@ -85,6 +88,7 @@
   function buildCharacterData() {
     return {
       name: name.trim(),
+      race: race.trim(),
       gender,
       appearance: {
         physical_description: physicalDescription.trim(),
@@ -121,20 +125,49 @@
   </header>
 
   <div class="form-scroll">
+    <div class="field generate-field">
+      <label for="char-generate">Generate from Description</label>
+      <div class="generate-row">
+        <textarea
+          id="char-generate"
+          bind:value={generateDescription}
+          placeholder="e.g. a grizzled old sailor who lost his family at sea"
+          rows="2"
+        ></textarea>
+        <button
+          class="btn-ghost generate-btn"
+          onclick={generate}
+          disabled={generating || !generateDescription.trim()}
+        >{generating ? "Generating..." : "✦ Generate"}</button>
+      </div>
+    </div>
+
     <div class="field">
       <label for="char-name">Name</label>
       <input id="char-name" type="text" bind:value={name} placeholder="Your character's name" />
     </div>
 
     <div class="field">
+      <label for="char-race">Race</label>
+      <input id="char-race" type="text" bind:value={race} placeholder="e.g. Human, Elf, Dwarf..." />
+    </div>
+
+    <div class="field">
       <label id="gender-label">Gender</label>
-      <div class="toggle-group">
-        {#each (["male", "female", "other"] as const) as g}
+      <div class="gender-row">
+        {#each ["male", "female"] as g}
           <button
             class="toggle {gender === g ? 'active' : ''}"
             onclick={() => (gender = g)}
           >{g.charAt(0).toUpperCase() + g.slice(1)}</button>
         {/each}
+        <input
+          type="text"
+          class="gender-custom {gender !== 'male' && gender !== 'female' ? 'active' : ''}"
+          placeholder="or specify..."
+          value={genderCustom}
+          oninput={(e) => setGenderCustom((e.target as HTMLInputElement).value)}
+        />
       </div>
     </div>
 
@@ -271,9 +304,17 @@
     outline: none;
     border-color: var(--accent);
   }
-  .toggle-group {
+  .gender-row {
     display: flex;
     gap: 0.5rem;
+    align-items: center;
+  }
+  .gender-custom {
+    flex: 1;
+    border-color: var(--border);
+  }
+  .gender-custom.active {
+    border-color: var(--accent);
   }
   .toggle {
     flex: 1;
@@ -327,4 +368,20 @@
     gap: 0.75rem;
   }
   .actions button { flex: 1; }
+  .generate-field {
+    background: var(--bg-raised);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 0.75rem;
+  }
+  .generate-row {
+    display: flex;
+    gap: 0.5rem;
+    align-items: flex-start;
+  }
+  .generate-row textarea { flex: 1; }
+  .generate-btn {
+    white-space: nowrap;
+    align-self: stretch;
+  }
 </style>

@@ -1,6 +1,13 @@
 import OpenAI from "openai"
+import { readFileSync } from "fs"
+import { fileURLToPath } from "url"
+import { dirname, join } from "path"
 import { zodToJsonSchema } from "zod-to-json-schema"
-import { TurnResponseSchema, type MainCharacterState, type NPCState, type TurnResponse, type WorldState } from "./models.js"
+import {
+  TurnResponseSchema, GenerateCharacterResponseSchema, GenerateStoryResponseSchema,
+  type MainCharacterState, type NPCState, type TurnResponse, type WorldState,
+  type GenerateCharacterResponse, type GenerateStoryResponse,
+} from "./models.js"
 import type { TurnRow } from "./db.js"
 
 const openai = new OpenAI({
@@ -8,32 +15,18 @@ const openai = new OpenAI({
   apiKey: "kobold",
 })
 
-const NPC_TRAITS = [
-  "Ambitious", "Complacent", "Curious", "Closed-minded", "Idealistic", "Cynical",
-  "Passionate", "Apathetic", "Iconoclastic", "Conformist", "Resourceful", "Helpless",
-  "Courageous", "Cowardly", "Arrogant", "Humble", "Greedy", "Ascetic",
-  "Impulsive", "Deliberate", "Naive", "Shrewd", "Selfish", "Selfless",
-  "Rigid", "Adaptable", "Deceitful", "Honest", "Empathetic", "Callous",
-  "Loyal", "Treacherous", "Domineering", "Submissive", "Trusting", "Paranoid",
-  "Secretive", "Transparent", "Stubborn", "Yielding", "Indecisive", "Decisive",
-  "Obsessive", "Indifferent", "Vindictive", "Forgiving", "Honorable", "Unscrupulous",
-  "Vulnerable", "Stoic",
-]
+const __dirname = dirname(fileURLToPath(import.meta.url))
+const config: {
+  systemPromptLines: string[]
+  npcTraits: string[]
+  generateCharacterPrompt: string[]
+  generateStoryPrompt: string[]
+} =
+  JSON.parse(readFileSync(join(__dirname, "../config.json"), "utf-8"))
 
-const SYSTEM_PROMPT = `You are a creative and immersive text-based adventure game narrator.
-Write in second-person present tense ("You push open the heavy door...").
-Your prose is vivid, atmospheric, and character-driven.
-
-RULES:
-- Write 2-5 paragraphs of story continuation in narrative_text
-- Never break the fourth wall or add meta-commentary
-- Track all character/NPC state changes accurately
-- Only include NPCs in npc_updates if their state actually changed this turn
-- Only include fields in player_state_update if they actually changed
-- new_npcs should only contain NPCs appearing for the first time
-- world_state_update must always be fully populated with current scene, time, and a 2-3 sentence summary of recent events
-- When assigning personality_traits to new or updated NPCs, prefer traits from this list: ${NPC_TRAITS.join(", ")}
-- You MUST respond with valid JSON matching the provided schema exactly`
+const SYSTEM_PROMPT = config.systemPromptLines
+  .join("\n")
+  .replace("{npcTraits}", config.npcTraits.join(", "))
 
 function formatInventory(inventory: MainCharacterState["inventory"]): string {
   if (inventory.length === 0) return "nothing"
@@ -46,6 +39,7 @@ function formatNPCs(npcs: NPCState[]): string {
     .map(
       (npc) =>
         `[${npc.name}]\n` +
+        `  Race: ${npc.race}\n` +
         `  Location: ${npc.last_known_location}\n` +
         `  Appearance: ${npc.appearance.physical_description}\n` +
         `  Wearing: ${npc.appearance.current_clothing}\n` +
@@ -90,7 +84,7 @@ Time: ${world.time_of_day}
 Recent events: ${world.recent_events_summary}
 
 === YOUR CHARACTER ===
-Name: ${character.name} (${character.gender})
+Name: ${character.name} · ${character.race} · ${character.gender}
 Appearance: ${character.appearance.physical_description}
 Wearing: ${character.appearance.current_clothing}
 Traits: ${[...character.personality_traits, ...character.custom_traits].join(", ")}
@@ -108,26 +102,69 @@ ${actionSection}`
 }
 
 export async function callLLM(messages: OpenAI.ChatCompletionMessageParam[]): Promise<TurnResponse> {
-  const jsonSchema = zodToJsonSchema(TurnResponseSchema, { name: "TurnResponse" })
+  const schema = zodToJsonSchema(TurnResponseSchema, { name: "TurnResponse" })
+  const result = await callLLMRaw<unknown>(messages, "TurnResponse", schema, 1200)
+  return TurnResponseSchema.parse(result)
+}
 
+async function callLLMRaw<T>(
+  messages: OpenAI.ChatCompletionMessageParam[],
+  schemaName: string,
+  schema: object,
+  maxTokens: number
+): Promise<T> {
   const res = await openai.chat.completions.create({
     model: "local",
     messages,
-    max_tokens: 1200,
-    temperature: 0.8,
+    max_tokens: maxTokens,
+    temperature: 0.85,
     response_format: {
       type: "json_schema",
-      json_schema: {
-        name: "TurnResponse",
-        schema: jsonSchema,
-      },
+      json_schema: { name: schemaName, schema },
     } as OpenAI.ResponseFormatJSONSchema,
   })
-
   const content = res.choices[0]?.message?.content
   if (!content) throw new Error("LLM returned empty response")
+  return JSON.parse(content) as T
+}
 
-  return TurnResponseSchema.parse(JSON.parse(content))
+export async function generateCharacter(description: string): Promise<GenerateCharacterResponse> {
+  const schema = zodToJsonSchema(GenerateCharacterResponseSchema, { name: "GenerateCharacterResponse" })
+  const result = await callLLMRaw<unknown>(
+    [
+      {
+        role: "system",
+        content: config.generateCharacterPrompt.join("\n") + `\n\nAvailable personality traits: ${config.npcTraits.join(", ")}`,
+      },
+      { role: "user", content: `Create a character based on this description: "${description}"` },
+    ],
+    "GenerateCharacterResponse",
+    schema,
+    400
+  )
+  return GenerateCharacterResponseSchema.parse(result)
+}
+
+export async function generateStory(
+  description: string,
+  characterName: string,
+  characterTraits: string[]
+): Promise<GenerateStoryResponse> {
+  const schema = zodToJsonSchema(GenerateStoryResponseSchema, { name: "GenerateStoryResponse" })
+  const traitsSuffix = characterTraits.length > 0 ? ` (${characterTraits.join(", ")})` : ""
+  const result = await callLLMRaw<unknown>(
+    [
+      { role: "system", content: config.generateStoryPrompt.join("\n") },
+      {
+        role: "user",
+        content: `Character: ${characterName}${traitsSuffix}\n\nStory description: "${description}"`,
+      },
+    ],
+    "GenerateStoryResponse",
+    schema,
+    300
+  )
+  return GenerateStoryResponseSchema.parse(result)
 }
 
 export async function testConnection(): Promise<boolean> {
