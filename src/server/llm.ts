@@ -5,7 +5,7 @@ import { dirname, join } from "path"
 import { z } from "zod"
 import { zodToJsonSchema } from "zod-to-json-schema"
 import {
-  buildNPCStateUpdateSchema,
+  buildNPCChangesSection,
   TurnResponseSchema,
   GenerateCharacterResponseSchema,
   GenerateCharacterAppearanceResponseSchema,
@@ -420,21 +420,17 @@ function buildSamplingParams(
 }
 
 function buildTurnResponseSchema(knownNpcNames: string[]): z.ZodType<TurnResponse> {
-  const uniqueNames = Array.from(
-    new Set(knownNpcNames.map((name) => name.trim()).filter((name) => name.length > 0)),
-  )
+  const uniqueNames = Array.from(new Set(knownNpcNames.map((name) => name.trim()).filter((name) => name.length > 0)))
 
   if (uniqueNames.length === 0) {
     return TurnResponseSchema.extend({
-      npc_updates: z.array(buildNPCStateUpdateSchema(z.string().min(1))).length(0),
+      npc_changes: z.object({ has_updates: z.literal(false) }).strict(),
     })
   }
 
   const enumValues = uniqueNames as [string, ...string[]]
-  const npcUpdateSchema = buildNPCStateUpdateSchema(z.enum(enumValues))
-
   return TurnResponseSchema.extend({
-    npc_updates: z.array(npcUpdateSchema),
+    npc_changes: buildNPCChangesSection(z.enum(enumValues)),
   })
 }
 

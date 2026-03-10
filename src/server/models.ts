@@ -43,7 +43,14 @@ function normalizeTimeOfDay(value: unknown): string {
     if (match) {
       const hour = Number(match[1])
       const minute = Number(match[2])
-      if (Number.isInteger(hour) && Number.isInteger(minute) && hour >= 0 && hour <= 23 && minute >= 0 && minute <= 59) {
+      if (
+        Number.isInteger(hour) &&
+        Number.isInteger(minute) &&
+        hour >= 0 &&
+        hour <= 23 &&
+        minute >= 0 &&
+        minute <= 59
+      ) {
         return `${hour.toString().padStart(2, "0")}:${minute.toString().padStart(2, "0")}`
       }
     }
@@ -188,10 +195,7 @@ export const NPCStateStoredSchema = z
 
 export const WorldStateSchema = z
   .object({
-    current_scene: z
-      .string()
-      .min(1)
-      .regex(ONE_TO_FIVE_WORDS_REGEX, "current_scene must be 1-5 words"),
+    current_scene: z.string().min(1).regex(ONE_TO_FIVE_WORDS_REGEX, "current_scene must be 1-5 words"),
     day_of_week: z.enum(["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]),
     time_of_day: z.string().regex(TIME_OF_DAY_REGEX, "time_of_day must be 24h HH:MM"),
     recent_events_summary: z
@@ -271,31 +275,35 @@ export const NPCCreationSchema = z
   })
   .strict()
 
-const PlayerStateUpdateBaseSchema = z
-  .object({
-    set_appearance: z.string().min(1).optional(),
-    set_clothing: z.string().min(1).optional(),
-    set_inventory: z.array(InventoryItemSchema).optional(),
-  })
-  .strict()
+// ─── Flag-gated sections (discriminated oneOf via const boolean) ─────────────
 
-const PlayerStateUpdateWithAppearanceSchema = PlayerStateUpdateBaseSchema.extend({
-  set_appearance: z.string().min(1),
-})
+export const AppearanceChangeSection = z.union([
+  z.object({ changed: z.literal(false) }).strict(),
+  z.object({ changed: z.literal(true), description: z.string().min(1) }).strict(),
+])
 
-const PlayerStateUpdateWithClothingSchema = PlayerStateUpdateBaseSchema.extend({
-  set_clothing: z.string().min(1),
-})
+export const ClothingChangeSection = z.union([
+  z.object({ changed: z.literal(false) }).strict(),
+  z.object({ changed: z.literal(true), description: z.string().min(1) }).strict(),
+])
 
-const PlayerStateUpdateWithInventorySchema = PlayerStateUpdateBaseSchema.extend({
-  set_inventory: z.array(InventoryItemSchema),
-})
+export const InventoryChangeSection = z.union([
+  z.object({ changed: z.literal(false) }).strict(),
+  z.object({ changed: z.literal(true), items: z.array(InventoryItemSchema) }).strict(),
+])
 
-export const PlayerStateUpdateSchema = z.union([
-  z.object({}).strict(),
-  PlayerStateUpdateWithAppearanceSchema,
-  PlayerStateUpdateWithClothingSchema,
-  PlayerStateUpdateWithInventorySchema,
+export const buildNPCChangesSection = (nameSchema: z.ZodType<string>) => {
+  const updateSchema = buildNPCStateUpdateSchema(nameSchema)
+  return z.union([
+    z.object({ has_updates: z.literal(false) }).strict(),
+    z.object({ has_updates: z.literal(true), updates: z.array(updateSchema).min(1) }).strict(),
+  ])
+}
+export const NPCChangesSection = buildNPCChangesSection(z.string().min(1))
+
+export const NPCIntroductionsSection = z.union([
+  z.object({ has_new_npcs: z.literal(false) }).strict(),
+  z.object({ has_new_npcs: z.literal(true), npcs: z.array(NPCCreationSchema).min(1) }).strict(),
 ])
 
 export const TurnResponseSchema = z
@@ -305,9 +313,11 @@ export const TurnResponseSchema = z
       .min(1)
       .regex(ONE_OR_TWO_PARAGRAPHS_REGEX, "narrative_text must be 1-2 paragraphs separated by \\n\\n"),
     world_state_update: WorldStateSchema,
-    player_state_update: PlayerStateUpdateSchema.optional(),
-    npc_updates: z.array(NPCStateUpdateSchema),
-    npc_creations: z.array(NPCCreationSchema),
+    appearance_change: AppearanceChangeSection,
+    clothing_change: ClothingChangeSection,
+    inventory_change: InventoryChangeSection,
+    npc_changes: NPCChangesSection,
+    npc_introductions: NPCIntroductionsSection,
   })
   .strict()
 

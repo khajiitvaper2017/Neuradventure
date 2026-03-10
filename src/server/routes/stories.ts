@@ -62,9 +62,7 @@ stories.get("/:id", (c) => {
   const row = db.getStory(id)
   if (!row) return c.json({ error: "Story not found" }, 404)
   const world = WorldStateStoredSchema.parse(JSON.parse(row.world_state_json))
-  const initialWorld = WorldStateStoredSchema.parse(
-    JSON.parse(row.initial_world_state_json ?? row.world_state_json),
-  )
+  const initialWorld = WorldStateStoredSchema.parse(JSON.parse(row.initial_world_state_json ?? row.world_state_json))
   return c.json({
     id: row.id,
     title: row.title,

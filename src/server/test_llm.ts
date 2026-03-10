@@ -4,6 +4,7 @@ import type { MainCharacterState, NPCState, WorldState } from "./models.js"
 
 const character: MainCharacterState = {
   name: "Kira",
+  race: "Human",
   gender: "female",
   appearance: {
     physical_description: "tall, athletic, dark braided hair, green eyes",
@@ -45,8 +46,11 @@ async function main() {
   console.log("\n=== LLM Response ===")
   console.log("Narrative:", response.narrative_text)
   console.log("\nWorld update:", response.world_state_update)
-  console.log("Player update:", response.player_state_update)
-  console.log("NPC updates:", response.npc_updates)
+  console.log("Appearance change:", response.appearance_change)
+  console.log("Clothing change:", response.clothing_change)
+  console.log("Inventory change:", response.inventory_change)
+  console.log("NPC changes:", response.npc_changes)
+  console.log("NPC introductions:", response.npc_introductions)
 }
 
 main().catch(console.error)
