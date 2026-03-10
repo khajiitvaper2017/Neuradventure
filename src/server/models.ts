@@ -92,7 +92,8 @@ export const GenerateCharacterTraitsResponseSchema = z.object({
 export const GenerateStoryResponseSchema = z.object({
   title: z.string(),
   opening_scenario: z.string(),
-  pregen_npcs: z.array(NPCStateSchema).default([]),
+  starting_location: z.string().min(1),
+  pregen_npcs: z.array(NPCStateSchema),
 })
 
 // ─── API Request / Response Bodies ────────────────────────────────────────────

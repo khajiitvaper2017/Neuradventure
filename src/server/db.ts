@@ -51,7 +51,7 @@ export interface SettingsState {
 }
 
 const DEFAULT_GENERATION: GenerationParams = {
-  max_tokens: 1200,
+  max_tokens: 1500,
   temperature: 0.85,
   top_k: 40,
   top_p: 0.95,

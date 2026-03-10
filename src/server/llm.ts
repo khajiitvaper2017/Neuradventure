@@ -232,7 +232,6 @@ export async function generateCharacter(description: string): Promise<GenerateCh
     ],
     "GenerateCharacterResponse",
     schema,
-    1000,
   )
   return GenerateCharacterResponseSchema.parse(result)
 }
@@ -323,7 +322,6 @@ export async function generateCharacterPart(
         ? "GenerateCharacterTraitsResponse"
         : "GenerateCharacterClothingResponse",
     schema,
-    500,
   )
 
   return part === "appearance"
@@ -350,7 +348,6 @@ export async function generateStory(
     ],
     "GenerateStoryResponse",
     schema,
-    300,
   )
   return GenerateStoryResponseSchema.parse(result)
 }

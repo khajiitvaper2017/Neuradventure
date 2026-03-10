@@ -105,6 +105,7 @@ export interface GenerateCharacterContext {
 export interface GenerateStoryResponse {
   title: string
   opening_scenario: string
+  starting_location: string
   pregen_npcs: NPCState[]
 }
 

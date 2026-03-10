@@ -69,6 +69,7 @@
       ])
       pendingStoryTitle.set(result.title)
       pendingStoryScenario.set(result.opening_scenario)
+      pendingStoryLocation.set(result.starting_location)
       pendingStoryNPCs.set(result.pregen_npcs ?? [])
     } catch (err) {
       showError(err instanceof Error ? err.message : "Generation failed")

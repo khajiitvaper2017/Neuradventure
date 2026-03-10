@@ -2,7 +2,7 @@
   "name": "ChatML (Nitral)",
   "description": "Nitral baseline — temp-last, min_p 0.1, no rep penalty",
   "params": {
-    "max_tokens": 1200,
+    "max_tokens": 1500,
     "temperature": 0.85,
     "top_k": 40,
     "top_p": 1.0,
