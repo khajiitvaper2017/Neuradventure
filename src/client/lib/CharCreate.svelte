@@ -231,7 +231,6 @@
     pendingCharacter.set(buildCharacterData())
     navigate("new-story")
   }
-
 </script>
 
 <div class="screen char-create">

@@ -74,7 +74,9 @@ settings.put("/", zValidator("json", SettingsUpdateSchema), (c) => {
 })
 
 settings.get("/presets", (c) => {
-  const files = readdirSync(PRESETS_DIR).filter((f) => f.endsWith(".json")).sort()
+  const files = readdirSync(PRESETS_DIR)
+    .filter((f) => f.endsWith(".json"))
+    .sort()
   const presets = files.map((f) => JSON.parse(readFileSync(join(PRESETS_DIR, f), "utf-8")))
   return c.json(presets)
 })

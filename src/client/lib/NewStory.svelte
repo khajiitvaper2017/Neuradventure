@@ -214,7 +214,12 @@
           {#if showCharacterDropdown}
             <div class="saved-select-menu" role="listbox">
               {#each savedCharacters as c}
-                <button class="saved-select-item" role="option" aria-selected={selectedCharacterKey === c.key} onclick={() => selectCharacter(c.key)}>
+                <button
+                  class="saved-select-item"
+                  role="option"
+                  aria-selected={selectedCharacterKey === c.key}
+                  onclick={() => selectCharacter(c.key)}
+                >
                   {c.character.name}
                 </button>
               {/each}

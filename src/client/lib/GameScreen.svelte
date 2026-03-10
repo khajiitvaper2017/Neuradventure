@@ -151,7 +151,6 @@
       .map((p) => p.trim())
       .filter(Boolean)
   }
-
 </script>
 
 <div class="screen game">
