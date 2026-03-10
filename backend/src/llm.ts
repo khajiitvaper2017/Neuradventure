@@ -1,5 +1,5 @@
 import OpenAI from "openai"
-import { readFileSync } from "fs"
+import { readFileSync, statSync } from "fs"
 import { fileURLToPath } from "url"
 import { dirname, join } from "path"
 import { zodToJsonSchema } from "zod-to-json-schema"
@@ -16,19 +16,34 @@ const openai = new OpenAI({
 })
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
-const config: {
+type PromptConfig = {
   systemPromptLines: string[]
   generateCharacterPrompt: string[]
   generateStoryPrompt: string[]
-} =
-  JSON.parse(readFileSync(join(__dirname, "../config.json"), "utf-8"))
+}
+
+const CONFIG_PATH = join(__dirname, "../config.json")
+let cachedConfig: PromptConfig | null = null
+let cachedConfigMtime = 0
+
+function getConfig(): PromptConfig {
+  const stat = statSync(CONFIG_PATH)
+  if (!cachedConfig || stat.mtimeMs !== cachedConfigMtime) {
+    cachedConfig = JSON.parse(readFileSync(CONFIG_PATH, "utf-8")) as PromptConfig
+    cachedConfigMtime = stat.mtimeMs
+  }
+  return cachedConfig
+}
 
 const npcTraits: string[] =
   JSON.parse(readFileSync(join(__dirname, "../../shared/traits.json"), "utf-8"))
 
-const SYSTEM_PROMPT = config.systemPromptLines
-  .join("\n")
-  .replace("{npcTraits}", npcTraits.join(", "))
+function getSystemPrompt(): string {
+  return getConfig()
+    .systemPromptLines
+    .join("\n")
+    .replace("{npcTraits}", npcTraits.join(", "))
+}
 
 function formatInventory(inventory: MainCharacterState["inventory"]): string {
   if (inventory.length === 0) return "nothing"
@@ -98,7 +113,7 @@ ${formatRecentHistory(recentTurns)}
 ${actionSection}`
 
   return [
-    { role: "system", content: SYSTEM_PROMPT },
+    { role: "system", content: getSystemPrompt() },
     { role: "user", content: contextBlock },
   ]
 }
@@ -136,13 +151,13 @@ export async function generateCharacter(description: string): Promise<GenerateCh
     [
       {
         role: "system",
-        content: config.generateCharacterPrompt.join("\n") + `\n\nAvailable personality traits: ${npcTraits.join(", ")}`,
+        content: getConfig().generateCharacterPrompt.join("\n") + `\n\nAvailable personality traits: ${npcTraits.join(", ")}`,
       },
       { role: "user", content: `Create a character based on this description: "${description}"` },
     ],
     "GenerateCharacterResponse",
     schema,
-    400
+    1000
   )
   return GenerateCharacterResponseSchema.parse(result)
 }
@@ -156,7 +171,7 @@ export async function generateStory(
   const traitsSuffix = characterTraits.length > 0 ? ` (${characterTraits.join(", ")})` : ""
   const result = await callLLMRaw<unknown>(
     [
-      { role: "system", content: config.generateStoryPrompt.join("\n") },
+      { role: "system", content: getConfig().generateStoryPrompt.join("\n") },
       {
         role: "user",
         content: `Character: ${characterName}${traitsSuffix}\n\nStory description: "${description}"`,

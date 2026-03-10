@@ -10,8 +10,37 @@
   import NPCTracker from "./lib/NPCTracker.svelte"
   import Settings from "./lib/Settings.svelte"
 
+  let appEl: HTMLDivElement | null = null
+
+  function isVisible(el: HTMLElement): boolean {
+    return !!(el.offsetWidth || el.offsetHeight || el.getClientRects().length)
+  }
+
+  function pickScrollRoot(scope: ParentNode): HTMLElement | null {
+    const modal = scope.querySelector<HTMLElement>('[data-scroll-root="modal"]')
+    if (modal && isVisible(modal)) return modal
+    const screen = scope.querySelector<HTMLElement>('[data-scroll-root="screen"]')
+    if (screen && isVisible(screen)) return screen
+    return null
+  }
+
+  function handleWheel(e: WheelEvent) {
+    if (e.defaultPrevented) return
+    const target = e.target as HTMLElement | null
+    if (!appEl || !target) return
+    if (target.closest("[data-scroll-root]")) return
+    const root = pickScrollRoot(appEl)
+    if (!root) return
+    const max = root.scrollHeight - root.clientHeight
+    if (max <= 0) return
+    root.scrollTop = Math.max(0, Math.min(root.scrollTop + e.deltaY, max))
+    e.preventDefault()
+  }
+
   onMount(() => {
     void initSettings()
+    window.addEventListener("wheel", handleWheel, { passive: false })
+    return () => window.removeEventListener("wheel", handleWheel)
   })
 </script>
 
@@ -19,6 +48,7 @@
   class="app"
   class:theme-amoled={$theme === "amoled"}
   class:design-roboto={$design === "roboto"}
+  bind:this={appEl}
 >
   {#if $activeScreen === "home"}
     <HomeScreen />

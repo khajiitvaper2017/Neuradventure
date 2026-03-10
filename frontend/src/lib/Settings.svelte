@@ -9,7 +9,7 @@
     <h2>Settings</h2>
   </header>
 
-  <div class="list">
+  <div class="list" data-scroll-root="screen">
 
     <!-- Theme section -->
     <div class="section-label">Theme</div>

@@ -7,6 +7,10 @@
 
   // Ordered as opposite pairs — each adjacent pair blocks each other
   const PERSONALITY_OPTIONS = personalityOptions
+  const normalizeKey = (t: string) => t.trim().toLowerCase()
+  const PERSONALITY_CANONICAL: Record<string, string> = Object.fromEntries(
+    PERSONALITY_OPTIONS.map((t) => [normalizeKey(t), t])
+  )
 
   const OPPOSITES: Record<string, string> = Object.fromEntries(
     PERSONALITY_OPTIONS.reduce<[string, string][]>((acc, _, i, arr) => {
@@ -16,6 +20,25 @@
   )
 
   const existing = get(pendingCharacter)
+  const splitPersonalityTraits = (traits: string[]) => {
+    const cleaned = traits.map((t) => t.trim()).filter(Boolean)
+    const selectedMap = new Map<string, string>()
+    const customMap = new Map<string, string>()
+    for (const raw of cleaned) {
+      const key = normalizeKey(raw)
+      const canonical = PERSONALITY_CANONICAL[key]
+      if (canonical) {
+        if (!selectedMap.has(key)) selectedMap.set(key, canonical)
+      } else if (!customMap.has(key)) {
+        customMap.set(key, raw)
+      }
+    }
+    const selected = Array.from(selectedMap.values()).slice(0, 5)
+    const remaining = 5 - selected.length
+    const custom = Array.from(customMap.values()).slice(0, remaining)
+    return { selected, custom }
+  }
+  const initialPersonality = splitPersonalityTraits(existing?.personality_traits ?? [])
 
   let generateDescription = ""
   let generating = false
@@ -30,7 +53,9 @@
       gender = result.gender
       physicalDescription = result.physical_description
       currentClothing = result.current_clothing
-      selectedTraits = result.personality_traits.filter(t => PERSONALITY_OPTIONS.includes(t)).slice(0, 5)
+      const split = splitPersonalityTraits(result.personality_traits)
+      selectedTraits = split.selected
+      customPersonalityTraits = split.custom
       customTraits = result.custom_traits
     } catch (err) {
       showError(err instanceof Error ? err.message : "Generation failed")
@@ -48,9 +73,12 @@
   }
   let physicalDescription = existing?.appearance.physical_description ?? ""
   let currentClothing = existing?.appearance.current_clothing ?? ""
-  let selectedTraits: string[] = existing?.personality_traits.filter(t => PERSONALITY_OPTIONS.includes(t)) ?? []
+  let selectedTraits: string[] = initialPersonality.selected
+  let customPersonalityInput = ""
+  let customPersonalityTraits: string[] = initialPersonality.custom
   let customTraitInput = ""
   let customTraits: string[] = existing?.custom_traits ?? []
+  $: totalPersonalityCount = selectedTraits.length + customPersonalityTraits.length
 
   function isBlocked(trait: string): boolean {
     const opp = OPPOSITES[trait]
@@ -60,9 +88,32 @@
   function toggleTrait(trait: string) {
     if (selectedTraits.includes(trait)) {
       selectedTraits = selectedTraits.filter((t) => t !== trait)
-    } else if (selectedTraits.length < 5 && !isBlocked(trait)) {
+    } else if (totalPersonalityCount < 5 && !isBlocked(trait)) {
       selectedTraits = [...selectedTraits, trait]
     }
+  }
+
+  function addCustomPersonalityTrait() {
+    const t = customPersonalityInput.trim()
+    if (!t || totalPersonalityCount >= 5) return
+    const key = normalizeKey(t)
+    const canonical = PERSONALITY_CANONICAL[key]
+    if (canonical) {
+      if (!selectedTraits.includes(canonical) && !isBlocked(canonical)) {
+        selectedTraits = [...selectedTraits, canonical]
+      }
+      customPersonalityInput = ""
+      return
+    }
+    const existingCustomKeys = new Set(customPersonalityTraits.map(normalizeKey))
+    if (!existingCustomKeys.has(key)) {
+      customPersonalityTraits = [...customPersonalityTraits, t]
+    }
+    customPersonalityInput = ""
+  }
+
+  function removeCustomPersonalityTrait(t: string) {
+    customPersonalityTraits = customPersonalityTraits.filter((x) => x !== t)
   }
 
   function addCustomTrait() {
@@ -86,6 +137,19 @@
   }
 
   function buildCharacterData() {
+    const seen = new Set<string>()
+    const uniquePersonality = (traits: string[]) => {
+      const out: string[] = []
+      for (const raw of traits) {
+        const t = raw.trim()
+        if (!t) continue
+        const key = normalizeKey(t)
+        if (seen.has(key)) continue
+        seen.add(key)
+        out.push(t)
+      }
+      return out
+    }
     return {
       name: name.trim(),
       race: race.trim(),
@@ -94,7 +158,7 @@
         physical_description: physicalDescription.trim(),
         current_clothing: currentClothing.trim(),
       },
-      personality_traits: selectedTraits,
+      personality_traits: uniquePersonality([...selectedTraits, ...customPersonalityTraits]).slice(0, 5),
       custom_traits: customTraits,
     }
   }
@@ -124,7 +188,7 @@
     <h2>Create Character</h2>
   </header>
 
-  <div class="form-scroll">
+  <div class="form-scroll" data-scroll-root="screen">
     <div class="field generate-field">
       <label for="char-generate">Generate from Description</label>
       <div class="generate-row">
@@ -198,10 +262,34 @@
           <button
             class="chip {selectedTraits.includes(trait) ? 'selected' : ''}"
             onclick={() => toggleTrait(trait)}
-            disabled={!selectedTraits.includes(trait) && (selectedTraits.length >= 5 || isBlocked(trait))}
+            disabled={!selectedTraits.includes(trait) && (totalPersonalityCount >= 5 || isBlocked(trait))}
           >{trait}</button>
         {/each}
       </div>
+    </div>
+
+    <div class="field">
+      <label for="custom-personality-input">Custom Personality Traits <span class="hint">(optional, counts toward 5)</span></label>
+      <div class="custom-input">
+        <input
+          id="custom-personality-input"
+          type="text"
+          bind:value={customPersonalityInput}
+          placeholder="e.g. Recklessly brave"
+          disabled={totalPersonalityCount >= 5}
+          onkeydown={(e) => { if (e.key === "Enter") { e.preventDefault(); addCustomPersonalityTrait() } }}
+        />
+        <button class="btn-ghost" onclick={addCustomPersonalityTrait} disabled={totalPersonalityCount >= 5}>
+          + Add
+        </button>
+      </div>
+      {#if customPersonalityTraits.length > 0}
+        <div class="chips">
+          {#each customPersonalityTraits as t}
+            <button class="chip selected" onclick={() => removeCustomPersonalityTrait(t)}>{t} ×</button>
+          {/each}
+        </div>
+      {/if}
     </div>
 
     <div class="field">

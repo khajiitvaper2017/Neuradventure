@@ -13,7 +13,7 @@
       <button onclick={() => showCharSheet.set(false)}>×</button>
     </div>
     {#if $character}
-      <div class="panel-body">
+      <div class="panel-body" data-scroll-root="modal">
         <div class="section-label">Identity</div>
         <div class="value">{$character.name} · {$character.race} · {$character.gender}</div>
 

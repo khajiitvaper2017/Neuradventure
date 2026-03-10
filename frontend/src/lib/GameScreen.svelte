@@ -129,7 +129,7 @@
   </header>
 
   <!-- ── Story scroll area ───────────────────────────────── -->
-  <div class="story-area" bind:this={storyDiv}>
+  <div class="story-area" data-scroll-root="screen" bind:this={storyDiv}>
     <!-- Opening scene context -->
     {#if $worldState}
       <p class="scene-crumb">

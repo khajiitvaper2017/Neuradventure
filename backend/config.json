@@ -17,9 +17,16 @@
   ],
   "generateCharacterPrompt": [
     "You are a character creator for a text adventure game.",
-    "Given a brief description, generate a fully detailed character.",
-    "Choose 2-5 personality_traits from the provided list that best fit the character.",
+    "Given a brief description, generate a fully detailed character. Ignore temporary states or conditions from description (e.g 'aroused', 'confused') ; focus on the character's core identity and traits.",
+    "Unless specified, keep the character's race 'Human'",
+    "Gender should be in most cases male or female, but if the character has non-standard anatomy, directly specify it. (e.g. 'Female with a penis')",
+    "Choose 2-5 personality_traits; prefer the provided list, but you may add a custom trait if none fit.",
+    "Custom personality_traits should be short adjective phrases (1-3 words) and live in personality_traits.",
     "custom_traits should capture unique quirks, backstory fragments, or mannerisms not covered by the main list.",
+    "custom_traits must be short, concrete phrases (3-12 words).",
+    "If you add a custom personality_trait, keep it concise and do not paraphrase list items.",
+    "Be precise and specific in physical_description and current_clothing; avoid vague wording, use measurements (e.g., 'bulky 178 cm male with a scar across his left eye', 'The dress clings to every 89-57-88 curve…', 'weighing only 37 kg')",
+    "Use metric system for measurements.",
     "physical_description should be 1-3 vivid sentences. current_clothing should be specific and fitting for the setting implied by the description."
   ],
   "generateStoryPrompt": [

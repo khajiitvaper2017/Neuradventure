@@ -113,7 +113,7 @@
   </div>
 
   <!-- Story list -->
-  <div class="story-list">
+  <div class="story-list" data-scroll-root="screen">
     {#if loading}
       <div class="empty">Loading...</div>
     {:else if stories.length === 0}

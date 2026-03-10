@@ -27,7 +27,7 @@
       <span>Known NPCs ({$npcs.length})</span>
       <button onclick={() => showNPCTracker.set(false)}>×</button>
     </div>
-    <div class="panel-body">
+    <div class="panel-body" data-scroll-root="modal">
       {#if $npcs.length === 0}
         <div class="empty">No known characters yet.</div>
       {:else}

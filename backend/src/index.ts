@@ -1,9 +1,13 @@
-import { serve } from "@hono/node-server"
+import { getRequestListener, serve } from "@hono/node-server"
 import { serveStatic } from "@hono/node-server/serve-static"
 import { Hono } from "hono"
 import { cors } from "hono/cors"
 import { logger } from "hono/logger"
 import os from "node:os"
+import { createServer as createHttpServer } from "node:http"
+import { readFile } from "node:fs/promises"
+import { fileURLToPath } from "node:url"
+import { dirname, resolve } from "node:path"
 import { initDb } from "./db.js"
 import characters from "./routes/characters.js"
 import stories from "./routes/stories.js"
@@ -16,6 +20,10 @@ console.log("Database initialized")
 
 const app = new Hono()
 const isDev = process.env.NODE_ENV !== "production"
+const backendDir = dirname(fileURLToPath(import.meta.url))
+const repoRoot = resolve(backendDir, "../..")
+const frontendRoot = resolve(repoRoot, "frontend")
+const frontendIndexHtml = resolve(frontendRoot, "index.html")
 
 app.use(logger())
 app.use(
@@ -33,13 +41,10 @@ app.route("/api/turns", turns)
 app.route("/api/generate", generate)
 app.route("/api/settings", settings)
 
-// Serve built frontend in production
-app.use("/*", serveStatic({ root: "../frontend/dist" }))
-
 const PORT = 3001
 const HOST = process.env.HOST ?? "0.0.0.0"
 
-serve({ fetch: app.fetch, port: PORT, hostname: HOST }, () => {
+const logServerStart = () => {
   console.log(`Neuradventure backend running at http://${HOST}:${PORT}`)
   console.log(`API docs: http://localhost:${PORT}/api/stories`)
   const lanIps = Object.values(os.networkInterfaces())
@@ -52,6 +57,72 @@ serve({ fetch: app.fetch, port: PORT, hostname: HOST }, () => {
       console.log(`  http://${ip}:${PORT}`)
     }
   }
+}
+
+const startServer = async () => {
+  if (isDev) {
+    const { createServer: createViteServer } = await import("vite")
+    const honoListener = getRequestListener(app.fetch)
+    let vite: Awaited<ReturnType<typeof createViteServer>> | null = null
+    const server = createHttpServer(async (req, res) => {
+      const url = req.url ?? "/"
+      if (url.startsWith("/api")) {
+        await honoListener(req, res)
+        return
+      }
+
+      try {
+        await new Promise<void>((resolve, reject) => {
+          if (!vite) {
+            resolve()
+            return
+          }
+          vite.middlewares(req, res, (err) => {
+            if (err) {
+              reject(err)
+              return
+            }
+            resolve()
+          })
+        })
+
+        if (res.writableEnded || !vite) {
+          return
+        }
+
+        const template = await readFile(frontendIndexHtml, "utf-8")
+        const html = await vite.transformIndexHtml(url, template)
+        res.statusCode = 200
+        res.setHeader("Content-Type", "text/html")
+        res.end(html)
+      } catch (err) {
+        if (vite && err instanceof Error) {
+          vite.ssrFixStacktrace(err)
+        }
+        console.error(err)
+        res.statusCode = 500
+        res.end("Internal Server Error")
+      }
+    })
+
+    vite = await createViteServer({
+      root: frontendRoot,
+      server: { middlewareMode: true, hmr: { server } },
+      appType: "custom",
+    })
+
+    server.listen(PORT, HOST, logServerStart)
+    return
+  }
+
+  // Serve built frontend in production
+  app.use("/*", serveStatic({ root: "../frontend/dist" }))
+  serve({ fetch: app.fetch, port: PORT, hostname: HOST }, logServerStart)
+}
+
+startServer().catch((err) => {
+  console.error("Failed to start server", err)
+  process.exit(1)
 })
 
 export default app

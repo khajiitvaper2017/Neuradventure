@@ -77,7 +77,7 @@
     <h2>New Story</h2>
   </header>
 
-  <div class="form-scroll">
+  <div class="form-scroll" data-scroll-root="screen">
     <div class="field generate-field">
       <label for="story-generate">Generate from Description</label>
       <div class="generate-row">

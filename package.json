@@ -4,9 +4,9 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "concurrently \"npm run dev:backend\" \"npm run dev:frontend\"",
+    "dev": "tsx watch --tsconfig backend/tsconfig.json backend/src/index.ts",
     "dev:backend": "tsx watch --tsconfig backend/tsconfig.json backend/src/index.ts",
-    "dev:frontend": "cd frontend && vite",
+    "dev:frontend": "cd frontend && vite build --watch",
     "start": "tsx --tsconfig backend/tsconfig.json backend/src/index.ts",
     "build": "cd frontend && vite build",
     "preview": "cd frontend && vite preview",
