@@ -65,6 +65,8 @@ export interface StoryCharacterGroup {
 export interface TurnSummary {
   id: number
   turn_number: number
+  action_mode?: "do" | "say" | "story"
+  active_variant_id?: number | null
   player_input: string
   narrative_text: string
   created_at: string
@@ -117,6 +119,29 @@ export interface TurnResult {
   character: MainCharacterState
   world: WorldState
   npcs: NPCState[]
+}
+
+export interface CancelLastResult {
+  removed_turn_id: number
+  character: MainCharacterState
+  world: WorldState
+  npcs: NPCState[]
+}
+
+export interface TurnVariantSummary {
+  id: number
+  variant_index: number
+  narrative_text: string
+  created_at: string
+}
+
+export interface TurnVariantsResponse {
+  active_variant_id: number | null
+  variants: TurnVariantSummary[]
+}
+
+export interface SelectTurnVariantResult extends TurnResult {
+  active_variant_id: number
 }
 
 export interface GenerationParams {
@@ -241,6 +266,22 @@ export const api = {
       request<TurnResult>("/api/turns", {
         method: "POST",
         body: JSON.stringify({ story_id: storyId, player_input: playerInput, action_mode: actionMode }),
+      }),
+    regenerateLast: (storyId: number, actionMode: "do" | "say" | "story") =>
+      request<TurnResult>("/api/turns/regenerate-last", {
+        method: "POST",
+        body: JSON.stringify({ story_id: storyId, action_mode: actionMode }),
+      }),
+    cancelLast: (storyId: number) =>
+      request<CancelLastResult>("/api/turns/cancel-last", {
+        method: "POST",
+        body: JSON.stringify({ story_id: storyId }),
+      }),
+    variants: (turnId: number) => request<TurnVariantsResponse>(`/api/turns/${turnId}/variants`),
+    selectVariant: (turnId: number, variantId: number) =>
+      request<SelectTurnVariantResult>(`/api/turns/${turnId}/variants/select`, {
+        method: "POST",
+        body: JSON.stringify({ variant_id: variantId }),
       }),
     update: (turnId: number, data: { player_input?: string; narrative_text?: string }) =>
       request<{ ok: boolean }>(`/api/turns/${turnId}`, { method: "PUT", body: JSON.stringify(data) }),

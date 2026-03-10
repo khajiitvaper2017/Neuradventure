@@ -109,6 +109,9 @@ export function initDb() {
       character_state_json  TEXT NOT NULL,
       world_state_json      TEXT NOT NULL,
       npc_states_json       TEXT NOT NULL,
+      initial_character_state_json  TEXT NOT NULL,
+      initial_world_state_json      TEXT NOT NULL,
+      initial_npc_states_json       TEXT NOT NULL,
       created_at            TEXT NOT NULL DEFAULT (datetime('now')),
       updated_at            TEXT NOT NULL DEFAULT (datetime('now'))
     );
@@ -117,6 +120,8 @@ export function initDb() {
       id                        INTEGER PRIMARY KEY AUTOINCREMENT,
       story_id                  INTEGER NOT NULL REFERENCES stories(id) ON DELETE CASCADE,
       turn_number               INTEGER NOT NULL,
+      action_mode               TEXT NOT NULL DEFAULT 'do',
+      active_variant_id         INTEGER,
       player_input              TEXT NOT NULL,
       narrative_text            TEXT NOT NULL,
       character_snapshot_json   TEXT NOT NULL,
@@ -127,11 +132,81 @@ export function initDb() {
 
     CREATE INDEX IF NOT EXISTS idx_turns_story ON turns(story_id, turn_number);
 
+    CREATE TABLE IF NOT EXISTS turn_variants (
+      id                        INTEGER PRIMARY KEY AUTOINCREMENT,
+      turn_id                   INTEGER NOT NULL REFERENCES turns(id) ON DELETE CASCADE,
+      variant_index             INTEGER NOT NULL,
+      narrative_text            TEXT NOT NULL,
+      character_snapshot_json   TEXT NOT NULL,
+      world_snapshot_json       TEXT NOT NULL,
+      npc_snapshot_json         TEXT NOT NULL,
+      created_at                TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_turn_variants_turn ON turn_variants(turn_id, variant_index);
+
     CREATE TABLE IF NOT EXISTS settings (
       id            INTEGER PRIMARY KEY CHECK (id = 1),
       settings_json TEXT NOT NULL,
       updated_at    TEXT NOT NULL DEFAULT (datetime('now'))
     );
+  `)
+
+  const storyColumns = database.prepare("PRAGMA table_info(stories)").all() as { name: string }[]
+  const storyColumnNames = new Set(storyColumns.map((c) => c.name))
+  if (!storyColumnNames.has("initial_character_state_json")) {
+    database.exec("ALTER TABLE stories ADD COLUMN initial_character_state_json TEXT")
+  }
+  if (!storyColumnNames.has("initial_world_state_json")) {
+    database.exec("ALTER TABLE stories ADD COLUMN initial_world_state_json TEXT")
+  }
+  if (!storyColumnNames.has("initial_npc_states_json")) {
+    database.exec("ALTER TABLE stories ADD COLUMN initial_npc_states_json TEXT")
+  }
+  database.exec(`
+    UPDATE stories
+    SET initial_character_state_json = COALESCE(initial_character_state_json, character_state_json),
+        initial_world_state_json = COALESCE(initial_world_state_json, world_state_json),
+        initial_npc_states_json = COALESCE(initial_npc_states_json, npc_states_json)
+  `)
+
+  const turnColumns = database.prepare("PRAGMA table_info(turns)").all() as { name: string }[]
+  const turnColumnNames = new Set(turnColumns.map((c) => c.name))
+  if (!turnColumnNames.has("action_mode")) {
+    database.exec("ALTER TABLE turns ADD COLUMN action_mode TEXT NOT NULL DEFAULT 'do'")
+  }
+  if (!turnColumnNames.has("active_variant_id")) {
+    database.exec("ALTER TABLE turns ADD COLUMN active_variant_id INTEGER")
+  }
+
+  database.exec(`
+    INSERT INTO turn_variants (
+      turn_id,
+      variant_index,
+      narrative_text,
+      character_snapshot_json,
+      world_snapshot_json,
+      npc_snapshot_json,
+      created_at
+    )
+    SELECT
+      t.id,
+      1,
+      t.narrative_text,
+      t.character_snapshot_json,
+      t.world_snapshot_json,
+      t.npc_snapshot_json,
+      t.created_at
+    FROM turns t
+    WHERE NOT EXISTS (SELECT 1 FROM turn_variants tv WHERE tv.turn_id = t.id)
+  `)
+
+  database.exec(`
+    UPDATE turns
+    SET active_variant_id = COALESCE(
+      active_variant_id,
+      (SELECT tv.id FROM turn_variants tv WHERE tv.turn_id = turns.id ORDER BY tv.variant_index DESC LIMIT 1)
+    )
   `)
 
   const settingsRow = database.prepare("SELECT settings_json FROM settings WHERE id = 1").get() as
@@ -151,6 +226,9 @@ export interface StoryRow {
   character_state_json: string
   world_state_json: string
   npc_states_json: string
+  initial_character_state_json: string | null
+  initial_world_state_json: string | null
+  initial_npc_states_json: string | null
   created_at: string
   updated_at: string
 }
@@ -193,10 +271,28 @@ export function createStory(
 ): number {
   const result = getDb()
     .prepare(
-      `INSERT INTO stories (title, opening_scenario, character_state_json, world_state_json, npc_states_json)
-       VALUES (?, ?, ?, ?, ?)`,
+      `INSERT INTO stories (
+        title,
+        opening_scenario,
+        character_state_json,
+        world_state_json,
+        npc_states_json,
+        initial_character_state_json,
+        initial_world_state_json,
+        initial_npc_states_json
+      )
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
     )
-    .run(title, opening_scenario, JSON.stringify(character), JSON.stringify(world), JSON.stringify(npcs))
+    .run(
+      title,
+      opening_scenario,
+      JSON.stringify(character),
+      JSON.stringify(world),
+      JSON.stringify(npcs),
+      JSON.stringify(character),
+      JSON.stringify(world),
+      JSON.stringify(npcs),
+    )
   return result.lastInsertRowid as number
 }
 
@@ -236,7 +332,20 @@ export interface TurnRow {
   id: number
   story_id: number
   turn_number: number
+  action_mode: string
+  active_variant_id: number | null
   player_input: string
+  narrative_text: string
+  character_snapshot_json: string
+  world_snapshot_json: string
+  npc_snapshot_json: string
+  created_at: string
+}
+
+export interface TurnVariantRow {
+  id: number
+  turn_id: number
+  variant_index: number
   narrative_text: string
   character_snapshot_json: string
   world_snapshot_json: string
@@ -246,6 +355,16 @@ export interface TurnRow {
 
 export function getTurnsForStory(story_id: number): TurnRow[] {
   return getDb().prepare("SELECT * FROM turns WHERE story_id = ? ORDER BY turn_number ASC").all(story_id) as TurnRow[]
+}
+
+export function getTurn(id: number): TurnRow | undefined {
+  return getDb().prepare("SELECT * FROM turns WHERE id = ?").get(id) as TurnRow | undefined
+}
+
+export function getLastTurnForStory(story_id: number): TurnRow | undefined {
+  return getDb().prepare("SELECT * FROM turns WHERE story_id = ? ORDER BY turn_number DESC LIMIT 1").get(story_id) as
+    | TurnRow
+    | undefined
 }
 
 export function getNextTurnNumber(story_id: number): number {
@@ -258,6 +377,7 @@ export function getNextTurnNumber(story_id: number): number {
 export function createTurn(
   story_id: number,
   turn_number: number,
+  action_mode: string,
   player_input: string,
   narrative_text: string,
   character: MainCharacterState,
@@ -266,13 +386,14 @@ export function createTurn(
 ): number {
   const result = getDb()
     .prepare(
-      `INSERT INTO turns (story_id, turn_number, player_input, narrative_text,
+      `INSERT INTO turns (story_id, turn_number, action_mode, player_input, narrative_text,
        character_snapshot_json, world_snapshot_json, npc_snapshot_json)
-       VALUES (?, ?, ?, ?, ?, ?, ?)`,
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
     )
     .run(
       story_id,
       turn_number,
+      action_mode,
       player_input,
       narrative_text,
       JSON.stringify(character),
@@ -298,6 +419,100 @@ export function updateTurn(id: number, fields: { player_input?: string; narrativ
   const result = getDb()
     .prepare(`UPDATE turns SET ${updates.join(", ")} WHERE id = ?`)
     .run(...values)
+  if (fields.narrative_text !== undefined) {
+    const active = getDb().prepare("SELECT active_variant_id FROM turns WHERE id = ?").get(id) as
+      | { active_variant_id: number | null }
+      | undefined
+    if (active?.active_variant_id) {
+      getDb()
+        .prepare("UPDATE turn_variants SET narrative_text = ? WHERE id = ?")
+        .run(fields.narrative_text, active.active_variant_id)
+    }
+  }
+  return result.changes > 0
+}
+
+export function updateTurnSnapshot(
+  id: number,
+  fields: {
+    narrative_text: string
+    character: MainCharacterState
+    world: WorldState
+    npcs: NPCState[]
+    action_mode?: string
+    active_variant_id?: number
+  },
+): boolean {
+  const updates: string[] = [
+    "narrative_text = ?",
+    "character_snapshot_json = ?",
+    "world_snapshot_json = ?",
+    "npc_snapshot_json = ?",
+  ]
+  const values: unknown[] = [
+    fields.narrative_text,
+    JSON.stringify(fields.character),
+    JSON.stringify(fields.world),
+    JSON.stringify(fields.npcs),
+  ]
+  if (fields.action_mode !== undefined) {
+    updates.push("action_mode = ?")
+    values.push(fields.action_mode)
+  }
+  if (fields.active_variant_id !== undefined) {
+    updates.push("active_variant_id = ?")
+    values.push(fields.active_variant_id)
+  }
+  values.push(id)
+  const result = getDb()
+    .prepare(`UPDATE turns SET ${updates.join(", ")} WHERE id = ?`)
+    .run(...values)
+  return result.changes > 0
+}
+
+export function deleteTurn(id: number): boolean {
+  const result = getDb().prepare("DELETE FROM turns WHERE id = ?").run(id)
+  return result.changes > 0
+}
+
+export function listTurnVariants(turn_id: number): TurnVariantRow[] {
+  return getDb()
+    .prepare("SELECT * FROM turn_variants WHERE turn_id = ? ORDER BY variant_index ASC")
+    .all(turn_id) as TurnVariantRow[]
+}
+
+export function getTurnVariant(id: number): TurnVariantRow | undefined {
+  return getDb().prepare("SELECT * FROM turn_variants WHERE id = ?").get(id) as TurnVariantRow | undefined
+}
+
+export function createTurnVariant(
+  turn_id: number,
+  narrative_text: string,
+  character: MainCharacterState,
+  world: WorldState,
+  npcs: NPCState[],
+): { id: number; variant_index: number } {
+  const next = getDb()
+    .prepare("SELECT COALESCE(MAX(variant_index), 0) + 1 as next FROM turn_variants WHERE turn_id = ?")
+    .get(turn_id) as { next: number }
+  const result = getDb()
+    .prepare(
+      `INSERT INTO turn_variants (
+        turn_id,
+        variant_index,
+        narrative_text,
+        character_snapshot_json,
+        world_snapshot_json,
+        npc_snapshot_json
+      )
+      VALUES (?, ?, ?, ?, ?, ?)`,
+    )
+    .run(turn_id, next.next, narrative_text, JSON.stringify(character), JSON.stringify(world), JSON.stringify(npcs))
+  return { id: result.lastInsertRowid as number, variant_index: next.next }
+}
+
+export function setActiveTurnVariant(turn_id: number, variant_id: number): boolean {
+  const result = getDb().prepare("UPDATE turns SET active_variant_id = ? WHERE id = ?").run(variant_id, turn_id)
   return result.changes > 0
 }
 

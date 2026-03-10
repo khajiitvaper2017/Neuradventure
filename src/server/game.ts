@@ -89,12 +89,15 @@ export async function processTurn(storyId: number, playerInput: string, actionMo
   const turnId = db.createTurn(
     storyId,
     turnNumber,
+    actionMode,
     playerInput,
     turnResponse.narrative_text,
     newCharacter,
     newWorld,
     newNpcs,
   )
+  const variant = db.createTurnVariant(turnId, turnResponse.narrative_text, newCharacter, newWorld, newNpcs)
+  db.setActiveTurnVariant(turnId, variant.id)
 
   return {
     turn_id: turnId,
@@ -104,6 +107,162 @@ export async function processTurn(storyId: number, playerInput: string, actionMo
     character: newCharacter,
     world: newWorld,
     npcs: newNpcs,
+  }
+}
+
+function parseTurnSnapshot(turn: db.TurnRow): { character: MainCharacterState; world: WorldState; npcs: NPCState[] } {
+  const character = MainCharacterStateSchema.parse(JSON.parse(turn.character_snapshot_json))
+  const world = WorldStateSchema.parse(JSON.parse(turn.world_snapshot_json))
+  const npcs = (JSON.parse(turn.npc_snapshot_json) as unknown[]).map((n) => NPCStateSchema.parse(n))
+  return { character, world, npcs }
+}
+
+function parseTurnVariantSnapshot(variant: db.TurnVariantRow): {
+  character: MainCharacterState
+  world: WorldState
+  npcs: NPCState[]
+} {
+  const character = MainCharacterStateSchema.parse(JSON.parse(variant.character_snapshot_json))
+  const world = WorldStateSchema.parse(JSON.parse(variant.world_snapshot_json))
+  const npcs = (JSON.parse(variant.npc_snapshot_json) as unknown[]).map((n) => NPCStateSchema.parse(n))
+  return { character, world, npcs }
+}
+
+function parseInitialStorySnapshot(story: db.StoryRow): {
+  character: MainCharacterState
+  world: WorldState
+  npcs: NPCState[]
+} {
+  const characterJson = story.initial_character_state_json ?? story.character_state_json
+  const worldJson = story.initial_world_state_json ?? story.world_state_json
+  const npcsJson = story.initial_npc_states_json ?? story.npc_states_json
+  const character = MainCharacterStateSchema.parse(JSON.parse(characterJson))
+  const world = WorldStateSchema.parse(JSON.parse(worldJson))
+  const npcs = (JSON.parse(npcsJson) as unknown[]).map((n) => NPCStateSchema.parse(n))
+  return { character, world, npcs }
+}
+
+export interface CancelLastResult {
+  removed_turn_id: number
+  character: MainCharacterState
+  world: WorldState
+  npcs: NPCState[]
+}
+
+export function cancelLastTurn(storyId: number): CancelLastResult {
+  const story = db.getStory(storyId)
+  if (!story) throw new Error(`Story ${storyId} not found`)
+
+  const turnRows = db.getTurnsForStory(storyId)
+  const lastTurn = turnRows[turnRows.length - 1]
+  if (!lastTurn) throw new Error("No turns to cancel")
+
+  const previousTurn = turnRows.length > 1 ? turnRows[turnRows.length - 2] : null
+  const snapshot = previousTurn ? parseTurnSnapshot(previousTurn) : parseInitialStorySnapshot(story)
+
+  db.updateStory(storyId, snapshot.character, snapshot.world, snapshot.npcs)
+  db.deleteTurn(lastTurn.id)
+
+  return {
+    removed_turn_id: lastTurn.id,
+    character: snapshot.character,
+    world: snapshot.world,
+    npcs: snapshot.npcs,
+  }
+}
+
+export async function regenerateLastTurn(storyId: number, actionMode?: string): Promise<TurnResult> {
+  const story = db.getStory(storyId)
+  if (!story) throw new Error(`Story ${storyId} not found`)
+
+  const turnRows = db.getTurnsForStory(storyId)
+  const lastTurn = turnRows[turnRows.length - 1]
+  if (!lastTurn) throw new Error("No turns to regenerate")
+
+  const historyTurns = turnRows.slice(0, -1)
+  const snapshot =
+    historyTurns.length > 0
+      ? parseTurnSnapshot(historyTurns[historyTurns.length - 1])
+      : parseInitialStorySnapshot(story)
+  const mode = actionMode ?? lastTurn.action_mode ?? "do"
+
+  const messages = buildTurnMessages(
+    snapshot.character,
+    snapshot.world,
+    snapshot.npcs,
+    historyTurns,
+    lastTurn.player_input,
+    mode,
+  )
+  const turnResponse = await callLLM(messages)
+
+  const newCharacter = applyPlayerUpdate(snapshot.character, turnResponse.player_state_update)
+  const newWorld = turnResponse.world_state_update
+  const newNpcs = applyNPCUpdates(snapshot.npcs, turnResponse.npc_updates, turnResponse.new_npcs)
+
+  db.updateStory(storyId, newCharacter, newWorld, newNpcs)
+  const variant = db.createTurnVariant(lastTurn.id, turnResponse.narrative_text, newCharacter, newWorld, newNpcs)
+  db.updateTurnSnapshot(lastTurn.id, {
+    narrative_text: turnResponse.narrative_text,
+    character: newCharacter,
+    world: newWorld,
+    npcs: newNpcs,
+    action_mode: mode,
+    active_variant_id: variant.id,
+  })
+
+  return {
+    turn_id: lastTurn.id,
+    story_id: storyId,
+    turn_number: lastTurn.turn_number,
+    narrative_text: turnResponse.narrative_text,
+    character: newCharacter,
+    world: newWorld,
+    npcs: newNpcs,
+  }
+}
+
+export interface SelectVariantResult {
+  turn_id: number
+  story_id: number
+  turn_number: number
+  narrative_text: string
+  character: MainCharacterState
+  world: WorldState
+  npcs: NPCState[]
+  active_variant_id: number
+}
+
+export function selectTurnVariant(turnId: number, variantId: number): SelectVariantResult {
+  const turn = db.getTurn(turnId)
+  if (!turn) throw new Error("Turn not found")
+  const story = db.getStory(turn.story_id)
+  if (!story) throw new Error("Story not found")
+  const lastTurn = db.getLastTurnForStory(turn.story_id)
+  if (!lastTurn || lastTurn.id !== turnId) throw new Error("Only the last turn can change versions")
+
+  const variant = db.getTurnVariant(variantId)
+  if (!variant || variant.turn_id !== turnId) throw new Error("Variant not found")
+
+  const snapshot = parseTurnVariantSnapshot(variant)
+  db.updateStory(turn.story_id, snapshot.character, snapshot.world, snapshot.npcs)
+  db.updateTurnSnapshot(turn.id, {
+    narrative_text: variant.narrative_text,
+    character: snapshot.character,
+    world: snapshot.world,
+    npcs: snapshot.npcs,
+    active_variant_id: variant.id,
+  })
+
+  return {
+    turn_id: turn.id,
+    story_id: turn.story_id,
+    turn_number: turn.turn_number,
+    narrative_text: variant.narrative_text,
+    character: snapshot.character,
+    world: snapshot.world,
+    npcs: snapshot.npcs,
+    active_variant_id: variant.id,
   }
 }
 

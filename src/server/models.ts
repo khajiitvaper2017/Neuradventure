@@ -143,6 +143,19 @@ export const TakeTurnRequestSchema = z.object({
   action_mode: z.enum(["do", "say", "story"]).default("do"),
 })
 
+export const RegenerateLastRequestSchema = z.object({
+  story_id: z.number().int(),
+  action_mode: z.enum(["do", "say", "story"]).optional(),
+})
+
+export const CancelLastRequestSchema = z.object({
+  story_id: z.number().int(),
+})
+
+export const SelectTurnVariantRequestSchema = z.object({
+  variant_id: z.number().int(),
+})
+
 // ─── Inferred Types ────────────────────────────────────────────────────────────
 
 export type InventoryItem = z.infer<typeof InventoryItemSchema>
@@ -156,6 +169,9 @@ export type NPCStateUpdate = z.infer<typeof NPCStateUpdateSchema>
 export type CreateCharacterRequest = z.infer<typeof CreateCharacterRequestSchema>
 export type CreateStoryRequest = z.infer<typeof CreateStoryRequestSchema>
 export type TakeTurnRequest = z.infer<typeof TakeTurnRequestSchema>
+export type RegenerateLastRequest = z.infer<typeof RegenerateLastRequestSchema>
+export type CancelLastRequest = z.infer<typeof CancelLastRequestSchema>
+export type SelectTurnVariantRequest = z.infer<typeof SelectTurnVariantRequestSchema>
 export type GenerateCharacterResponse = z.infer<typeof GenerateCharacterResponseSchema>
 export type GenerateCharacterAppearanceResponse = z.infer<typeof GenerateCharacterAppearanceResponseSchema>
 export type GenerateCharacterClothingResponse = z.infer<typeof GenerateCharacterClothingResponseSchema>

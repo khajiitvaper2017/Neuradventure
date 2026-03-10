@@ -123,7 +123,7 @@ export function buildTurnMessages(
   const actionSection =
     actionMode === "story"
       ? `=== STORY CONTINUATION (continue naturally from this) ===\n${playerInput}`
-      : `=== PLAYER'S ACTION ===\n${actionMode === "say" ? `You say: "${playerInput}"` : `You do: ${playerInput}`}`
+      : `=== PLAYER'S ACTION ===\n${actionMode === "say" ? `You say: ${playerInput}` : playerInput}`
 
   const contextBlock = `=== STORY CONTEXT ===
 Scene: ${world.current_scene}

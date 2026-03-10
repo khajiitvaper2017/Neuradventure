@@ -1,6 +1,6 @@
 <script lang="ts">
   import { tick } from "svelte"
-  import { api, type TurnSummary, ApiError } from "../api/client.js"
+  import { api, type TurnSummary, type TurnVariantSummary, ApiError } from "../api/client.js"
   import { navigate, showCharSheet, showNPCTracker, showError } from "../stores/ui.js"
   import { autoresize } from "./actions/autoresize.js"
   import {
@@ -32,9 +32,43 @@
   let editingTurnId: number | null = null
   let editPlayerInput = ""
   let editNarrative = ""
+  let lastTurnVariants: TurnVariantSummary[] = []
+  let activeVariantId: number | null = null
+  let variantsTurnId: number | null = null
+  let variantsLoading = false
+
+  function matchCase(match: string, replacement: string): string {
+    if (match.toUpperCase() === match) return replacement.toUpperCase()
+    if (match[0] === match[0].toUpperCase()) return replacement[0].toUpperCase() + replacement.slice(1)
+    return replacement
+  }
+
+  function normalizeDoInput(text: string): string {
+    let normalized = text
+    normalized = normalized.replace(/\bmyself\b/gi, (m) => matchCase(m, "yourself"))
+    normalized = normalized.replace(/\bmy\b/gi, (m) => matchCase(m, "your"))
+    if (!/^(you|your|yourself)\b/i.test(normalized)) {
+      normalized = `You ${normalized}`
+    }
+    return normalized
+  }
+
+  function normalizeSayInput(text: string): string {
+    if (text.startsWith('"') && text.endsWith('"') && text.length >= 2) return text
+    return `"${text}"`
+  }
+
+  function normalizePlayerInput(text: string, mode?: ActionMode): string {
+    const trimmed = text.trim()
+    if (!trimmed) return trimmed
+    if (mode === "do") return normalizeDoInput(trimmed)
+    if (mode === "say") return normalizeSayInput(trimmed)
+    return trimmed
+  }
 
   async function sendTurn() {
-    const text = input.trim()
+    const rawText = input.trim()
+    const text = normalizePlayerInput(rawText, actionMode)
     if (!text || $isGenerating || !$currentStoryId) return
     input = ""
     isGenerating.set(true)
@@ -46,11 +80,13 @@
       const newTurn: TurnSummary = {
         id: result.turn_id,
         turn_number: result.turn_number,
+        action_mode: actionMode,
         player_input: text,
         narrative_text: result.narrative_text,
         created_at: new Date().toISOString(),
       }
       turns.update((t) => [...t, newTurn])
+      await loadVariants(result.turn_id, true)
       await tick()
       scrollToBottom()
     } catch (err) {
@@ -58,6 +94,70 @@
         showError(err.message)
       } else {
         showError("Generation failed. Is KoboldCpp running?")
+      }
+    } finally {
+      isGenerating.set(false)
+    }
+  }
+
+  async function regenerateLastTurn() {
+    if ($isGenerating || !$currentStoryId || $turns.length === 0) return
+    isGenerating.set(true)
+    try {
+      const lastMode = $turns[$turns.length - 1]?.action_mode ?? actionMode
+      const result = await api.turns.regenerateLast($currentStoryId, lastMode)
+      character.set(result.character)
+      worldState.set(result.world)
+      npcs.set(result.npcs)
+      turns.update((t) =>
+        t.map((turn) =>
+          turn.id === result.turn_id ? { ...turn, narrative_text: result.narrative_text, action_mode: lastMode } : turn,
+        ),
+      )
+      await loadVariants(result.turn_id)
+      editingTurnId = null
+      await tick()
+      scrollToBottom()
+    } catch (err) {
+      if (err instanceof ApiError) {
+        showError(err.message)
+      } else {
+        showError("Generation failed. Is KoboldCpp running?")
+      }
+    } finally {
+      isGenerating.set(false)
+    }
+  }
+
+  async function cancelLastTurn() {
+    if ($isGenerating || !$currentStoryId || $turns.length === 0) return
+    isGenerating.set(true)
+    try {
+      const result = await api.turns.cancelLast($currentStoryId)
+      character.set(result.character)
+      worldState.set(result.world)
+      npcs.set(result.npcs)
+      let nextLastId: number | null = null
+      turns.update((t) => {
+        const remaining = t.filter((turn) => turn.id !== result.removed_turn_id)
+        nextLastId = remaining[remaining.length - 1]?.id ?? null
+        return remaining
+      })
+      if (nextLastId) {
+        await loadVariants(nextLastId, true)
+      } else {
+        lastTurnVariants = []
+        activeVariantId = null
+        variantsTurnId = null
+      }
+      editingTurnId = null
+      await tick()
+      scrollToBottom()
+    } catch (err) {
+      if (err instanceof ApiError) {
+        showError(err.message)
+      } else {
+        showError("Failed to cancel last turn")
       }
     } finally {
       isGenerating.set(false)
@@ -100,7 +200,8 @@
   }
 
   async function saveTurnEdit(turnId: number) {
-    const playerInput = editPlayerInput.trim()
+    const turnMode = $turns.find((turn) => turn.id === turnId)?.action_mode
+    const playerInput = normalizePlayerInput(editPlayerInput, turnMode)
     const narrative = editNarrative.trim()
     if (!playerInput || !narrative) {
       showError("Player input and narrative text are required")
@@ -150,6 +251,65 @@
       .split(/\n\n+/)
       .map((p) => p.trim())
       .filter(Boolean)
+  }
+
+  async function loadVariants(turnId: number, force = false) {
+    if (!turnId || variantsLoading) return
+    if (!force && variantsTurnId === turnId && lastTurnVariants.length > 0) return
+    variantsLoading = true
+    try {
+      const res = await api.turns.variants(turnId)
+      lastTurnVariants = res.variants
+      activeVariantId = res.active_variant_id
+      variantsTurnId = turnId
+    } catch (err) {
+      console.error("Failed to load turn variants", err)
+      lastTurnVariants = []
+      activeVariantId = null
+      variantsTurnId = turnId
+    } finally {
+      variantsLoading = false
+    }
+  }
+
+  async function selectVariant(variantId: number) {
+    if ($isGenerating || !$currentStoryId || !variantsTurnId) return
+    isGenerating.set(true)
+    try {
+      const result = await api.turns.selectVariant(variantsTurnId, variantId)
+      character.set(result.character)
+      worldState.set(result.world)
+      npcs.set(result.npcs)
+      turns.update((t) =>
+        t.map((turn) =>
+          turn.id === result.turn_id
+            ? { ...turn, narrative_text: result.narrative_text, active_variant_id: result.active_variant_id }
+            : turn,
+        ),
+      )
+      activeVariantId = result.active_variant_id
+      await tick()
+      scrollToBottom()
+    } catch (err) {
+      if (err instanceof ApiError) {
+        showError(err.message)
+      } else {
+        showError("Failed to switch version")
+      }
+    } finally {
+      isGenerating.set(false)
+    }
+  }
+
+  $: if ($turns.length > 0) {
+    const lastId = $turns[$turns.length - 1].id
+    if (variantsTurnId !== lastId) {
+      loadVariants(lastId)
+    }
+  } else if (variantsTurnId !== null) {
+    lastTurnVariants = []
+    activeVariantId = null
+    variantsTurnId = null
   }
 </script>
 
@@ -297,6 +457,22 @@
           {#each paragraphs(turn.narrative_text) as para, j}
             <p class="para" style="animation-delay: {j * 0.06}s">{para}</p>
           {/each}
+
+          {#if i === $turns.length - 1 && lastTurnVariants.length > 1}
+            <div class="variant-row">
+              <span class="variant-label">Versions</span>
+              {#each lastTurnVariants as variant}
+                <button
+                  class="variant-pill {activeVariantId === variant.id ? 'active' : ''}"
+                  onclick={() => selectVariant(variant.id)}
+                  disabled={$isGenerating}
+                  title={`Version ${variant.variant_index}`}
+                >
+                  v{variant.variant_index}
+                </button>
+              {/each}
+            </div>
+          {/if}
         </div>
       {/if}
     {/each}
@@ -325,7 +501,25 @@
         {/each}
       </div>
 
-      <button class="mode-regen" disabled title="Regenerate (coming soon)">↻</button>
+      <button
+        class="mode-undo"
+        onclick={cancelLastTurn}
+        disabled={$isGenerating || $turns.length === 0}
+        title="Cancel last turn"
+        aria-label="Cancel last turn"
+      >
+        ↶
+      </button>
+
+      <button
+        class="mode-regen"
+        onclick={regenerateLastTurn}
+        disabled={$isGenerating || $turns.length === 0}
+        title="Regenerate last turn"
+        aria-label="Regenerate last turn"
+      >
+        ↻
+      </button>
 
       <button class="send-btn" onclick={sendTurn} disabled={$isGenerating || !input.trim()} aria-label="Send">
         {#if $isGenerating}
@@ -681,6 +875,42 @@
   .narrative-block {
     margin-bottom: 1rem;
   }
+  .variant-row {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    margin-top: 0.4rem;
+    flex-wrap: wrap;
+  }
+  .variant-label {
+    font-size: 0.65rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    font-family: var(--font-ui);
+  }
+  .variant-pill {
+    background: var(--bg-action);
+    border: 1px solid var(--border);
+    color: var(--text-dim);
+    font-size: 0.7rem;
+    padding: 0.2rem 0.5rem;
+    border-radius: 999px;
+    cursor: pointer;
+  }
+  .variant-pill:hover:not(:disabled) {
+    color: var(--text);
+    border-color: var(--border-hover);
+  }
+  .variant-pill.active {
+    background: var(--accent);
+    color: #0d0b08;
+    border-color: transparent;
+  }
+  .variant-pill:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
   .para {
     font-family: var(--font-story);
     font-size: var(--story-size);
@@ -818,6 +1048,7 @@
     background: var(--accent);
     color: #0d0b08;
   }
+  .mode-undo,
   .mode-regen {
     background: var(--bg-action);
     border: 1px solid var(--border);
@@ -828,10 +1059,25 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    cursor: not-allowed;
-    opacity: 0.6;
-    margin-left: 0.35rem;
+    cursor: pointer;
+    opacity: 0.85;
     border-radius: 50%;
+  }
+  .mode-undo {
+    margin-left: 0.35rem;
+  }
+  .mode-regen {
+    margin-left: 0.25rem;
+  }
+  .mode-undo:hover:not(:disabled),
+  .mode-regen:hover:not(:disabled) {
+    color: var(--text);
+    border-color: var(--border-hover);
+  }
+  .mode-undo:disabled,
+  .mode-regen:disabled {
+    cursor: not-allowed;
+    opacity: 0.4;
   }
   .send-btn {
     margin-left: auto;
