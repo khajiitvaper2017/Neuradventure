@@ -32,15 +32,6 @@ export function getDb(): Database.Database {
 export function initDb() {
   const database = getDb()
   database.exec(`
-    CREATE TABLE IF NOT EXISTS characters (
-      id          INTEGER PRIMARY KEY AUTOINCREMENT,
-      name        TEXT NOT NULL,
-      gender      TEXT NOT NULL,
-      state_json  TEXT NOT NULL,
-      created_at  TEXT NOT NULL DEFAULT (datetime('now')),
-      updated_at  TEXT NOT NULL DEFAULT (datetime('now'))
-    );
-
     CREATE TABLE IF NOT EXISTS stories (
       id                    INTEGER PRIMARY KEY AUTOINCREMENT,
       title                 TEXT NOT NULL,
@@ -83,44 +74,6 @@ export function initDb() {
   }
 }
 
-// ─── Character CRUD ────────────────────────────────────────────────────────────
-
-export interface CharacterRow {
-  id: number
-  name: string
-  gender: string
-  state_json: string
-  created_at: string
-  updated_at: string
-}
-
-export function listCharacters(): CharacterRow[] {
-  return getDb().prepare("SELECT * FROM characters ORDER BY updated_at DESC").all() as CharacterRow[]
-}
-
-export function getCharacter(id: number): CharacterRow | undefined {
-  return getDb().prepare("SELECT * FROM characters WHERE id = ?").get(id) as CharacterRow | undefined
-}
-
-export function createCharacter(name: string, gender: string, state: MainCharacterState): number {
-  const result = getDb()
-    .prepare("INSERT INTO characters (name, gender, state_json) VALUES (?, ?, ?)")
-    .run(name, gender, JSON.stringify(state))
-  return result.lastInsertRowid as number
-}
-
-export function updateCharacter(id: number, name: string, gender: string, state: MainCharacterState): void {
-  getDb()
-    .prepare(
-      "UPDATE characters SET name = ?, gender = ?, state_json = ?, updated_at = datetime('now') WHERE id = ?"
-    )
-    .run(name, gender, JSON.stringify(state), id)
-}
-
-export function deleteCharacter(id: number): void {
-  getDb().prepare("DELETE FROM characters WHERE id = ?").run(id)
-}
-
 // ─── Story CRUD ────────────────────────────────────────────────────────────────
 
 export interface StoryRow {
@@ -134,6 +87,13 @@ export interface StoryRow {
   updated_at: string
 }
 
+export interface StoryCharacterRow {
+  id: number
+  title: string
+  character_state_json: string
+  updated_at: string
+}
+
 export function listStories(): (StoryRow & { turn_count: number })[] {
   return getDb()
     .prepare(
@@ -144,6 +104,12 @@ export function listStories(): (StoryRow & { turn_count: number })[] {
        ORDER BY s.updated_at DESC`
     )
     .all() as (StoryRow & { turn_count: number })[]
+}
+
+export function listStoriesWithCharacters(): StoryCharacterRow[] {
+  return getDb()
+    .prepare("SELECT id, title, character_state_json, updated_at FROM stories ORDER BY updated_at DESC")
+    .all() as StoryCharacterRow[]
 }
 
 export function getStory(id: number): StoryRow | undefined {
@@ -253,6 +219,28 @@ export function createTurn(
       JSON.stringify(npcs)
     )
   return result.lastInsertRowid as number
+}
+
+export function updateTurn(
+  id: number,
+  fields: { player_input?: string; narrative_text?: string }
+): boolean {
+  const updates: string[] = []
+  const values: unknown[] = []
+  if (fields.player_input !== undefined) {
+    updates.push("player_input = ?")
+    values.push(fields.player_input)
+  }
+  if (fields.narrative_text !== undefined) {
+    updates.push("narrative_text = ?")
+    values.push(fields.narrative_text)
+  }
+  if (updates.length === 0) return false
+  values.push(id)
+  const result = getDb()
+    .prepare(`UPDATE turns SET ${updates.join(", ")} WHERE id = ?`)
+    .run(...values)
+  return result.changes > 0
 }
 
 // ─── Settings ────────────────────────────────────────────────────────────────

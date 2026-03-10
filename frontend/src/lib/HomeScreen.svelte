@@ -1,23 +1,37 @@
 <script lang="ts">
   import { onMount } from "svelte"
-  import { api, type StoryMeta } from "../api/client.js"
+  import { api, type StoryMeta, type StoryCharacterGroup } from "../api/client.js"
   import { activeScreen, showError } from "../stores/ui.js"
   import { theme } from "../stores/settings.js"
   import {
-    currentStoryId, currentStoryTitle, character,
+    currentStoryId, currentStoryTitle, currentStoryOpeningScenario, character,
     worldState, npcs, turns, resetGame,
+    pendingCharacter, pendingStoryTitle, pendingStoryScenario, pendingStoryNPCs, pendingStoryLocation,
   } from "../stores/game.js"
 
   let stories: StoryMeta[] = []
   let loading = true
   let openMenuId: number | null = null
+  let storyCharacters: StoryCharacterGroup[] = []
+  let loadingCharacters = false
+  let showCharacters = false
 
-  onMount(loadStories)
+  onMount(() => {
+    loadStories()
+    loadCharacters()
+  })
 
   async function loadStories() {
     try { stories = await api.stories.list() }
     catch { showError("Failed to load stories") }
     finally { loading = false }
+  }
+
+  async function loadCharacters() {
+    loadingCharacters = true
+    try { storyCharacters = await api.stories.characters() }
+    catch { showError("Failed to load characters") }
+    finally { loadingCharacters = false }
   }
 
   async function openStory(story: StoryMeta) {
@@ -28,6 +42,24 @@
       ])
       currentStoryId.set(detail.id)
       currentStoryTitle.set(detail.title)
+      currentStoryOpeningScenario.set(detail.opening_scenario)
+      character.set(detail.character)
+      worldState.set(detail.world)
+      npcs.set(detail.npcs)
+      turns.set(storyTurns)
+      activeScreen.set("game")
+    } catch { showError("Failed to load story") }
+  }
+
+  async function openStoryById(id: number) {
+    try {
+      const [detail, storyTurns] = await Promise.all([
+        api.stories.get(id),
+        api.turns.list(id),
+      ])
+      currentStoryId.set(detail.id)
+      currentStoryTitle.set(detail.title)
+      currentStoryOpeningScenario.set(detail.opening_scenario)
       character.set(detail.character)
       worldState.set(detail.world)
       npcs.set(detail.npcs)
@@ -38,7 +70,22 @@
 
   function startNew() {
     resetGame()
-    activeScreen.set("char-create")
+    pendingCharacter.set(null)
+    pendingStoryTitle.set("")
+    pendingStoryScenario.set("")
+    pendingStoryNPCs.set([])
+    pendingStoryLocation.set("")
+    activeScreen.set("new-story")
+  }
+
+  function startNewWithCharacter(charData: StoryCharacterGroup["character"]) {
+    resetGame()
+    pendingCharacter.set(charData)
+    pendingStoryTitle.set("")
+    pendingStoryScenario.set("")
+    pendingStoryNPCs.set([])
+    pendingStoryLocation.set("")
+    activeScreen.set("new-story")
   }
 
   async function deleteStory(id: number) {
@@ -46,6 +93,7 @@
     try {
       await api.stories.delete(id)
       stories = stories.filter((s) => s.id !== id)
+      await loadCharacters()
     } catch { showError("Failed to delete story") }
     openMenuId = null
   }
@@ -70,6 +118,7 @@
         const { id } = await api.stories.import(JSON.parse(text))
         showError(`Story imported (id: ${id})`)
         await loadStories()
+        await loadCharacters()
       } catch { showError("Failed to import story — invalid JSON format") }
     }
     input.click()
@@ -110,7 +159,55 @@
       </svg>
       New Story
     </button>
+    <button class="new-btn" onclick={() => (showCharacters = !showCharacters)}>
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+        <circle cx="12" cy="7" r="4"/><path d="M5.5 21c0-4 3-7 6.5-7s6.5 3 6.5 7"/>
+      </svg>
+      Characters
+    </button>
   </div>
+
+  {#if showCharacters}
+    <div class="character-panel">
+      {#if loadingCharacters}
+        <div class="empty">Loading characters...</div>
+      {:else if storyCharacters.length === 0}
+        <div class="empty">
+          <p>No characters from stories yet.</p>
+          <p class="empty-hint">Finish a story to reuse its character here.</p>
+        </div>
+      {:else}
+        {#each storyCharacters as group}
+          <div class="char-card">
+            <div class="char-card-header">
+              <div class="char-card-name">{group.character.name}</div>
+              <div class="char-card-meta">
+                {group.character.gender} · {group.character.race}
+              </div>
+            </div>
+            <div class="char-card-traits">
+              {[...group.character.personality_traits, ...group.character.custom_traits].join(", ") || "No traits"}
+            </div>
+            <div class="char-card-actions">
+              <button class="btn-ghost small" onclick={() => startNewWithCharacter(group.character)}>
+                New Story
+              </button>
+            </div>
+            <div class="char-card-stories">
+              <div class="char-card-label">Stories</div>
+              <div class="char-card-links">
+                {#each group.stories as s}
+                  <button class="story-link" onclick={() => openStoryById(s.id)}>
+                    {s.title}
+                  </button>
+                {/each}
+              </div>
+            </div>
+          </div>
+        {/each}
+      {/if}
+    </div>
+  {/if}
 
   <!-- Story list -->
   <div class="story-list" data-scroll-root="screen">
@@ -228,6 +325,9 @@
   .new-row {
     padding: 0.85rem 1rem;
     border-bottom: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
   }
   .new-btn {
     display: flex;
@@ -250,6 +350,76 @@
   .new-btn:hover {
     color: var(--accent);
     border-color: var(--accent);
+  }
+
+  .character-panel {
+    border-bottom: 1px solid var(--border);
+    padding: 0.75rem 1rem 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+  .char-card {
+    background: var(--bg-raised);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 0.9rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+  .char-card-header {
+    display: flex;
+    flex-direction: column;
+    gap: 0.15rem;
+  }
+  .char-card-name {
+    font-family: var(--font-story);
+    font-size: 1.05rem;
+    color: var(--text);
+  }
+  .char-card-meta {
+    font-size: 0.8rem;
+    color: var(--text-dim);
+  }
+  .char-card-traits {
+    font-size: 0.85rem;
+    color: var(--text-dim);
+  }
+  .char-card-actions {
+    display: flex;
+    gap: 0.5rem;
+  }
+  .char-card-stories {
+    border-top: 1px dashed var(--border);
+    padding-top: 0.5rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+  .char-card-label {
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--text-dim);
+  }
+  .char-card-links {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+  }
+  .story-link {
+    background: var(--bg-input);
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    padding: 0.25rem 0.6rem;
+    font-size: 0.75rem;
+    color: var(--text);
+    cursor: pointer;
+  }
+  .story-link:hover {
+    border-color: var(--accent);
+    color: var(--accent);
   }
 
   /* Story list */

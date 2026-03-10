@@ -110,12 +110,14 @@ export async function processTurn(storyId: number, playerInput: string, actionMo
 export function createNewStory(
   title: string,
   opening_scenario: string,
-  character: MainCharacterState
+  character: MainCharacterState,
+  npcs: NPCState[] = [],
+  startingScene?: string
 ): number {
   const world: WorldState = {
-    current_scene: "Unknown location",
+    current_scene: startingScene?.trim() || "Unknown location",
     time_of_day: "day",
     recent_events_summary: opening_scenario.slice(0, 200),
   }
-  return db.createStory(title, opening_scenario, character, world, [])
+  return db.createStory(title, opening_scenario, character, world, npcs)
 }

@@ -27,6 +27,22 @@ stories.get("/", (c) => {
   )
 })
 
+stories.get("/characters", (c) => {
+  const rows = db.listStoriesWithCharacters()
+  const groups = new Map<string, { key: string; character: Omit<ReturnType<typeof MainCharacterStateSchema.parse>, "inventory">; stories: { id: number; title: string; updated_at: string }[] }>()
+
+  for (const row of rows) {
+    const parsed = MainCharacterStateSchema.parse(JSON.parse(row.character_state_json))
+    const { inventory: _inventory, ...character } = parsed
+    const key = JSON.stringify(character)
+    const entry = groups.get(key) ?? { key, character, stories: [] }
+    entry.stories.push({ id: row.id, title: row.title, updated_at: row.updated_at })
+    groups.set(key, entry)
+  }
+
+  return c.json(Array.from(groups.values()))
+})
+
 stories.get("/:id", (c) => {
   const id = Number(c.req.param("id"))
   const row = db.getStory(id)
@@ -60,7 +76,13 @@ stories.post("/", zValidator("json", CreateStoryRequestSchema), async (c) => {
     return c.json({ error: "Provide character_id or character_data" }, 400)
   }
 
-  const id = createNewStory(body.title, body.opening_scenario, character)
+  const id = createNewStory(
+    body.title,
+    body.opening_scenario,
+    character,
+    body.npcs ?? [],
+    body.starting_scene
+  )
   return c.json({ id }, 201)
 })
 

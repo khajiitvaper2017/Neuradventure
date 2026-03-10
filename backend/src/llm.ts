@@ -28,7 +28,9 @@ const __dirname = dirname(fileURLToPath(import.meta.url))
 type PromptConfig = {
   systemPromptLines: string[]
   generateCharacterPrompt: string[]
-  generateCharacterPartPrompt: string[]
+  generateCharacterAppearancePrompt: string[]
+  generateCharacterClothingPrompt: string[]
+  generateCharacterTraitsPrompt: string[]
   generateStoryPrompt: string[]
 }
 
@@ -225,8 +227,18 @@ export async function generateCharacterPart(
       ? zodToJsonSchema(GenerateCharacterTraitsResponseSchema, { name: "GenerateCharacterTraitsResponse" })
       : zodToJsonSchema(GenerateCharacterClothingResponseSchema, { name: "GenerateCharacterClothingResponse" })
 
-  const prompt = getConfig().generateCharacterPartPrompt.join("\n")
-    + `\n\nAvailable personality traits: ${npcTraits.join(", ")}`
+  const config = getConfig()
+  const partPrompt = part === "appearance"
+    ? config.generateCharacterAppearancePrompt
+    : part === "traits"
+      ? config.generateCharacterTraitsPrompt
+      : config.generateCharacterClothingPrompt
+  const prompt = [
+    partPrompt.join("\n"),
+    `Available personality traits: ${npcTraits.join(", ")}`,
+  ]
+    .filter(Boolean)
+    .join("\n\n")
   const userContent = [
     `Regenerate: ${part}`,
     "",
@@ -235,7 +247,7 @@ export async function generateCharacterPart(
     "",
     "Instruction: Use the context above to regenerate ONLY the requested section.",
     part === "appearance"
-      ? "Do not reuse or paraphrase the current appearance/clothing. Keep it consistent with the identity and traits."
+      ? "Do not reuse or paraphrase the current physical description. Keep it consistent with the identity and traits."
       : part === "traits"
         ? "Do not reuse the current personality traits or custom traits. Keep them consistent with the identity and appearance."
         : "Do not reuse or paraphrase the current clothing. Keep it consistent with the identity, appearance, and traits.",

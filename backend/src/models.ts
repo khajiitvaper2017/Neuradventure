@@ -78,7 +78,6 @@ export const GenerateCharacterResponseSchema = z.object({
 
 export const GenerateCharacterAppearanceResponseSchema = z.object({
   physical_description: z.string(),
-  current_clothing: z.string(),
 })
 
 export const GenerateCharacterClothingResponseSchema = z.object({
@@ -93,6 +92,7 @@ export const GenerateCharacterTraitsResponseSchema = z.object({
 export const GenerateStoryResponseSchema = z.object({
   title: z.string(),
   opening_scenario: z.string(),
+  pregen_npcs: z.array(NPCStateSchema).default([]),
 })
 
 // ─── API Request / Response Bodies ────────────────────────────────────────────
@@ -111,6 +111,7 @@ export const UpdateCharacterRequestSchema = CreateCharacterRequestSchema.partial
 export const CreateStoryRequestSchema = z.object({
   title: z.string().min(1),
   opening_scenario: z.string().min(1),
+  starting_scene: z.string().min(1).optional(),
   character_id: z.number().int().optional(),
   character_data: z
     .object({
@@ -122,11 +123,17 @@ export const CreateStoryRequestSchema = z.object({
       custom_traits: z.array(z.string()),
     })
     .optional(),
+  npcs: z.array(NPCStateSchema).optional(),
 })
 
 export const UpdateStoryRequestSchema = z.object({
   title: z.string().min(1).optional(),
   opening_scenario: z.string().min(1).optional(),
+})
+
+export const UpdateTurnRequestSchema = z.object({
+  player_input: z.string().min(1).optional(),
+  narrative_text: z.string().min(1).optional(),
 })
 
 export const TakeTurnRequestSchema = z.object({

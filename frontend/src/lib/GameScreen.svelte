@@ -5,6 +5,7 @@
   import {
     currentStoryId,
     currentStoryTitle,
+    currentStoryOpeningScenario,
     character,
     worldState,
     npcs,
@@ -15,7 +16,6 @@
 
   type ActionMode = "do" | "say" | "story"
   const ACTION_MODES: ActionMode[] = ["do", "say", "story"]
-  const MODE_LABELS: Record<ActionMode, string> = { do: "Do", say: "Say", story: "Story" }
   const MODE_HINTS: Record<ActionMode, string> = {
     do:    "What do you do?",
     say:   "What do you say?",
@@ -26,11 +26,11 @@
   let actionMode: ActionMode = "do"
   let storyDiv: HTMLDivElement
   let showMenu = false
-
-  function cycleMode(dir: 1 | -1) {
-    const i = ACTION_MODES.indexOf(actionMode)
-    actionMode = ACTION_MODES[(i + dir + ACTION_MODES.length) % ACTION_MODES.length]
-  }
+  let editingOpening = false
+  let openingDraft = ""
+  let editingTurnId: number | null = null
+  let editPlayerInput = ""
+  let editNarrative = ""
 
   async function sendTurn() {
     const text = input.trim()
@@ -63,6 +63,60 @@
     }
   }
 
+  function startEditOpening() {
+    openingDraft = $currentStoryOpeningScenario || $worldState?.recent_events_summary || ""
+    editingOpening = true
+  }
+
+  function cancelEditOpening() {
+    editingOpening = false
+  }
+
+  async function saveOpening() {
+    if (!$currentStoryId) return
+    const text = openingDraft.trim()
+    if (!text) { showError("Opening scenario cannot be empty"); return }
+    try {
+      await api.stories.update($currentStoryId, { opening_scenario: text })
+      currentStoryOpeningScenario.set(text)
+      editingOpening = false
+    } catch {
+      showError("Failed to update opening scenario")
+    }
+  }
+
+  function startEditTurn(turn: TurnSummary) {
+    editingTurnId = turn.id
+    editPlayerInput = turn.player_input
+    editNarrative = turn.narrative_text
+  }
+
+  function cancelEditTurn() {
+    editingTurnId = null
+  }
+
+  async function saveTurnEdit(turnId: number) {
+    const playerInput = editPlayerInput.trim()
+    const narrative = editNarrative.trim()
+    if (!playerInput || !narrative) {
+      showError("Player input and narrative text are required")
+      return
+    }
+    try {
+      await api.turns.update(turnId, { player_input: playerInput, narrative_text: narrative })
+      turns.update((t) =>
+        t.map((turn) =>
+          turn.id === turnId
+            ? { ...turn, player_input: playerInput, narrative_text: narrative }
+            : turn
+        )
+      )
+      editingTurnId = null
+    } catch {
+      showError("Failed to update turn")
+    }
+  }
+
   function handleKeydown(e: KeyboardEvent) {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault()
@@ -91,6 +145,26 @@
   // Split narrative into paragraphs for proper rendering
   function paragraphs(text: string): string[] {
     return text.split(/\n\n+/).map(p => p.trim()).filter(Boolean)
+  }
+
+  function autoresize(node: HTMLTextAreaElement, _value: string) {
+    const resize = () => {
+      node.style.height = "0px"
+      node.style.height = `${node.scrollHeight}px`
+    }
+
+    const schedule = () => requestAnimationFrame(resize)
+
+    schedule()
+    node.addEventListener("input", schedule)
+    return {
+      update() {
+        schedule()
+      },
+      destroy() {
+        node.removeEventListener("input", schedule)
+      },
+    }
   }
 </script>
 
@@ -137,26 +211,72 @@
       </p>
     {/if}
 
-    {#if $turns.length === 0 && $worldState}
-      <p class="opening-text">{$worldState.recent_events_summary}</p>
-    {/if}
+    <div class="opening-block">
+      <div class="opening-header">
+        <span>Opening</span>
+        {#if !editingOpening}
+          <button class="edit-btn" onclick={startEditOpening} disabled={$isGenerating}>Edit</button>
+        {/if}
+      </div>
+      {#if editingOpening}
+        <textarea
+          class="edit-textarea"
+          bind:value={openingDraft}
+          rows="6"
+          disabled={$isGenerating}
+          use:autoresize={openingDraft}
+        ></textarea>
+        <div class="edit-actions">
+          <button class="btn-ghost" onclick={cancelEditOpening} disabled={$isGenerating}>Cancel</button>
+          <button class="btn-accent" onclick={saveOpening} disabled={$isGenerating}>Save</button>
+        </div>
+      {:else}
+        <p class="opening-text">{$currentStoryOpeningScenario || $worldState?.recent_events_summary || ""}</p>
+      {/if}
+    </div>
 
     {#each $turns as turn, i (turn.id)}
-      <!-- Player action inline — matches AI Dungeon's "pencil" style -->
-      <div class="action-inline" class:fresh={i === $turns.length - 1 && !$isGenerating}>
-        <svg class="pencil-icon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
-          <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
-          <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
-        </svg>
-        {turn.player_input}
-      </div>
+      {#if editingTurnId === turn.id}
+        <div class="edit-turn">
+          <label class="edit-label">Player Input</label>
+          <textarea
+            class="edit-textarea"
+            bind:value={editPlayerInput}
+            rows="2"
+            disabled={$isGenerating}
+            use:autoresize={editPlayerInput}
+          ></textarea>
+          <label class="edit-label">Story Text</label>
+          <textarea
+            class="edit-textarea"
+            bind:value={editNarrative}
+            rows="6"
+            disabled={$isGenerating}
+            use:autoresize={editNarrative}
+          ></textarea>
+          <div class="edit-actions">
+            <button class="btn-ghost" onclick={cancelEditTurn} disabled={$isGenerating}>Cancel</button>
+            <button class="btn-accent" onclick={() => saveTurnEdit(turn.id)} disabled={$isGenerating}>Save</button>
+          </div>
+        </div>
+      {:else}
+        <!-- Player action inline — matches AI Dungeon's "pencil" style -->
+        <div class="action-inline" class:fresh={i === $turns.length - 1 && !$isGenerating}>
+          <svg class="pencil-icon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+          </svg>
+          {turn.player_input}
+          <button class="edit-btn inline" onclick={() => startEditTurn(turn)} disabled={$isGenerating}>Edit</button>
+        </div>
 
-      <!-- Narrative paragraphs -->
-      <div class="narrative-block" class:fresh={i === $turns.length - 1 && !$isGenerating}>
-        {#each paragraphs(turn.narrative_text) as para, j}
-          <p class="para" style="animation-delay: {j * 0.06}s">{para}</p>
-        {/each}
-      </div>
+        <!-- Narrative paragraphs -->
+        <div class="narrative-block" class:fresh={i === $turns.length - 1 && !$isGenerating}>
+          {#each paragraphs(turn.narrative_text) as para, j}
+            <p class="para" style="animation-delay: {j * 0.06}s">{para}</p>
+          {/each}
+        </div>
+      {/if}
     {/each}
 
     {#if $isGenerating}
@@ -178,9 +298,14 @@
         ×
       </button>
 
-      <button class="mode-arrow" onclick={() => cycleMode(-1)} aria-label="Previous mode">‹</button>
-      <span class="mode-label">{MODE_LABELS[actionMode]}</span>
-      <button class="mode-arrow" onclick={() => cycleMode(1)} aria-label="Next mode">›</button>
+      <div class="mode-group" role="group" aria-label="Action mode">
+        {#each ACTION_MODES as mode}
+          <button
+            class="mode-pill {actionMode === mode ? 'active' : ''}"
+            onclick={() => (actionMode = mode)}
+          >{mode}</button>
+        {/each}
+      </div>
 
       <button class="mode-regen" disabled title="Regenerate (coming soon)">↻</button>
 
@@ -209,6 +334,7 @@
       rows="2"
       disabled={$isGenerating}
       onkeydown={handleKeydown}
+      use:autoresize={input}
     ></textarea>
 
     <!-- Bottom toolbar -->
@@ -330,6 +456,25 @@
     flex-direction: column;
     gap: 0;
   }
+  .opening-block {
+    background: var(--bg-raised);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 0.9rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+    margin-bottom: 1.25rem;
+  }
+  .opening-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--text-dim);
+  }
   .scene-crumb {
     font-family: var(--font-ui);
     font-size: 0.72rem;
@@ -346,6 +491,58 @@
     margin-bottom: 1.5rem;
     font-style: italic;
     opacity: 0.75;
+  }
+  .edit-turn {
+    background: var(--bg-raised);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 0.9rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    margin-bottom: 1.25rem;
+  }
+  .edit-label {
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--text-dim);
+  }
+  .edit-textarea {
+    background: var(--bg-input);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    color: var(--text);
+    padding: 0.75rem;
+    font-size: 0.95rem;
+    font-family: var(--font-ui);
+    resize: none;
+    overflow: hidden;
+    width: 100%;
+    box-sizing: border-box;
+  }
+  .edit-textarea:focus {
+    outline: none;
+    border-color: var(--accent);
+  }
+  .edit-actions {
+    display: flex;
+    gap: 0.5rem;
+    justify-content: flex-end;
+  }
+  .edit-btn {
+    background: none;
+    border: 1px solid var(--border);
+    color: var(--text-dim);
+    padding: 0.25rem 0.6rem;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.75rem;
+    min-height: 28px;
+  }
+  .edit-btn:hover { color: var(--text); }
+  .edit-btn.inline {
+    margin-left: auto;
   }
 
   /* Player action — pencil style */
@@ -452,43 +649,45 @@
     pointer-events: auto;
   }
   .mode-clear:hover { color: var(--text); }
-  .mode-arrow {
-    background: none;
-    border: none;
-    color: var(--text-dim);
-    font-size: 1.2rem;
-    min-width: 32px;
-    min-height: 36px;
+  .mode-group {
     display: flex;
-    align-items: center;
-    justify-content: center;
-    cursor: pointer;
-    transition: color 0.15s;
+    gap: 0.35rem;
+    padding: 0.15rem 0.2rem;
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    background: var(--bg-action);
   }
-  .mode-arrow:hover { color: var(--accent); }
-  .mode-label {
-    font-family: var(--font-ui);
-    font-size: 0.82rem;
-    font-weight: 500;
-    color: var(--accent);
-    min-width: 42px;
-    text-align: center;
-    letter-spacing: 0.05em;
+  .mode-pill {
+    border: none;
+    background: none;
+    color: var(--text-dim);
+    font-size: 0.75rem;
     text-transform: uppercase;
+    letter-spacing: 0.12em;
+    padding: 0.3rem 0.65rem;
+    border-radius: 999px;
+    cursor: pointer;
+    min-height: 28px;
+  }
+  .mode-pill:hover { color: var(--text); }
+  .mode-pill.active {
+    background: var(--accent);
+    color: #0d0b08;
   }
   .mode-regen {
-    background: none;
-    border: none;
+    background: var(--bg-action);
+    border: 1px solid var(--border);
     color: var(--text-dim);
-    font-size: 0.95rem;
-    min-width: 32px;
-    min-height: 36px;
+    font-size: 1rem;
+    min-width: 34px;
+    min-height: 34px;
     display: flex;
     align-items: center;
     justify-content: center;
     cursor: not-allowed;
-    opacity: 0.3;
-    margin-left: 0.15rem;
+    opacity: 0.6;
+    margin-left: 0.35rem;
+    border-radius: 50%;
   }
   .send-btn {
     margin-left: auto;

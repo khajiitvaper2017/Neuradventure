@@ -56,16 +56,10 @@ export interface StoryDetail {
   updated_at: string
 }
 
-export interface CharacterMeta {
-  id: number
-  name: string
-  gender: string
-  created_at: string
-  updated_at: string
-}
-
-export interface CharacterDetail extends CharacterMeta {
-  state: MainCharacterState
+export interface StoryCharacterGroup {
+  key: string
+  character: Omit<MainCharacterState, "inventory">
+  stories: { id: number; title: string; updated_at: string }[]
 }
 
 export interface TurnSummary {
@@ -88,7 +82,6 @@ export interface GenerateCharacterResponse {
 
 export interface GenerateCharacterAppearanceResponse {
   physical_description: string
-  current_clothing: string
 }
 
 export interface GenerateCharacterClothingResponse {
@@ -112,6 +105,7 @@ export interface GenerateCharacterContext {
 export interface GenerateStoryResponse {
   title: string
   opening_scenario: string
+  pregen_npcs: NPCState[]
 }
 
 export interface TurnResult {
@@ -184,8 +178,10 @@ export const api = {
     create: (data: {
       title: string
       opening_scenario: string
+      starting_scene?: string
       character_id?: number
       character_data?: Omit<MainCharacterState, "inventory">
+      npcs?: NPCState[]
     }) => request<{ id: number }>("/api/stories", { method: "POST", body: JSON.stringify(data) }),
     update: (id: number, data: { title?: string; opening_scenario?: string }) =>
       request<{ ok: boolean }>(`/api/stories/${id}`, { method: "PUT", body: JSON.stringify(data) }),
@@ -193,19 +189,7 @@ export const api = {
     exportUrl: (id: number) => `/api/stories/${id}/export`,
     import: (data: object) =>
       request<{ id: number }>("/api/stories/import", { method: "POST", body: JSON.stringify(data) }),
-  },
-
-  characters: {
-    list: () => request<CharacterMeta[]>("/api/characters"),
-    get: (id: number) => request<CharacterDetail>(`/api/characters/${id}`),
-    create: (data: Omit<MainCharacterState, "inventory">) =>
-      request<{ id: number }>("/api/characters", { method: "POST", body: JSON.stringify(data) }),
-    update: (id: number, data: Partial<Omit<MainCharacterState, "inventory">>) =>
-      request<{ ok: boolean }>(`/api/characters/${id}`, { method: "PUT", body: JSON.stringify(data) }),
-    delete: (id: number) => request<{ ok: boolean }>(`/api/characters/${id}`, { method: "DELETE" }),
-    exportUrl: (id: number) => `/api/characters/${id}/export`,
-    import: (data: object) =>
-      request<{ id: number }>("/api/characters/import", { method: "POST", body: JSON.stringify(data) }),
+    characters: () => request<StoryCharacterGroup[]>("/api/stories/characters"),
   },
 
   turns: {
@@ -215,6 +199,8 @@ export const api = {
         method: "POST",
         body: JSON.stringify({ story_id: storyId, player_input: playerInput, action_mode: actionMode }),
       }),
+    update: (turnId: number, data: { player_input?: string; narrative_text?: string }) =>
+      request<{ ok: boolean }>(`/api/turns/${turnId}`, { method: "PUT", body: JSON.stringify(data) }),
   },
 
   generate: {

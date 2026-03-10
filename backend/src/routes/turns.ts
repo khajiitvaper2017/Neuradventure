@@ -1,7 +1,7 @@
 import { Hono } from "hono"
 import { zValidator } from "@hono/zod-validator"
 import * as db from "../db.js"
-import { TakeTurnRequestSchema } from "../models.js"
+import { TakeTurnRequestSchema, UpdateTurnRequestSchema } from "../models.js"
 import { processTurn } from "../game.js"
 
 const turns = new Hono()
@@ -36,6 +36,17 @@ turns.get("/:storyId", (c) => {
       created_at: t.created_at,
     }))
   )
+})
+
+turns.put("/:id", zValidator("json", UpdateTurnRequestSchema), (c) => {
+  const id = Number(c.req.param("id"))
+  const body = c.req.valid("json")
+  if (body.player_input === undefined && body.narrative_text === undefined) {
+    return c.json({ error: "Nothing to update" }, 400)
+  }
+  const updated = db.updateTurn(id, body)
+  if (!updated) return c.json({ error: "Turn not found" }, 404)
+  return c.json({ ok: true })
 })
 
 export default turns

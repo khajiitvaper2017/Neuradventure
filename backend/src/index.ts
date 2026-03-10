@@ -9,7 +9,6 @@ import { readFile } from "node:fs/promises"
 import { fileURLToPath } from "node:url"
 import { dirname, resolve } from "node:path"
 import { initDb } from "./db.js"
-import characters from "./routes/characters.js"
 import stories from "./routes/stories.js"
 import turns from "./routes/turns.js"
 import generate from "./routes/generate.js"
@@ -36,7 +35,6 @@ app.use(
 app.get("/api/health", (c) => c.json({ ok: true }))
 
 app.route("/api/stories", stories)
-app.route("/api/characters", characters)
 app.route("/api/turns", turns)
 app.route("/api/generate", generate)
 app.route("/api/settings", settings)

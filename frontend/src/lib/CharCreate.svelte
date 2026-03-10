@@ -3,11 +3,20 @@
   import { api } from "../api/client.js"
   import { activeScreen, showError } from "../stores/ui.js"
   import { pendingCharacter } from "../stores/game.js"
+  import { pendingCharacterGenerateDescription } from "../stores/game.js"
   import personalityOptions from "../../../shared/traits.json"
 
   // Ordered as opposite pairs — each adjacent pair blocks each other
   const PERSONALITY_OPTIONS = personalityOptions
   const normalizeKey = (t: string) => t.trim().toLowerCase()
+  const normalizeGender = (value: string, fallback = "female") => {
+    const trimmed = value.trim()
+    if (!trimmed) return fallback
+    const lower = trimmed.toLowerCase()
+    if (lower === "male") return "male"
+    if (lower === "female") return "female"
+    return trimmed
+  }
   const PERSONALITY_CANONICAL: Record<string, string> = Object.fromEntries(
     PERSONALITY_OPTIONS.map((t) => [normalizeKey(t), t])
   )
@@ -40,20 +49,19 @@
   }
   const initialPersonality = splitPersonalityTraits(existing?.personality_traits ?? [])
 
-  let generateDescription = ""
   let generating = false
   let regeneratingAppearance = false
   let regeneratingClothing = false
   let regeneratingTraits = false
 
   async function generate() {
-    if (!generateDescription.trim()) return
+    if (!$pendingCharacterGenerateDescription.trim()) return
     generating = true
     try {
-      const result = await api.generate.character(generateDescription.trim())
+      const result = await api.generate.character($pendingCharacterGenerateDescription.trim())
       name = result.name
       race = result.race
-      gender = result.gender
+      gender = normalizeGender(result.gender)
       physicalDescription = result.physical_description
       currentClothing = result.current_clothing
       const split = splitPersonalityTraits(result.personality_traits)
@@ -69,10 +77,11 @@
 
   let name = existing?.name ?? ""
   let race = existing?.race ?? ""
-  let gender: string = existing?.gender ?? "female"
+  let gender: string = normalizeGender(existing?.gender ?? "female")
   $: genderCustom = gender !== "male" && gender !== "female" ? gender : ""
   function setGenderCustom(val: string) {
-    gender = val || "female"
+    const normalized = normalizeGender(val, "")
+    gender = normalized || "female"
   }
   let physicalDescription = existing?.appearance.physical_description ?? ""
   let currentClothing = existing?.appearance.current_clothing ?? ""
@@ -176,7 +185,6 @@
     try {
       const result = await api.generate.characterAppearance(buildCharacterContext())
       physicalDescription = result.physical_description
-      currentClothing = result.current_clothing
     } catch (err) {
       showError(err instanceof Error ? err.message : "Regeneration failed")
     } finally {
@@ -210,17 +218,6 @@
       showError(err instanceof Error ? err.message : "Regeneration failed")
     } finally {
       regeneratingClothing = false
-    }
-  }
-
-  async function saveTemplate() {
-    const err = validate()
-    if (err) { showError(err); return }
-    try {
-      await api.characters.create(buildCharacterData())
-      useNow()
-    } catch {
-      showError("Failed to save character template")
     }
   }
 
@@ -264,14 +261,14 @@
       <div class="generate-row">
         <textarea
           id="char-generate"
-          bind:value={generateDescription}
+          bind:value={$pendingCharacterGenerateDescription}
           placeholder="e.g. a grizzled old sailor who lost his family at sea"
-          use:autoresize={generateDescription}
+          use:autoresize={$pendingCharacterGenerateDescription}
         ></textarea>
         <button
           class="btn-ghost generate-btn"
           onclick={generate}
-          disabled={generating || !generateDescription.trim()}
+          disabled={generating || !$pendingCharacterGenerateDescription.trim()}
         >{generating ? "Generating..." : "✦ Generate"}</button>
       </div>
     </div>
@@ -406,7 +403,6 @@
   </div>
 
   <div class="actions">
-    <button class="btn-ghost" onclick={saveTemplate}>Save Template</button>
     <button class="btn-accent" onclick={useNow}>Use Now →</button>
   </div>
 </div>

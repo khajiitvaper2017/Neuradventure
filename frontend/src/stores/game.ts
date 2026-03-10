@@ -3,6 +3,7 @@ import type { MainCharacterState, NPCState, WorldState, TurnSummary } from "../a
 
 export const currentStoryId = writable<number | null>(null)
 export const currentStoryTitle = writable<string>("")
+export const currentStoryOpeningScenario = writable<string>("")
 export const character = writable<MainCharacterState | null>(null)
 export const worldState = writable<WorldState | null>(null)
 export const npcs = writable<NPCState[]>([])
@@ -15,15 +16,24 @@ export const pendingCharacter = writable<Omit<MainCharacterState, "inventory"> |
 // Pending new-story fields (persist across char-create navigation)
 export const pendingStoryTitle = writable("")
 export const pendingStoryScenario = writable("")
+export const pendingStoryNPCs = writable<NPCState[]>([])
+export const pendingStoryLocation = writable("")
+export const pendingStoryGenerateDescription = writable("")
+export const pendingCharacterGenerateDescription = writable("")
 
 export const characterName = derived(character, ($c) => $c?.name ?? "")
 
 export function resetGame() {
   currentStoryId.set(null)
   currentStoryTitle.set("")
+  currentStoryOpeningScenario.set("")
   character.set(null)
   worldState.set(null)
   npcs.set([])
   turns.set([])
   isGenerating.set(false)
+  pendingStoryNPCs.set([])
+  pendingStoryLocation.set("")
+  pendingStoryGenerateDescription.set("")
+  pendingCharacterGenerateDescription.set("")
 }
