@@ -9,14 +9,80 @@ const DB_PATH = path.resolve(__dirname, "../../data/neuradventure.db")
 
 let db: Database.Database
 
+export interface GenerationParams {
+  max_tokens: number
+  temperature: number
+  top_k: number
+  top_p: number
+  min_p: number
+  typical_p: number
+  top_n_sigma: number
+  repeat_penalty: number
+  repeat_last_n: number
+  presence_penalty: number
+  frequency_penalty: number
+  mirostat: number
+  mirostat_tau: number
+  mirostat_eta: number
+  dynatemp_range: number
+  dynatemp_exponent: number
+  dry_multiplier: number
+  dry_base: number
+  dry_allowed_length: number
+  dry_penalty_last_n: number
+  xtc_probability: number
+  xtc_threshold: number
+  seed: number
+}
+
+export interface LLMConnector {
+  type: "koboldcpp"
+  url: string
+  api_key: string
+}
+
 export interface SettingsState {
   theme: "default" | "amoled"
   design: "classic" | "roboto"
+  connector: LLMConnector
+  generation: GenerationParams
+}
+
+const DEFAULT_GENERATION: GenerationParams = {
+  max_tokens: 1200,
+  temperature: 0.85,
+  top_k: 40,
+  top_p: 0.95,
+  min_p: 0.05,
+  typical_p: 1.0,
+  top_n_sigma: -1.0,
+  repeat_penalty: 1.0,
+  repeat_last_n: 64,
+  presence_penalty: 0.0,
+  frequency_penalty: 0.0,
+  mirostat: 0,
+  mirostat_tau: 5.0,
+  mirostat_eta: 0.1,
+  dynatemp_range: 0.0,
+  dynatemp_exponent: 1.0,
+  dry_multiplier: 0.0,
+  dry_base: 1.75,
+  dry_allowed_length: 2,
+  dry_penalty_last_n: -1,
+  xtc_probability: 0.0,
+  xtc_threshold: 0.1,
+  seed: -1,
 }
 
 const DEFAULT_SETTINGS: SettingsState = {
   theme: "default",
   design: "classic",
+  connector: {
+    type: "koboldcpp",
+    url: "http://localhost:5001/v1",
+    api_key: "kobold",
+  },
+  generation: { ...DEFAULT_GENERATION },
 }
 
 export function getDb(): Database.Database {
@@ -239,7 +305,13 @@ export function getSettings(): SettingsState {
     | undefined
   if (!row) return DEFAULT_SETTINGS
   try {
-    return JSON.parse(row.settings_json) as SettingsState
+    const stored = JSON.parse(row.settings_json) as Partial<SettingsState>
+    return {
+      ...DEFAULT_SETTINGS,
+      ...stored,
+      connector: { ...DEFAULT_SETTINGS.connector, ...(stored.connector ?? {}) },
+      generation: { ...DEFAULT_SETTINGS.generation, ...(stored.generation ?? {}) },
+    }
   } catch {
     return DEFAULT_SETTINGS
   }

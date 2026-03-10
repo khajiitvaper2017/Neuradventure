@@ -20,12 +20,31 @@ import {
   type GenerateCharacterTraitsResponse,
   type GenerateStoryResponse,
 } from "./models.js"
-import type { TurnRow } from "./db.js"
+import { type TurnRow, type GenerationParams, type LLMConnector, getSettings } from "./db.js"
 
-const openai = new OpenAI({
-  baseURL: "http://localhost:5001/v1",
-  apiKey: "kobold",
-})
+// ─── OpenAI client (re-created when connector settings change) ───────────────
+
+let cachedClient: OpenAI | null = null
+let cachedClientKey = ""
+
+function getClient(): OpenAI {
+  const { connector } = getSettings()
+  const key = `${connector.url}|${connector.api_key}`
+  if (cachedClient && cachedClientKey === key) return cachedClient
+  cachedClient = new OpenAI({ baseURL: connector.url, apiKey: connector.api_key })
+  cachedClientKey = key
+  return cachedClient
+}
+
+function getGenerationParams(): GenerationParams {
+  return getSettings().generation
+}
+
+function getConnector(): LLMConnector {
+  return getSettings().connector
+}
+
+// ─── Prompt config (hot-reloaded from shared/config.json) ────────────────────
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 type PromptConfig = {
@@ -129,9 +148,51 @@ ${actionSection}`
   ]
 }
 
+// ─── LLM calls ───────────────────────────────────────────────────────────────
+
+function buildSamplingParams(gen: GenerationParams, maxTokensOverride?: number): Record<string, unknown> {
+  const params: Record<string, unknown> = {
+    max_tokens: maxTokensOverride ?? gen.max_tokens,
+    temperature: gen.temperature,
+  }
+
+  // Only include non-default params to keep the request clean
+  if (gen.top_k !== 40) params.top_k = gen.top_k
+  if (gen.top_p !== 0.95) params.top_p = gen.top_p
+  if (gen.min_p !== 0.05) params.min_p = gen.min_p
+  if (gen.typical_p !== 1.0) params.typical_p = gen.typical_p
+  if (gen.top_n_sigma !== -1.0) params.top_n_sigma = gen.top_n_sigma
+  if (gen.repeat_penalty !== 1.0) params.repeat_penalty = gen.repeat_penalty
+  if (gen.repeat_last_n !== 64) params.repeat_last_n = gen.repeat_last_n
+  if (gen.presence_penalty !== 0.0) params.presence_penalty = gen.presence_penalty
+  if (gen.frequency_penalty !== 0.0) params.frequency_penalty = gen.frequency_penalty
+  if (gen.mirostat !== 0) {
+    params.mirostat = gen.mirostat
+    params.mirostat_tau = gen.mirostat_tau
+    params.mirostat_eta = gen.mirostat_eta
+  }
+  if (gen.dynatemp_range !== 0.0) {
+    params.dynatemp_range = gen.dynatemp_range
+    params.dynatemp_exponent = gen.dynatemp_exponent
+  }
+  if (gen.dry_multiplier !== 0.0) {
+    params.dry_multiplier = gen.dry_multiplier
+    params.dry_base = gen.dry_base
+    params.dry_allowed_length = gen.dry_allowed_length
+    params.dry_penalty_last_n = gen.dry_penalty_last_n
+  }
+  if (gen.xtc_probability !== 0.0) {
+    params.xtc_probability = gen.xtc_probability
+    params.xtc_threshold = gen.xtc_threshold
+  }
+  if (gen.seed !== -1) params.seed = gen.seed
+
+  return params
+}
+
 export async function callLLM(messages: OpenAI.ChatCompletionMessageParam[]): Promise<TurnResponse> {
   const schema = zodToJsonSchema(TurnResponseSchema, { name: "TurnResponse" })
-  const result = await callLLMRaw<unknown>(messages, "TurnResponse", schema, 1200)
+  const result = await callLLMRaw<unknown>(messages, "TurnResponse", schema)
   return TurnResponseSchema.parse(result)
 }
 
@@ -139,13 +200,15 @@ async function callLLMRaw<T>(
   messages: OpenAI.ChatCompletionMessageParam[],
   schemaName: string,
   schema: object,
-  maxTokens: number,
+  maxTokensOverride?: number,
 ): Promise<T> {
-  const res = await openai.chat.completions.create({
+  const gen = getGenerationParams()
+  const sampling = buildSamplingParams(gen, maxTokensOverride)
+
+  const res = await getClient().chat.completions.create({
     model: "local",
     messages,
-    max_tokens: maxTokens,
-    temperature: 0.85,
+    ...sampling,
     response_format: {
       type: "json_schema",
       json_schema: { name: schemaName, schema },
@@ -294,7 +357,8 @@ export async function generateStory(
 
 export async function testConnection(): Promise<boolean> {
   try {
-    await openai.models.list()
+    const client = new OpenAI({ baseURL: getConnector().url, apiKey: getConnector().api_key })
+    await client.models.list()
     return true
   } catch {
     return false
