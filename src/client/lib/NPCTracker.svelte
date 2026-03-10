@@ -42,8 +42,8 @@
   let flashTimer: number | null = null
   let npcChangeIds = $state(new Map<string, number>())
   let sortedNpcs = $state<NPCState[]>([])
-  let sidebarBodyEl: HTMLElement | null = null
-  let panelBodyEl: HTMLElement | null = null
+  let sidebarBodyEl = $state<HTMLElement | null>(null)
+  let panelBodyEl = $state<HTMLElement | null>(null)
   let lastSortSig = $state("")
 
   function npcSignature(npc: NPCState): string {
