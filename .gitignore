@@ -1,0 +1,8 @@
+node_modules/
+data/neuradventure.db
+dist/
+.env
+*.local
+CLAUDE.md
+.claude/
+.references_source_code/

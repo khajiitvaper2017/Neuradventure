@@ -1,0 +1,29 @@
+import { writable, derived } from "svelte/store"
+import type { MainCharacterState, NPCState, WorldState, TurnSummary } from "../api/client.js"
+
+export const currentStoryId = writable<number | null>(null)
+export const currentStoryTitle = writable<string>("")
+export const character = writable<MainCharacterState | null>(null)
+export const worldState = writable<WorldState | null>(null)
+export const npcs = writable<NPCState[]>([])
+export const turns = writable<TurnSummary[]>([])
+export const isGenerating = writable(false)
+
+// Pending character being built in char-create screen (not yet saved)
+export const pendingCharacter = writable<Omit<MainCharacterState, "inventory"> | null>(null)
+
+// Pending new-story fields (persist across char-create navigation)
+export const pendingStoryTitle = writable("")
+export const pendingStoryScenario = writable("")
+
+export const characterName = derived(character, ($c) => $c?.name ?? "")
+
+export function resetGame() {
+  currentStoryId.set(null)
+  currentStoryTitle.set("")
+  character.set(null)
+  worldState.set(null)
+  npcs.set([])
+  turns.set([])
+  isGenerating.set(false)
+}
