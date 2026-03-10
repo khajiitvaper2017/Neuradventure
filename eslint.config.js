@@ -2,6 +2,15 @@ import tsPlugin from "@typescript-eslint/eslint-plugin"
 import tsParser from "@typescript-eslint/parser"
 import sveltePlugin from "eslint-plugin-svelte"
 import svelteParser from "svelte-eslint-parser"
+import baseSvelteConfig from "./svelte.config.js"
+
+const svelteConfig = {
+  ...baseSvelteConfig,
+  onwarn(warning, handler) {
+    if (warning?.code === "css_unused_selector") return
+    handler(warning)
+  },
+}
 
 export default [
   {
@@ -24,6 +33,7 @@ export default [
       parser: svelteParser,
       parserOptions: {
         parser: tsParser,
+        svelteConfig,
       },
     },
     plugins: {
