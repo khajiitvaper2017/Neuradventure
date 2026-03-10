@@ -8,6 +8,7 @@
   import IconShirt from "../icons/IconShirt.svelte"
   import IconDocument from "../icons/IconDocument.svelte"
   import IconMapPin from "../icons/IconMapPin.svelte"
+  import IconStar from "../icons/IconStar.svelte"
   import IconUsers from "../icons/IconUsers.svelte"
 
   let { inline = false }: { inline?: boolean } = $props()
@@ -39,6 +40,8 @@
   let lastLlmUpdateId = 0
   let flashNpcNames = $state<string[]>([])
   let flashTimer: number | null = null
+  let npcChangeIds = $state(new Map<string, number>())
+  let sortedNpcs = $state<NPCState[]>([])
 
   function npcSignature(npc: NPCState): string {
     return [
@@ -61,13 +64,30 @@
     }, 900)
   }
 
+  function sortByLatestChange(list: NPCState[], changeIds: Map<string, number>): NPCState[] {
+    return list
+      .map((npc, index) => ({
+        npc,
+        index,
+        changeId: changeIds.get(npc.name) ?? 0,
+      }))
+      .sort((a, b) => {
+        if (b.changeId !== a.changeId) return b.changeId - a.changeId
+        return a.index - b.index
+      })
+      .map((entry) => entry.npc)
+  }
+
   $effect(() => {
     if (lastNpcSigs.size === 0 && $npcs.length > 0) {
       const initial = new Map<string, string>()
+      const initialChangeIds = new Map<string, number>()
       for (const npc of $npcs) {
         initial.set(npc.name, npcSignature(npc))
+        initialChangeIds.set(npc.name, 0)
       }
       lastNpcSigs = initial
+      npcChangeIds = initialChangeIds
     }
   })
 
@@ -75,7 +95,35 @@
     if ($npcs.length === 0 && lastNpcSigs.size > 0) {
       lastNpcSigs = new Map<string, string>()
       flashNpcNames = []
+      npcChangeIds = new Map<string, number>()
     }
+  })
+
+  $effect(() => {
+    if ($npcs.length === 0) {
+      sortedNpcs = []
+      return
+    }
+    const nextChangeIds = new Map(npcChangeIds)
+    const existingNames = new Set<string>()
+    let updated = false
+    for (const npc of $npcs) {
+      existingNames.add(npc.name)
+      if (!nextChangeIds.has(npc.name)) {
+        nextChangeIds.set(npc.name, 0)
+        updated = true
+      }
+    }
+    for (const name of nextChangeIds.keys()) {
+      if (!existingNames.has(name)) {
+        nextChangeIds.delete(name)
+        updated = true
+      }
+    }
+    if (updated) {
+      npcChangeIds = nextChangeIds
+    }
+    sortedNpcs = sortByLatestChange($npcs, updated ? nextChangeIds : npcChangeIds)
   })
 
   $effect(() => {
@@ -92,6 +140,11 @@
       }
       if (changed.length > 0) {
         triggerNpcFlash(changed)
+        const nextChangeIds = new Map(npcChangeIds)
+        for (const name of changed) {
+          nextChangeIds.set(name, $llmUpdateId)
+        }
+        npcChangeIds = nextChangeIds
       }
       lastNpcSigs = nextSigs
       lastLlmUpdateId = $llmUpdateId
@@ -103,7 +156,7 @@
   {#if $npcs.length === 0}
     <div class="empty">No known characters yet.</div>
   {:else}
-    {#each $npcs as npc}
+    {#each sortedNpcs as npc}
       <div class="npc-card" class:flash={flashNpcNames.includes(npc.name)}>
         <div class="npc-header">
           <div class="npc-identity">
@@ -141,6 +194,17 @@
           <IconShirt size={13} strokeWidth={1.5} className="npc-icon" />
           <span>{npc.appearance.current_clothing}</span>
         </div>
+
+        {#if npc.personality_traits.length > 0}
+          <div class="npc-traits">
+            <IconStar size={13} strokeWidth={1.5} className="npc-icon npc-traits-icon" />
+            <div class="chips">
+              {#each npc.personality_traits as trait}
+                <span class="chip">{trait}</span>
+              {/each}
+            </div>
+          </div>
+        {/if}
 
         {#if npc.notes}
           <div class="npc-notes">
@@ -291,5 +355,21 @@
   }
   :global(.npc-notes-icon) {
     margin-top: 1px;
+  }
+
+  .npc-traits {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.4rem;
+    margin-top: 0.1rem;
+  }
+
+  .npc-traits :global(.chips) {
+    gap: 0.35rem;
+  }
+
+  :global(.npc-traits-icon) {
+    margin-top: 2px;
+    opacity: 0.45;
   }
 </style>

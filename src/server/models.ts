@@ -44,25 +44,40 @@ export const WorldStateSchema = z.object({
 
 export const NPCStateUpdateSchema = z.object({
   name: z.string(),
-  last_known_location: z.string().optional(),
-  appearance_update: z.string().optional(),
-  clothing_update: z.string().optional(),
-  relationship_change: z.string().optional(),
-  notes_update: z.string().optional(),
+  race: z.string().optional(),
+  gender: z.string().optional(),
+  personality_traits: z.array(z.string()).optional(),
+  set_location: z.string().optional(),
+  set_appearance: z.string().optional(),
+  set_clothing: z.string().optional(),
+  set_relationship: z.string().optional(),
+  set_notes: z.string().optional(),
+})
+
+export const NPCCreationSchema = z.object({
+  name: z.string(),
+  race: z.string(),
+  gender: z.string(),
+  personality_traits: z.array(z.string()),
+  set_location: z.string(),
+  set_appearance: z.string(),
+  set_clothing: z.string(),
+  set_relationship: z.string(),
+  set_notes: z.string(),
 })
 
 export const PlayerStateUpdateSchema = z.object({
-  appearance_update: z.string().optional(),
-  clothing_update: z.string().optional(),
-  inventory_update: z.array(InventoryItemSchema).optional(),
+  set_appearance: z.string().optional(),
+  set_clothing: z.string().optional(),
+  set_inventory: z.array(InventoryItemSchema).optional(),
 })
 
 export const TurnResponseSchema = z.object({
   narrative_text: z.string(),
   world_state_update: WorldStateSchema,
-  player_state_update: PlayerStateUpdateSchema,
+  player_state_update: PlayerStateUpdateSchema.optional().default({}),
   npc_updates: z.array(NPCStateUpdateSchema).default([]),
-  new_npcs: z.array(NPCStateSchema).default([]),
+  npc_creations: z.array(NPCCreationSchema).default([]),
 })
 
 // ─── Generation Response Schemas ─────────────────────────────────────────────
@@ -175,6 +190,7 @@ export type NPCState = z.infer<typeof NPCStateSchema>
 export type WorldState = z.infer<typeof WorldStateSchema>
 export type TurnResponse = z.infer<typeof TurnResponseSchema>
 export type NPCStateUpdate = z.infer<typeof NPCStateUpdateSchema>
+export type NPCCreation = z.infer<typeof NPCCreationSchema>
 
 export type CreateCharacterRequest = z.infer<typeof CreateCharacterRequestSchema>
 export type CreateStoryRequest = z.infer<typeof CreateStoryRequestSchema>
