@@ -3,6 +3,10 @@
   import { api, type StoryMeta, type StoryCharacterGroup } from "../api/client.js"
   import { navigate, showError } from "../stores/ui.js"
   import { theme } from "../stores/settings.js"
+  import IconDots from "../icons/IconDots.svelte"
+  import IconGear from "../icons/IconGear.svelte"
+  import IconPlus from "../icons/IconPlus.svelte"
+  import IconUser from "../icons/IconUser.svelte"
   import {
     currentStoryId,
     currentStoryTitle,
@@ -176,21 +180,7 @@
     <h1>Neuradventure</h1>
     <p class="brand-sub">your story, your way</p>
     <button class="settings-btn" onclick={() => navigate("settings")} aria-label="Settings">
-      <svg
-        width="17"
-        height="17"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        stroke-width="1.8"
-        stroke-linecap="round"
-        stroke-linejoin="round"
-      >
-        <circle cx="12" cy="12" r="3" />
-        <path
-          d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"
-        />
-      </svg>
+      <IconGear size={17} strokeWidth={1.8} />
       {#if $theme === "amoled"}<span class="theme-badge">AMOLED</span>{/if}
     </button>
   </div>
@@ -198,46 +188,15 @@
   <!-- New story button -->
   <div class="new-row">
     <button class="new-btn" onclick={startNew}>
-      <svg
-        width="13"
-        height="13"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        stroke-width="2.5"
-        stroke-linecap="round"
-      >
-        <line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" />
-      </svg>
+      <IconPlus size={13} strokeWidth={2.5} />
       New Story
     </button>
     <button class="new-btn" onclick={startNewCharacter}>
-      <svg
-        width="13"
-        height="13"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        stroke-width="2.5"
-        stroke-linecap="round"
-      >
-        <line x1="12" y1="5" x2="12" y2="19" />
-        <line x1="5" y1="12" x2="19" y2="12" />
-      </svg>
+      <IconPlus size={13} strokeWidth={2.5} />
       New Character
     </button>
     <button class="new-btn" onclick={() => (showCharacters = !showCharacters)}>
-      <svg
-        width="13"
-        height="13"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        stroke-width="2.5"
-        stroke-linecap="round"
-      >
-        <circle cx="12" cy="7" r="4" /><path d="M5.5 21c0-4 3-7 6.5-7s6.5 3 6.5 7" />
-      </svg>
+      <IconUser size={13} strokeWidth={2.5} />
       Characters
     </button>
   </div>
@@ -312,17 +271,7 @@
                 openMenuId = openMenuId === story.id ? null : story.id
               }}
             >
-              <svg
-                width="14"
-                height="14"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="2"
-                stroke-linecap="round"
-              >
-                <circle cx="12" cy="5" r="1.2" /><circle cx="12" cy="12" r="1.2" /><circle cx="12" cy="19" r="1.2" />
-              </svg>
+              <IconDots size={14} strokeWidth={2} />
             </button>
             {#if openMenuId === story.id}
               <div class="dropdown">

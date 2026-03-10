@@ -3,6 +3,14 @@
   import { api, type TurnSummary, type TurnVariantSummary, ApiError } from "../api/client.js"
   import { navigate, showCharSheet, showNPCTracker, showError } from "../stores/ui.js"
   import { autoresize } from "./actions/autoresize.js"
+  import IconDots from "../icons/IconDots.svelte"
+  import IconDownload from "../icons/IconDownload.svelte"
+  import IconHome from "../icons/IconHome.svelte"
+  import IconPencilSquare from "../icons/IconPencilSquare.svelte"
+  import IconSend from "../icons/IconSend.svelte"
+  import IconSpinner from "../icons/IconSpinner.svelte"
+  import IconUser from "../icons/IconUser.svelte"
+  import IconUsers from "../icons/IconUsers.svelte"
   import {
     currentStoryId,
     currentStoryTitle,
@@ -329,45 +337,14 @@
     <div class="spacer"></div>
     <span class="turn-count">{$turns.length}</span>
     <button class="hbtn mobile-only" title="Character Sheet" onclick={() => showCharSheet.update((v) => !v)}>
-      <svg
-        width="16"
-        height="16"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        stroke-width="1.8"
-        stroke-linecap="round"
-      >
-        <circle cx="12" cy="8" r="4" /><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7" />
-      </svg>
+      <IconUser size={16} strokeWidth={1.8} />
     </button>
     <button class="hbtn mobile-only" title="NPC Tracker" onclick={() => showNPCTracker.update((v) => !v)}>
-      <svg
-        width="16"
-        height="16"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        stroke-width="1.8"
-        stroke-linecap="round"
-      >
-        <circle cx="9" cy="7" r="3" /><path d="M2 20c0-3 2.7-5.5 7-5.5" />
-        <circle cx="17" cy="9" r="2.5" /><path d="M14 20c0-2.5 1.8-4 4.5-4 2.7 0 4.5 1.5 4.5 4" />
-      </svg>
+      <IconUsers size={16} strokeWidth={1.8} />
     </button>
     <div class="menu-wrap">
       <button class="hbtn" aria-label="More options" onclick={() => (showMenu = !showMenu)}>
-        <svg
-          width="16"
-          height="16"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="1.8"
-          stroke-linecap="round"
-        >
-          <circle cx="12" cy="5" r="1.2" /><circle cx="12" cy="12" r="1.2" /><circle cx="12" cy="19" r="1.2" />
-        </svg>
+        <IconDots size={16} strokeWidth={1.8} />
       </button>
       {#if showMenu}
         <div class="dropdown">
@@ -440,19 +417,7 @@
       {:else}
         <!-- Player action inline — matches AI Dungeon's "pencil" style -->
         <div class="action-inline" class:fresh={i === $turns.length - 1 && !$isGenerating}>
-          <svg
-            class="pencil-icon"
-            width="12"
-            height="12"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-            stroke-linecap="round"
-          >
-            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
-            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
-          </svg>
+          <IconPencilSquare className="pencil-icon" size={12} strokeWidth={2} />
           {turn.player_input}
           <button class="edit-btn inline" onclick={() => startEditTurn(turn)} disabled={$isGenerating}>Edit</button>
         </div>
@@ -528,30 +493,9 @@
 
       <button class="send-btn" onclick={sendTurn} disabled={$isGenerating || !input.trim()} aria-label="Send">
         {#if $isGenerating}
-          <svg
-            class="spin"
-            width="16"
-            height="16"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2.2"
-            stroke-linecap="round"
-          >
-            <path d="M21 12a9 9 0 1 1-6.219-8.56" />
-          </svg>
+          <IconSpinner className="spin" size={16} strokeWidth={2.2} />
         {:else}
-          <svg
-            width="16"
-            height="16"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2.2"
-            stroke-linecap="round"
-          >
-            <line x1="22" y1="2" x2="11" y2="13" /><polygon points="22 2 15 22 11 13 2 9 22 2" />
-          </svg>
+          <IconSend size={16} strokeWidth={2.2} />
         {/if}
       </button>
     </div>
@@ -569,59 +513,16 @@
     <!-- Bottom toolbar -->
     <div class="toolbar">
       <button class="tbtn" onclick={goHome} title="Stories">
-        <svg
-          width="14"
-          height="14"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="1.8"
-          stroke-linecap="round"
-        >
-          <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
-          <polyline points="9 22 9 12 15 12 15 22" />
-        </svg>
+        <IconHome size={14} strokeWidth={1.8} />
       </button>
       <button class="tbtn" onclick={() => showCharSheet.update((v) => !v)} title="Character">
-        <svg
-          width="14"
-          height="14"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="1.8"
-          stroke-linecap="round"
-        >
-          <circle cx="12" cy="8" r="4" /><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7" />
-        </svg>
+        <IconUser size={14} strokeWidth={1.8} />
       </button>
       <button class="tbtn" onclick={() => showNPCTracker.update((v) => !v)} title="NPCs">
-        <svg
-          width="14"
-          height="14"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="1.8"
-          stroke-linecap="round"
-        >
-          <circle cx="9" cy="7" r="3" /><path d="M2 20c0-3 2.7-5.5 7-5.5" />
-          <circle cx="17" cy="9" r="2.5" /><path d="M14 20c0-2.5 1.8-4 4.5-4 2.7 0 4.5 1.5 4.5 4" />
-        </svg>
+        <IconUsers size={14} strokeWidth={1.8} />
       </button>
       <button class="tbtn" onclick={downloadStory} title="Export">
-        <svg
-          width="14"
-          height="14"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="1.8"
-          stroke-linecap="round"
-        >
-          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-          <polyline points="7 10 12 15 17 10" /><line x1="12" y1="15" x2="12" y2="3" />
-        </svg>
+        <IconDownload size={14} strokeWidth={1.8} />
       </button>
     </div>
   </div>
