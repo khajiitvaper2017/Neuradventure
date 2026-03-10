@@ -15,6 +15,7 @@
     currentStoryId,
     currentStoryTitle,
     currentStoryOpeningScenario,
+    currentStoryInitialWorld,
     character,
     worldState,
     npcs,
@@ -445,6 +446,11 @@
           <button class="edit-btn" onclick={startEditOpening} disabled={$isGenerating}>Edit</button>
         {/if}
       </div>
+      {#if $currentStoryInitialWorld}
+        <p class="opening-scene">
+          {$currentStoryInitialWorld.current_scene} · {$currentStoryInitialWorld.time_of_day}
+        </p>
+      {/if}
       {#if editingOpening}
         <textarea
           class="edit-textarea"
@@ -764,6 +770,13 @@
     text-transform: uppercase;
     letter-spacing: 0.1em;
     color: var(--text-dim);
+  }
+  .opening-scene {
+    font-family: var(--font-ui);
+    font-size: 0.65rem;
+    color: var(--text-scene);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
   }
   .scene-crumb {
     font-family: var(--font-ui);

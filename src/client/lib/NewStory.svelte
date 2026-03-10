@@ -14,6 +14,7 @@
     currentStoryId,
     currentStoryTitle,
     currentStoryOpeningScenario,
+    currentStoryInitialWorld,
     character,
     worldState,
     npcs,
@@ -113,6 +114,7 @@
       currentStoryId.set(id)
       currentStoryTitle.set(detail.title)
       currentStoryOpeningScenario.set(detail.opening_scenario)
+      currentStoryInitialWorld.set(detail.initial_world)
       character.set(detail.character)
       worldState.set(detail.world)
       npcs.set(detail.npcs)

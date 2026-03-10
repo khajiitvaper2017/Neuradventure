@@ -11,6 +11,7 @@
     currentStoryId,
     currentStoryTitle,
     currentStoryOpeningScenario,
+    currentStoryInitialWorld,
     character,
     worldState,
     npcs,
@@ -60,11 +61,12 @@
   async function openStory(story: StoryMeta) {
     try {
       const [detail, storyTurns] = await Promise.all([api.stories.get(story.id), api.turns.list(story.id)])
-      currentStoryId.set(detail.id)
-      currentStoryTitle.set(detail.title)
-      currentStoryOpeningScenario.set(detail.opening_scenario)
-      character.set(detail.character)
-      worldState.set(detail.world)
+    currentStoryId.set(detail.id)
+    currentStoryTitle.set(detail.title)
+    currentStoryOpeningScenario.set(detail.opening_scenario)
+    currentStoryInitialWorld.set(detail.initial_world)
+    character.set(detail.character)
+    worldState.set(detail.world)
       npcs.set(detail.npcs)
       turns.set(storyTurns)
       navigate("game", { reset: true })
@@ -76,11 +78,12 @@
   async function openStoryById(id: number) {
     try {
       const [detail, storyTurns] = await Promise.all([api.stories.get(id), api.turns.list(id)])
-      currentStoryId.set(detail.id)
-      currentStoryTitle.set(detail.title)
-      currentStoryOpeningScenario.set(detail.opening_scenario)
-      character.set(detail.character)
-      worldState.set(detail.world)
+    currentStoryId.set(detail.id)
+    currentStoryTitle.set(detail.title)
+    currentStoryOpeningScenario.set(detail.opening_scenario)
+    currentStoryInitialWorld.set(detail.initial_world)
+    character.set(detail.character)
+    worldState.set(detail.world)
       npcs.set(detail.npcs)
       turns.set(storyTurns)
       navigate("game", { reset: true })

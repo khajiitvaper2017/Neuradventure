@@ -67,6 +67,7 @@ stories.get("/:id", (c) => {
     opening_scenario: row.opening_scenario,
     character: JSON.parse(row.character_state_json),
     world: JSON.parse(row.world_state_json),
+    initial_world: JSON.parse(row.initial_world_state_json ?? row.world_state_json),
     npcs: JSON.parse(row.npc_states_json),
     created_at: row.created_at,
     updated_at: row.updated_at,

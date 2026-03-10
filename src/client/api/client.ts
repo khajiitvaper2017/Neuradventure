@@ -51,6 +51,7 @@ export interface StoryDetail {
   opening_scenario: string
   character: MainCharacterState
   world: WorldState
+  initial_world: WorldState
   npcs: NPCState[]
   created_at: string
   updated_at: string

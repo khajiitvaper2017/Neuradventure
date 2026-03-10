@@ -7,6 +7,7 @@
     "narrative_text: Write 1–2 short paragraphs continuing the story. When using 2 paragraphs, separate them with a literal \\n\\n.",
 
     "world_state_update: Always fully populate all three fields — current scene, time, and a 2–3 sentence summary of recent events.",
+    "time_of_day format: Use strict 24-hour time in HH:MM (00:00–23:59). Never use am/pm or words like 'morning'/'night'.",
 
     "player_state_update: Include only fields that changed this turn. Available fields: appearance_update, clothing_update, inventory_add, inventory_remove. Rules: (1) When the player removes clothing, that item must appear in inventory_add with a short description — never in inventory_remove. (2) inventory_remove may only contain items already in inventory before this turn. (3) Do not modify clothing or inventory unless the player's action or the narrative explicitly causes it.",
 
