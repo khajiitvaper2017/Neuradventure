@@ -180,6 +180,26 @@
     pendingCharacter.set(buildCharacterData())
     activeScreen.set("new-story")
   }
+
+  function autoresize(node: HTMLTextAreaElement, _value: string) {
+    const resize = () => {
+      node.style.height = "0px"
+      node.style.height = `${node.scrollHeight}px`
+    }
+
+    const schedule = () => requestAnimationFrame(resize)
+
+    schedule()
+    node.addEventListener("input", schedule)
+    return {
+      update() {
+        schedule()
+      },
+      destroy() {
+        node.removeEventListener("input", schedule)
+      },
+    }
+  }
 </script>
 
 <div class="screen char-create">
@@ -196,7 +216,7 @@
           id="char-generate"
           bind:value={generateDescription}
           placeholder="e.g. a grizzled old sailor who lost his family at sea"
-          rows="2"
+          use:autoresize={generateDescription}
         ></textarea>
         <button
           class="btn-ghost generate-btn"
@@ -241,7 +261,7 @@
         id="char-appearance"
         bind:value={physicalDescription}
         placeholder="Describe your character's physical appearance..."
-        rows="3"
+        use:autoresize={physicalDescription}
       ></textarea>
     </div>
 
@@ -251,7 +271,7 @@
         id="char-clothing"
         bind:value={currentClothing}
         placeholder="What are they wearing?"
-        rows="2"
+        use:autoresize={currentClothing}
       ></textarea>
     </div>
 
@@ -384,6 +404,8 @@
     font-size: 1rem;
     font-family: var(--font-ui);
     resize: none;
+    overflow: hidden;
+    min-height: 3.5rem;
     width: 100%;
     box-sizing: border-box;
   }
