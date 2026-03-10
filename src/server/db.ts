@@ -676,9 +676,9 @@ export function saveCanceledTurn(story_id: number, payload: CanceledTurnPayload)
 }
 
 export function getCanceledTurn(story_id: number): CanceledTurnPayload | undefined {
-  const row = getDb()
-    .prepare("SELECT payload_json FROM canceled_turns WHERE story_id = ?")
-    .get(story_id) as { payload_json: string } | undefined
+  const row = getDb().prepare("SELECT payload_json FROM canceled_turns WHERE story_id = ?").get(story_id) as
+    | { payload_json: string }
+    | undefined
   if (!row) return undefined
   try {
     return JSON.parse(row.payload_json) as CanceledTurnPayload

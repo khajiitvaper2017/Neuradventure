@@ -197,7 +197,7 @@ function derefJsonSchema(schema: object): object {
     const obj = node as Record<string, unknown>
     const ref = obj.$ref
     if (typeof ref === "string" && ref.startsWith("#/definitions/")) {
-      const key = ref.slice("#/definitions/".length)
+      const key = ref.substring("#/definitions/".length)
       const target = definitions[key]
       if (target) return derefNode(target)
     }
@@ -237,10 +237,8 @@ function formatNPCs(npcs: NPCState[]): string {
 
 function formatRecentHistoryEntries(turns: TurnRow[], maxTurns = 8): string[] {
   if (turns.length === 0) return []
-  const recent = turns.slice(-maxTurns)
-  return recent.map(
-    (t) => `> Player: ${t.player_input}\n  Story: ${t.narrative_text}`,
-  )
+  const recent = turns.length <= maxTurns ? turns : turns.filter((_, i) => i >= turns.length - maxTurns)
+  return recent.map((t) => `> Player: ${t.player_input}\n  Story: ${t.narrative_text}`)
 }
 
 function buildHistoryBlock(
@@ -313,33 +311,37 @@ export function buildTurnMessages(
       : hasPlayerInput
         ? `=== PLAYER'S ACTION ===\n${actionMode === "say" ? `You say: ${playerInput}` : playerInput}`
         : ""
+  const actionBlock = actionSection || null
 
-  const prefixSections = [
-    `=== INITIAL CHARACTER (STORY START) ===\n` +
-      `Appearance: ${initial.appearance.physical_description}\n` +
-      `Wearing: ${initial.appearance.current_clothing}`,
-    `=== YOUR CHARACTER (BASE) ===\n` +
-      `Name: ${character.name} · ${character.race} · ${character.gender}\n` +
-      `Traits: ${[...character.personality_traits, ...character.custom_traits].join(", ")}`,
-    `=== CURRENT CHARACTER STATE ===\n` +
-      `Appearance: ${character.appearance.physical_description}\n` +
-      `Wearing: ${character.appearance.current_clothing}\n` +
-      `Inventory: ${formatInventory(character.inventory)}`,
-    npcSection || null,
+  const storyContext =
     `=== STORY CONTEXT ===\n` +
-      `Scene: ${world.current_scene}\n` +
-      `Day: ${world.day_of_week}\n` +
-      `Time: ${world.time_of_day}\n` +
-      `Recent events: ${world.recent_events_summary}`,
-    "=== STORY SO FAR ===",
-  ].filter(Boolean) as string[]
+    `Scene: ${world.current_scene}\n` +
+    `Day: ${world.day_of_week}\n` +
+    `Time: ${world.time_of_day}\n` +
+    `Recent events: ${world.recent_events_summary}`
 
-  const prefix = prefixSections.join("\n\n") + "\n"
-  const suffix = actionSection ? `\n\n${actionSection}` : ""
-  const baseTokens = estimateTokens(prefix + suffix)
+  const initialSection =
+    `=== INITIAL CHARACTER (STORY START) ===\n` +
+    `Appearance: ${initial.appearance.physical_description}\n` +
+    `Wearing: ${initial.appearance.current_clothing}`
+  const baseSection =
+    `=== YOUR CHARACTER (BASE) ===\n` +
+    `Name: ${character.name} · ${character.race} · ${character.gender}\n` +
+    `Traits: ${[...character.personality_traits, ...character.custom_traits].join(", ")}`
+  const currentSection =
+    `=== CURRENT CHARACTER STATE ===\n` +
+    `Appearance: ${character.appearance.physical_description}\n` +
+    `Wearing: ${character.appearance.current_clothing}\n` +
+    `Inventory: ${formatInventory(character.inventory)}`
+
+  const joinSections = (sections: Array<string | null | undefined>): string => sections.filter(Boolean).join("\n\n")
+
+  const prefix = joinSections([initialSection, "=== STORY SO FAR ==="]) + "\n"
+  const afterHistory = joinSections([baseSection, currentSection, npcSection || null, storyContext, actionBlock])
+  const baseTokens = estimateTokens(`${prefix}${afterHistory ? `\n\n${afterHistory}` : ""}`)
   const history = buildHistoryBlock(recentTurns, world, ctxLimit, baseTokens)
 
-  const contextBlock = `${prefix}${history}${suffix}`
+  const contextBlock = `${prefix}${history}${afterHistory ? `\n\n${afterHistory}` : ""}`
 
   return [
     { role: "system", content: getSystemPrompt() },

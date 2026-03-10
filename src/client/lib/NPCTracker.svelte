@@ -115,9 +115,14 @@
                 <IconFemale size={14} strokeWidth={2} className="gender-icon" />
               {/if}
             </div>
-            <div class="npc-race">{npc.race}{npc.gender ? ` · ${npc.gender}` : ''}</div>
+            <div class="npc-race">{npc.race}{npc.gender ? ` · ${npc.gender}` : ""}</div>
           </div>
-          <div class="npc-rel-badge" style="color: {relationshipColor(npc.relationship_to_player)}; border-color: {relationshipColor(npc.relationship_to_player)}">
+          <div
+            class="npc-rel-badge"
+            style="color: {relationshipColor(npc.relationship_to_player)}; border-color: {relationshipColor(
+              npc.relationship_to_player,
+            )}"
+          >
             {npc.relationship_to_player}
           </div>
         </div>

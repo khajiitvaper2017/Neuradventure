@@ -315,8 +315,7 @@ export const api = {
       }),
     update: (turnId: number, data: { player_input?: string; narrative_text?: string }) =>
       request<{ ok: boolean }>(`/api/turns/${turnId}`, { method: "PUT", body: JSON.stringify(data) }),
-    delete: (turnId: number) =>
-      request<{ ok: boolean }>(`/api/turns/${turnId}`, { method: "DELETE" }),
+    delete: (turnId: number) => request<{ ok: boolean }>(`/api/turns/${turnId}`, { method: "DELETE" }),
   },
 
   generate: {

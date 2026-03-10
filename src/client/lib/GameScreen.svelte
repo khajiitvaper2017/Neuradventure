@@ -106,7 +106,7 @@
     if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
       return crypto.randomUUID()
     }
-    return `req_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`
+    return `req_${Date.now()}_${Math.random().toString(36).substring(2, 10)}`
   }
 
   function triggerSceneFlash() {
@@ -127,7 +127,7 @@
 
   function matchCase(match: string, replacement: string): string {
     if (match.toUpperCase() === match) return replacement.toUpperCase()
-    if (match[0] === match[0].toUpperCase()) return replacement[0].toUpperCase() + replacement.slice(1)
+    if (match[0] === match[0].toUpperCase()) return replacement[0].toUpperCase() + replacement.substring(1)
     return replacement
   }
 
@@ -410,7 +410,9 @@
     editPlayerInput = turn.player_input
     editNarrative = turn.narrative_text
     // autoresize uses rAF internally, so wait for tick + 2 rAFs to ensure textareas are sized
-    tick().then(() => requestAnimationFrame(() => requestAnimationFrame(() => requestAnimationFrame(() => scrollToBottom(true)))))
+    tick().then(() =>
+      requestAnimationFrame(() => requestAnimationFrame(() => requestAnimationFrame(() => scrollToBottom(true)))),
+    )
   }
 
   function cancelEditTurn() {
@@ -505,6 +507,96 @@
       .split(hasBlankLines ? /\n\s*\n+/ : /\n+/)
       .map((p) => p.trim())
       .filter(Boolean)
+  }
+
+  type InlineMatch = {
+    type: "code" | "dquote" | "squote"
+    start: number
+    end: number
+    inner: string
+  }
+
+  type InlineToken = {
+    type: "text" | "code" | "dquote" | "squote"
+    content: string
+  }
+
+  function isWordChar(ch: string): boolean {
+    return /[A-Za-z0-9_]/.test(ch)
+  }
+
+  function isApostrophe(text: string, index: number): boolean {
+    const prev = index > 0 ? text[index - 1] : ""
+    const next = index + 1 < text.length ? text[index + 1] : ""
+    return isWordChar(prev) && isWordChar(next)
+  }
+
+  function findCode(text: string, from: number): InlineMatch | null {
+    const re = /`([^`\n]+)`/g
+    re.lastIndex = from
+    const match = re.exec(text)
+    if (!match) return null
+    return { type: "code", start: match.index, end: match.index + match[0].length, inner: match[1] }
+  }
+
+  function findDQuote(text: string, from: number): InlineMatch | null {
+    const re = /"([^"\n]+)"/g
+    re.lastIndex = from
+    const match = re.exec(text)
+    if (!match) return null
+    return { type: "dquote", start: match.index, end: match.index + match[0].length, inner: match[1] }
+  }
+
+  function findSQuote(text: string, from: number): InlineMatch | null {
+    let start = text.indexOf("'", from)
+    while (start !== -1) {
+      const prev = start > 0 ? text[start - 1] : ""
+      if (!isApostrophe(text, start) && !isWordChar(prev)) {
+        let end = start + 1
+        while (end < text.length) {
+          if (text[end] === "'" && !isApostrophe(text, end)) {
+            const inner = text.slice(start + 1, end)
+            if (!inner.includes("\n")) {
+              return { type: "squote", start, end: end + 1, inner }
+            }
+            break
+          }
+          end += 1
+        }
+      }
+      start = text.indexOf("'", start + 1)
+    }
+    return null
+  }
+
+  function tokenizeInline(text: string): InlineToken[] {
+    if (!text) return []
+    const tokens: InlineToken[] = []
+    let index = 0
+    const priority: Record<InlineMatch["type"], number> = { code: 0, dquote: 1, squote: 2 }
+    while (index < text.length) {
+      const candidates = [findCode(text, index), findDQuote(text, index), findSQuote(text, index)].filter(
+        (m): m is InlineMatch => m !== null,
+      )
+      if (candidates.length === 0) {
+        tokens.push({ type: "text", content: text.substring(index) })
+        break
+      }
+      candidates.sort((a, b) => (a.start === b.start ? priority[a.type] - priority[b.type] : a.start - b.start))
+      const next = candidates[0]
+      if (next.start > index) {
+        tokens.push({ type: "text", content: text.substring(index, next.start) })
+      }
+      if (next.type === "code") {
+        tokens.push({ type: "code", content: next.inner })
+      } else if (next.type === "dquote") {
+        tokens.push({ type: "dquote", content: next.inner })
+      } else {
+        tokens.push({ type: "squote", content: next.inner })
+      }
+      index = next.end
+    }
+    return tokens
   }
 
   async function loadVariants(turnId: number, force = false) {
@@ -643,7 +735,16 @@
   <!-- ── Top bar ─────────────────────────────────────────── -->
   <header>
     <button class="header-back" onclick={goHome} title="Return to menu" aria-label="Back to stories">
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M19 12H5"/><path d="M12 19l-7-7 7-7"/></svg>
+      <svg
+        width="14"
+        height="14"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="2"
+        stroke-linecap="round"
+        aria-hidden="true"><path d="M19 12H5" /><path d="M12 19l-7-7 7-7" /></svg
+      >
     </button>
 
     <div class="header-center">
@@ -678,7 +779,12 @@
   </header>
 
   <!-- ── Story scroll area ───────────────────────────────── -->
-  <div class="story-area" class:story-ready={initialScrollDone || $turns.length === 0} data-scroll-root="screen" bind:this={storyDiv}>
+  <div
+    class="story-area"
+    class:story-ready={initialScrollDone || $turns.length === 0}
+    data-scroll-root="screen"
+    bind:this={storyDiv}
+  >
     <!-- Opening scene context -->
     {#if $worldState}
       <p class="scene-crumb mobile-only" class:flash={flashScene}>
@@ -712,7 +818,17 @@
         </div>
       {:else}
         <p class="opening-text" class:flash={flashOpening}>
-          {$currentStoryOpeningScenario || $worldState?.recent_events_summary || ""}
+          {#each tokenizeInline($currentStoryOpeningScenario || $worldState?.recent_events_summary || "") as token}
+            {#if token.type === "text"}
+              {token.content}
+            {:else if token.type === "code"}
+              <span class="inline-code">{token.content}</span>
+            {:else if token.type === "dquote"}
+              <span class="inline-quote">"{token.content}"</span>
+            {:else}
+              <span class="inline-quote">'{token.content}'</span>
+            {/if}
+          {/each}
         </p>
       {/if}
     </div>
@@ -749,9 +865,26 @@
           {#if turn.player_input.trim().length > 0}
             <IconPencilSquare className="pencil-icon" size={12} strokeWidth={2} />
           {/if}
-          {turn.player_input}
+          <span class="action-text">
+            {#each tokenizeInline(turn.player_input) as token}
+              {#if token.type === "text"}
+                {token.content}
+              {:else if token.type === "code"}
+                <span class="inline-code">{token.content}</span>
+              {:else if token.type === "dquote"}
+                <span class="inline-quote">"{token.content}"</span>
+              {:else}
+                <span class="inline-quote">'{token.content}'</span>
+              {/if}
+            {/each}
+          </span>
           <button class="edit-btn inline" onclick={() => startEditTurn(turn)} disabled={$isGenerating}>Edit</button>
-          <button class="delete-btn inline" onclick={() => deleteTurn(turn.id)} disabled={$isGenerating} title="Delete turn">
+          <button
+            class="delete-btn inline"
+            onclick={() => deleteTurn(turn.id)}
+            disabled={$isGenerating}
+            title="Delete turn"
+          >
             <IconTrash size={12} strokeWidth={2} />
           </button>
         </div>
@@ -762,7 +895,19 @@
             <p class="turn-scene">{turn.world.current_scene} · {turn.world.day_of_week} · {turn.world.time_of_day}</p>
           {/if}
           {#each paragraphs(turn.narrative_text) as para, j}
-            <p class="para" style="animation-delay: {j * 0.06}s">{para}</p>
+            <p class="para" style="animation-delay: {j * 0.06}s">
+              {#each tokenizeInline(para) as token}
+                {#if token.type === "text"}
+                  {token.content}
+                {:else if token.type === "code"}
+                  <span class="inline-code">{token.content}</span>
+                {:else if token.type === "dquote"}
+                  <span class="inline-quote">"{token.content}"</span>
+                {:else}
+                  <span class="inline-quote">'{token.content}'</span>
+                {/if}
+              {/each}
+            </p>
           {/each}
 
           {#if i === $turns.length - 1 && lastTurnVariants.length > 1}
@@ -911,7 +1056,9 @@
     width: 46px;
     min-height: 46px;
     flex-shrink: 0;
-    transition: color 0.15s, background 0.15s;
+    transition:
+      color 0.15s,
+      background 0.15s;
   }
   .header-back:hover {
     color: var(--text);
@@ -930,9 +1077,8 @@
     font-size: 0.82rem;
     color: var(--text);
     font-weight: 500;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+    white-space: normal;
+    overflow-wrap: anywhere;
     line-height: 1.2;
   }
   .header-scene {
@@ -941,9 +1087,8 @@
     color: var(--text-scene);
     text-transform: uppercase;
     letter-spacing: 0.06em;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
+    white-space: normal;
+    overflow-wrap: anywhere;
     line-height: 1.2;
   }
   .header-actions {
@@ -1223,6 +1368,26 @@
   }
   .para:last-child {
     margin-bottom: 0;
+  }
+  .action-text {
+    flex: 1;
+    min-width: 0;
+  }
+  .inline-code {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+    font-size: 0.95em;
+    padding: 0.08em 0.28em;
+    border-radius: 4px;
+    background: var(--bg-raised);
+    border: 1px solid var(--border);
+    color: var(--accent);
+  }
+  .inline-quote {
+    padding: 0.04em 0.12em;
+    border-radius: 4px;
+    background: var(--accent-dim);
+    color: var(--accent);
+    font-style: italic;
   }
 
   /* Fade-in animation for fresh turns */

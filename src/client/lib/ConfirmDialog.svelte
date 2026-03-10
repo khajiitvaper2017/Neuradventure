@@ -21,10 +21,7 @@
       <p class="confirm-message">{$confirmDialog.message}</p>
       <div class="confirm-actions">
         <button class="btn-ghost" onclick={() => resolveConfirm(false)}>Cancel</button>
-        <button
-          class={$confirmDialog.danger ? "btn-danger" : "btn-accent"}
-          onclick={() => resolveConfirm(true)}
-        >
+        <button class={$confirmDialog.danger ? "btn-danger" : "btn-accent"} onclick={() => resolveConfirm(true)}>
           {$confirmDialog.confirmLabel || "Confirm"}
         </button>
       </div>
@@ -93,11 +90,21 @@
   }
 
   @keyframes fadeIn {
-    from { opacity: 0; }
-    to { opacity: 1; }
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
   }
   @keyframes boxIn {
-    from { opacity: 0; transform: scale(0.96); }
-    to { opacity: 1; transform: scale(1); }
+    from {
+      opacity: 0;
+      transform: scale(0.96);
+    }
+    to {
+      opacity: 1;
+      transform: scale(1);
+    }
   }
 </style>

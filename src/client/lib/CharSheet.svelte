@@ -119,7 +119,7 @@
           <IconFemale size={14} strokeWidth={2} className="gender-icon" />
         {/if}
       </div>
-      <div class="cs-identity-detail">{$character.race}{$character.gender ? ` · ${$character.gender}` : ''}</div>
+      <div class="cs-identity-detail">{$character.race}{$character.gender ? ` · ${$character.gender}` : ""}</div>
     </div>
 
     <div class="cs-section" class:flash={flashAppearance}>

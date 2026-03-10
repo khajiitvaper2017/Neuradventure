@@ -80,7 +80,10 @@ function collectLlmWarnings(
   if (playerUpdate.clothing_update && playerUpdate.clothing_update === character.appearance.current_clothing) {
     warnings.push("player_state_update.clothing_update matches existing value")
   }
-  if (playerUpdate.inventory_update !== undefined && inventoryEquals(playerUpdate.inventory_update, character.inventory)) {
+  if (
+    playerUpdate.inventory_update !== undefined &&
+    inventoryEquals(playerUpdate.inventory_update, character.inventory)
+  ) {
     warnings.push("player_state_update.inventory_update matches existing value")
   }
 
@@ -260,7 +263,7 @@ export function cancelLastTurn(storyId: number): CancelLastResult {
   const variants = db.listTurnVariants(lastTurn.id)
   const activeVariant =
     lastTurn.active_variant_id !== null
-      ? variants.find((variant) => variant.id === lastTurn.active_variant_id) ?? null
+      ? (variants.find((variant) => variant.id === lastTurn.active_variant_id) ?? null)
       : null
   const activeVariantIndex =
     activeVariant?.variant_index ?? (variants.length > 0 ? variants[variants.length - 1].variant_index : null)
@@ -374,7 +377,7 @@ export async function regenerateLastTurn(storyId: number, actionMode?: string): 
 
   const initial = parseInitialStorySnapshot(story).character
   const ctxLimit = getCtxLimitCached()
-  const historyTurns = turnRows.slice(0, -1)
+  const historyTurns = turnRows.filter((_, i) => i < turnRows.length - 1)
   const snapshot =
     historyTurns.length > 0
       ? parseTurnSnapshot(historyTurns[historyTurns.length - 1])
@@ -477,7 +480,7 @@ export function createNewStory(
     current_scene: startingScene?.trim() || "Unknown location",
     day_of_week: "Monday",
     time_of_day: "day",
-    recent_events_summary: opening_scenario.slice(0, 200),
+    recent_events_summary: opening_scenario.trim(),
   }
   return db.createStory(title, opening_scenario, character, world, npcs, characterId)
 }

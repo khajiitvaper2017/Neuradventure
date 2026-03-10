@@ -35,7 +35,7 @@ async function main() {
   console.log("Building prompt messages...")
   const messages = buildTurnMessages(character, world, npcs, [], "I look around the tavern.", "do")
   console.log("System:", messages[0].content)
-  console.log("\nUser context (first 500 chars):", (messages[1].content as string).slice(0, 500))
+  console.log("\nUser context:", messages[1].content)
 
   console.log("\nCalling LLM...")
   const response = await callLLM(messages)

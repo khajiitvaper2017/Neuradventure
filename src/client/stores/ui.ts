@@ -27,8 +27,7 @@ function buildHash(screen: Screen, storyId: number | null): string {
   return `#/${screen}`
 }
 
-const initialRoute =
-  typeof window !== "undefined" ? parseHash(window.location.hash) : { screen: "home", storyId: null }
+const initialRoute = typeof window !== "undefined" ? parseHash(window.location.hash) : { screen: "home", storyId: null }
 
 export const activeScreen = writable<Screen>(initialRoute.screen)
 export const routeStoryId = writable<number | null>(initialRoute.storyId)
@@ -75,8 +74,7 @@ export function navigate(
   options: { replace?: boolean; reset?: boolean; params?: { storyId?: number } } = {},
 ) {
   const current = get(activeScreen)
-  const nextStoryId =
-    screen === "game" ? (options.params?.storyId ?? get(routeStoryId)) : null
+  const nextStoryId = screen === "game" ? (options.params?.storyId ?? get(routeStoryId)) : null
   const nextScreen = screen === "game" && !nextStoryId ? "home" : screen
   activeScreen.set(nextScreen)
   routeStoryId.set(nextScreen === "game" ? nextStoryId : null)

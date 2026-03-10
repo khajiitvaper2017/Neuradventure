@@ -1,7 +1,15 @@
 <script lang="ts">
   import { onMount } from "svelte"
   import { navigate } from "../stores/ui.js"
-  import { theme, design, textJustify, colorScheme, connector, generation, ctxLimitDetected } from "../stores/settings.js"
+  import {
+    theme,
+    design,
+    textJustify,
+    colorScheme,
+    connector,
+    generation,
+    ctxLimitDetected,
+  } from "../stores/settings.js"
   import type { GenerationParams, SamplerPreset } from "../api/client.js"
   import { presets, loadPresets } from "./presets.js"
 

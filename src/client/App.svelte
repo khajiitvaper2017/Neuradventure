@@ -54,7 +54,9 @@
 
   onMount(() => {
     initRouter()
-    initSettings().finally(() => { appReady = true })
+    initSettings().finally(() => {
+      appReady = true
+    })
     window.addEventListener("wheel", handleWheel, { passive: false })
     return () => window.removeEventListener("wheel", handleWheel)
   })

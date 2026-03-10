@@ -43,9 +43,9 @@
         customMap.set(key, raw)
       }
     }
-    const selected = Array.from(selectedMap.values()).slice(0, 5)
+    const selected = Array.from(selectedMap.values()).filter((_, i) => i < 5)
     const remaining = 5 - selected.length
-    const custom = Array.from(customMap.values()).slice(0, remaining)
+    const custom = Array.from(customMap.values()).filter((_, i) => i < remaining)
     return { selected, custom }
   }
   const initialPersonality = splitPersonalityTraits(existing?.personality_traits ?? [])
@@ -171,7 +171,7 @@
         physical_description: physicalDescription.trim(),
         current_clothing: currentClothing.trim(),
       },
-      personality_traits: uniquePersonality([...selectedTraits, ...customPersonalityTraits]).slice(0, 5),
+      personality_traits: uniquePersonality([...selectedTraits, ...customPersonalityTraits]).filter((_, i) => i < 5),
       custom_traits: customTraits,
     }
   }
@@ -274,7 +274,7 @@
       <div class="gender-row">
         {#each ["male", "female"] as g}
           <button class="toggle {gender === g ? 'active' : ''}" onclick={() => (gender = g)}
-            >{g.charAt(0).toUpperCase() + g.slice(1)}</button
+            >{g.charAt(0).toUpperCase() + g.substring(1)}</button
           >
         {/each}
         <input
