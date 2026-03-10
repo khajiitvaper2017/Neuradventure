@@ -725,6 +725,7 @@
     .input-zone {
       padding-left: 1.25rem;
       padding-right: 1.25rem;
+      padding-bottom: 1.1rem;
     }
   }
 
@@ -845,9 +846,15 @@
     font-family: var(--font-story);
     font-size: 0.95rem;
     line-height: 1.5;
-    padding: 0.65rem 1.25rem 0.5rem;
+    padding: 0.85rem 1.25rem 0.65rem;
     resize: none;
     display: block;
+  }
+  @media (min-width: 1200px) {
+    .input-zone textarea {
+      padding-bottom: 1.25rem;
+      min-height: 68px;
+    }
   }
   .input-zone textarea::placeholder {
     color: var(--text-dim);
