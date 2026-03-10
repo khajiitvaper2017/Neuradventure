@@ -4,11 +4,41 @@
   import { activeScreen, showError } from "../stores/ui.js"
   import { pendingCharacter } from "../stores/game.js"
 
+  // Ordered as opposite pairs — each adjacent pair blocks each other
   const PERSONALITY_OPTIONS = [
-    "Brave", "Cunning", "Kind", "Stubborn", "Witty",
-    "Reckless", "Loyal", "Cold", "Mysterious", "Cautious",
-    "Charming", "Ruthless", "Idealistic", "Cynical", "Curious",
+    "Ambitious",    "Complacent",
+    "Curious",      "Closed-minded",
+    "Idealistic",   "Cynical",
+    "Passionate",   "Apathetic",
+    "Iconoclastic", "Conformist",
+    "Resourceful",  "Helpless",
+    "Courageous",   "Cowardly",
+    "Arrogant",     "Humble",
+    "Greedy",       "Ascetic",
+    "Impulsive",    "Deliberate",
+    "Naive",        "Shrewd",
+    "Selfish",      "Selfless",
+    "Rigid",        "Adaptable",
+    "Deceitful",    "Honest",
+    "Empathetic",   "Callous",
+    "Loyal",        "Treacherous",
+    "Domineering",  "Submissive",
+    "Trusting",     "Paranoid",
+    "Secretive",    "Transparent",
+    "Stubborn",     "Yielding",
+    "Indecisive",   "Decisive",
+    "Obsessive",    "Indifferent",
+    "Vindictive",   "Forgiving",
+    "Honorable",    "Unscrupulous",
+    "Vulnerable",   "Stoic",
   ]
+
+  const OPPOSITES: Record<string, string> = Object.fromEntries(
+    PERSONALITY_OPTIONS.reduce<[string, string][]>((acc, _, i, arr) => {
+      if (i % 2 === 0) acc.push([arr[i], arr[i + 1]], [arr[i + 1], arr[i]])
+      return acc
+    }, [])
+  )
 
   const existing = get(pendingCharacter)
 
@@ -20,10 +50,15 @@
   let customTraitInput = ""
   let customTraits: string[] = existing?.custom_traits ?? []
 
+  function isBlocked(trait: string): boolean {
+    const opp = OPPOSITES[trait]
+    return opp != null && selectedTraits.includes(opp)
+  }
+
   function toggleTrait(trait: string) {
     if (selectedTraits.includes(trait)) {
       selectedTraits = selectedTraits.filter((t) => t !== trait)
-    } else if (selectedTraits.length < 5) {
+    } else if (selectedTraits.length < 5 && !isBlocked(trait)) {
       selectedTraits = [...selectedTraits, trait]
     }
   }
@@ -130,7 +165,7 @@
           <button
             class="chip {selectedTraits.includes(trait) ? 'selected' : ''}"
             onclick={() => toggleTrait(trait)}
-            disabled={!selectedTraits.includes(trait) && selectedTraits.length >= 5}
+            disabled={!selectedTraits.includes(trait) && (selectedTraits.length >= 5 || isBlocked(trait))}
           >{trait}</button>
         {/each}
       </div>

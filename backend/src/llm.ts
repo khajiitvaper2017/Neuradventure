@@ -8,6 +8,18 @@ const openai = new OpenAI({
   apiKey: "kobold",
 })
 
+const NPC_TRAITS = [
+  "Ambitious", "Complacent", "Curious", "Closed-minded", "Idealistic", "Cynical",
+  "Passionate", "Apathetic", "Iconoclastic", "Conformist", "Resourceful", "Helpless",
+  "Courageous", "Cowardly", "Arrogant", "Humble", "Greedy", "Ascetic",
+  "Impulsive", "Deliberate", "Naive", "Shrewd", "Selfish", "Selfless",
+  "Rigid", "Adaptable", "Deceitful", "Honest", "Empathetic", "Callous",
+  "Loyal", "Treacherous", "Domineering", "Submissive", "Trusting", "Paranoid",
+  "Secretive", "Transparent", "Stubborn", "Yielding", "Indecisive", "Decisive",
+  "Obsessive", "Indifferent", "Vindictive", "Forgiving", "Honorable", "Unscrupulous",
+  "Vulnerable", "Stoic",
+]
+
 const SYSTEM_PROMPT = `You are a creative and immersive text-based adventure game narrator.
 Write in second-person present tense ("You push open the heavy door...").
 Your prose is vivid, atmospheric, and character-driven.
@@ -20,6 +32,7 @@ RULES:
 - Only include fields in player_state_update if they actually changed
 - new_npcs should only contain NPCs appearing for the first time
 - world_state_update must always be fully populated with current scene, time, and a 2-3 sentence summary of recent events
+- When assigning personality_traits to new or updated NPCs, prefer traits from this list: ${NPC_TRAITS.join(", ")}
 - You MUST respond with valid JSON matching the provided schema exactly`
 
 function formatInventory(inventory: MainCharacterState["inventory"]): string {
