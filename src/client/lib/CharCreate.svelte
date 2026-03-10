@@ -253,9 +253,9 @@
 </script>
 
 <div class="screen char-create">
-  <header>
+  <header class="screen-header">
     <button class="back-btn" onclick={() => activeScreen.set("home")}>← Back</button>
-    <h2>Create Character</h2>
+    <h2 class="screen-title">Create Character</h2>
   </header>
 
   <div class="form-scroll" data-scroll-root="screen">
@@ -428,87 +428,6 @@
     flex-direction: column;
     height: 100%;
   }
-  header {
-    display: flex;
-    align-items: center;
-    gap: 1rem;
-    padding: 1rem;
-    border-bottom: 1px solid var(--border);
-  }
-  h2 {
-    font-family: var(--font-ui);
-    font-size: 1.1rem;
-    font-weight: 600;
-    margin: 0;
-  }
-  .back-btn {
-    background: none;
-    border: none;
-    color: var(--text-dim);
-    cursor: pointer;
-    padding: 0.25rem;
-    font-size: 0.9rem;
-    min-height: 44px;
-  }
-  .back-btn:hover {
-    color: var(--text);
-  }
-  .form-scroll {
-    flex: 1;
-    overflow-y: auto;
-    padding: 1rem;
-    display: flex;
-    flex-direction: column;
-    gap: 1.25rem;
-  }
-  .field {
-    display: flex;
-    flex-direction: column;
-    gap: 0.5rem;
-  }
-  .label-row {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 0.75rem;
-  }
-  .btn-mini {
-    padding: 0.35rem 0.6rem;
-    font-size: 0.75rem;
-    min-height: 32px;
-  }
-  label {
-    font-size: 0.85rem;
-    font-weight: 600;
-    color: var(--text-dim);
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-  }
-  .hint {
-    font-weight: 400;
-    text-transform: none;
-    letter-spacing: 0;
-  }
-  input[type="text"],
-  textarea {
-    background: var(--bg-input);
-    border: 1px solid var(--border);
-    border-radius: 4px;
-    color: var(--text);
-    padding: 0.75rem;
-    font-size: 1rem;
-    font-family: var(--font-ui);
-    resize: none;
-    overflow: hidden;
-    min-height: 3.5rem;
-    width: 100%;
-    box-sizing: border-box;
-  }
-  input[type="text"]:focus,
-  textarea:focus {
-    outline: none;
-    border-color: var(--accent);
-  }
   .gender-row {
     display: flex;
     gap: 0.5rem;
@@ -537,62 +456,11 @@
     color: var(--accent);
     background: rgba(200, 169, 110, 0.1);
   }
-  .chips {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.5rem;
-  }
-  .chip {
-    padding: 0.4rem 0.75rem;
-    background: var(--bg-input);
-    border: 1px solid var(--border);
-    border-radius: 20px;
-    color: var(--text-dim);
-    cursor: pointer;
-    font-size: 0.85rem;
-    min-height: 36px;
-  }
-  .chip:disabled {
-    opacity: 0.4;
-    cursor: not-allowed;
-  }
-  .chip.selected {
-    border-color: var(--accent);
-    color: var(--accent);
-    background: rgba(200, 169, 110, 0.12);
-  }
   .custom-input {
     display: flex;
     gap: 0.5rem;
   }
   .custom-input input {
     flex: 1;
-  }
-  .actions {
-    padding: 1rem;
-    border-top: 1px solid var(--border);
-    display: flex;
-    gap: 0.75rem;
-  }
-  .actions button {
-    flex: 1;
-  }
-  .generate-field {
-    background: var(--bg-raised);
-    border: 1px solid var(--border);
-    border-radius: 6px;
-    padding: 0.75rem;
-  }
-  .generate-row {
-    display: flex;
-    gap: 0.5rem;
-    align-items: flex-start;
-  }
-  .generate-row textarea {
-    flex: 1;
-  }
-  .generate-btn {
-    white-space: nowrap;
-    align-self: stretch;
   }
 </style>

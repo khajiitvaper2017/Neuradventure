@@ -102,106 +102,10 @@
 <style>
   /* ── Desktop sidebar ──────────────────────────────── */
   .sidebar {
-    background: var(--bg-raised);
     border-right: 1px solid var(--border);
-    display: flex;
-    flex-direction: column;
-    overflow: hidden;
-    height: 100dvh;
   }
-  .sidebar-header {
-    display: flex;
-    align-items: center;
-    padding: 0.85rem 1rem;
-    border-bottom: 1px solid var(--border);
-    font-family: var(--font-brand);
-    font-size: 0.78rem;
-    font-weight: 400;
-    letter-spacing: 0.1em;
-    text-transform: uppercase;
-    color: var(--accent);
-    min-height: 48px;
-  }
-  .sidebar-body {
-    flex: 1;
-    overflow-y: auto;
-    padding: 1rem;
-    display: flex;
-    flex-direction: column;
-    gap: 0.5rem;
-  }
-  .empty {
-    color: var(--text-dim);
-    font-size: 0.85rem;
-    padding: 2rem 0;
-    text-align: center;
-    font-style: italic;
-  }
-
-  /* ── Mobile overlay ───────────────────────────────── */
-  .overlay {
-    position: fixed;
-    inset: 0;
-    background: rgba(0, 0, 0, 0.5);
-    z-index: 20;
-  }
-  .panel {
-    position: fixed;
-    top: 0;
-    right: 0;
-    bottom: 0;
-    width: min(300px, 88vw);
-    background: var(--bg-raised);
-    border-left: 1px solid var(--border);
-    z-index: 21;
-    display: flex;
-    flex-direction: column;
-    overflow: hidden;
-  }
-  .panel-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 0.85rem 1rem;
-    border-bottom: 1px solid var(--border);
-    font-family: var(--font-brand);
-    font-size: 0.78rem;
-    font-weight: 400;
-    letter-spacing: 0.1em;
-    text-transform: uppercase;
-    color: var(--text-dim);
-  }
-  .panel-header button {
-    background: none;
-    border: none;
-    color: var(--text-dim);
-    cursor: pointer;
-    font-size: 1.2rem;
-    line-height: 1;
-    min-width: 40px;
-    min-height: 40px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-  }
-  .panel-header button:hover {
-    color: var(--text);
-  }
-  .panel-body {
-    flex: 1;
-    overflow-y: auto;
-    padding: 1rem;
-    display: flex;
-    flex-direction: column;
-    gap: 0.5rem;
-  }
-
   /* ── Shared content styles ────────────────────────── */
   .section-label {
-    font-size: 0.75rem;
-    text-transform: uppercase;
-    letter-spacing: 0.08em;
-    color: var(--text-dim);
     margin-top: 0.75rem;
   }
   .section-label:first-child {
@@ -213,19 +117,6 @@
     line-height: 1.5;
   }
   .value.muted {
-    color: var(--text-dim);
-  }
-  .chips {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.4rem;
-  }
-  .chip {
-    background: var(--bg-input);
-    border: 1px solid var(--border);
-    border-radius: 20px;
-    padding: 0.25rem 0.6rem;
-    font-size: 0.8rem;
     color: var(--text-dim);
   }
   .inventory {

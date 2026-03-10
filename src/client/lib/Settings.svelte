@@ -117,9 +117,9 @@
 </script>
 
 <div class="screen settings">
-  <header>
+  <header class="screen-header">
     <button class="back-btn" onclick={() => activeScreen.set("home")}>← Back</button>
-    <h2>Settings</h2>
+    <h2 class="screen-title">Settings</h2>
   </header>
 
   <nav class="tabs">
@@ -394,37 +394,6 @@
     background: var(--bg);
   }
 
-  header {
-    display: flex;
-    align-items: center;
-    gap: 1rem;
-    padding: 0.75rem 1rem;
-    border-bottom: 1px solid var(--border);
-    min-height: 48px;
-    flex-shrink: 0;
-  }
-  h2 {
-    font-family: var(--font-ui);
-    font-size: 1rem;
-    font-weight: 500;
-    margin: 0;
-    color: var(--text);
-    letter-spacing: 0.01em;
-  }
-  .back-btn {
-    background: none;
-    border: none;
-    color: var(--text-dim);
-    cursor: pointer;
-    font-size: 0.9rem;
-    font-family: var(--font-ui);
-    min-height: 44px;
-    padding: 0 0.25rem;
-  }
-  .back-btn:hover {
-    color: var(--text);
-  }
-
   /* ── Tabs ──────────────────────────────────────────── */
   .tabs {
     display: flex;
@@ -464,9 +433,6 @@
   .section-label {
     padding: 1.25rem 1rem 0.4rem;
     font-size: 0.7rem;
-    font-family: var(--font-ui);
-    font-weight: 600;
-    text-transform: uppercase;
     letter-spacing: 0.1em;
     color: var(--accent);
   }
@@ -513,56 +479,9 @@
     cursor: pointer;
   }
 
-  .divider {
-    height: 1px;
-    background: var(--border);
-    margin: 0.5rem 0;
-  }
-
   /* ── Input fields ─────────────────────────────────── */
   .row-input {
     cursor: default;
-  }
-
-  .text-input {
-    background: var(--bg-input);
-    border: 1px solid var(--border);
-    color: var(--text);
-    font-family: var(--font-ui);
-    font-size: 0.85rem;
-    padding: 0.45rem 0.6rem;
-    min-width: 0;
-    width: 220px;
-    flex-shrink: 0;
-  }
-  .text-input:focus {
-    outline: none;
-    border-color: var(--accent);
-  }
-
-  .num-input {
-    background: var(--bg-input);
-    border: 1px solid var(--border);
-    color: var(--text);
-    font-family: var(--font-ui);
-    font-size: 0.85rem;
-    padding: 0.45rem 0.5rem;
-    width: 90px;
-    text-align: right;
-    flex-shrink: 0;
-  }
-  .num-input:focus {
-    outline: none;
-    border-color: var(--accent);
-  }
-  /* Hide spin buttons */
-  .num-input::-webkit-inner-spin-button,
-  .num-input::-webkit-outer-spin-button {
-    -webkit-appearance: none;
-    margin: 0;
-  }
-  .num-input {
-    -moz-appearance: textfield;
   }
 
   .connector-badge {

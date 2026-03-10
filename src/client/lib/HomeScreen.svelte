@@ -298,7 +298,7 @@
             {#if openMenuId === story.id}
               <div class="dropdown">
                 <button onclick={() => downloadStory(story.id)}>Export JSON</button>
-                <button class="del" onclick={() => deleteStory(story.id)}>Delete</button>
+                <button class="danger-item" onclick={() => deleteStory(story.id)}>Delete</button>
               </div>
             {/if}
           </div>
@@ -485,21 +485,6 @@
     flex: 1;
     overflow-y: auto;
   }
-  .empty {
-    padding: 2.5rem 1rem;
-    text-align: center;
-    color: var(--text-dim);
-    font-size: 0.9rem;
-    font-family: var(--font-story);
-    font-style: italic;
-    display: flex;
-    flex-direction: column;
-    gap: 0.35rem;
-  }
-  .empty-hint {
-    font-size: 0.8rem;
-    opacity: 0.6;
-  }
   .story-row {
     display: flex;
     align-items: stretch;
@@ -561,28 +546,6 @@
     position: absolute;
     right: 0;
     top: 100%;
-    background: var(--bg-raised);
-    border: 1px solid var(--border);
-    z-index: 10;
-    min-width: 148px;
-  }
-  .dropdown button {
-    display: block;
-    width: 100%;
-    padding: 0.7rem 1rem;
-    background: none;
-    border: none;
-    text-align: left;
-    cursor: pointer;
-    color: var(--text);
-    font-size: 0.85rem;
-    font-family: var(--font-ui);
-  }
-  .dropdown button:hover {
-    background: var(--bg-action);
-  }
-  .dropdown .del {
-    color: var(--danger);
   }
 
   footer {

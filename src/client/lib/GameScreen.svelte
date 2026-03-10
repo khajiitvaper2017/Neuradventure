@@ -511,28 +511,6 @@
     position: absolute;
     right: 0;
     top: calc(100% + 4px);
-    background: var(--bg-raised);
-    border: 1px solid var(--border);
-    z-index: 50;
-    min-width: 170px;
-  }
-  .dropdown button {
-    display: block;
-    width: 100%;
-    padding: 0.7rem 1rem;
-    background: none;
-    border: none;
-    text-align: left;
-    cursor: pointer;
-    color: var(--text);
-    font-size: 0.85rem;
-    font-family: var(--font-ui);
-  }
-  .dropdown button:hover {
-    background: var(--bg-action);
-  }
-  .dropdown .danger-item {
-    color: var(--text-dim);
   }
 
   /* ── Story area ─────────────────────────────────────── */

@@ -71,100 +71,14 @@
 <style>
   /* ── Desktop sidebar ──────────────────────────────── */
   .sidebar {
-    background: var(--bg-raised);
     border-left: 1px solid var(--border);
-    display: flex;
-    flex-direction: column;
-    overflow: hidden;
-    height: 100dvh;
-  }
-  .sidebar-header {
-    display: flex;
-    align-items: center;
-    padding: 0.85rem 1rem;
-    border-bottom: 1px solid var(--border);
-    font-family: var(--font-brand);
-    font-size: 0.78rem;
-    font-weight: 400;
-    letter-spacing: 0.1em;
-    text-transform: uppercase;
-    color: var(--accent);
-    min-height: 48px;
-  }
-  .sidebar-body {
-    flex: 1;
-    overflow-y: auto;
-    padding: 0.75rem;
-    display: flex;
-    flex-direction: column;
-    gap: 0.75rem;
-  }
-
-  /* ── Mobile overlay ───────────────────────────────── */
-  .overlay {
-    position: fixed;
-    inset: 0;
-    background: rgba(0, 0, 0, 0.5);
-    z-index: 20;
-  }
-  .panel {
-    position: fixed;
-    top: 0;
-    right: 0;
-    bottom: 0;
-    width: min(300px, 88vw);
-    background: var(--bg-raised);
-    border-left: 1px solid var(--border);
-    z-index: 21;
-    display: flex;
-    flex-direction: column;
-    overflow: hidden;
-  }
-  .panel-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 0.85rem 1rem;
-    border-bottom: 1px solid var(--border);
-    font-family: var(--font-brand);
-    font-size: 0.78rem;
-    font-weight: 400;
-    letter-spacing: 0.1em;
-    text-transform: uppercase;
-    color: var(--text-dim);
-  }
-  .panel-header button {
-    background: none;
-    border: none;
-    color: var(--text-dim);
-    cursor: pointer;
-    font-size: 1.2rem;
-    line-height: 1;
-    min-width: 40px;
-    min-height: 40px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-  }
-  .panel-header button:hover {
-    color: var(--text);
-  }
-  .panel-body {
-    flex: 1;
-    overflow-y: auto;
-    padding: 0.75rem;
-    display: flex;
-    flex-direction: column;
-    gap: 0.75rem;
   }
 
   /* ── Shared content styles ────────────────────────── */
-  .empty {
-    text-align: center;
-    color: var(--text-dim);
-    padding: 2rem 0;
-    font-size: 0.9rem;
-    font-style: italic;
+  .sidebar-body,
+  .panel-body {
+    padding: 0.75rem;
+    gap: 0.75rem;
   }
   .npc-card {
     background: var(--bg-input);
