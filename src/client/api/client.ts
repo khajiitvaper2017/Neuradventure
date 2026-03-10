@@ -33,6 +33,7 @@ export interface NPCState {
 
 export interface WorldState {
   current_scene: string
+  day_of_week: string
   time_of_day: string
   recent_events_summary: string
 }

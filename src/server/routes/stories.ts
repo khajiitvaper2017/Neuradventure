@@ -61,13 +61,15 @@ stories.get("/:id", (c) => {
   const id = Number(c.req.param("id"))
   const row = db.getStory(id)
   if (!row) return c.json({ error: "Story not found" }, 404)
+  const world = WorldStateSchema.parse(JSON.parse(row.world_state_json))
+  const initialWorld = WorldStateSchema.parse(JSON.parse(row.initial_world_state_json ?? row.world_state_json))
   return c.json({
     id: row.id,
     title: row.title,
     opening_scenario: row.opening_scenario,
     character: JSON.parse(row.character_state_json),
-    world: JSON.parse(row.world_state_json),
-    initial_world: JSON.parse(row.initial_world_state_json ?? row.world_state_json),
+    world,
+    initial_world: initialWorld,
     npcs: JSON.parse(row.npc_states_json),
     created_at: row.created_at,
     updated_at: row.updated_at,
@@ -124,13 +126,14 @@ stories.get("/:id/export", (c) => {
   const id = Number(c.req.param("id"))
   const row = db.getStory(id)
   if (!row) return c.json({ error: "Story not found" }, 404)
+  const world = WorldStateSchema.parse(JSON.parse(row.world_state_json))
   const turns = db.getTurnsForStory(id)
   const data = JSON.stringify(
     {
       title: row.title,
       opening_scenario: row.opening_scenario,
       character: JSON.parse(row.character_state_json),
-      world: JSON.parse(row.world_state_json),
+      world,
       npcs: JSON.parse(row.npc_states_json),
       turns: turns.map((t) => ({
         turn_number: t.turn_number,

@@ -261,6 +261,7 @@ function buildHistoryBlock(
     "=== COMPRESSED EARLIER CONTEXT ===",
     "{",
     `  "current_scene": "${escapeForInlineJson(world.current_scene)}",`,
+    `  "day_of_week": "${escapeForInlineJson(world.day_of_week)}",`,
     `  "time_of_day": "${escapeForInlineJson(world.time_of_day)}",`,
     `  "recent_events_summary": "${escapeForInlineJson(world.recent_events_summary)}"`,
     "}",
@@ -327,6 +328,7 @@ export function buildTurnMessages(
     npcSection || null,
     `=== STORY CONTEXT ===\n` +
       `Scene: ${world.current_scene}\n` +
+      `Day: ${world.day_of_week}\n` +
       `Time: ${world.time_of_day}\n` +
       `Recent events: ${world.recent_events_summary}`,
     "=== STORY SO FAR ===",

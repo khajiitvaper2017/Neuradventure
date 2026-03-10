@@ -35,6 +35,7 @@ export const NPCStateSchema = z.object({
 
 export const WorldStateSchema = z.object({
   current_scene: z.string(),
+  day_of_week: z.string().default("Monday"),
   time_of_day: z.string(),
   recent_events_summary: z.string(),
 })

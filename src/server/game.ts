@@ -404,6 +404,7 @@ export function createNewStory(
 ): number {
   const world: WorldState = {
     current_scene: startingScene?.trim() || "Unknown location",
+    day_of_week: "Monday",
     time_of_day: "day",
     recent_events_summary: opening_scenario.slice(0, 200),
   }
