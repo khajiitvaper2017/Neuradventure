@@ -54,27 +54,29 @@
   class:game-active={desktopGame}
   bind:this={appEl}
 >
-  {#if desktopGame}
-    <!-- Desktop game layout: three-column grid -->
-    <CharSheet inline />
-    <GameScreen />
-    <NPCTracker inline />
-  {:else}
-    {#if $activeScreen === "home"}
-      <HomeScreen />
-    {:else if $activeScreen === "char-create"}
-      <CharCreate />
-    {:else if $activeScreen === "new-story"}
-      <NewStory />
-    {:else if $activeScreen === "game"}
-      <GameScreen />
-    {:else if $activeScreen === "settings"}
-      <Settings />
+  {#if $activeScreen === "game"}
+    {#if $isDesktop}
+      <!-- Desktop game layout: three-column grid -->
+      <CharSheet inline />
     {/if}
 
-    <CharSheet />
-    <NPCTracker />
+    <GameScreen />
+
+    {#if $isDesktop}
+      <NPCTracker inline />
+    {/if}
+  {:else if $activeScreen === "home"}
+    <HomeScreen />
+  {:else if $activeScreen === "char-create"}
+    <CharCreate />
+  {:else if $activeScreen === "new-story"}
+    <NewStory />
+  {:else if $activeScreen === "settings"}
+    <Settings />
   {/if}
+
+  <CharSheet />
+  <NPCTracker />
 
   {#if $errorMessage}
     <div class="toast">{$errorMessage}</div>
