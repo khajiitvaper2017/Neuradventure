@@ -5,12 +5,14 @@ import { readdirSync, readFileSync } from "node:fs"
 import { fileURLToPath } from "node:url"
 import { dirname, join } from "node:path"
 import * as db from "../db.js"
+import { getCtxLimitCached } from "../llm.js"
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const PRESETS_DIR = join(__dirname, "../../../shared/presets")
 
 const GenerationParamsSchema = z.object({
   max_tokens: z.number().int(),
+  ctx_limit: z.number().int(),
   temperature: z.number(),
   top_k: z.number().int(),
   top_p: z.number(),
@@ -55,7 +57,11 @@ const SettingsUpdateSchema = z
 
 const settings = new Hono()
 
-settings.get("/", (c) => c.json(db.getSettings()))
+settings.get("/", (c) => {
+  const settings = db.getSettings()
+  const ctx_limit_detected = getCtxLimitCached()
+  return c.json({ ...settings, ctx_limit_detected })
+})
 
 settings.put("/", zValidator("json", SettingsUpdateSchema), (c) => {
   const update = c.req.valid("json")

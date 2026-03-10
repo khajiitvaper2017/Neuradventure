@@ -26,6 +26,8 @@ import { type TurnRow, type GenerationParams, type LLMConnector, getSettings } f
 
 let cachedClient: OpenAI | null = null
 let cachedClientKey = ""
+let cachedCtxLimit = 0
+let cachedCtxLimitAt = 0
 
 function getClient(): OpenAI {
   const { connector } = getSettings()
@@ -42,6 +44,99 @@ function getGenerationParams(): GenerationParams {
 
 function getConnector(): LLMConnector {
   return getSettings().connector
+}
+
+function stripV1(url: string): string {
+  return url.replace(/\/v1\/?$/, "")
+}
+
+function parseCtxLimit(payload: unknown): number | null {
+  if (typeof payload === "number" && Number.isFinite(payload)) return payload
+  if (typeof payload === "string") {
+    const val = Number(payload.trim())
+    return Number.isFinite(val) ? val : null
+  }
+  if (payload && typeof payload === "object") {
+    const obj = payload as Record<string, unknown>
+    const direct =
+      obj.max_context_length ??
+      obj.context_length ??
+      obj.ctx_limit ??
+      obj.n_ctx ??
+      obj.value ??
+      obj.max_ctx ??
+      obj.max_length
+    if (typeof direct === "number" && Number.isFinite(direct)) return direct
+    if (Array.isArray(obj.data)) {
+      for (const item of obj.data) {
+        if (!item || typeof item !== "object") continue
+        const dataObj = item as Record<string, unknown>
+        const val =
+          dataObj.max_context_length ??
+          dataObj.context_length ??
+          dataObj.ctx_limit ??
+          dataObj.n_ctx ??
+          dataObj.value ??
+          dataObj.max_ctx ??
+          dataObj.max_length
+        if (typeof val === "number" && Number.isFinite(val)) return val
+      }
+    }
+  }
+  return null
+}
+
+async function fetchCtxLimitFromKobold(connector: LLMConnector): Promise<number | null> {
+  const base = stripV1(connector.url)
+  const candidates = [
+    `${base}/api/extra/true_max_context_length`,
+    `${base}/api/v1/config/max_context_length`,
+    `${base}/api/v1/config/ctx_limit`,
+    `${connector.url.replace(/\/?$/, "/")}models`,
+  ]
+
+  for (const url of candidates) {
+    try {
+      const res = await fetch(url)
+      if (!res.ok) continue
+      const text = await res.text()
+      let payload: unknown = text
+      try {
+        payload = JSON.parse(text)
+      } catch {
+        // keep text
+      }
+      const val = parseCtxLimit(payload)
+      if (val && val > 0) return val
+    } catch {
+      // ignore and try next
+    }
+  }
+  return null
+}
+
+export async function getCtxLimit(): Promise<number> {
+  const gen = getGenerationParams()
+  if (gen.ctx_limit > 0) return gen.ctx_limit
+  const now = Date.now()
+  if (cachedCtxLimit > 0 && now - cachedCtxLimitAt < 5 * 60 * 1000) return cachedCtxLimit
+
+  const fetched = await fetchCtxLimitFromKobold(getConnector())
+  if (fetched && fetched > 0) {
+    cachedCtxLimit = fetched
+    cachedCtxLimitAt = now
+    return fetched
+  }
+  return 0
+}
+
+export async function initCtxLimit(): Promise<void> {
+  cachedCtxLimit = await getCtxLimit()
+  cachedCtxLimitAt = Date.now()
+}
+
+export function getCtxLimitCached(): number {
+  return cachedCtxLimit
 }
 
 // ─── Prompt config (hot-reloaded from shared/config.json) ────────────────────
@@ -80,6 +175,14 @@ function formatInventory(inventory: MainCharacterState["inventory"]): string {
   return inventory.map((i) => `${i.name} (${i.description})`).join(", ")
 }
 
+function estimateTokens(text: string): number {
+  return Math.max(1, Math.ceil(text.length / 4))
+}
+
+function escapeForInlineJson(value: string): string {
+  return value.replace(/\\/g, "\\\\").replace(/"/g, '\\"')
+}
+
 function formatNPCs(npcs: NPCState[]): string {
   if (npcs.length === 0) return ""
   return npcs
@@ -98,15 +201,57 @@ function formatNPCs(npcs: NPCState[]): string {
     .join("\n\n")
 }
 
-function formatRecentHistory(turns: TurnRow[], maxTurns = 8): string {
-  if (turns.length === 0) return "This is the beginning of the story."
+function formatRecentHistoryEntries(turns: TurnRow[], maxTurns = 8): string[] {
+  if (turns.length === 0) return []
   const recent = turns.slice(-maxTurns)
-  return recent
-    .map(
-      (t) =>
-        `> Player: ${t.player_input}\n  Story: ${t.narrative_text.slice(0, 400)}${t.narrative_text.length > 400 ? "..." : ""}`,
-    )
-    .join("\n\n")
+  return recent.map(
+    (t) =>
+      `> Player: ${t.player_input}\n  Story: ${t.narrative_text.slice(0, 400)}${t.narrative_text.length > 400 ? "..." : ""}`,
+  )
+}
+
+function buildHistoryBlock(
+  turns: TurnRow[],
+  world: WorldState,
+  ctxLimit: number,
+  baseTokens: number,
+  maxTurns = 8,
+): string {
+  const entries = formatRecentHistoryEntries(turns, maxTurns)
+  if (entries.length === 0) return "This is the beginning of the story."
+
+  let history = entries.join("\n\n")
+  if (!ctxLimit || ctxLimit <= 0) return history
+  if (baseTokens + estimateTokens(history) <= ctxLimit) return history
+
+  const summary = [
+    "=== COMPRESSED EARLIER CONTEXT ===",
+    "{",
+    `  "current_scene": "${escapeForInlineJson(world.current_scene)}",`,
+    `  "time_of_day": "${escapeForInlineJson(world.time_of_day)}",`,
+    `  "recent_events_summary": "${escapeForInlineJson(world.recent_events_summary)}"`,
+    "}",
+  ].join("\n")
+
+  const targetRemove = Math.floor(ctxLimit * 0.6)
+  let removedTokens = 0
+  const remaining = [...entries]
+  while (remaining.length > 0 && removedTokens < targetRemove) {
+    const removed = remaining.shift()
+    if (!removed) break
+    removedTokens += estimateTokens(removed) + 1
+  }
+
+  let combined = [summary, ...remaining].join("\n\n")
+  if (baseTokens + estimateTokens(combined) <= ctxLimit) return combined
+
+  while (remaining.length > 0 && baseTokens + estimateTokens([summary, ...remaining].join("\n\n")) > ctxLimit) {
+    remaining.shift()
+  }
+
+  combined = [summary, ...remaining].join("\n\n")
+  if (baseTokens + estimateTokens(combined) <= ctxLimit) return combined
+  return summary
 }
 
 export function buildTurnMessages(
@@ -117,9 +262,11 @@ export function buildTurnMessages(
   playerInput: string,
   actionMode: string,
   initialCharacter?: MainCharacterState,
+  ctxLimitOverride?: number,
 ): OpenAI.ChatCompletionMessageParam[] {
-  const npcSection = npcs.length > 0 ? `\n=== KNOWN NPCs ===\n${formatNPCs(npcs)}` : ""
+  const npcSection = npcs.length > 0 ? `=== KNOWN NPCs ===\n${formatNPCs(npcs)}` : ""
   const initial = initialCharacter ?? character
+  const ctxLimit = ctxLimitOverride ?? getGenerationParams().ctx_limit
 
   // Story mode: player injects narrative text directly; AI continues from it
   // Do/Say modes: player action that the AI responds to
@@ -128,30 +275,31 @@ export function buildTurnMessages(
       ? `=== STORY CONTINUATION (continue naturally from this) ===\n${playerInput}`
       : `=== PLAYER'S ACTION ===\n${actionMode === "say" ? `You say: ${playerInput}` : playerInput}`
 
-  const contextBlock = `=== INITIAL CHARACTER (STORY START) ===
-Appearance: ${initial.appearance.physical_description}
-Wearing: ${initial.appearance.current_clothing}
+  const prefixSections = [
+    `=== INITIAL CHARACTER (STORY START) ===\n` +
+      `Appearance: ${initial.appearance.physical_description}\n` +
+      `Wearing: ${initial.appearance.current_clothing}`,
+    `=== YOUR CHARACTER (BASE) ===\n` +
+      `Name: ${character.name} · ${character.race} · ${character.gender}\n` +
+      `Traits: ${[...character.personality_traits, ...character.custom_traits].join(", ")}`,
+    `=== CURRENT CHARACTER STATE ===\n` +
+      `Appearance: ${character.appearance.physical_description}\n` +
+      `Wearing: ${character.appearance.current_clothing}\n` +
+      `Inventory: ${formatInventory(character.inventory)}`,
+    npcSection || null,
+    `=== STORY CONTEXT ===\n` +
+      `Scene: ${world.current_scene}\n` +
+      `Time: ${world.time_of_day}\n` +
+      `Recent events: ${world.recent_events_summary}`,
+    "=== STORY SO FAR ===",
+  ].filter(Boolean) as string[]
 
-=== YOUR CHARACTER (BASE) ===
-Name: ${character.name} · ${character.race} · ${character.gender}
-Traits: ${[...character.personality_traits, ...character.custom_traits].join(", ")}
+  const prefix = prefixSections.join("\n\n") + "\n"
+  const suffix = `\n\n${actionSection}`
+  const baseTokens = estimateTokens(prefix + suffix)
+  const history = buildHistoryBlock(recentTurns, world, ctxLimit, baseTokens)
 
-=== CURRENT CHARACTER STATE ===
-Appearance: ${character.appearance.physical_description}
-Wearing: ${character.appearance.current_clothing}
-Inventory: ${formatInventory(character.inventory)}
-
-${npcSection}
-
-=== STORY CONTEXT ===
-Scene: ${world.current_scene}
-Time: ${world.time_of_day}
-Recent events: ${world.recent_events_summary}
-
-=== STORY SO FAR ===
-${formatRecentHistory(recentTurns)}
-
-${actionSection}`
+  const contextBlock = `${prefix}${history}${suffix}`
 
   return [
     { role: "system", content: getSystemPrompt() },

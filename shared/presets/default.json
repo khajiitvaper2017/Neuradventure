@@ -3,6 +3,7 @@
   "description": "Balanced defaults for general use",
   "params": {
     "max_tokens": 1500,
+    "ctx_limit": 0,
     "temperature": 0.85,
     "top_k": 40,
     "top_p": 0.95,

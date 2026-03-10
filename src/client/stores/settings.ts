@@ -12,6 +12,7 @@ const DEFAULT_CONNECTOR: LLMConnector = {
 
 const DEFAULT_GENERATION: GenerationParams = {
   max_tokens: 1500,
+  ctx_limit: 0,
   temperature: 0.85,
   top_k: 40,
   top_p: 0.95,
@@ -42,6 +43,7 @@ const textJustifyStore = writable<boolean>(true)
 const colorSchemeStore = writable<"gold" | "emerald" | "sapphire" | "crimson">("gold")
 const connectorStore = writable<LLMConnector>({ ...DEFAULT_CONNECTOR })
 const generationStore = writable<GenerationParams>({ ...DEFAULT_GENERATION })
+const ctxLimitDetectedStore = writable<number>(0)
 
 let initialized = false
 let suppressSync = true
@@ -63,6 +65,7 @@ function applySettings(settings: AppSettings) {
   colorSchemeStore.set(settings.colorScheme)
   connectorStore.set(settings.connector)
   generationStore.set(settings.generation)
+  ctxLimitDetectedStore.set(settings.ctx_limit_detected ?? 0)
   suppressSync = false
   initialized = true
 }
@@ -123,3 +126,4 @@ export const textJustify = textJustifyStore
 export const colorScheme = colorSchemeStore
 export const connector = connectorStore
 export const generation = generationStore
+export const ctxLimitDetected = ctxLimitDetectedStore

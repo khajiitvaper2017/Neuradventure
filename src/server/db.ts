@@ -31,6 +31,7 @@ function characterKey(base: CharacterBase): string {
 
 export interface GenerationParams {
   max_tokens: number
+  ctx_limit: number
   temperature: number
   top_k: number
   top_p: number
@@ -72,6 +73,7 @@ export interface SettingsState {
 
 const DEFAULT_GENERATION: GenerationParams = {
   max_tokens: 1500,
+  ctx_limit: 0,
   temperature: 0.85,
   top_k: 40,
   top_p: 0.95,

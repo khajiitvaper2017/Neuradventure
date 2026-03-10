@@ -162,6 +162,7 @@ export interface SelectTurnVariantResult extends TurnResult {
 
 export interface GenerationParams {
   max_tokens: number
+  ctx_limit: number
   temperature: number
   top_k: number
   top_p: number
@@ -199,6 +200,7 @@ export interface AppSettings {
   colorScheme: "gold" | "emerald" | "sapphire" | "crimson"
   connector: LLMConnector
   generation: GenerationParams
+  ctx_limit_detected?: number
 }
 
 export interface SamplerPreset {

@@ -9,6 +9,7 @@ import { readFile } from "node:fs/promises"
 import { fileURLToPath } from "node:url"
 import { dirname, resolve } from "node:path"
 import { initDb } from "./db.js"
+import { initCtxLimit } from "./llm.js"
 import stories from "./routes/stories.js"
 import turns from "./routes/turns.js"
 import generate from "./routes/generate.js"
@@ -16,6 +17,9 @@ import settings from "./routes/settings.js"
 
 initDb()
 console.log("Database initialized")
+initCtxLimit().catch((err) => {
+  console.error("[ctx_limit] Failed to fetch context limit from Kobold", err)
+})
 
 const app = new Hono()
 const isDev = process.env.NODE_ENV !== "production"

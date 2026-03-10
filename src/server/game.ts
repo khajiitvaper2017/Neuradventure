@@ -8,7 +8,7 @@ import {
   type WorldState,
 } from "./models.js"
 import * as db from "./db.js"
-import { buildTurnMessages, callLLM } from "./llm.js"
+import { buildTurnMessages, callLLM, getCtxLimitCached } from "./llm.js"
 
 // ─── State Application ─────────────────────────────────────────────────────────
 
@@ -72,8 +72,9 @@ export async function processTurn(storyId: number, playerInput: string, actionMo
   const npcs = (JSON.parse(story.npc_states_json) as unknown[]).map((n) => NPCStateSchema.parse(n))
   const initial = parseInitialStorySnapshot(story).character
   const recentTurns = db.getTurnsForStory(storyId)
+  const ctxLimit = getCtxLimitCached()
 
-  const messages = buildTurnMessages(character, world, npcs, recentTurns, playerInput, actionMode, initial)
+  const messages = buildTurnMessages(character, world, npcs, recentTurns, playerInput, actionMode, initial, ctxLimit)
   const turnResponse = await callLLM(messages)
 
   const newCharacter = applyPlayerUpdate(character, turnResponse.player_state_update)
@@ -283,6 +284,7 @@ export async function regenerateLastTurn(storyId: number, actionMode?: string): 
   if (!lastTurn) throw new Error("No turns to regenerate")
 
   const initial = parseInitialStorySnapshot(story).character
+  const ctxLimit = getCtxLimitCached()
   const historyTurns = turnRows.slice(0, -1)
   const snapshot =
     historyTurns.length > 0
@@ -298,6 +300,7 @@ export async function regenerateLastTurn(storyId: number, actionMode?: string): 
     lastTurn.player_input,
     mode,
     initial,
+    ctxLimit,
   )
   const turnResponse = await callLLM(messages)
 

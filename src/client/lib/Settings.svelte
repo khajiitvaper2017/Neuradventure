@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onMount } from "svelte"
   import { navigate } from "../stores/ui.js"
-  import { theme, design, textJustify, colorScheme, connector, generation } from "../stores/settings.js"
+  import { theme, design, textJustify, colorScheme, connector, generation, ctxLimitDetected } from "../stores/settings.js"
   import type { GenerationParams, SamplerPreset } from "../api/client.js"
   import { presets, loadPresets } from "./presets.js"
 
@@ -265,6 +265,15 @@
 
   const otherParams: ParamDef[] = [
     {
+      key: "ctx_limit",
+      label: "Ctx Limit",
+      sub: "Max prompt tokens before compressing history (0 = off)",
+      min: 0,
+      max: 32768,
+      step: 1,
+      int: true,
+    },
+    {
       key: "seed",
       label: "Seed",
       sub: "Random seed (-1 = random each call)",
@@ -363,6 +372,14 @@
           <span class="row-sub">KoboldCpp (OpenAI-compatible)</span>
         </span>
         <span class="connector-badge">{$connector.type}</span>
+      </div>
+
+      <div class="row row-input">
+        <span class="row-text">
+          <span class="row-title">Ctx Limit (Detected)</span>
+          <span class="row-sub">Fetched from KoboldCpp on server start</span>
+        </span>
+        <span class="connector-badge">{$ctxLimitDetected > 0 ? $ctxLimitDetected : "Unknown"}</span>
       </div>
 
       <label class="row row-input">
