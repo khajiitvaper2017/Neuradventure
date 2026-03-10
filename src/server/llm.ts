@@ -88,11 +88,11 @@ function formatNPCs(npcs: NPCState[]): string {
         `[${npc.name}]\n` +
         `  Race: ${npc.race}\n` +
         (npc.gender ? `  Gender: ${npc.gender}\n` : "") +
-        `  Location: ${npc.last_known_location}\n` +
+        `  Personality: ${npc.personality_traits.join(", ")}\n` +
+        `  Relationship: ${npc.relationship_to_player}\n` +
         `  Appearance: ${npc.appearance.physical_description}\n` +
         `  Wearing: ${npc.appearance.current_clothing}\n` +
-        `  Relationship: ${npc.relationship_to_player}\n` +
-        `  Personality: ${npc.personality_traits.join(", ")}\n` +
+        `  Location: ${npc.last_known_location}\n` +
         `  Notes: ${npc.notes}`,
     )
     .join("\n\n")
@@ -116,8 +116,10 @@ export function buildTurnMessages(
   recentTurns: TurnRow[],
   playerInput: string,
   actionMode: string,
+  initialCharacter?: MainCharacterState,
 ): OpenAI.ChatCompletionMessageParam[] {
   const npcSection = npcs.length > 0 ? `\n=== KNOWN NPCs ===\n${formatNPCs(npcs)}` : ""
+  const initial = initialCharacter ?? character
 
   // Story mode: player injects narrative text directly; AI continues from it
   // Do/Say modes: player action that the AI responds to
@@ -126,17 +128,25 @@ export function buildTurnMessages(
       ? `=== STORY CONTINUATION (continue naturally from this) ===\n${playerInput}`
       : `=== PLAYER'S ACTION ===\n${actionMode === "say" ? `You say: ${playerInput}` : playerInput}`
 
-  const contextBlock = `=== STORY CONTEXT ===
+  const contextBlock = `=== INITIAL CHARACTER (STORY START) ===
+Appearance: ${initial.appearance.physical_description}
+Wearing: ${initial.appearance.current_clothing}
+
+=== YOUR CHARACTER (BASE) ===
+Name: ${character.name} · ${character.race} · ${character.gender}
+Traits: ${[...character.personality_traits, ...character.custom_traits].join(", ")}
+
+=== CURRENT CHARACTER STATE ===
+Appearance: ${character.appearance.physical_description}
+Wearing: ${character.appearance.current_clothing}
+Inventory: ${formatInventory(character.inventory)}
+
+${npcSection}
+
+=== STORY CONTEXT ===
 Scene: ${world.current_scene}
 Time: ${world.time_of_day}
 Recent events: ${world.recent_events_summary}
-
-=== YOUR CHARACTER ===
-Name: ${character.name} · ${character.race} · ${character.gender}
-Appearance: ${character.appearance.physical_description}
-Wearing: ${character.appearance.current_clothing}
-Traits: ${[...character.personality_traits, ...character.custom_traits].join(", ")}
-Inventory: ${formatInventory(character.inventory)}${npcSection}
 
 === STORY SO FAR ===
 ${formatRecentHistory(recentTurns)}

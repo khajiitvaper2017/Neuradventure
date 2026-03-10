@@ -88,7 +88,8 @@
     normalized = normalized.replace(/\bmyself\b/gi, (m) => matchCase(m, "yourself"))
     normalized = normalized.replace(/\bmy\b/gi, (m) => matchCase(m, "your"))
     if (!/^(you|your|yourself)\b/i.test(normalized)) {
-      normalized = `You ${normalized}`
+      const lowered = normalized.replace(/^([A-Z])/, (m) => m.toLowerCase())
+      normalized = `You ${lowered}`
     }
     return normalized
   }

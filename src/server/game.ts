@@ -70,9 +70,10 @@ export async function processTurn(storyId: number, playerInput: string, actionMo
   const character = MainCharacterStateSchema.parse(JSON.parse(story.character_state_json))
   const world = WorldStateSchema.parse(JSON.parse(story.world_state_json))
   const npcs = (JSON.parse(story.npc_states_json) as unknown[]).map((n) => NPCStateSchema.parse(n))
+  const initial = parseInitialStorySnapshot(story).character
   const recentTurns = db.getTurnsForStory(storyId)
 
-  const messages = buildTurnMessages(character, world, npcs, recentTurns, playerInput, actionMode)
+  const messages = buildTurnMessages(character, world, npcs, recentTurns, playerInput, actionMode, initial)
   const turnResponse = await callLLM(messages)
 
   const newCharacter = applyPlayerUpdate(character, turnResponse.player_state_update)
@@ -281,6 +282,7 @@ export async function regenerateLastTurn(storyId: number, actionMode?: string): 
   const lastTurn = turnRows[turnRows.length - 1]
   if (!lastTurn) throw new Error("No turns to regenerate")
 
+  const initial = parseInitialStorySnapshot(story).character
   const historyTurns = turnRows.slice(0, -1)
   const snapshot =
     historyTurns.length > 0
@@ -295,6 +297,7 @@ export async function regenerateLastTurn(storyId: number, actionMode?: string): 
     historyTurns,
     lastTurn.player_input,
     mode,
+    initial,
   )
   const turnResponse = await callLLM(messages)
 
