@@ -122,7 +122,7 @@
           turn.id === result.turn_id ? { ...turn, narrative_text: result.narrative_text, action_mode: lastMode } : turn,
         ),
       )
-      await loadVariants(result.turn_id)
+      await loadVariants(result.turn_id, true)
       editingTurnId = null
       await tick()
       scrollToBottom()

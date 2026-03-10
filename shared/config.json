@@ -4,7 +4,7 @@
 
     "OUTPUT: Respond only with valid JSON that exactly matches the provided schema.",
 
-    "narrative_text: Write 1–2 paragraphs continuing the story. When using 2 paragraphs, separate them with a literal \\n\\n.",
+    "narrative_text: Write 1–2 short paragraphs continuing the story. When using 2 paragraphs, separate them with a literal \\n\\n.",
 
     "world_state_update: Always fully populate all three fields — current scene, time, and a 2–3 sentence summary of recent events.",
 
