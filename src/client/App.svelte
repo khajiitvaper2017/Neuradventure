@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onMount } from "svelte"
   import { activeScreen, errorMessage, isDesktop } from "./stores/ui.js"
-  import { theme, design, initSettings } from "./stores/settings.js"
+  import { theme, design, textJustify, colorScheme, initSettings } from "./stores/settings.js"
   import HomeScreen from "./lib/HomeScreen.svelte"
   import CharCreate from "./lib/CharCreate.svelte"
   import NewStory from "./lib/NewStory.svelte"
@@ -51,6 +51,11 @@
   class="app"
   class:theme-amoled={$theme === "amoled"}
   class:design-roboto={$design === "roboto"}
+  class:text-justify={$textJustify}
+  class:scheme-gold={$colorScheme === "gold"}
+  class:scheme-emerald={$colorScheme === "emerald"}
+  class:scheme-sapphire={$colorScheme === "sapphire"}
+  class:scheme-crimson={$colorScheme === "crimson"}
   class:game-active={desktopGame}
   bind:this={appEl}
 >

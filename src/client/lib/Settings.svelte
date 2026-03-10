@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onMount } from "svelte"
   import { activeScreen } from "../stores/ui.js"
-  import { theme, design, connector, generation } from "../stores/settings.js"
+  import { theme, design, textJustify, colorScheme, connector, generation } from "../stores/settings.js"
   import type { GenerationParams, SamplerPreset } from "../api/client.js"
   import { presets, loadPresets } from "./presets.js"
 
@@ -136,20 +136,15 @@
       <!-- Theme section -->
       <div class="section-label">Theme</div>
 
-      <label class="row">
+      <label class="row row-input">
         <span class="row-text">
-          <span class="row-title">Default</span>
-          <span class="row-sub">Dark gray background</span>
+          <span class="row-title">Theme</span>
+          <span class="row-sub">Overall background tone</span>
         </span>
-        <input type="radio" name="theme" value="default" bind:group={$theme} />
-      </label>
-
-      <label class="row">
-        <span class="row-text">
-          <span class="row-title">AMOLED</span>
-          <span class="row-sub">Pure black — saves battery on OLED screens</span>
-        </span>
-        <input type="radio" name="theme" value="amoled" bind:group={$theme} />
+        <select class="select-input" bind:value={$theme}>
+          <option value="default">Default — Dark gray background</option>
+          <option value="amoled">AMOLED — Pure black (OLED)</option>
+        </select>
       </label>
 
       <div class="divider"></div>
@@ -157,20 +152,46 @@
       <!-- Design section -->
       <div class="section-label">Typography</div>
 
-      <label class="row">
+      <label class="row row-input">
         <span class="row-text">
-          <span class="row-title">Classic</span>
-          <span class="row-sub">Spectral serif for story text, DM Sans for UI</span>
+          <span class="row-title">Typography</span>
+          <span class="row-sub">Fonts for story and UI</span>
         </span>
-        <input type="radio" name="design" value="classic" bind:group={$design} />
+        <select class="select-input" bind:value={$design}>
+          <option value="classic">Classic — Spectral + DM Sans</option>
+          <option value="roboto">Roboto — clean sans-serif</option>
+        </select>
       </label>
+
+      <div class="divider"></div>
+
+      <!-- Color scheme section -->
+      <div class="section-label">Color Scheme</div>
+
+      <label class="row row-input">
+        <span class="row-text">
+          <span class="row-title">Accent</span>
+          <span class="row-sub">Highlight color for buttons and UI</span>
+        </span>
+        <select class="select-input" bind:value={$colorScheme}>
+          <option value="gold">Gold — Warm, classic accent</option>
+          <option value="emerald">Emerald — Cool green accent</option>
+          <option value="sapphire">Sapphire — Blue with strong contrast</option>
+          <option value="crimson">Crimson — Bold red accent</option>
+        </select>
+      </label>
+
+      <div class="divider"></div>
+
+      <!-- Text layout -->
+      <div class="section-label">Text Layout</div>
 
       <label class="row">
         <span class="row-text">
-          <span class="row-title">Roboto</span>
-          <span class="row-sub">Clean sans-serif throughout — simpler and readable</span>
+          <span class="row-title">Justify text</span>
+          <span class="row-sub">Align paragraph edges for a book-like look</span>
         </span>
-        <input type="radio" name="design" value="roboto" bind:group={$design} />
+        <input type="checkbox" bind:checked={$textJustify} />
       </label>
     {:else if activeTab === "generation"}
       <!-- Connection -->

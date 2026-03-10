@@ -44,6 +44,8 @@ export interface LLMConnector {
 export interface SettingsState {
   theme: "default" | "amoled"
   design: "classic" | "roboto"
+  textJustify: boolean
+  colorScheme: "gold" | "emerald" | "sapphire" | "crimson"
   connector: LLMConnector
   generation: GenerationParams
 }
@@ -77,6 +79,8 @@ const DEFAULT_GENERATION: GenerationParams = {
 const DEFAULT_SETTINGS: SettingsState = {
   theme: "default",
   design: "classic",
+  textJustify: true,
+  colorScheme: "gold",
   connector: {
     type: "koboldcpp",
     url: "http://localhost:5001/v1",

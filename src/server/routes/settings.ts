@@ -45,6 +45,8 @@ const SettingsUpdateSchema = z
   .object({
     theme: z.enum(["default", "amoled"]),
     design: z.enum(["classic", "roboto"]),
+    textJustify: z.boolean(),
+    colorScheme: z.enum(["gold", "emerald", "sapphire", "crimson"]),
     connector: ConnectorSchema.partial(),
     generation: GenerationParamsSchema.partial(),
   })
@@ -62,6 +64,8 @@ settings.put("/", zValidator("json", SettingsUpdateSchema), (c) => {
     ...current,
     ...(update.theme !== undefined && { theme: update.theme }),
     ...(update.design !== undefined && { design: update.design }),
+    ...(update.textJustify !== undefined && { textJustify: update.textJustify }),
+    ...(update.colorScheme !== undefined && { colorScheme: update.colorScheme }),
     ...(update.connector && { connector: { ...current.connector, ...update.connector } }),
     ...(update.generation && { generation: { ...current.generation, ...update.generation } }),
   }

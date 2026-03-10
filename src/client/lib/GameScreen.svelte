@@ -178,11 +178,14 @@
 <div class="screen game">
   <!-- ── Top bar ─────────────────────────────────────────── -->
   <header>
+    <button class="hbtn desktop-only home-btn" onclick={goHome} title="Return to menu">← Menu</button>
+    <span class="app-name desktop-only">Neuradventure</span>
+    <span class="header-sep desktop-only">•</span>
     <span class="flame" aria-hidden="true">🕯</span>
     <span class="story-name">{$currentStoryTitle}</span>
     <div class="spacer"></div>
     <span class="turn-count">{$turns.length}</span>
-    <button class="hbtn" title="Character Sheet" onclick={() => showCharSheet.update((v) => !v)}>
+    <button class="hbtn mobile-only" title="Character Sheet" onclick={() => showCharSheet.update((v) => !v)}>
       <svg
         width="16"
         height="16"
@@ -195,7 +198,7 @@
         <circle cx="12" cy="8" r="4" /><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7" />
       </svg>
     </button>
-    <button class="hbtn" title="NPC Tracker" onclick={() => showNPCTracker.update((v) => !v)}>
+    <button class="hbtn mobile-only" title="NPC Tracker" onclick={() => showNPCTracker.update((v) => !v)}>
       <svg
         width="16"
         height="16"
@@ -464,6 +467,11 @@
     min-height: 48px;
     flex-shrink: 0;
   }
+  @media (min-width: 1200px) {
+    header {
+      padding: 0.75rem 2.5rem;
+    }
+  }
   .flame {
     font-size: 1rem;
     flex-shrink: 0;
@@ -514,6 +522,46 @@
     position: absolute;
     right: 0;
     top: calc(100% + 4px);
+  }
+  .desktop-only {
+    display: none;
+  }
+  @media (min-width: 1200px) {
+    .mobile-only {
+      display: none;
+    }
+    .desktop-only {
+      display: inline-flex;
+      align-items: center;
+    }
+    .app-name {
+      font-family: var(--font-brand);
+      font-size: 0.72rem;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      color: var(--accent);
+      margin-right: 0.2rem;
+    }
+    .header-sep {
+      color: var(--border);
+      font-size: 0.8rem;
+      margin: 0 0.4rem 0 0.1rem;
+    }
+    .home-btn {
+      min-width: auto;
+      min-height: 28px;
+      padding: 0.25rem 0.6rem;
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      font-size: 0.72rem;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: var(--text-dim);
+    }
+    .home-btn:hover {
+      color: var(--text);
+      border-color: var(--border-hover);
+    }
   }
 
   /* ── Story area ─────────────────────────────────────── */

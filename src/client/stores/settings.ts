@@ -38,6 +38,8 @@ const DEFAULT_GENERATION: GenerationParams = {
 
 const themeStore = writable<Theme>("default")
 const designStore = writable<Design>("classic")
+const textJustifyStore = writable<boolean>(true)
+const colorSchemeStore = writable<"gold" | "emerald" | "sapphire" | "crimson">("gold")
 const connectorStore = writable<LLMConnector>({ ...DEFAULT_CONNECTOR })
 const generationStore = writable<GenerationParams>({ ...DEFAULT_GENERATION })
 
@@ -46,6 +48,8 @@ let suppressSync = true
 let current: AppSettings = {
   theme: "default",
   design: "classic",
+  textJustify: true,
+  colorScheme: "gold",
   connector: { ...DEFAULT_CONNECTOR },
   generation: { ...DEFAULT_GENERATION },
 }
@@ -55,6 +59,8 @@ function applySettings(settings: AppSettings) {
   current = settings
   themeStore.set(settings.theme)
   designStore.set(settings.design)
+  textJustifyStore.set(settings.textJustify)
+  colorSchemeStore.set(settings.colorScheme)
   connectorStore.set(settings.connector)
   generationStore.set(settings.generation)
   suppressSync = false
@@ -91,6 +97,16 @@ designStore.subscribe((value) => {
   if (!suppressSync) void persistSettings({ design: value })
 })
 
+textJustifyStore.subscribe((value) => {
+  current = { ...current, textJustify: value }
+  if (!suppressSync) void persistSettings({ textJustify: value })
+})
+
+colorSchemeStore.subscribe((value) => {
+  current = { ...current, colorScheme: value }
+  if (!suppressSync) void persistSettings({ colorScheme: value })
+})
+
 connectorStore.subscribe((value) => {
   current = { ...current, connector: value }
   if (!suppressSync) void persistSettings({ connector: value })
@@ -103,5 +119,7 @@ generationStore.subscribe((value) => {
 
 export const theme = themeStore
 export const design = designStore
+export const textJustify = textJustifyStore
+export const colorScheme = colorSchemeStore
 export const connector = connectorStore
 export const generation = generationStore

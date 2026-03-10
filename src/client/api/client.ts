@@ -153,6 +153,8 @@ export interface LLMConnector {
 export interface AppSettings {
   theme: "default" | "amoled"
   design: "classic" | "roboto"
+  textJustify: boolean
+  colorScheme: "gold" | "emerald" | "sapphire" | "crimson"
   connector: LLMConnector
   generation: GenerationParams
 }
