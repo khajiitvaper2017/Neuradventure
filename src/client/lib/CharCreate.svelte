@@ -2,6 +2,7 @@
   import { get } from "svelte/store"
   import { api } from "../api/client.js"
   import { activeScreen, showError } from "../stores/ui.js"
+  import { autoresize } from "./actions/autoresize.js"
   import { pendingCharacter } from "../stores/game.js"
   import { pendingCharacterGenerateDescription } from "../stores/game.js"
   import personalityOptions from "../../../shared/traits.json"
@@ -231,25 +232,6 @@
     activeScreen.set("new-story")
   }
 
-  function autoresize(node: HTMLTextAreaElement, _value: string) {
-    const resize = () => {
-      node.style.height = "0px"
-      node.style.height = `${node.scrollHeight}px`
-    }
-
-    const schedule = () => requestAnimationFrame(resize)
-
-    schedule()
-    node.addEventListener("input", schedule)
-    return {
-      update() {
-        schedule()
-      },
-      destroy() {
-        node.removeEventListener("input", schedule)
-      },
-    }
-  }
 </script>
 
 <div class="screen char-create">

@@ -2,6 +2,7 @@
   import { tick } from "svelte"
   import { api, type TurnSummary, ApiError } from "../api/client.js"
   import { activeScreen, showCharSheet, showNPCTracker, showError } from "../stores/ui.js"
+  import { autoresize } from "./actions/autoresize.js"
   import {
     currentStoryId,
     currentStoryTitle,
@@ -151,28 +152,6 @@
       .filter(Boolean)
   }
 
-  function autoresize(node: HTMLTextAreaElement, _value: string) {
-    const resize = () => {
-      node.style.height = "0px"
-      node.style.height = `${node.scrollHeight}px`
-    }
-
-    const schedule = () => requestAnimationFrame(resize)
-    const handleResize = () => schedule()
-
-    schedule()
-    node.addEventListener("input", schedule)
-    window.addEventListener("resize", handleResize)
-    return {
-      update() {
-        schedule()
-      },
-      destroy() {
-        node.removeEventListener("input", schedule)
-        window.removeEventListener("resize", handleResize)
-      },
-    }
-  }
 </script>
 
 <div class="screen game">

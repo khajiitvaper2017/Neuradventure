@@ -23,5 +23,9 @@
   "Obsessive",    "Indifferent",
   "Vindictive",   "Forgiving",
   "Honorable",    "Unscrupulous",
-  "Vulnerable",   "Stoic"
+  "Vulnerable",   "Stoic",
+  "Shy",          "Bold",
+  "Reserved",     "Outgoing",
+  "Prudish",      "Lewd",
+  "Horny",        "Chaste"
 ]

@@ -2,6 +2,7 @@
   import { onMount } from "svelte"
   import { api, type StoryCharacterGroup } from "../api/client.js"
   import { activeScreen, showError } from "../stores/ui.js"
+  import { autoresize } from "./actions/autoresize.js"
   import {
     pendingCharacter,
     pendingStoryTitle,
@@ -141,6 +142,7 @@
           bind:value={$pendingStoryGenerateDescription}
           placeholder="e.g. a heist in a magical library full of forbidden knowledge"
           rows="2"
+          use:autoresize={$pendingStoryGenerateDescription}
         ></textarea>
         <button
           class="btn-ghost generate-btn"
@@ -163,6 +165,7 @@
         bind:value={$pendingStoryScenario}
         placeholder="Describe the starting situation. Where is your character? What's happening?"
         rows="6"
+        use:autoresize={$pendingStoryScenario}
       ></textarea>
     </div>
 
