@@ -2,16 +2,42 @@
   "name": "neuradventure",
   "version": "1.0.0",
   "private": true,
-  "workspaces": [
-    "backend",
-    "frontend"
-  ],
+  "type": "module",
   "scripts": {
-    "dev": "concurrently \"npm run dev --workspace=backend\" \"npm run dev --workspace=frontend\"",
-    "build": "npm run build --workspace=frontend",
-    "lint": "npm run lint --workspace=backend && npm run lint --workspace=frontend"
+    "dev": "concurrently \"npm run dev:backend\" \"npm run dev:frontend\"",
+    "dev:backend": "tsx watch --tsconfig backend/tsconfig.json backend/src/index.ts",
+    "dev:frontend": "cd frontend && vite",
+    "start": "tsx --tsconfig backend/tsconfig.json backend/src/index.ts",
+    "build": "cd frontend && vite build",
+    "preview": "cd frontend && vite preview",
+    "lint": "eslint -c backend/eslint.config.js backend/src && eslint -c frontend/eslint.config.js frontend/src",
+    "check": "cd frontend && svelte-check --tsconfig ./tsconfig.app.json && tsc -p tsconfig.node.json",
+    "test-llm": "tsx --tsconfig backend/tsconfig.json backend/src/test_llm.ts"
+  },
+  "dependencies": {
+    "@hono/node-server": "^1.13.7",
+    "@hono/zod-validator": "^0.7.6",
+    "better-sqlite3": "^11.8.1",
+    "hono": "^4.7.4",
+    "openai": "^4.86.2",
+    "zod": "^3.24.2",
+    "zod-to-json-schema": "^3.24.1"
   },
   "devDependencies": {
-    "concurrently": "^9.1.2"
+    "@sveltejs/vite-plugin-svelte": "^6.2.1",
+    "@tsconfig/svelte": "^5.0.6",
+    "@types/better-sqlite3": "^7.6.12",
+    "@types/node": "^24.10.1",
+    "@typescript-eslint/eslint-plugin": "^8.26.1",
+    "@typescript-eslint/parser": "^8.26.1",
+    "concurrently": "^9.1.2",
+    "eslint": "^9.21.0",
+    "eslint-plugin-svelte": "^2.46.1",
+    "svelte": "^5.45.2",
+    "svelte-check": "^4.3.4",
+    "tsx": "^4.19.2",
+    "typescript": "~5.9.3",
+    "vite": "^7.3.1",
+    "vite-console-forward-plugin": "^2.0.1"
   }
 }

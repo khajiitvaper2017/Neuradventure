@@ -1,4 +1,5 @@
 import Database from "better-sqlite3"
+import fs from "node:fs"
 import path from "path"
 import { fileURLToPath } from "url"
 import type { MainCharacterState, NPCState, WorldState } from "./models.js"
@@ -20,6 +21,7 @@ const DEFAULT_SETTINGS: SettingsState = {
 
 export function getDb(): Database.Database {
   if (!db) {
+    fs.mkdirSync(path.dirname(DB_PATH), { recursive: true })
     db = new Database(DB_PATH)
     db.pragma("journal_mode = WAL")
     db.pragma("foreign_keys = ON")

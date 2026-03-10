@@ -27,32 +27,5 @@
     "Given a brief description and a character, generate a compelling title and opening scenario.",
     "The opening_scenario should be 2-4 sentences that drop the character into an immediate, specific situation with clear stakes.",
     "Write in second-person present tense. Do not introduce the player character by name — use 'you'."
-  ],
-  "npcTraits": [
-    "Ambitious",    "Complacent",
-    "Curious",      "Closed-minded",
-    "Idealistic",   "Cynical",
-    "Passionate",   "Apathetic",
-    "Iconoclastic", "Conformist",
-    "Resourceful",  "Helpless",
-    "Courageous",   "Cowardly",
-    "Arrogant",     "Humble",
-    "Greedy",       "Ascetic",
-    "Impulsive",    "Deliberate",
-    "Naive",        "Shrewd",
-    "Selfish",      "Selfless",
-    "Rigid",        "Adaptable",
-    "Deceitful",    "Honest",
-    "Empathetic",   "Callous",
-    "Loyal",        "Treacherous",
-    "Domineering",  "Submissive",
-    "Trusting",     "Paranoid",
-    "Secretive",    "Transparent",
-    "Stubborn",     "Yielding",
-    "Indecisive",   "Decisive",
-    "Obsessive",    "Indifferent",
-    "Vindictive",   "Forgiving",
-    "Honorable",    "Unscrupulous",
-    "Vulnerable",   "Stoic"
   ]
 }

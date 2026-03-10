@@ -18,15 +18,17 @@ const openai = new OpenAI({
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const config: {
   systemPromptLines: string[]
-  npcTraits: string[]
   generateCharacterPrompt: string[]
   generateStoryPrompt: string[]
 } =
   JSON.parse(readFileSync(join(__dirname, "../config.json"), "utf-8"))
 
+const npcTraits: string[] =
+  JSON.parse(readFileSync(join(__dirname, "../../shared/traits.json"), "utf-8"))
+
 const SYSTEM_PROMPT = config.systemPromptLines
   .join("\n")
-  .replace("{npcTraits}", config.npcTraits.join(", "))
+  .replace("{npcTraits}", npcTraits.join(", "))
 
 function formatInventory(inventory: MainCharacterState["inventory"]): string {
   if (inventory.length === 0) return "nothing"
@@ -134,7 +136,7 @@ export async function generateCharacter(description: string): Promise<GenerateCh
     [
       {
         role: "system",
-        content: config.generateCharacterPrompt.join("\n") + `\n\nAvailable personality traits: ${config.npcTraits.join(", ")}`,
+        content: config.generateCharacterPrompt.join("\n") + `\n\nAvailable personality traits: ${npcTraits.join(", ")}`,
       },
       { role: "user", content: `Create a character based on this description: "${description}"` },
     ],

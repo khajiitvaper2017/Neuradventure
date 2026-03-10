@@ -1,5 +1,5 @@
 node_modules/
-data/neuradventure.db
+data/
 dist/
 .env
 *.local
@@ -7,4 +7,3 @@ CLAUDE.md
 .claude/
 .references_source_code/
 AGENTS.md
-data/

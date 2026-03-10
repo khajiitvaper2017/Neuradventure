@@ -3,10 +3,10 @@
   import { api } from "../api/client.js"
   import { activeScreen, showError } from "../stores/ui.js"
   import { pendingCharacter } from "../stores/game.js"
-  import config from "../config.json"
+  import personalityOptions from "../../../shared/traits.json"
 
   // Ordered as opposite pairs — each adjacent pair blocks each other
-  const PERSONALITY_OPTIONS = config.personalityOptions
+  const PERSONALITY_OPTIONS = personalityOptions
 
   const OPPOSITES: Record<string, string> = Object.fromEntries(
     PERSONALITY_OPTIONS.reduce<[string, string][]>((acc, _, i, arr) => {
