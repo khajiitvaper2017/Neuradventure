@@ -267,10 +267,10 @@ export const api = {
         method: "POST",
         body: JSON.stringify({ part: "traits", context }),
       }),
-    story: (description: string, characterName: string, characterTraits: string[]) =>
+    story: (description: string, character: Omit<MainCharacterState, "inventory">) =>
       request<GenerateStoryResponse>("/api/generate/story", {
         method: "POST",
-        body: JSON.stringify({ description, character_name: characterName, character_traits: characterTraits }),
+        body: JSON.stringify({ description, character }),
       }),
   },
 

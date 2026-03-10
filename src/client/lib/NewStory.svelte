@@ -58,10 +58,7 @@
     if (!$pendingStoryGenerateDescription.trim() || !$pendingCharacter) return
     generating = true
     try {
-      const result = await api.generate.story($pendingStoryGenerateDescription.trim(), $pendingCharacter.name, [
-        ...$pendingCharacter.personality_traits,
-        ...$pendingCharacter.custom_traits,
-      ])
+      const result = await api.generate.story($pendingStoryGenerateDescription.trim(), $pendingCharacter)
       pendingStoryTitle.set(result.title)
       pendingStoryScenario.set(result.opening_scenario)
       pendingStoryLocation.set(result.starting_location)

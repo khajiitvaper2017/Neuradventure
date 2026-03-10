@@ -333,17 +333,33 @@ export async function generateCharacterPart(
 
 export async function generateStory(
   description: string,
-  characterName: string,
-  characterTraits: string[],
+  character: {
+    name: string
+    race: string
+    gender: string
+    appearance: { physical_description: string; current_clothing: string }
+    personality_traits: string[]
+    custom_traits: string[]
+  },
 ): Promise<GenerateStoryResponse> {
   const schema = zodToJsonSchema(GenerateStoryResponseSchema, { name: "GenerateStoryResponse" })
-  const traitsSuffix = characterTraits.length > 0 ? ` (${characterTraits.join(", ")})` : ""
+  const traits = [...character.personality_traits, ...character.custom_traits].map((t) => t.trim()).filter(Boolean)
   const result = await callLLMRaw<unknown>(
     [
       { role: "system", content: getConfig().generateStoryPrompt.join("\n") },
       {
         role: "user",
-        content: `Character: ${characterName}${traitsSuffix}\n\nStory description: "${description}"`,
+        content: [
+          "Character:",
+          `Name: ${character.name}`,
+          `Race: ${character.race || "Unknown"}`,
+          `Gender: ${character.gender || "Unknown"}`,
+          `Appearance: ${character.appearance.physical_description || "Unknown"}`,
+          `Clothing: ${character.appearance.current_clothing || "Unknown"}`,
+          `Traits: ${traits.length > 0 ? traits.join(", ") : "Unknown"}`,
+          "",
+          `Story description: "${description}"`,
+        ].join("\n"),
       },
     ],
     "GenerateStoryResponse",
