@@ -5,10 +5,32 @@
   import type { GenerationParams, SamplerPreset } from "../api/client.js"
   import { presets, loadPresets } from "./presets.js"
 
-  let activeTab: "appearance" | "generation" = $state("appearance")
+  type SettingsTab = "appearance" | "generation"
+  const SETTINGS_TAB_KEY = "settings_active_tab"
+
+  function loadInitialTab(): SettingsTab {
+    if (typeof window === "undefined") return "appearance"
+    try {
+      const stored = window.localStorage.getItem(SETTINGS_TAB_KEY)
+      return stored === "generation" ? "generation" : "appearance"
+    } catch {
+      return "appearance"
+    }
+  }
+
+  let activeTab: SettingsTab = $state(loadInitialTab())
 
   onMount(() => {
     void loadPresets()
+  })
+
+  $effect(() => {
+    if (typeof window === "undefined") return
+    try {
+      window.localStorage.setItem(SETTINGS_TAB_KEY, activeTab)
+    } catch {
+      // Ignore storage failures (e.g., privacy mode).
+    }
   })
 
   // Local copies for text inputs (committed on blur/enter)
