@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onMount } from "svelte"
   import { api, type StoryCharacterGroup } from "../api/client.js"
-  import { activeScreen, showError } from "../stores/ui.js"
+  import { navigate, showError } from "../stores/ui.js"
   import { autoresize } from "./actions/autoresize.js"
   import {
     pendingCharacter,
@@ -39,13 +39,6 @@
     }
   }
 
-  async function useSavedCharacter() {
-    if (!selectedCharacterKey) return
-    const match = savedCharacters.find((c) => c.key === selectedCharacterKey)
-    if (!match) return
-    pendingCharacter.set(match.character)
-  }
-
   function toggleCharacterDropdown() {
     if (loadingCharacters || savedCharacters.length === 0) return
     showCharacterDropdown = !showCharacterDropdown
@@ -53,6 +46,8 @@
 
   function selectCharacter(key: string) {
     selectedCharacterKey = key
+    const match = savedCharacters.find((c) => c.key === key)
+    if (match) pendingCharacter.set(match.character)
     showCharacterDropdown = false
   }
 
@@ -117,7 +112,7 @@
       pendingStoryNPCs.set([])
       pendingStoryLocation.set("")
       pendingStoryGenerateDescription.set("")
-      activeScreen.set("game")
+      navigate("game", { reset: true })
     } catch (err) {
       showError(err instanceof Error ? err.message : "Failed to create story")
     } finally {
@@ -130,7 +125,7 @@
 
 <div class="screen new-story">
   <header class="screen-header">
-    <button class="back-btn" onclick={() => activeScreen.set("char-create")}>← Back</button>
+    <button class="back-btn" onclick={() => navigate("home")}>← Back</button>
     <h2 class="screen-title">New Story</h2>
   </header>
 
@@ -229,8 +224,7 @@
             </div>
           {/if}
         </div>
-        <button class="btn-ghost" onclick={useSavedCharacter} disabled={!selectedCharacterKey}> Use </button>
-        <button class="btn-ghost" onclick={() => activeScreen.set("char-create")}> New </button>
+        <button class="btn-ghost" onclick={() => navigate("char-create")}> New </button>
         <button class="btn-ghost" onclick={loadCharacters} disabled={loadingCharacters}> Refresh </button>
       </div>
     </div>
@@ -243,13 +237,13 @@
           {charData.gender} ·
           {[...charData.personality_traits, ...charData.custom_traits].join(", ") || "No traits"}
         </div>
-        <button class="btn-ghost small" onclick={() => activeScreen.set("char-create")}>Edit Character</button>
+        <button class="btn-ghost small" onclick={() => navigate("char-create")}>Edit Character</button>
       </div>
     {:else}
       <div class="char-summary is-empty">
         <div class="char-summary-header">Character</div>
         <div class="char-details">No character selected yet.</div>
-        <button class="btn-accent small" onclick={() => activeScreen.set("char-create")}> New Character </button>
+        <button class="btn-accent small" onclick={() => navigate("char-create")}> New Character </button>
       </div>
     {/if}
   </div>

@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount } from "svelte"
-  import { activeScreen } from "../stores/ui.js"
+  import { navigate } from "../stores/ui.js"
   import { theme, design, textJustify, colorScheme, connector, generation } from "../stores/settings.js"
   import type { GenerationParams, SamplerPreset } from "../api/client.js"
   import { presets, loadPresets } from "./presets.js"
@@ -118,7 +118,7 @@
 
 <div class="screen settings">
   <header class="screen-header">
-    <button class="back-btn" onclick={() => activeScreen.set("home")}>← Back</button>
+    <button class="back-btn" onclick={() => navigate("home")}>← Back</button>
     <h2 class="screen-title">Settings</h2>
   </header>
 

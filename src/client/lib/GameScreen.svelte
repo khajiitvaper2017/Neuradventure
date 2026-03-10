@@ -1,7 +1,7 @@
 <script lang="ts">
   import { tick } from "svelte"
   import { api, type TurnSummary, ApiError } from "../api/client.js"
-  import { activeScreen, showCharSheet, showNPCTracker, showError } from "../stores/ui.js"
+  import { navigate, showCharSheet, showNPCTracker, showError } from "../stores/ui.js"
   import { autoresize } from "./actions/autoresize.js"
   import {
     currentStoryId,
@@ -132,7 +132,7 @@
 
   function goHome() {
     resetGame()
-    activeScreen.set("home")
+    navigate("home", { reset: true })
   }
 
   function downloadStory() {

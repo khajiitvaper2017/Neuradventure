@@ -1,7 +1,7 @@
 <script lang="ts">
   import { get } from "svelte/store"
   import { api } from "../api/client.js"
-  import { activeScreen, showError } from "../stores/ui.js"
+  import { goBack, navigate, showError } from "../stores/ui.js"
   import { autoresize } from "./actions/autoresize.js"
   import { pendingCharacter } from "../stores/game.js"
   import { pendingCharacterGenerateDescription } from "../stores/game.js"
@@ -229,14 +229,14 @@
       return
     }
     pendingCharacter.set(buildCharacterData())
-    activeScreen.set("new-story")
+    navigate("new-story")
   }
 
 </script>
 
 <div class="screen char-create">
   <header class="screen-header">
-    <button class="back-btn" onclick={() => activeScreen.set("home")}>← Back</button>
+    <button class="back-btn" onclick={() => goBack("home")}>← Back</button>
     <h2 class="screen-title">Create Character</h2>
   </header>
 

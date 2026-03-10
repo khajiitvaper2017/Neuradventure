@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onMount } from "svelte"
   import { api, type StoryMeta, type StoryCharacterGroup } from "../api/client.js"
-  import { activeScreen, showError } from "../stores/ui.js"
+  import { navigate, showError } from "../stores/ui.js"
   import { theme } from "../stores/settings.js"
   import {
     currentStoryId,
@@ -62,7 +62,7 @@
       worldState.set(detail.world)
       npcs.set(detail.npcs)
       turns.set(storyTurns)
-      activeScreen.set("game")
+      navigate("game", { reset: true })
     } catch {
       showError("Failed to load story")
     }
@@ -78,7 +78,7 @@
       worldState.set(detail.world)
       npcs.set(detail.npcs)
       turns.set(storyTurns)
-      activeScreen.set("game")
+      navigate("game", { reset: true })
     } catch {
       showError("Failed to load story")
     }
@@ -91,7 +91,7 @@
     pendingStoryScenario.set("")
     pendingStoryNPCs.set([])
     pendingStoryLocation.set("")
-    activeScreen.set("new-story")
+    navigate("new-story")
   }
 
   function startNewWithCharacter(charData: StoryCharacterGroup["character"]) {
@@ -101,7 +101,7 @@
     pendingStoryScenario.set("")
     pendingStoryNPCs.set([])
     pendingStoryLocation.set("")
-    activeScreen.set("new-story")
+    navigate("new-story")
   }
 
   async function deleteStory(id: number) {
@@ -161,7 +161,7 @@
     <span class="brand-flame">🕯</span>
     <h1>Neuradventure</h1>
     <p class="brand-sub">your story, your way</p>
-    <button class="settings-btn" onclick={() => activeScreen.set("settings")} aria-label="Settings">
+    <button class="settings-btn" onclick={() => navigate("settings")} aria-label="Settings">
       <svg
         width="17"
         height="17"

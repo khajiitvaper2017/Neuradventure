@@ -3,6 +3,20 @@ import { writable, readable } from "svelte/store"
 export type Screen = "home" | "char-create" | "new-story" | "game" | "settings"
 
 export const activeScreen = writable<Screen>("home")
+const screenHistory: Screen[] = []
+
+export function navigate(screen: Screen, options: { replace?: boolean; reset?: boolean } = {}) {
+  activeScreen.update((current) => {
+    if (options.reset) screenHistory.length = 0
+    if (!options.replace && current !== screen) screenHistory.push(current)
+    return screen
+  })
+}
+
+export function goBack(fallback: Screen = "home") {
+  const previous = screenHistory.pop() ?? fallback
+  activeScreen.set(previous)
+}
 export const showCharSheet = writable(false)
 export const showNPCTracker = writable(false)
 export const errorMessage = writable<string | null>(null)
