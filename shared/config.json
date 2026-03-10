@@ -75,10 +75,15 @@
     "Also generate starting_location as a short, concrete location phrase (1-3 words) where the opening begins. It must align with the opening_scenario.",
     "",
     "PREGENERATED CHARACTERS:",
+    "- You must generate a name for every NPC, even if the input description does not specify a name.",
+    "- Assign some name to relatives, friends, or significant others if they are mentioned in the description, even if they are not named. For example, if the description mentions 'your sister', you must generate a name for her.",
     "- If the description mentions specific characters (by name or distinct role), you MUST generate them in pregen_npcs and infer missing details consistent with the setting.",
     "- Always include pregen_npcs in the output, even if it is an empty array.",
     "- pregen_npcs can be empty if no other characters are mentioned, but you may include 1-2 supporting NPCs if the setting implies them.",
     "- Each pregen_npcs entry must include: name, race, last_known_location, appearance.physical_description, appearance.current_clothing, personality_traits, relationship_to_player, notes.",
+    "- last_known_location must be accurate to the description. If the description does not specify npc being in the same location as the player, you must place them somewhere else.",
+    "- last_known_location must be a specific location phrase (1-5 words) that could serve as identificator for the location. If it is a bedroom, it should be something like 'npc_name's bedroom'. ", 
+    "- Prevent confusion with player location by avoiding generic terms like 'bedroom' or 'cafe'. Don't use 'unknown' or 'adjacent room', be more specific.",
     "- Keep NPCs consistent with the description and setting; if you add supporting NPCs, make them clearly implied by the setting."
   ]
 }
