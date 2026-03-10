@@ -1,8 +1,10 @@
 node_modules/
 data/
 dist/
+dist-server/
 .env
 *.local
+*.log
 CLAUDE.md
 .claude/
 .references_source_code/
