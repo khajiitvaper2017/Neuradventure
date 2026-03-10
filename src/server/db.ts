@@ -293,7 +293,9 @@ export function createCharacter(base: CharacterBase): number {
     .prepare("INSERT OR IGNORE INTO characters (character_key, state_json) VALUES (?, ?)")
     .run(key, JSON.stringify(normalized))
   database.prepare("UPDATE characters SET updated_at = datetime('now') WHERE character_key = ?").run(key)
-  const row = database.prepare("SELECT id FROM characters WHERE character_key = ?").get(key) as { id: number } | undefined
+  const row = database.prepare("SELECT id FROM characters WHERE character_key = ?").get(key) as
+    | { id: number }
+    | undefined
   if (!row) throw new Error("Failed to create character")
   return row.id
 }
@@ -306,10 +308,18 @@ export function listCharacters(): CharacterRow[] {
   return getDb().prepare("SELECT * FROM characters ORDER BY updated_at DESC").all() as CharacterRow[]
 }
 
-export function listStoryCharacterRefs(): { id: number; title: string; updated_at: string; character_id: number | null }[] {
-  return getDb()
-    .prepare("SELECT id, title, updated_at, character_id FROM stories ORDER BY updated_at DESC")
-    .all() as { id: number; title: string; updated_at: string; character_id: number | null }[]
+export function listStoryCharacterRefs(): {
+  id: number
+  title: string
+  updated_at: string
+  character_id: number | null
+}[] {
+  return getDb().prepare("SELECT id, title, updated_at, character_id FROM stories ORDER BY updated_at DESC").all() as {
+    id: number
+    title: string
+    updated_at: string
+    character_id: number | null
+  }[]
 }
 
 // ─── Story CRUD ────────────────────────────────────────────────────────────────

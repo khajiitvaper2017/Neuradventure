@@ -223,9 +223,7 @@
               {[...group.character.personality_traits, ...group.character.custom_traits].join(", ") || "No traits"}
             </div>
             <div class="char-card-actions">
-              <button class="btn-ghost small" onclick={() => startNewWithCharacter(group)}>
-                New Story
-              </button>
+              <button class="btn-ghost small" onclick={() => startNewWithCharacter(group)}> New Story </button>
             </div>
             <div class="char-card-stories">
               <div class="char-card-label">Stories</div>
