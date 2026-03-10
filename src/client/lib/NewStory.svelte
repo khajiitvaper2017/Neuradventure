@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount } from "svelte"
-  import { api, type StoryCharacterGroup } from "../api/client.js"
+  import { api, type MainCharacterState, type NPCState, type StoryCharacterGroup } from "../api/client.js"
   import { navigate, showError } from "../stores/ui.js"
   import { autoresize } from "./actions/autoresize.js"
   import {
@@ -10,6 +10,7 @@
     pendingStoryNPCs,
     pendingStoryLocation,
     pendingStoryGenerateDescription,
+    pendingCharacterId,
     currentStoryId,
     currentStoryTitle,
     currentStoryOpeningScenario,
@@ -23,7 +24,6 @@
   let generating = false
   let savedCharacters: StoryCharacterGroup[] = []
   let loadingCharacters = false
-  let selectedCharacterKey: string | "" = ""
   let showCharacterDropdown = false
 
   onMount(loadCharacters)
@@ -44,15 +44,17 @@
     showCharacterDropdown = !showCharacterDropdown
   }
 
-  function selectCharacter(key: string) {
-    selectedCharacterKey = key
-    const match = savedCharacters.find((c) => c.key === key)
-    if (match) pendingCharacter.set(match.character)
+  function selectCharacter(id: number) {
+    const match = savedCharacters.find((c) => c.id === id)
+    if (match) {
+      pendingCharacter.set(match.character)
+      pendingCharacterId.set(match.id)
+    }
     showCharacterDropdown = false
   }
 
   $: selectedCharacterLabel =
-    savedCharacters.find((c) => c.key === selectedCharacterKey)?.character.name ?? "Select a character"
+    savedCharacters.find((c) => c.id === $pendingCharacterId)?.character.name ?? "Select a character"
 
   async function generate() {
     if (!$pendingStoryGenerateDescription.trim() || !$pendingCharacter) return
@@ -81,20 +83,32 @@
       showError("Opening scenario is required")
       return
     }
-    if (!charData) {
+    if (!charData && !$pendingCharacterId) {
       showError("No character selected")
       return
     }
 
     submitting = true
     try {
-      const { id } = await api.stories.create({
+      const payload: {
+        title: string
+        opening_scenario: string
+        starting_scene?: string
+        character_id?: number
+        character_data?: Omit<MainCharacterState, "inventory">
+        npcs?: NPCState[]
+      } = {
         title: $pendingStoryTitle.trim(),
         opening_scenario: $pendingStoryScenario.trim(),
         starting_scene: $pendingStoryLocation.trim() || undefined,
-        character_data: charData,
         npcs: $pendingStoryNPCs,
-      })
+      }
+      if ($pendingCharacterId) {
+        payload.character_id = $pendingCharacterId
+      } else if (charData) {
+        payload.character_data = charData
+      }
+      const { id } = await api.stories.create(payload)
       const [detail, storyTurns] = await Promise.all([api.stories.get(id), api.turns.list(id)])
       currentStoryId.set(id)
       currentStoryTitle.set(detail.title)
@@ -104,6 +118,7 @@
       npcs.set(detail.npcs)
       turns.set(storyTurns)
       pendingCharacter.set(null)
+      pendingCharacterId.set(null)
       pendingStoryTitle.set("")
       pendingStoryScenario.set("")
       pendingStoryNPCs.set([])
@@ -217,8 +232,8 @@
                 <button
                   class="saved-select-item"
                   role="option"
-                  aria-selected={selectedCharacterKey === c.key}
-                  onclick={() => selectCharacter(c.key)}
+                  aria-selected={$pendingCharacterId === c.id}
+                  onclick={() => selectCharacter(c.id)}
                 >
                   {c.character.name}
                 </button>

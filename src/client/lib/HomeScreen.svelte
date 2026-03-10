@@ -13,6 +13,7 @@
     turns,
     resetGame,
     pendingCharacter,
+    pendingCharacterId,
     pendingStoryTitle,
     pendingStoryScenario,
     pendingStoryNPCs,
@@ -87,6 +88,7 @@
   function startNew() {
     resetGame()
     pendingCharacter.set(null)
+    pendingCharacterId.set(null)
     pendingStoryTitle.set("")
     pendingStoryScenario.set("")
     pendingStoryNPCs.set([])
@@ -94,9 +96,21 @@
     navigate("new-story")
   }
 
-  function startNewWithCharacter(charData: StoryCharacterGroup["character"]) {
+  function startNewCharacter() {
     resetGame()
-    pendingCharacter.set(charData)
+    pendingCharacter.set(null)
+    pendingCharacterId.set(null)
+    pendingStoryTitle.set("")
+    pendingStoryScenario.set("")
+    pendingStoryNPCs.set([])
+    pendingStoryLocation.set("")
+    navigate("char-create")
+  }
+
+  function startNewWithCharacter(group: StoryCharacterGroup) {
+    resetGame()
+    pendingCharacter.set(group.character)
+    pendingCharacterId.set(group.id)
     pendingStoryTitle.set("")
     pendingStoryScenario.set("")
     pendingStoryNPCs.set([])
@@ -197,6 +211,21 @@
       </svg>
       New Story
     </button>
+    <button class="new-btn" onclick={startNewCharacter}>
+      <svg
+        width="13"
+        height="13"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="2.5"
+        stroke-linecap="round"
+      >
+        <line x1="12" y1="5" x2="12" y2="19" />
+        <line x1="5" y1="12" x2="19" y2="12" />
+      </svg>
+      New Character
+    </button>
     <button class="new-btn" onclick={() => (showCharacters = !showCharacters)}>
       <svg
         width="13"
@@ -235,7 +264,7 @@
               {[...group.character.personality_traits, ...group.character.custom_traits].join(", ") || "No traits"}
             </div>
             <div class="char-card-actions">
-              <button class="btn-ghost small" onclick={() => startNewWithCharacter(group.character)}>
+              <button class="btn-ghost small" onclick={() => startNewWithCharacter(group)}>
                 New Story
               </button>
             </div>

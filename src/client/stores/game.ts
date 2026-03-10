@@ -12,6 +12,7 @@ export const isGenerating = writable(false)
 
 // Pending character being built in char-create screen (not yet saved)
 export const pendingCharacter = writable<Omit<MainCharacterState, "inventory"> | null>(null)
+export const pendingCharacterId = writable<number | null>(null)
 
 // Pending new-story fields (persist across char-create navigation)
 export const pendingStoryTitle = writable("")
@@ -36,4 +37,5 @@ export function resetGame() {
   pendingStoryLocation.set("")
   pendingStoryGenerateDescription.set("")
   pendingCharacterGenerateDescription.set("")
+  pendingCharacterId.set(null)
 }

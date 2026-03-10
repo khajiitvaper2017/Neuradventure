@@ -272,11 +272,12 @@ export function createNewStory(
   character: MainCharacterState,
   npcs: NPCState[] = [],
   startingScene?: string,
+  characterId: number | null = null,
 ): number {
   const world: WorldState = {
     current_scene: startingScene?.trim() || "Unknown location",
     time_of_day: "day",
     recent_events_summary: opening_scenario.slice(0, 200),
   }
-  return db.createStory(title, opening_scenario, character, world, npcs)
+  return db.createStory(title, opening_scenario, character, world, npcs, characterId)
 }

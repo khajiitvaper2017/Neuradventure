@@ -3,7 +3,7 @@
   import { api } from "../api/client.js"
   import { goBack, navigate, showError } from "../stores/ui.js"
   import { autoresize } from "./actions/autoresize.js"
-  import { pendingCharacter } from "../stores/game.js"
+  import { pendingCharacter, pendingCharacterId } from "../stores/game.js"
   import { pendingCharacterGenerateDescription } from "../stores/game.js"
   import personalityOptions from "../../../shared/traits.json"
 
@@ -229,6 +229,7 @@
       return
     }
     pendingCharacter.set(buildCharacterData())
+    pendingCharacterId.set(null)
     navigate("new-story")
   }
 </script>

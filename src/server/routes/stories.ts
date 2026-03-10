@@ -4,6 +4,7 @@ import { z } from "zod"
 import * as db from "../db.js"
 import {
   CreateStoryRequestSchema,
+  CreateCharacterRequestSchema,
   MainCharacterStateSchema,
   NPCStateSchema,
   UpdateStoryRequestSchema,
@@ -28,25 +29,29 @@ stories.get("/", (c) => {
 })
 
 stories.get("/characters", (c) => {
-  const rows = db.listStoriesWithCharacters()
+  const characters = db.listCharacters()
+  const storyRefs = db.listStoryCharacterRefs()
   const groups = new Map<
-    string,
+    number,
     {
-      key: string
+      id: number
       character: Omit<ReturnType<typeof MainCharacterStateSchema.parse>, "inventory">
       stories: { id: number; title: string; updated_at: string }[]
     }
   >()
 
-  for (const row of rows) {
-    const { name, race, gender, appearance, personality_traits, custom_traits } = MainCharacterStateSchema.parse(
-      JSON.parse(row.character_state_json),
-    )
-    const character = { name, race, gender, appearance, personality_traits, custom_traits }
-    const key = JSON.stringify(character)
-    const entry = groups.get(key) ?? { key, character, stories: [] }
-    entry.stories.push({ id: row.id, title: row.title, updated_at: row.updated_at })
-    groups.set(key, entry)
+  for (const row of characters) {
+    const parsed = CreateCharacterRequestSchema.safeParse(JSON.parse(row.state_json))
+    if (!parsed.success) continue
+    groups.set(row.id, { id: row.id, character: parsed.data, stories: [] })
+  }
+
+  for (const story of storyRefs) {
+    if (!story.character_id) continue
+    const entry = groups.get(story.character_id)
+    if (entry) {
+      entry.stories.push({ id: story.id, title: story.title, updated_at: story.updated_at })
+    }
   }
 
   return c.json(Array.from(groups.values()))
@@ -72,11 +77,15 @@ stories.post("/", zValidator("json", CreateStoryRequestSchema), async (c) => {
   const body = c.req.valid("json")
 
   let character
+  let characterId: number | null = null
   if (body.character_id) {
     const charRow = db.getCharacter(body.character_id)
     if (!charRow) return c.json({ error: "Character not found" }, 404)
-    character = MainCharacterStateSchema.parse(JSON.parse(charRow.state_json))
+    const base = CreateCharacterRequestSchema.parse(JSON.parse(charRow.state_json))
+    character = { ...base, inventory: [] }
+    characterId = charRow.id
   } else if (body.character_data) {
+    characterId = db.createCharacter(body.character_data)
     character = {
       ...body.character_data,
       inventory: [],
@@ -85,7 +94,14 @@ stories.post("/", zValidator("json", CreateStoryRequestSchema), async (c) => {
     return c.json({ error: "Provide character_id or character_data" }, 400)
   }
 
-  const id = createNewStory(body.title, body.opening_scenario, character, body.npcs ?? [], body.starting_scene)
+  const id = createNewStory(
+    body.title,
+    body.opening_scenario,
+    character,
+    body.npcs ?? [],
+    body.starting_scene,
+    characterId,
+  )
   return c.json({ id }, 201)
 })
 
@@ -148,7 +164,16 @@ stories.post(
   ),
   (c) => {
     const body = c.req.valid("json")
-    const id = db.createStory(body.title, body.opening_scenario, body.character, body.world, body.npcs)
+    const base = {
+      name: body.character.name,
+      race: body.character.race,
+      gender: body.character.gender,
+      appearance: body.character.appearance,
+      personality_traits: body.character.personality_traits,
+      custom_traits: body.character.custom_traits,
+    }
+    const characterId = db.createCharacter(base)
+    const id = db.createStory(body.title, body.opening_scenario, body.character, body.world, body.npcs, characterId)
     return c.json({ id }, 201)
   },
 )

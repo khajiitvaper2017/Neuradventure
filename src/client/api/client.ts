@@ -57,7 +57,7 @@ export interface StoryDetail {
 }
 
 export interface StoryCharacterGroup {
-  key: string
+  id: number
   character: Omit<MainCharacterState, "inventory">
   stories: { id: number; title: string; updated_at: string }[]
 }
