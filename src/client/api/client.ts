@@ -123,6 +123,7 @@ export interface TurnResult {
   character: MainCharacterState
   world: WorldState
   npcs: NPCState[]
+  llm_warnings?: string[]
 }
 
 export interface CancelLastResult {

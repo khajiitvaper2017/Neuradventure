@@ -1,7 +1,7 @@
 <script lang="ts">
   import { tick, untrack } from "svelte"
   import { api, type TurnSummary, type TurnVariantSummary, ApiError } from "../api/client.js"
-  import { navigate, showCharSheet, showNPCTracker, showError, showConfirm } from "../stores/ui.js"
+  import { navigate, showCharSheet, showNPCTracker, showError, showConfirm, showQuietNotice } from "../stores/ui.js"
   import { autoresize } from "./actions/autoresize.js"
   import IconDots from "../icons/IconDots.svelte"
   import IconDownload from "../icons/IconDownload.svelte"
@@ -155,6 +155,13 @@
     return trimmed
   }
 
+  function handleLlmWarnings(warnings?: string[]) {
+    if (!warnings || warnings.length === 0) return
+    console.warn("[llm] Repeated values from previous state:", warnings)
+    const count = warnings.length
+    showQuietNotice(`LLM repeated ${count} unchanged ${count === 1 ? "value" : "values"}.`)
+  }
+
   async function sendTurn() {
     const rawText = input.trim()
     const isEmpty = rawText.length === 0
@@ -175,6 +182,7 @@
     isGenerating.set(true)
     try {
       const result = await api.turns.take($currentStoryId, text, sendMode, requestId)
+      handleLlmWarnings(result.llm_warnings)
       character.set(result.character)
       worldState.set(result.world)
       npcs.set(result.npcs)
@@ -215,6 +223,7 @@
     isGenerating.set(true)
     try {
       const result = await api.turns.take($currentStoryId, pending.playerInput, pending.actionMode, pending.requestId)
+      handleLlmWarnings(result.llm_warnings)
       character.set(result.character)
       worldState.set(result.world)
       npcs.set(result.npcs)
@@ -272,6 +281,7 @@
     try {
       const lastMode = $turns[$turns.length - 1]?.action_mode ?? actionMode
       const result = await api.turns.regenerateLast($currentStoryId, lastMode)
+      handleLlmWarnings(result.llm_warnings)
       character.set(result.character)
       worldState.set(result.world)
       npcs.set(result.npcs)

@@ -1,6 +1,15 @@
 <script lang="ts">
   import { onMount } from "svelte"
-  import { activeScreen, errorMessage, initRouter, isDesktop, navigate, routeStoryId, showError } from "./stores/ui.js"
+  import {
+    activeScreen,
+    errorMessage,
+    initRouter,
+    isDesktop,
+    navigate,
+    quietNotice,
+    routeStoryId,
+    showError,
+  } from "./stores/ui.js"
   import { theme, design, textJustify, colorScheme, initSettings } from "./stores/settings.js"
   import { currentStoryId } from "./stores/game.js"
   import HomeScreen from "./lib/HomeScreen.svelte"
@@ -114,6 +123,10 @@
     <div class="toast">{$errorMessage}</div>
   {/if}
 
+  {#if $quietNotice}
+    <div class="corner-note">{$quietNotice}</div>
+  {/if}
+
   <ConfirmDialog />
 </div>
 
@@ -161,5 +174,23 @@
       opacity: 1;
       transform: translate(-50%, 0);
     }
+  }
+
+  /* ── Corner notice ─────────────────────────────────── */
+  .corner-note {
+    position: fixed;
+    right: 16px;
+    bottom: 16px;
+    background: var(--bg-raised);
+    border: 1px solid var(--border);
+    color: var(--text-dim);
+    font-size: 0.72rem;
+    font-family: var(--font-ui);
+    padding: 0.4rem 0.6rem;
+    border-radius: 6px;
+    z-index: 190;
+    opacity: 0.85;
+    pointer-events: none;
+    animation: toastIn 0.2s ease;
   }
 </style>

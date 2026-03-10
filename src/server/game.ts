@@ -3,6 +3,7 @@ import {
   NPCStateSchema,
   WorldStateSchema,
   type MainCharacterState,
+  type NPCStateUpdate,
   type NPCState,
   type TurnResponse,
   type WorldState,
@@ -51,6 +52,71 @@ function applyNPCUpdates(npcs: NPCState[], updates: TurnResponse["npc_updates"],
   return [...updated, ...newNPCs]
 }
 
+function inventoryEquals(a: MainCharacterState["inventory"], b: MainCharacterState["inventory"]): boolean {
+  if (a.length !== b.length) return false
+  for (let i = 0; i < a.length; i += 1) {
+    if (a[i].name !== b[i].name || a[i].description !== b[i].description) return false
+  }
+  return true
+}
+
+function findNpcByUpdate(npcs: NPCState[], update: NPCStateUpdate): NPCState | undefined {
+  const name = update.name.toLowerCase()
+  return npcs.find((npc) => npc.name.toLowerCase() === name)
+}
+
+function collectLlmWarnings(
+  character: MainCharacterState,
+  world: WorldState,
+  npcs: NPCState[],
+  turnResponse: TurnResponse,
+): string[] {
+  const warnings: string[] = []
+  const playerUpdate = turnResponse.player_state_update
+
+  if (playerUpdate.appearance_update && playerUpdate.appearance_update === character.appearance.physical_description) {
+    warnings.push("player_state_update.appearance_update matches existing value")
+  }
+  if (playerUpdate.clothing_update && playerUpdate.clothing_update === character.appearance.current_clothing) {
+    warnings.push("player_state_update.clothing_update matches existing value")
+  }
+  if (playerUpdate.inventory_update !== undefined && inventoryEquals(playerUpdate.inventory_update, character.inventory)) {
+    warnings.push("player_state_update.inventory_update matches existing value")
+  }
+
+  const worldUpdate = turnResponse.world_state_update
+  if (
+    worldUpdate.current_scene === world.current_scene &&
+    worldUpdate.time_of_day === world.time_of_day &&
+    worldUpdate.day_of_week === world.day_of_week &&
+    worldUpdate.recent_events_summary === world.recent_events_summary
+  ) {
+    warnings.push("world_state_update matches existing world state")
+  }
+
+  for (const npcUpdate of turnResponse.npc_updates) {
+    const npc = findNpcByUpdate(npcs, npcUpdate)
+    if (!npc) continue
+    if (npcUpdate.last_known_location && npcUpdate.last_known_location === npc.last_known_location) {
+      warnings.push(`npc_updates[${npc.name}].last_known_location matches existing value`)
+    }
+    if (npcUpdate.appearance_update && npcUpdate.appearance_update === npc.appearance.physical_description) {
+      warnings.push(`npc_updates[${npc.name}].appearance_update matches existing value`)
+    }
+    if (npcUpdate.clothing_update && npcUpdate.clothing_update === npc.appearance.current_clothing) {
+      warnings.push(`npc_updates[${npc.name}].clothing_update matches existing value`)
+    }
+    if (npcUpdate.relationship_change && npcUpdate.relationship_change === npc.relationship_to_player) {
+      warnings.push(`npc_updates[${npc.name}].relationship_change matches existing value`)
+    }
+    if (npcUpdate.notes_update && npcUpdate.notes_update === npc.notes) {
+      warnings.push(`npc_updates[${npc.name}].notes_update matches existing value`)
+    }
+  }
+
+  return warnings
+}
+
 // ─── Core Game Operations ──────────────────────────────────────────────────────
 
 export interface TurnResult {
@@ -61,6 +127,7 @@ export interface TurnResult {
   character: MainCharacterState
   world: WorldState
   npcs: NPCState[]
+  llm_warnings?: string[]
 }
 
 export async function processTurn(
@@ -81,6 +148,7 @@ export async function processTurn(
 
   const messages = buildTurnMessages(character, world, npcs, recentTurns, playerInput, actionMode, initial, ctxLimit)
   const turnResponse = await callLLM(messages)
+  const llmWarnings = collectLlmWarnings(character, world, npcs, turnResponse)
 
   const newCharacter = applyPlayerUpdate(character, turnResponse.player_state_update)
   const newWorld = turnResponse.world_state_update
@@ -111,6 +179,7 @@ export async function processTurn(
     character: newCharacter,
     world: newWorld,
     npcs: newNpcs,
+    llm_warnings: llmWarnings.length > 0 ? llmWarnings : undefined,
   }
 }
 
@@ -323,6 +392,7 @@ export async function regenerateLastTurn(storyId: number, actionMode?: string): 
     ctxLimit,
   )
   const turnResponse = await callLLM(messages)
+  const llmWarnings = collectLlmWarnings(snapshot.character, snapshot.world, snapshot.npcs, turnResponse)
 
   const newCharacter = applyPlayerUpdate(snapshot.character, turnResponse.player_state_update)
   const newWorld = turnResponse.world_state_update
@@ -347,6 +417,7 @@ export async function regenerateLastTurn(storyId: number, actionMode?: string): 
     character: newCharacter,
     world: newWorld,
     npcs: newNpcs,
+    llm_warnings: llmWarnings.length > 0 ? llmWarnings : undefined,
   }
 }
 

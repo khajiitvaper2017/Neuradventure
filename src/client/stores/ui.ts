@@ -92,10 +92,16 @@ export function goBack(fallback: Screen = "home") {
 export const showCharSheet = writable(false)
 export const showNPCTracker = writable(false)
 export const errorMessage = writable<string | null>(null)
+export const quietNotice = writable<string | null>(null)
 
 export function showError(msg: string, durationMs = 4000) {
   errorMessage.set(msg)
   setTimeout(() => errorMessage.set(null), durationMs)
+}
+
+export function showQuietNotice(msg: string, durationMs = 3500) {
+  quietNotice.set(msg)
+  setTimeout(() => quietNotice.set(null), durationMs)
 }
 
 // ─── Confirm dialog ──────────────────────────────────────────────────────────
