@@ -247,8 +247,13 @@
 
   // Split narrative into paragraphs for proper rendering
   function paragraphs(text: string): string[] {
-    return text
-      .split(/\n\n+/)
+    let normalized = text.replace(/\r\n/g, "\n")
+    if (!normalized.includes("\n") && normalized.includes("\\n")) {
+      normalized = normalized.replace(/\\n/g, "\n")
+    }
+    const hasBlankLines = /\n\s*\n/.test(normalized)
+    return normalized
+      .split(hasBlankLines ? /\n\s*\n+/ : /\n+/)
       .map((p) => p.trim())
       .filter(Boolean)
   }
@@ -785,6 +790,7 @@
     margin-bottom: 1.5rem;
     font-style: italic;
     opacity: 0.75;
+    white-space: pre-line;
   }
   .edit-turn {
     background: var(--bg-raised);
@@ -917,6 +923,7 @@
     line-height: var(--story-line);
     color: var(--text);
     margin-bottom: 1em;
+    white-space: pre-line;
   }
   .para:last-child {
     margin-bottom: 0;
