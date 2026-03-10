@@ -2,8 +2,10 @@ import OpenAI from "openai"
 import { readFileSync, statSync } from "fs"
 import { fileURLToPath } from "url"
 import { dirname, join } from "path"
+import { z } from "zod"
 import { zodToJsonSchema } from "zod-to-json-schema"
 import {
+  buildNPCStateUpdateSchema,
   TurnResponseSchema,
   GenerateCharacterResponseSchema,
   GenerateCharacterAppearanceResponseSchema,
@@ -185,32 +187,50 @@ function escapeForInlineJson(value: string): string {
 
 function derefJsonSchema(schema: object): object {
   const root = schema as Record<string, unknown>
-  const definitions =
-    root && typeof root === "object" && "definitions" in root && typeof root.definitions === "object"
-      ? (root.definitions as Record<string, unknown>)
-      : {}
+  const seen = new Map<string, unknown>()
 
-  const derefNode = (node: unknown): unknown => {
-    if (Array.isArray(node)) return node.map(derefNode)
+  const resolvePointer = (pointer: string): unknown => {
+    if (!pointer.startsWith("#/")) return undefined
+    const parts = pointer
+      .slice(2)
+      .split("/")
+      .map((part) => part.replace(/~1/g, "/").replace(/~0/g, "~"))
+    let current: unknown = root
+    for (const part of parts) {
+      if (!current || typeof current !== "object") return undefined
+      const obj = current as Record<string, unknown>
+      if (!(part in obj)) return undefined
+      current = obj[part]
+    }
+    return current
+  }
+
+  const derefNode = (node: unknown, path: string): unknown => {
+    if (Array.isArray(node)) return node.map((item, index) => derefNode(item, `${path}/${index}`))
     if (!node || typeof node !== "object") return node
 
     const obj = node as Record<string, unknown>
     const ref = obj.$ref
-    if (typeof ref === "string" && ref.startsWith("#/definitions/")) {
-      const key = ref.substring("#/definitions/".length)
-      const target = definitions[key]
-      if (target) return derefNode(target)
+    if (typeof ref === "string") {
+      const cached = seen.get(ref)
+      if (cached) return cached
+      const target = resolvePointer(ref)
+      if (target) {
+        const resolved = derefNode(target, ref)
+        seen.set(ref, resolved)
+        return resolved
+      }
     }
 
     const out: Record<string, unknown> = {}
     for (const [k, v] of Object.entries(obj)) {
-      if (k === "definitions") continue
-      out[k] = derefNode(v)
+      if (k === "$ref" || k === "definitions" || k === "$defs") continue
+      out[k] = derefNode(v, `${path}/${k}`)
     }
     return out
   }
 
-  const resolved = derefNode(root)
+  const resolved = derefNode(root, "#")
   if (resolved && typeof resolved === "object" && root.$schema && !(resolved as Record<string, unknown>).$schema) {
     ;(resolved as Record<string, unknown>).$schema = root.$schema
   }
@@ -399,10 +419,33 @@ function buildSamplingParams(
   return params
 }
 
-export async function callLLM(messages: OpenAI.ChatCompletionMessageParam[]): Promise<TurnResponse> {
-  const schema = zodToJsonSchema(TurnResponseSchema, { name: "TurnResponse" })
+function buildTurnResponseSchema(knownNpcNames: string[]): z.ZodType<TurnResponse> {
+  const uniqueNames = Array.from(
+    new Set(knownNpcNames.map((name) => name.trim()).filter((name) => name.length > 0)),
+  )
+
+  if (uniqueNames.length === 0) {
+    return TurnResponseSchema.extend({
+      npc_updates: z.array(buildNPCStateUpdateSchema(z.string().min(1))).length(0),
+    })
+  }
+
+  const enumValues = uniqueNames as [string, ...string[]]
+  const npcUpdateSchema = buildNPCStateUpdateSchema(z.enum(enumValues))
+
+  return TurnResponseSchema.extend({
+    npc_updates: z.array(npcUpdateSchema),
+  })
+}
+
+export async function callLLM(
+  messages: OpenAI.ChatCompletionMessageParam[],
+  knownNpcNames: string[] = [],
+): Promise<TurnResponse> {
+  const turnSchema = buildTurnResponseSchema(knownNpcNames)
+  const schema = zodToJsonSchema(turnSchema, { name: "TurnResponse" })
   const result = await callLLMRaw<unknown>(messages, "TurnResponse", schema)
-  return TurnResponseSchema.parse(result)
+  return turnSchema.parse(result)
 }
 
 async function callLLMRaw<T>(

@@ -1,8 +1,9 @@
 import {
   MainCharacterStateSchema,
-  NPCStateSchema,
-  WorldStateSchema,
+  NPCStateStoredSchema,
+  WorldStateStoredSchema,
   type MainCharacterState,
+  type NPCCreation,
   type NPCStateUpdate,
   type NPCState,
   type TurnResponse,
@@ -17,39 +18,63 @@ function applyPlayerUpdate(
   character: MainCharacterState,
   update: TurnResponse["player_state_update"],
 ): MainCharacterState {
+  const patch = update ?? {}
   const updated = { ...character, appearance: { ...character.appearance } }
 
-  if (update.appearance_update) {
-    updated.appearance = { ...updated.appearance, physical_description: update.appearance_update }
+  if ("set_appearance" in patch && patch.set_appearance) {
+    updated.appearance = { ...updated.appearance, physical_description: patch.set_appearance }
   }
-  if (update.clothing_update) {
-    updated.appearance = { ...updated.appearance, current_clothing: update.clothing_update }
+  if ("set_clothing" in patch && patch.set_clothing) {
+    updated.appearance = { ...updated.appearance, current_clothing: patch.set_clothing }
   }
-  if (update.inventory_update !== undefined) {
-    updated.inventory = update.inventory_update
+  if ("set_inventory" in patch && patch.set_inventory !== undefined) {
+    updated.inventory = patch.set_inventory
   }
 
   return updated
 }
 
-function applyNPCUpdates(npcs: NPCState[], updates: TurnResponse["npc_updates"], newNPCs: NPCState[]): NPCState[] {
-  const updated = npcs.map((npc) => {
+function buildNpcFromCreation(creation: NPCCreation): NPCState {
+  return {
+    name: creation.name,
+    race: creation.race,
+    gender: creation.gender,
+    last_known_location: creation.set_location,
+    appearance: {
+      physical_description: creation.set_appearance,
+      current_clothing: creation.set_clothing,
+    },
+    personality_traits: creation.personality_traits,
+    relationship_to_player: creation.set_relationship,
+    notes: creation.set_notes,
+  }
+}
+
+function applyNPCUpdates(npcs: NPCState[], updates: TurnResponse["npc_updates"]): NPCState[] {
+  return npcs.map((npc) => {
     const patch = updates.find((u) => u.name.toLowerCase() === npc.name.toLowerCase())
     if (!patch) return npc
 
     return {
       ...npc,
-      last_known_location: patch.last_known_location ?? npc.last_known_location,
+      last_known_location: patch.set_location ?? npc.last_known_location,
       appearance: {
-        physical_description: patch.appearance_update ?? npc.appearance.physical_description,
-        current_clothing: patch.clothing_update ?? npc.appearance.current_clothing,
+        physical_description: patch.set_appearance ?? npc.appearance.physical_description,
+        current_clothing: patch.set_clothing ?? npc.appearance.current_clothing,
       },
-      relationship_to_player: patch.relationship_change ?? npc.relationship_to_player,
-      notes: patch.notes_update ?? npc.notes,
+      relationship_to_player: patch.set_relationship ?? npc.relationship_to_player,
+      notes: patch.set_notes ?? npc.notes,
     }
   })
+}
 
-  return [...updated, ...newNPCs]
+function applyNPCCreations(npcs: NPCState[], creations: TurnResponse["npc_creations"]): NPCState[] {
+  if (creations.length === 0) return npcs
+  const existingNames = new Set(npcs.map((npc) => npc.name.toLowerCase()))
+  const newNPCs = creations
+    .filter((creation) => !existingNames.has(creation.name.toLowerCase()))
+    .map((creation) => buildNpcFromCreation(creation))
+  return [...npcs, ...newNPCs]
 }
 
 function inventoryEquals(a: MainCharacterState["inventory"], b: MainCharacterState["inventory"]): boolean {
@@ -72,19 +97,19 @@ function collectLlmWarnings(
   turnResponse: TurnResponse,
 ): string[] {
   const warnings: string[] = []
-  const playerUpdate = turnResponse.player_state_update
+  const playerUpdate = turnResponse.player_state_update ?? {}
 
-  if (playerUpdate.appearance_update && playerUpdate.appearance_update === character.appearance.physical_description) {
-    warnings.push("player_state_update.appearance_update matches existing value")
+  if (playerUpdate.set_appearance && playerUpdate.set_appearance === character.appearance.physical_description) {
+    warnings.push("player_state_update.set_appearance matches existing value")
   }
-  if (playerUpdate.clothing_update && playerUpdate.clothing_update === character.appearance.current_clothing) {
-    warnings.push("player_state_update.clothing_update matches existing value")
+  if (playerUpdate.set_clothing && playerUpdate.set_clothing === character.appearance.current_clothing) {
+    warnings.push("player_state_update.set_clothing matches existing value")
   }
   if (
-    playerUpdate.inventory_update !== undefined &&
-    inventoryEquals(playerUpdate.inventory_update, character.inventory)
+    playerUpdate.set_inventory !== undefined &&
+    inventoryEquals(playerUpdate.set_inventory, character.inventory)
   ) {
-    warnings.push("player_state_update.inventory_update matches existing value")
+    warnings.push("player_state_update.set_inventory matches existing value")
   }
 
   const worldUpdate = turnResponse.world_state_update
@@ -99,21 +124,33 @@ function collectLlmWarnings(
 
   for (const npcUpdate of turnResponse.npc_updates) {
     const npc = findNpcByUpdate(npcs, npcUpdate)
-    if (!npc) continue
-    if (npcUpdate.last_known_location && npcUpdate.last_known_location === npc.last_known_location) {
-      warnings.push(`npc_updates[${npc.name}].last_known_location matches existing value`)
+    if (!npc) {
+      warnings.push(
+        `npc_updates[${npcUpdate.name}] refers to unknown NPC; use npc_creations for new NPCs`,
+      )
+      continue
     }
-    if (npcUpdate.appearance_update && npcUpdate.appearance_update === npc.appearance.physical_description) {
-      warnings.push(`npc_updates[${npc.name}].appearance_update matches existing value`)
+    if (npcUpdate.set_location && npcUpdate.set_location === npc.last_known_location) {
+      warnings.push(`npc_updates[${npc.name}].set_location matches existing value`)
     }
-    if (npcUpdate.clothing_update && npcUpdate.clothing_update === npc.appearance.current_clothing) {
-      warnings.push(`npc_updates[${npc.name}].clothing_update matches existing value`)
+    if (npcUpdate.set_appearance && npcUpdate.set_appearance === npc.appearance.physical_description) {
+      warnings.push(`npc_updates[${npc.name}].set_appearance matches existing value`)
     }
-    if (npcUpdate.relationship_change && npcUpdate.relationship_change === npc.relationship_to_player) {
-      warnings.push(`npc_updates[${npc.name}].relationship_change matches existing value`)
+    if (npcUpdate.set_clothing && npcUpdate.set_clothing === npc.appearance.current_clothing) {
+      warnings.push(`npc_updates[${npc.name}].set_clothing matches existing value`)
     }
-    if (npcUpdate.notes_update && npcUpdate.notes_update === npc.notes) {
-      warnings.push(`npc_updates[${npc.name}].notes_update matches existing value`)
+    if (npcUpdate.set_relationship && npcUpdate.set_relationship === npc.relationship_to_player) {
+      warnings.push(`npc_updates[${npc.name}].set_relationship matches existing value`)
+    }
+    if (npcUpdate.set_notes && npcUpdate.set_notes === npc.notes) {
+      warnings.push(`npc_updates[${npc.name}].set_notes matches existing value`)
+    }
+  }
+
+  for (const creation of turnResponse.npc_creations) {
+    const existing = npcs.find((npc) => npc.name.toLowerCase() === creation.name.toLowerCase())
+    if (existing) {
+      warnings.push(`npc_creations[${creation.name}] matches existing NPC name; use npc_updates instead`)
     }
   }
 
@@ -143,8 +180,8 @@ export async function processTurn(
   if (!story) throw new Error(`Story ${storyId} not found`)
 
   const character = MainCharacterStateSchema.parse(JSON.parse(story.character_state_json))
-  const world = WorldStateSchema.parse(JSON.parse(story.world_state_json))
-  const npcs = (JSON.parse(story.npc_states_json) as unknown[]).map((n) => NPCStateSchema.parse(n))
+  const world = WorldStateStoredSchema.parse(JSON.parse(story.world_state_json))
+  const npcs = (JSON.parse(story.npc_states_json) as unknown[]).map((n) => NPCStateStoredSchema.parse(n))
   const initial = parseInitialStorySnapshot(story).character
   const recentTurns = db.getTurnsForStory(storyId)
   const ctxLimit = getCtxLimitCached()
@@ -155,7 +192,8 @@ export async function processTurn(
 
   const newCharacter = applyPlayerUpdate(character, turnResponse.player_state_update)
   const newWorld = turnResponse.world_state_update
-  const newNpcs = applyNPCUpdates(npcs, turnResponse.npc_updates, turnResponse.new_npcs)
+  const updatedNpcs = applyNPCUpdates(npcs, turnResponse.npc_updates)
+  const newNpcs = applyNPCCreations(updatedNpcs, turnResponse.npc_creations)
 
   db.updateStory(storyId, newCharacter, newWorld, newNpcs)
 
@@ -188,8 +226,8 @@ export async function processTurn(
 
 function parseTurnSnapshot(turn: db.TurnRow): { character: MainCharacterState; world: WorldState; npcs: NPCState[] } {
   const character = MainCharacterStateSchema.parse(JSON.parse(turn.character_snapshot_json))
-  const world = WorldStateSchema.parse(JSON.parse(turn.world_snapshot_json))
-  const npcs = (JSON.parse(turn.npc_snapshot_json) as unknown[]).map((n) => NPCStateSchema.parse(n))
+  const world = WorldStateStoredSchema.parse(JSON.parse(turn.world_snapshot_json))
+  const npcs = (JSON.parse(turn.npc_snapshot_json) as unknown[]).map((n) => NPCStateStoredSchema.parse(n))
   return { character, world, npcs }
 }
 
@@ -212,8 +250,8 @@ function parseTurnVariantSnapshot(variant: db.TurnVariantRow): {
   npcs: NPCState[]
 } {
   const character = MainCharacterStateSchema.parse(JSON.parse(variant.character_snapshot_json))
-  const world = WorldStateSchema.parse(JSON.parse(variant.world_snapshot_json))
-  const npcs = (JSON.parse(variant.npc_snapshot_json) as unknown[]).map((n) => NPCStateSchema.parse(n))
+  const world = WorldStateStoredSchema.parse(JSON.parse(variant.world_snapshot_json))
+  const npcs = (JSON.parse(variant.npc_snapshot_json) as unknown[]).map((n) => NPCStateStoredSchema.parse(n))
   return { character, world, npcs }
 }
 
@@ -226,8 +264,8 @@ function parseInitialStorySnapshot(story: db.StoryRow): {
   const worldJson = story.initial_world_state_json ?? story.world_state_json
   const npcsJson = story.initial_npc_states_json ?? story.npc_states_json
   const character = MainCharacterStateSchema.parse(JSON.parse(characterJson))
-  const world = WorldStateSchema.parse(JSON.parse(worldJson))
-  const npcs = (JSON.parse(npcsJson) as unknown[]).map((n) => NPCStateSchema.parse(n))
+  const world = WorldStateStoredSchema.parse(JSON.parse(worldJson))
+  const npcs = (JSON.parse(npcsJson) as unknown[]).map((n) => NPCStateStoredSchema.parse(n))
   return { character, world, npcs }
 }
 
@@ -399,7 +437,8 @@ export async function regenerateLastTurn(storyId: number, actionMode?: string): 
 
   const newCharacter = applyPlayerUpdate(snapshot.character, turnResponse.player_state_update)
   const newWorld = turnResponse.world_state_update
-  const newNpcs = applyNPCUpdates(snapshot.npcs, turnResponse.npc_updates, turnResponse.new_npcs)
+  const updatedNpcs = applyNPCUpdates(snapshot.npcs, turnResponse.npc_updates)
+  const newNpcs = applyNPCCreations(updatedNpcs, turnResponse.npc_creations)
 
   db.updateStory(storyId, newCharacter, newWorld, newNpcs)
   const variant = db.createTurnVariant(lastTurn.id, turnResponse.narrative_text, newCharacter, newWorld, newNpcs)

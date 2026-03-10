@@ -1378,14 +1378,12 @@
     font-size: 0.95em;
     padding: 0.08em 0.28em;
     border-radius: 4px;
-    background: var(--bg-raised);
     border: 1px solid var(--border);
     color: var(--accent);
   }
   .inline-quote {
     padding: 0.04em 0.12em;
     border-radius: 4px;
-    background: var(--accent-dim);
     color: var(--accent);
     font-style: italic;
   }

@@ -6,9 +6,9 @@ import {
   CreateStoryRequestSchema,
   CreateCharacterRequestSchema,
   MainCharacterStateSchema,
-  NPCStateSchema,
+  NPCStateStoredSchema,
   UpdateStoryRequestSchema,
-  WorldStateSchema,
+  WorldStateStoredSchema,
 } from "../models.js"
 import { createNewStory } from "../game.js"
 
@@ -61,8 +61,10 @@ stories.get("/:id", (c) => {
   const id = Number(c.req.param("id"))
   const row = db.getStory(id)
   if (!row) return c.json({ error: "Story not found" }, 404)
-  const world = WorldStateSchema.parse(JSON.parse(row.world_state_json))
-  const initialWorld = WorldStateSchema.parse(JSON.parse(row.initial_world_state_json ?? row.world_state_json))
+  const world = WorldStateStoredSchema.parse(JSON.parse(row.world_state_json))
+  const initialWorld = WorldStateStoredSchema.parse(
+    JSON.parse(row.initial_world_state_json ?? row.world_state_json),
+  )
   return c.json({
     id: row.id,
     title: row.title,
@@ -70,7 +72,7 @@ stories.get("/:id", (c) => {
     character: JSON.parse(row.character_state_json),
     world,
     initial_world: initialWorld,
-    npcs: JSON.parse(row.npc_states_json),
+    npcs: (JSON.parse(row.npc_states_json) as unknown[]).map((n) => NPCStateStoredSchema.parse(n)),
     created_at: row.created_at,
     updated_at: row.updated_at,
   })
@@ -126,7 +128,7 @@ stories.get("/:id/export", (c) => {
   const id = Number(c.req.param("id"))
   const row = db.getStory(id)
   if (!row) return c.json({ error: "Story not found" }, 404)
-  const world = WorldStateSchema.parse(JSON.parse(row.world_state_json))
+  const world = WorldStateStoredSchema.parse(JSON.parse(row.world_state_json))
   const turns = db.getTurnsForStory(id)
   const data = JSON.stringify(
     {
@@ -134,7 +136,7 @@ stories.get("/:id/export", (c) => {
       opening_scenario: row.opening_scenario,
       character: JSON.parse(row.character_state_json),
       world,
-      npcs: JSON.parse(row.npc_states_json),
+      npcs: (JSON.parse(row.npc_states_json) as unknown[]).map((n) => NPCStateStoredSchema.parse(n)),
       turns: turns.map((t) => ({
         turn_number: t.turn_number,
         player_input: t.player_input,
@@ -162,8 +164,8 @@ stories.post(
       title: z.string(),
       opening_scenario: z.string(),
       character: MainCharacterStateSchema,
-      world: WorldStateSchema,
-      npcs: z.array(NPCStateSchema),
+      world: WorldStateStoredSchema,
+      npcs: z.array(NPCStateStoredSchema),
     }),
   ),
   (c) => {

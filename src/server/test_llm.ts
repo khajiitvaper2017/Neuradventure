@@ -38,13 +38,15 @@ async function main() {
   console.log("\nUser context:", messages[1].content)
 
   console.log("\nCalling LLM...")
-  const response = await callLLM(messages)
+  const response = await callLLM(
+    messages,
+    npcs.map((npc) => npc.name),
+  )
   console.log("\n=== LLM Response ===")
   console.log("Narrative:", response.narrative_text)
   console.log("\nWorld update:", response.world_state_update)
   console.log("Player update:", response.player_state_update)
   console.log("NPC updates:", response.npc_updates)
-  console.log("New NPCs:", response.new_npcs)
 }
 
 main().catch(console.error)
