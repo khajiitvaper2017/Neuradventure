@@ -150,11 +150,19 @@ ${actionSection}`
 
 // ─── LLM calls ───────────────────────────────────────────────────────────────
 
-function buildSamplingParams(gen: GenerationParams, maxTokensOverride?: number): Record<string, unknown> {
+function buildSamplingParams(
+  gen: GenerationParams,
+  maxTokensOverride?: number,
+  options: { disableRepetition?: boolean } = {},
+): Record<string, unknown> {
   const params: Record<string, unknown> = {
     max_tokens: maxTokensOverride ?? gen.max_tokens,
     temperature: gen.temperature,
   }
+
+  const repeatPenalty = options.disableRepetition ? 1.0 : gen.repeat_penalty
+  const repeatLastN = options.disableRepetition ? 0 : gen.repeat_last_n
+  const dryMultiplier = options.disableRepetition ? 0.0 : gen.dry_multiplier
 
   // Only include non-default params to keep the request clean
   if (gen.top_k !== 40) params.top_k = gen.top_k
@@ -162,8 +170,8 @@ function buildSamplingParams(gen: GenerationParams, maxTokensOverride?: number):
   if (gen.min_p !== 0.05) params.min_p = gen.min_p
   if (gen.typical_p !== 1.0) params.typical_p = gen.typical_p
   if (gen.top_n_sigma !== -1.0) params.top_n_sigma = gen.top_n_sigma
-  if (gen.repeat_penalty !== 1.0) params.repeat_penalty = gen.repeat_penalty
-  if (gen.repeat_last_n !== 64) params.repeat_last_n = gen.repeat_last_n
+  if (repeatPenalty !== 1.0) params.repeat_penalty = repeatPenalty
+  if (repeatLastN !== 64) params.repeat_last_n = repeatLastN
   if (gen.presence_penalty !== 0.0) params.presence_penalty = gen.presence_penalty
   if (gen.frequency_penalty !== 0.0) params.frequency_penalty = gen.frequency_penalty
   if (gen.mirostat !== 0) {
@@ -175,8 +183,8 @@ function buildSamplingParams(gen: GenerationParams, maxTokensOverride?: number):
     params.dynatemp_range = gen.dynatemp_range
     params.dynatemp_exponent = gen.dynatemp_exponent
   }
-  if (gen.dry_multiplier !== 0.0) {
-    params.dry_multiplier = gen.dry_multiplier
+  if (dryMultiplier !== 0.0) {
+    params.dry_multiplier = dryMultiplier
     params.dry_base = gen.dry_base
     params.dry_allowed_length = gen.dry_allowed_length
     params.dry_penalty_last_n = gen.dry_penalty_last_n
@@ -201,9 +209,10 @@ async function callLLMRaw<T>(
   schemaName: string,
   schema: object,
   maxTokensOverride?: number,
+  options: { disableRepetition?: boolean } = {},
 ): Promise<T> {
   const gen = getGenerationParams()
-  const sampling = buildSamplingParams(gen, maxTokensOverride)
+  const sampling = buildSamplingParams(gen, maxTokensOverride, options)
 
   const res = await getClient().chat.completions.create({
     model: "local",
@@ -232,6 +241,8 @@ export async function generateCharacter(description: string): Promise<GenerateCh
     ],
     "GenerateCharacterResponse",
     schema,
+    undefined,
+    { disableRepetition: true },
   )
   return GenerateCharacterResponseSchema.parse(result)
 }
@@ -322,6 +333,8 @@ export async function generateCharacterPart(
         ? "GenerateCharacterTraitsResponse"
         : "GenerateCharacterClothingResponse",
     schema,
+    undefined,
+    { disableRepetition: true },
   )
 
   return part === "appearance"
@@ -364,6 +377,8 @@ export async function generateStory(
     ],
     "GenerateStoryResponse",
     schema,
+    undefined,
+    { disableRepetition: true },
   )
   return GenerateStoryResponseSchema.parse(result)
 }
