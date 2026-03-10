@@ -448,6 +448,7 @@
   .game {
     position: relative;
     overflow: hidden;
+    max-width: none;
   }
 
   /* ── Header ─────────────────────────────────────────── */
@@ -473,7 +474,7 @@
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
-    max-width: 160px;
+    max-width: 300px;
     letter-spacing: 0.01em;
   }
   .spacer {
@@ -542,6 +543,11 @@
     display: flex;
     flex-direction: column;
     gap: 0;
+  }
+  @media (min-width: 1200px) {
+    .story-area {
+      padding: 2rem 2.5rem 0.5rem;
+    }
   }
   .opening-block {
     background: var(--bg-raised);
@@ -648,6 +654,14 @@
     font-style: italic;
     line-height: 1.5;
   }
+  @media (min-width: 1200px) {
+    .action-inline {
+      margin-left: -2.5rem;
+      margin-right: -2.5rem;
+      padding-left: 2.5rem;
+      padding-right: 2.5rem;
+    }
+  }
   .pencil-icon {
     flex-shrink: 0;
     color: var(--text-dim);
@@ -728,6 +742,12 @@
     flex-shrink: 0;
     border-top: 1px solid var(--border);
     background: var(--bg);
+  }
+  @media (min-width: 1200px) {
+    .input-zone {
+      padding-left: 1.25rem;
+      padding-right: 1.25rem;
+    }
   }
 
   /* Mode selector row */
@@ -869,6 +889,11 @@
     justify-content: space-around;
     padding: 0.2rem 0.5rem 0.5rem;
     border-top: 1px solid var(--border);
+  }
+  @media (min-width: 1200px) {
+    .toolbar {
+      display: none;
+    }
   }
   .tbtn {
     background: none;

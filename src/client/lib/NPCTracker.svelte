@@ -2,6 +2,8 @@
   import { showNPCTracker } from "../stores/ui.js"
   import { npcs } from "../stores/game.js"
 
+  let { inline = false }: { inline?: boolean } = $props()
+
   const RELATIONSHIP_COLORS: Record<string, string> = {
     hostile: "#c0392b",
     ally: "#27ae60",
@@ -18,7 +20,40 @@
   }
 </script>
 
-{#if $showNPCTracker}
+{#snippet npcContent()}
+  {#if $npcs.length === 0}
+    <div class="empty">No known characters yet.</div>
+  {:else}
+    {#each $npcs as npc}
+      <div class="npc-card">
+        <div class="npc-name">{npc.name}</div>
+        <div class="npc-race">{npc.race}</div>
+        <div class="npc-rel" style="color: {relationshipColor(npc.relationship_to_player)}">
+          {npc.relationship_to_player}
+        </div>
+        <div class="npc-detail">📍 {npc.last_known_location}</div>
+        <div class="npc-detail">{npc.appearance.physical_description}</div>
+        <div class="npc-detail muted">{npc.appearance.current_clothing}</div>
+        {#if npc.notes}
+          <div class="npc-notes">{npc.notes}</div>
+        {/if}
+      </div>
+    {/each}
+  {/if}
+{/snippet}
+
+{#if inline}
+  <!-- Desktop sidebar: always visible -->
+  <div class="sidebar">
+    <div class="sidebar-header">
+      <span>Known NPCs ({$npcs.length})</span>
+    </div>
+    <div class="sidebar-body" data-scroll-root="modal">
+      {@render npcContent()}
+    </div>
+  </div>
+{:else if $showNPCTracker}
+  <!-- Mobile overlay -->
   <!-- svelte-ignore a11y_click_events_have_key_events -->
   <!-- svelte-ignore a11y_no_static_element_interactions -->
   <div class="overlay" onclick={() => showNPCTracker.set(false)}></div>
@@ -28,30 +63,44 @@
       <button onclick={() => showNPCTracker.set(false)}>×</button>
     </div>
     <div class="panel-body" data-scroll-root="modal">
-      {#if $npcs.length === 0}
-        <div class="empty">No known characters yet.</div>
-      {:else}
-        {#each $npcs as npc}
-          <div class="npc-card">
-            <div class="npc-name">{npc.name}</div>
-            <div class="npc-race">{npc.race}</div>
-            <div class="npc-rel" style="color: {relationshipColor(npc.relationship_to_player)}">
-              {npc.relationship_to_player}
-            </div>
-            <div class="npc-detail">📍 {npc.last_known_location}</div>
-            <div class="npc-detail">{npc.appearance.physical_description}</div>
-            <div class="npc-detail muted">{npc.appearance.current_clothing}</div>
-            {#if npc.notes}
-              <div class="npc-notes">{npc.notes}</div>
-            {/if}
-          </div>
-        {/each}
-      {/if}
+      {@render npcContent()}
     </div>
   </div>
 {/if}
 
 <style>
+  /* ── Desktop sidebar ──────────────────────────────── */
+  .sidebar {
+    background: var(--bg-raised);
+    border-left: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    height: 100dvh;
+  }
+  .sidebar-header {
+    display: flex;
+    align-items: center;
+    padding: 0.85rem 1rem;
+    border-bottom: 1px solid var(--border);
+    font-family: var(--font-brand);
+    font-size: 0.78rem;
+    font-weight: 400;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--accent);
+    min-height: 48px;
+  }
+  .sidebar-body {
+    flex: 1;
+    overflow-y: auto;
+    padding: 0.75rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+
+  /* ── Mobile overlay ───────────────────────────────── */
   .overlay {
     position: fixed;
     inset: 0;
@@ -108,11 +157,14 @@
     flex-direction: column;
     gap: 0.75rem;
   }
+
+  /* ── Shared content styles ────────────────────────── */
   .empty {
     text-align: center;
     color: var(--text-dim);
     padding: 2rem 0;
     font-size: 0.9rem;
+    font-style: italic;
   }
   .npc-card {
     background: var(--bg-input);

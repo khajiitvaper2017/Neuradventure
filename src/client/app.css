@@ -8,7 +8,7 @@
 
 body {
   margin: 0;
-  background: #1c1c1c;
+  background: var(--bg, #1c1c1c);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
@@ -40,4 +40,10 @@ input {
 }
 ::-webkit-scrollbar-thumb:hover {
   background: rgba(255, 255, 255, 0.15);
+}
+
+@media (min-width: 1200px) {
+  ::-webkit-scrollbar {
+    width: 6px;
+  }
 }

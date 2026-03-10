@@ -1,9 +1,58 @@
 <script lang="ts">
   import { showCharSheet } from "../stores/ui.js"
   import { character } from "../stores/game.js"
+
+  let { inline = false }: { inline?: boolean } = $props()
 </script>
 
-{#if $showCharSheet}
+{#if inline}
+  <!-- Desktop sidebar: always visible -->
+  <div class="sidebar">
+    <div class="sidebar-header">
+      <span>Character Sheet</span>
+    </div>
+    {#if $character}
+      <div class="sidebar-body" data-scroll-root="modal">
+        <div class="section-label">Identity</div>
+        <div class="value">{$character.name} · {$character.race} · {$character.gender}</div>
+
+        <div class="section-label">Appearance</div>
+        <div class="value">{$character.appearance.physical_description}</div>
+
+        <div class="section-label">Wearing</div>
+        <div class="value">{$character.appearance.current_clothing}</div>
+
+        {#if $character.personality_traits.length > 0 || $character.custom_traits.length > 0}
+          <div class="section-label">Traits</div>
+          <div class="chips">
+            {#each [...$character.personality_traits, ...$character.custom_traits] as t}
+              <span class="chip">{t}</span>
+            {/each}
+          </div>
+        {/if}
+
+        <div class="section-label">Inventory ({$character.inventory.length})</div>
+        {#if $character.inventory.length === 0}
+          <div class="value muted">Nothing</div>
+        {:else}
+          <ul class="inventory">
+            {#each $character.inventory as item}
+              <li>
+                <span class="item-name">{item.name}</span>
+                <span class="item-desc">{item.description}</span>
+              </li>
+            {/each}
+          </ul>
+        {/if}
+      </div>
+    {:else}
+      <div class="sidebar-body">
+        <div class="empty">No active character</div>
+      </div>
+    {/if}
+  </div>
+{:else if $showCharSheet}
+  <!-- Mobile overlay -->
   <!-- svelte-ignore a11y_click_events_have_key_events -->
   <!-- svelte-ignore a11y_no_static_element_interactions -->
   <div class="overlay" onclick={() => showCharSheet.set(false)}></div>
@@ -51,6 +100,45 @@
 {/if}
 
 <style>
+  /* ── Desktop sidebar ──────────────────────────────── */
+  .sidebar {
+    background: var(--bg-raised);
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    height: 100dvh;
+  }
+  .sidebar-header {
+    display: flex;
+    align-items: center;
+    padding: 0.85rem 1rem;
+    border-bottom: 1px solid var(--border);
+    font-family: var(--font-brand);
+    font-size: 0.78rem;
+    font-weight: 400;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--accent);
+    min-height: 48px;
+  }
+  .sidebar-body {
+    flex: 1;
+    overflow-y: auto;
+    padding: 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+  .empty {
+    color: var(--text-dim);
+    font-size: 0.85rem;
+    padding: 2rem 0;
+    text-align: center;
+    font-style: italic;
+  }
+
+  /* ── Mobile overlay ───────────────────────────────── */
   .overlay {
     position: fixed;
     inset: 0;
@@ -107,6 +195,8 @@
     flex-direction: column;
     gap: 0.5rem;
   }
+
+  /* ── Shared content styles ────────────────────────── */
   .section-label {
     font-size: 0.75rem;
     text-transform: uppercase;

@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount } from "svelte"
-  import { activeScreen, errorMessage } from "./stores/ui.js"
+  import { activeScreen, errorMessage, isDesktop } from "./stores/ui.js"
   import { theme, design, initSettings } from "./stores/settings.js"
   import HomeScreen from "./lib/HomeScreen.svelte"
   import CharCreate from "./lib/CharCreate.svelte"
@@ -42,23 +42,39 @@
     window.addEventListener("wheel", handleWheel, { passive: false })
     return () => window.removeEventListener("wheel", handleWheel)
   })
+
+  let gameActive = $derived($activeScreen === "game")
+  let desktopGame = $derived(gameActive && $isDesktop)
 </script>
 
-<div class="app" class:theme-amoled={$theme === "amoled"} class:design-roboto={$design === "roboto"} bind:this={appEl}>
-  {#if $activeScreen === "home"}
-    <HomeScreen />
-  {:else if $activeScreen === "char-create"}
-    <CharCreate />
-  {:else if $activeScreen === "new-story"}
-    <NewStory />
-  {:else if $activeScreen === "game"}
+<div
+  class="app"
+  class:theme-amoled={$theme === "amoled"}
+  class:design-roboto={$design === "roboto"}
+  class:game-active={desktopGame}
+  bind:this={appEl}
+>
+  {#if desktopGame}
+    <!-- Desktop game layout: three-column grid -->
+    <CharSheet inline />
     <GameScreen />
-  {:else if $activeScreen === "settings"}
-    <Settings />
-  {/if}
+    <NPCTracker inline />
+  {:else}
+    {#if $activeScreen === "home"}
+      <HomeScreen />
+    {:else if $activeScreen === "char-create"}
+      <CharCreate />
+    {:else if $activeScreen === "new-story"}
+      <NewStory />
+    {:else if $activeScreen === "game"}
+      <GameScreen />
+    {:else if $activeScreen === "settings"}
+      <Settings />
+    {/if}
 
-  <CharSheet />
-  <NPCTracker />
+    <CharSheet />
+    <NPCTracker />
+  {/if}
 
   {#if $errorMessage}
     <div class="toast">{$errorMessage}</div>
@@ -94,9 +110,20 @@
     --story-size: 1.05rem;
     --story-line: 1.75;
     --ui-size: 0.875rem;
+
+    /* Layout */
+    --sidebar-width: 350px;
   }
 
   /* ── AMOLED theme ───────────────────────────────────── */
+  :global(:root:has(.theme-amoled)) {
+    --bg: #000000;
+    --bg-raised: #0c0c0c;
+    --bg-input: #050505;
+    --bg-action: rgba(255, 255, 255, 0.04);
+    --border: rgba(255, 255, 255, 0.09);
+    --border-hover: rgba(255, 255, 255, 0.2);
+  }
   :global(.theme-amoled) {
     --bg: #000000;
     --bg-raised: #0c0c0c;
@@ -190,6 +217,7 @@
     cursor: not-allowed;
   }
 
+  /* ── Screen layout ────────────────────────────────── */
   :global(.screen) {
     height: 100dvh;
     max-width: 680px;
@@ -198,10 +226,29 @@
     flex-direction: column;
   }
 
+  /* Desktop: wider non-game screens */
+  @media (min-width: 1200px) {
+    :global(.screen) {
+      max-width: 800px;
+    }
+    :global(.screen.game) {
+      max-width: none;
+    }
+  }
+
   .app {
     height: 100dvh;
     position: relative;
     background: var(--bg);
+  }
+
+  /* ── Desktop game: three-column grid ──────────────── */
+  .app.game-active {
+    display: grid;
+    grid-template-columns: var(--sidebar-width) minmax(0, 1fr) var(--sidebar-width);
+    grid-template-rows: 100dvh;
+    max-width: 1600px;
+    margin: 0 auto;
   }
 
   /* ── Toast ────────────────────────────────────────── */
