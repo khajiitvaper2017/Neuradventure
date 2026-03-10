@@ -101,18 +101,45 @@ export interface TurnResult {
   npcs: NPCState[]
 }
 
+export interface AppSettings {
+  theme: "default" | "amoled"
+  design: "classic" | "roboto"
+}
+
 // ─── HTTP Helper ───────────────────────────────────────────────────────────────
 
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
-  const res = await fetch(path, {
-    headers: { "Content-Type": "application/json" },
-    ...options,
-  })
-  if (!res.ok) {
-    const body = await res.json().catch(() => ({ error: res.statusText }))
-    throw new ApiError(res.status, body.error ?? res.statusText)
+  let res: Response
+  try {
+    res = await fetch(path, {
+      headers: { "Content-Type": "application/json" },
+      ...options,
+    })
+  } catch (err) {
+    console.error(`[api] Network error ${path}`, err)
+    throw err
   }
-  return res.json() as Promise<T>
+
+  const text = await res.text()
+  let body: unknown = null
+  if (text) {
+    try {
+      body = JSON.parse(text)
+    } catch {
+      body = text
+    }
+  }
+
+  if (!res.ok) {
+    console.error(`[api] ${res.status} ${res.statusText} ${path}`, body)
+    const message =
+      body && typeof body === "object" && "error" in body && typeof (body as { error: unknown }).error === "string"
+        ? (body as { error: string }).error
+        : res.statusText
+    throw new ApiError(res.status, message)
+  }
+
+  return body as T
 }
 
 export class ApiError extends Error {
@@ -178,5 +205,11 @@ export const api = {
         method: "POST",
         body: JSON.stringify({ description, character_name: characterName, character_traits: characterTraits }),
       }),
+  },
+
+  settings: {
+    get: () => request<AppSettings>("/api/settings"),
+    update: (data: Partial<AppSettings>) =>
+      request<AppSettings>("/api/settings", { method: "PUT", body: JSON.stringify(data) }),
   },
 }

@@ -3,62 +3,55 @@ import { serveStatic } from "@hono/node-server/serve-static"
 import { Hono } from "hono"
 import { cors } from "hono/cors"
 import { logger } from "hono/logger"
-import { zValidator } from "@hono/zod-validator"
-import { z } from "zod"
+import os from "node:os"
 import { initDb } from "./db.js"
 import characters from "./routes/characters.js"
 import stories from "./routes/stories.js"
 import turns from "./routes/turns.js"
-import { generateCharacter, generateStory } from "./llm.js"
+import generate from "./routes/generate.js"
+import settings from "./routes/settings.js"
 
 initDb()
 console.log("Database initialized")
 
 const app = new Hono()
+const isDev = process.env.NODE_ENV !== "production"
 
 app.use(logger())
-app.use("/api/*", cors({ origin: ["http://localhost:5173", "http://localhost:4173"] }))
+app.use(
+  "/api/*",
+  cors({
+    origin: isDev ? "*" : ["http://localhost:5173", "http://localhost:4173"],
+  })
+)
+
+app.get("/api/health", (c) => c.json({ ok: true }))
 
 app.route("/api/stories", stories)
 app.route("/api/characters", characters)
 app.route("/api/turns", turns)
-
-app.post("/api/generate/character",
-  zValidator("json", z.object({ description: z.string().min(1) })),
-  async (c) => {
-    const { description } = c.req.valid("json")
-    try {
-      return c.json(await generateCharacter(description))
-    } catch (err) {
-      return c.json({ error: err instanceof Error ? err.message : "Generation failed" }, 500)
-    }
-  }
-)
-
-app.post("/api/generate/story",
-  zValidator("json", z.object({
-    description: z.string().min(1),
-    character_name: z.string(),
-    character_traits: z.array(z.string()),
-  })),
-  async (c) => {
-    const { description, character_name, character_traits } = c.req.valid("json")
-    try {
-      return c.json(await generateStory(description, character_name, character_traits))
-    } catch (err) {
-      return c.json({ error: err instanceof Error ? err.message : "Generation failed" }, 500)
-    }
-  }
-)
+app.route("/api/generate", generate)
+app.route("/api/settings", settings)
 
 // Serve built frontend in production
 app.use("/*", serveStatic({ root: "../frontend/dist" }))
 
 const PORT = 3001
+const HOST = process.env.HOST ?? "0.0.0.0"
 
-serve({ fetch: app.fetch, port: PORT }, () => {
-  console.log(`Neuradventure backend running at http://localhost:${PORT}`)
+serve({ fetch: app.fetch, port: PORT, hostname: HOST }, () => {
+  console.log(`Neuradventure backend running at http://${HOST}:${PORT}`)
   console.log(`API docs: http://localhost:${PORT}/api/stories`)
+  const lanIps = Object.values(os.networkInterfaces())
+    .flatMap((nets) => nets ?? [])
+    .filter((net) => net.family === "IPv4" && !net.internal)
+    .map((net) => net.address)
+  if (lanIps.length) {
+    console.log(`LAN access:`)
+    for (const ip of lanIps) {
+      console.log(`  http://${ip}:${PORT}`)
+    }
+  }
 })
 
 export default app

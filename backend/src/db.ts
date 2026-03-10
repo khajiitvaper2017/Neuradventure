@@ -8,6 +8,16 @@ const DB_PATH = path.resolve(__dirname, "../../data/neuradventure.db")
 
 let db: Database.Database
 
+export interface SettingsState {
+  theme: "default" | "amoled"
+  design: "classic" | "roboto"
+}
+
+const DEFAULT_SETTINGS: SettingsState = {
+  theme: "default",
+  design: "classic",
+}
+
 export function getDb(): Database.Database {
   if (!db) {
     db = new Database(DB_PATH)
@@ -53,7 +63,22 @@ export function initDb() {
     );
 
     CREATE INDEX IF NOT EXISTS idx_turns_story ON turns(story_id, turn_number);
+
+    CREATE TABLE IF NOT EXISTS settings (
+      id            INTEGER PRIMARY KEY CHECK (id = 1),
+      settings_json TEXT NOT NULL,
+      updated_at    TEXT NOT NULL DEFAULT (datetime('now'))
+    );
   `)
+
+  const settingsRow = database
+    .prepare("SELECT settings_json FROM settings WHERE id = 1")
+    .get() as { settings_json: string } | undefined
+  if (!settingsRow) {
+    database
+      .prepare("INSERT INTO settings (id, settings_json) VALUES (1, ?)")
+      .run(JSON.stringify(DEFAULT_SETTINGS))
+  }
 }
 
 // ─── Character CRUD ────────────────────────────────────────────────────────────
@@ -226,4 +251,24 @@ export function createTurn(
       JSON.stringify(npcs)
     )
   return result.lastInsertRowid as number
+}
+
+// ─── Settings ────────────────────────────────────────────────────────────────
+
+export function getSettings(): SettingsState {
+  const row = getDb()
+    .prepare("SELECT settings_json FROM settings WHERE id = 1")
+    .get() as { settings_json: string } | undefined
+  if (!row) return DEFAULT_SETTINGS
+  try {
+    return JSON.parse(row.settings_json) as SettingsState
+  } catch {
+    return DEFAULT_SETTINGS
+  }
+}
+
+export function updateSettings(settings: SettingsState): void {
+  getDb()
+    .prepare("UPDATE settings SET settings_json = ?, updated_at = datetime('now') WHERE id = 1")
+    .run(JSON.stringify(settings))
 }

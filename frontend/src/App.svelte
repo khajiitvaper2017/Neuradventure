@@ -1,6 +1,7 @@
 <script lang="ts">
+  import { onMount } from "svelte"
   import { activeScreen, errorMessage } from "./stores/ui.js"
-  import { theme, design } from "./stores/settings.js"
+  import { theme, design, initSettings } from "./stores/settings.js"
   import HomeScreen from "./lib/HomeScreen.svelte"
   import CharCreate from "./lib/CharCreate.svelte"
   import NewStory from "./lib/NewStory.svelte"
@@ -8,6 +9,10 @@
   import CharSheet from "./lib/CharSheet.svelte"
   import NPCTracker from "./lib/NPCTracker.svelte"
   import Settings from "./lib/Settings.svelte"
+
+  onMount(() => {
+    void initSettings()
+  })
 </script>
 
 <div
