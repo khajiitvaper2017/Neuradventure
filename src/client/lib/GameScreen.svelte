@@ -1,7 +1,7 @@
 <script lang="ts">
-  import { tick } from "svelte"
+  import { tick, untrack } from "svelte"
   import { api, type TurnSummary, type TurnVariantSummary, ApiError } from "../api/client.js"
-  import { navigate, showCharSheet, showNPCTracker, showError } from "../stores/ui.js"
+  import { navigate, showCharSheet, showNPCTracker, showError, showConfirm } from "../stores/ui.js"
   import { autoresize } from "./actions/autoresize.js"
   import IconDots from "../icons/IconDots.svelte"
   import IconDownload from "../icons/IconDownload.svelte"
@@ -9,6 +9,7 @@
   import IconPencilSquare from "../icons/IconPencilSquare.svelte"
   import IconSend from "../icons/IconSend.svelte"
   import IconSpinner from "../icons/IconSpinner.svelte"
+  import IconTrash from "../icons/IconTrash.svelte"
   import IconUser from "../icons/IconUser.svelte"
   import IconUsers from "../icons/IconUsers.svelte"
   import {
@@ -34,28 +35,31 @@
     story: "Write story text directly...",
   }
 
-  let input = ""
-  let actionMode: ActionMode = "do"
+  let input = $state("")
+  let actionMode = $state<ActionMode>("do")
   let storyDiv: HTMLDivElement
-  let showMenu = false
-  let editingOpening = false
-  let openingDraft = ""
-  let editingTurnId: number | null = null
-  let editPlayerInput = ""
-  let editNarrative = ""
-  let lastTurnVariants: TurnVariantSummary[] = []
-  let activeVariantId: number | null = null
-  let variantsTurnId: number | null = null
-  let variantsLoading = false
-  let canUndoCancel = false
-  let flashScene = false
-  let flashOpening = false
+  let showMenu = $state(false)
+  let editingOpening = $state(false)
+  let openingDraft = $state("")
+  let editingTurnId = $state<number | null>(null)
+  let editPlayerInput = $state("")
+  let editNarrative = $state("")
+  let lastTurnVariants = $state<TurnVariantSummary[]>([])
+  let activeVariantId = $state<number | null>(null)
+  let variantsTurnId = $state<number | null>(null)
+  let variantsLoading = $state(false)
+  let canUndoCancel = $state(false)
+  let flashScene = $state(false)
+  let flashOpening = $state(false)
   let lastSceneText = ""
   let lastOpeningText = ""
   let baselineWorldSet = false
   let lastLlmUpdateId = 0
   let sceneFlashTimer: number | null = null
   let openingFlashTimer: number | null = null
+
+  let initialScrollDone = $state(false)
+  let userActed = $state(false)
 
   function triggerSceneFlash() {
     flashScene = true
@@ -107,6 +111,7 @@
     const text = normalizePlayerInput(rawText, actionMode)
     if (!text || $isGenerating || !$currentStoryId) return
     input = ""
+    userActed = true
     isGenerating.set(true)
     try {
       const result = await api.turns.take($currentStoryId, text, actionMode)
@@ -127,7 +132,7 @@
       canUndoCancel = false
       await loadVariants(result.turn_id, true)
       await tick()
-      scrollToBottom()
+      scrollToBottom(true)
     } catch (err) {
       if (err instanceof ApiError) {
         showError(err.message)
@@ -141,6 +146,7 @@
 
   async function regenerateLastTurn() {
     if ($isGenerating || !$currentStoryId || $turns.length === 0) return
+    userActed = true
     isGenerating.set(true)
     try {
       const lastMode = $turns[$turns.length - 1]?.action_mode ?? actionMode
@@ -159,7 +165,7 @@
       await loadVariants(result.turn_id, true)
       editingTurnId = null
       await tick()
-      scrollToBottom()
+      scrollToBottom(true)
     } catch (err) {
       if (err instanceof ApiError) {
         showError(err.message)
@@ -173,6 +179,7 @@
 
   async function cancelLastTurn() {
     if ($isGenerating || !$currentStoryId || $turns.length === 0) return
+    userActed = true
     isGenerating.set(true)
     try {
       const result = await api.turns.cancelLast($currentStoryId)
@@ -195,7 +202,7 @@
       }
       editingTurnId = null
       await tick()
-      scrollToBottom()
+      scrollToBottom(true)
     } catch (err) {
       if (err instanceof ApiError) {
         showError(err.message)
@@ -209,6 +216,7 @@
 
   async function undoCancelLastTurn() {
     if ($isGenerating || !$currentStoryId) return
+    userActed = true
     isGenerating.set(true)
     try {
       const result = await api.turns.undoCancel($currentStoryId)
@@ -229,7 +237,7 @@
       canUndoCancel = false
       await loadVariants(result.turn_id, true)
       await tick()
-      scrollToBottom()
+      scrollToBottom(true)
     } catch (err) {
       if (err instanceof ApiError) {
         showError(err.message)
@@ -270,6 +278,8 @@
     editingTurnId = turn.id
     editPlayerInput = turn.player_input
     editNarrative = turn.narrative_text
+    // autoresize uses rAF internally, so wait for tick + 2 rAFs to ensure textareas are sized
+    tick().then(() => requestAnimationFrame(() => requestAnimationFrame(() => requestAnimationFrame(() => scrollToBottom(true)))))
   }
 
   function cancelEditTurn() {
@@ -297,6 +307,31 @@
     }
   }
 
+  async function deleteTurn(turnId: number) {
+    if ($isGenerating) return
+    const confirmed = await showConfirm({
+      title: "Delete turn",
+      message: "Delete this turn? This cannot be undone.",
+      confirmLabel: "Delete",
+      danger: true,
+    })
+    if (!confirmed) return
+    try {
+      await api.turns.delete(turnId)
+      turns.update((t) => t.filter((turn) => turn.id !== turnId))
+      const remaining = $turns
+      if (remaining.length > 0) {
+        await loadVariants(remaining[remaining.length - 1].id, true)
+      } else {
+        lastTurnVariants = []
+        activeVariantId = null
+        variantsTurnId = null
+      }
+    } catch {
+      showError("Failed to delete turn")
+    }
+  }
+
   function handleKeydown(e: KeyboardEvent) {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault()
@@ -304,8 +339,14 @@
     }
   }
 
-  function scrollToBottom() {
-    if (storyDiv) storyDiv.scrollTop = storyDiv.scrollHeight
+  function scrollToBottom(smooth = false) {
+    if (storyDiv) {
+      if (smooth) {
+        storyDiv.scrollTo({ top: storyDiv.scrollHeight, behavior: "smooth" })
+      } else {
+        storyDiv.scrollTop = storyDiv.scrollHeight
+      }
+    }
   }
 
   function goHome() {
@@ -356,6 +397,7 @@
 
   async function selectVariant(variantId: number) {
     if ($isGenerating || !$currentStoryId || !variantsTurnId) return
+    userActed = true
     isGenerating.set(true)
     try {
       const result = await api.turns.selectVariant(variantsTurnId, variantId)
@@ -377,7 +419,7 @@
       )
       activeVariantId = result.active_variant_id
       await tick()
-      scrollToBottom()
+      scrollToBottom(true)
     } catch (err) {
       if (err instanceof ApiError) {
         showError(err.message)
@@ -389,87 +431,123 @@
     }
   }
 
-  $: if ($turns.length > 0) {
-    const lastId = $turns[$turns.length - 1].id
-    if (variantsTurnId !== lastId) {
-      loadVariants(lastId)
+  $effect(() => {
+    const len = $turns.length
+    if (len > 0) {
+      const lastId = $turns[len - 1].id
+      untrack(() => {
+        if (variantsTurnId !== lastId) {
+          loadVariants(lastId).then(() => {
+            if (!initialScrollDone) {
+              initialScrollDone = true
+              tick().then(() => requestAnimationFrame(scrollToBottom))
+            }
+          })
+        }
+      })
+    } else {
+      untrack(() => {
+        if (variantsTurnId !== null) {
+          lastTurnVariants = []
+          activeVariantId = null
+          variantsTurnId = null
+        }
+      })
     }
-  } else if (variantsTurnId !== null) {
-    lastTurnVariants = []
-    activeVariantId = null
-    variantsTurnId = null
-  }
+  })
 
-  $: if (!baselineWorldSet && ($worldState || $currentStoryOpeningScenario)) {
-    lastSceneText = $worldState ? `${$worldState.current_scene} · ${$worldState.time_of_day}` : ""
-    lastOpeningText = $currentStoryOpeningScenario || $worldState?.recent_events_summary || ""
-    baselineWorldSet = true
-  }
-
-  $: if ($llmUpdateId !== lastLlmUpdateId) {
-    const sceneText = $worldState ? `${$worldState.current_scene} · ${$worldState.time_of_day}` : ""
-    const openingText = $currentStoryOpeningScenario || $worldState?.recent_events_summary || ""
-    if (baselineWorldSet) {
-      if (sceneText && sceneText !== lastSceneText) {
-        triggerSceneFlash()
+  $effect(() => {
+    const ws = $worldState
+    const opening = $currentStoryOpeningScenario
+    untrack(() => {
+      if (!baselineWorldSet && (ws || opening)) {
+        lastSceneText = ws ? `${ws.current_scene} · ${ws.time_of_day}` : ""
+        lastOpeningText = opening || ws?.recent_events_summary || ""
+        baselineWorldSet = true
       }
-      if (openingText && openingText !== lastOpeningText) {
-        triggerOpeningFlash()
-      }
-    }
-    lastSceneText = sceneText
-    lastOpeningText = openingText
-    lastLlmUpdateId = $llmUpdateId
-  }
+    })
+  })
 
-  $: if (!$currentStoryId) {
-    baselineWorldSet = false
-    lastSceneText = ""
-    lastOpeningText = ""
-    flashScene = false
-    flashOpening = false
-    canUndoCancel = false
-    if (sceneFlashTimer) window.clearTimeout(sceneFlashTimer)
-    if (openingFlashTimer) window.clearTimeout(openingFlashTimer)
-  }
+  $effect(() => {
+    const updateId = $llmUpdateId
+    const ws = $worldState
+    const opening = $currentStoryOpeningScenario
+    untrack(() => {
+      if (updateId !== lastLlmUpdateId) {
+        const sceneText = ws ? `${ws.current_scene} · ${ws.time_of_day}` : ""
+        const openingText = opening || ws?.recent_events_summary || ""
+        if (baselineWorldSet) {
+          if (sceneText && sceneText !== lastSceneText) {
+            triggerSceneFlash()
+          }
+          if (openingText && openingText !== lastOpeningText) {
+            triggerOpeningFlash()
+          }
+        }
+        lastSceneText = sceneText
+        lastOpeningText = openingText
+        lastLlmUpdateId = updateId
+      }
+    })
+  })
+
+  $effect(() => {
+    const storyId = $currentStoryId
+    untrack(() => {
+      if (!storyId) {
+        baselineWorldSet = false
+        lastSceneText = ""
+        lastOpeningText = ""
+        flashScene = false
+        flashOpening = false
+        canUndoCancel = false
+        if (sceneFlashTimer) window.clearTimeout(sceneFlashTimer)
+        if (openingFlashTimer) window.clearTimeout(openingFlashTimer)
+      }
+    })
+  })
 </script>
 
 <div class="screen game">
   <!-- ── Top bar ─────────────────────────────────────────── -->
   <header>
-    <button class="hbtn desktop-only home-btn" onclick={goHome} title="Return to menu">← Menu</button>
-    <span class="app-name desktop-only">Neuradventure</span>
-    <span class="header-sep desktop-only">•</span>
-    <span class="flame" aria-hidden="true">🕯</span>
-    <span class="story-name">{$currentStoryTitle}</span>
-    {#if $worldState}
-      <span class="header-scene desktop-only" class:flash={flashScene}>
-        {$worldState.current_scene} · {$worldState.time_of_day}
-      </span>
-    {/if}
-    <div class="spacer"></div>
-    <span class="turn-count">{$turns.length}</span>
-    <button class="hbtn mobile-only" title="Character Sheet" onclick={() => showCharSheet.update((v) => !v)}>
-      <IconUser size={16} strokeWidth={1.8} />
+    <button class="header-back" onclick={goHome} title="Return to menu" aria-label="Back to stories">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M19 12H5"/><path d="M12 19l-7-7 7-7"/></svg>
     </button>
-    <button class="hbtn mobile-only" title="NPC Tracker" onclick={() => showNPCTracker.update((v) => !v)}>
-      <IconUsers size={16} strokeWidth={1.8} />
-    </button>
-    <div class="menu-wrap">
-      <button class="hbtn" aria-label="More options" onclick={() => (showMenu = !showMenu)}>
-        <IconDots size={16} strokeWidth={1.8} />
-      </button>
-      {#if showMenu}
-        <div class="dropdown">
-          <button onclick={downloadStory}>Export JSON</button>
-          <button onclick={goHome} class="danger-item">← Back to Stories</button>
-        </div>
+
+    <div class="header-center">
+      <span class="story-name">{$currentStoryTitle}</span>
+      {#if $worldState}
+        <span class="header-scene" class:flash={flashScene}>
+          {$worldState.current_scene} · {$worldState.time_of_day}
+        </span>
       {/if}
+    </div>
+
+    <div class="header-actions">
+      <span class="turn-badge">{$turns.length}</span>
+      <button class="hbtn mobile-only" title="Character Sheet" onclick={() => showCharSheet.update((v) => !v)}>
+        <IconUser size={15} strokeWidth={1.8} />
+      </button>
+      <button class="hbtn mobile-only" title="NPC Tracker" onclick={() => showNPCTracker.update((v) => !v)}>
+        <IconUsers size={15} strokeWidth={1.8} />
+      </button>
+      <div class="menu-wrap">
+        <button class="hbtn" aria-label="More options" onclick={() => (showMenu = !showMenu)}>
+          <IconDots size={15} strokeWidth={1.8} />
+        </button>
+        {#if showMenu}
+          <div class="dropdown">
+            <button onclick={downloadStory}>Export JSON</button>
+            <button onclick={goHome} class="danger-item">← Back to Stories</button>
+          </div>
+        {/if}
+      </div>
     </div>
   </header>
 
   <!-- ── Story scroll area ───────────────────────────────── -->
-  <div class="story-area" data-scroll-root="screen" bind:this={storyDiv}>
+  <div class="story-area" class:story-ready={initialScrollDone || $turns.length === 0} data-scroll-root="screen" bind:this={storyDiv}>
     <!-- Opening scene context -->
     {#if $worldState}
       <p class="scene-crumb mobile-only" class:flash={flashScene}>
@@ -536,14 +614,17 @@
         </div>
       {:else}
         <!-- Player action inline — matches AI Dungeon's "pencil" style -->
-        <div class="action-inline" class:fresh={i === $turns.length - 1 && !$isGenerating}>
+        <div class="action-inline" class:fresh={userActed && i === $turns.length - 1 && !$isGenerating}>
           <IconPencilSquare className="pencil-icon" size={12} strokeWidth={2} />
           {turn.player_input}
           <button class="edit-btn inline" onclick={() => startEditTurn(turn)} disabled={$isGenerating}>Edit</button>
+          <button class="delete-btn inline" onclick={() => deleteTurn(turn.id)} disabled={$isGenerating} title="Delete turn">
+            <IconTrash size={12} strokeWidth={2} />
+          </button>
         </div>
 
         <!-- Narrative paragraphs -->
-        <div class="narrative-block" class:fresh={i === $turns.length - 1 && !$isGenerating}>
+        <div class="narrative-block" class:fresh={userActed && i === $turns.length - 1 && !$isGenerating}>
           {#if turn.world}
             <p class="turn-scene">{turn.world.current_scene} · {turn.world.time_of_day}</p>
           {/if}
@@ -674,62 +755,89 @@
   header {
     display: flex;
     align-items: center;
-    gap: 0.35rem;
-    padding: 0.6rem 1rem 0.6rem 0.85rem;
+    gap: 0.5rem;
+    padding: 0 0.5rem 0 0;
     border-bottom: 1px solid var(--border);
-    min-height: 48px;
+    min-height: 46px;
     flex-shrink: 0;
   }
   @media (min-width: 1200px) {
     header {
-      padding: 0.75rem 2.5rem;
+      padding: 0 1.5rem 0 0;
     }
   }
-  .flame {
-    font-size: 1rem;
+  .header-back {
+    background: none;
+    border: none;
+    border-right: 1px solid var(--border);
+    color: var(--text-dim);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 46px;
+    min-height: 46px;
     flex-shrink: 0;
-    opacity: 0.85;
+    transition: color 0.15s, background 0.15s;
+  }
+  .header-back:hover {
+    color: var(--text);
+    background: var(--bg-action);
+  }
+  .header-center {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.1rem;
+    padding: 0.35rem 0;
   }
   .story-name {
     font-family: var(--font-ui);
     font-size: 0.82rem;
-    color: var(--text-dim);
-    font-weight: 400;
+    color: var(--text);
+    font-weight: 500;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
-    max-width: 300px;
-    letter-spacing: 0.01em;
+    line-height: 1.2;
   }
   .header-scene {
     font-family: var(--font-ui);
-    font-size: 0.7rem;
+    font-size: 0.65rem;
     color: var(--text-scene);
     text-transform: uppercase;
-    letter-spacing: 0.08em;
+    letter-spacing: 0.06em;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-    max-width: 240px;
+    line-height: 1.2;
   }
-  .spacer {
-    flex: 1;
+  .header-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.15rem;
+    flex-shrink: 0;
   }
-  .turn-count {
+  .turn-badge {
     font-family: var(--font-ui);
-    font-size: 0.8rem;
-    color: var(--text-dim);
-    min-width: 24px;
-    text-align: right;
+    font-size: 0.7rem;
+    color: var(--accent);
+    background: var(--accent-dim);
+    padding: 0.15rem 0.5rem;
+    border-radius: var(--radius-pill);
     font-feature-settings: "tnum";
+    font-weight: 500;
+    letter-spacing: 0.02em;
+    margin-right: 0.25rem;
   }
   .hbtn {
     background: none;
     border: none;
     color: var(--text-dim);
     cursor: pointer;
-    min-width: 36px;
-    min-height: 36px;
+    min-width: 34px;
+    min-height: 34px;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -747,44 +855,9 @@
     right: 0;
     top: calc(100% + 4px);
   }
-  .desktop-only {
-    display: none;
-  }
   @media (min-width: 1200px) {
     .mobile-only {
       display: none;
-    }
-    .desktop-only {
-      display: inline-flex;
-      align-items: center;
-    }
-    .app-name {
-      font-family: var(--font-brand);
-      font-size: 0.72rem;
-      letter-spacing: 0.16em;
-      text-transform: uppercase;
-      color: var(--accent);
-      margin-right: 0.2rem;
-    }
-    .header-sep {
-      color: var(--border);
-      font-size: 0.8rem;
-      margin: 0 0.4rem 0 0.1rem;
-    }
-    .home-btn {
-      min-width: auto;
-      min-height: 28px;
-      padding: 0.25rem 0.6rem;
-      border: 1px solid var(--border);
-      border-radius: 4px;
-      font-size: 0.72rem;
-      letter-spacing: 0.06em;
-      text-transform: uppercase;
-      color: var(--text-dim);
-    }
-    .home-btn:hover {
-      color: var(--text);
-      border-color: var(--border-hover);
     }
   }
 
@@ -796,6 +869,10 @@
     display: flex;
     flex-direction: column;
     gap: 0;
+    visibility: hidden;
+  }
+  .story-area.story-ready {
+    visibility: visible;
   }
   @media (min-width: 1200px) {
     .story-area {
@@ -907,6 +984,30 @@
   }
   .edit-btn.inline {
     margin-left: auto;
+  }
+  .delete-btn {
+    background: none;
+    border: 1px solid var(--accent);
+    color: var(--accent);
+    padding: 0.25rem 0.5rem;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.75rem;
+    min-height: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .delete-btn:hover:not(:disabled) {
+    background: var(--accent);
+    color: #0d0b08;
+  }
+  .delete-btn:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+  }
+  .delete-btn.inline {
+    margin-left: 0.25rem;
   }
 
   /* Player action — pencil style */

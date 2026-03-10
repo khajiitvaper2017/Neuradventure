@@ -2,6 +2,13 @@
   import { showNPCTracker } from "../stores/ui.js"
   import { npcs, llmUpdateId } from "../stores/game.js"
   import type { NPCState } from "../api/client.js"
+  import IconMale from "../icons/IconMale.svelte"
+  import IconFemale from "../icons/IconFemale.svelte"
+  import IconFace from "../icons/IconFace.svelte"
+  import IconShirt from "../icons/IconShirt.svelte"
+  import IconDocument from "../icons/IconDocument.svelte"
+  import IconMapPin from "../icons/IconMapPin.svelte"
+  import IconUsers from "../icons/IconUsers.svelte"
 
   let { inline = false }: { inline?: boolean } = $props()
 
@@ -10,6 +17,14 @@
     ally: "#27ae60",
     friendly: "#2980b9",
     neutral: "#888",
+  }
+
+  function genderIcon(gender: string | undefined): "male" | "female" | null {
+    if (!gender) return null
+    const g = gender.toLowerCase()
+    if (g.includes("female")) return "female"
+    if (g.includes("male")) return "male"
+    return null
   }
 
   function relationshipColor(rel: string): string {
@@ -22,13 +37,14 @@
 
   let lastNpcSigs = new Map<string, string>()
   let lastLlmUpdateId = 0
-  let flashNpcNames: string[] = []
+  let flashNpcNames = $state<string[]>([])
   let flashTimer: number | null = null
 
   function npcSignature(npc: NPCState): string {
     return [
       npc.name,
       npc.race,
+      npc.gender,
       npc.relationship_to_player,
       npc.last_known_location,
       npc.appearance.physical_description,
@@ -89,16 +105,43 @@
   {:else}
     {#each $npcs as npc}
       <div class="npc-card" class:flash={flashNpcNames.includes(npc.name)}>
-        <div class="npc-name">{npc.name}</div>
-        <div class="npc-race">{npc.race}</div>
-        <div class="npc-rel" style="color: {relationshipColor(npc.relationship_to_player)}">
-          {npc.relationship_to_player}
+        <div class="npc-header">
+          <div class="npc-identity">
+            <div class="npc-name">
+              {npc.name}
+              {#if genderIcon(npc.gender) === "male"}
+                <IconMale size={14} strokeWidth={2} className="gender-icon" />
+              {:else if genderIcon(npc.gender) === "female"}
+                <IconFemale size={14} strokeWidth={2} className="gender-icon" />
+              {/if}
+            </div>
+            <div class="npc-race">{npc.race}{npc.gender ? ` · ${npc.gender}` : ''}</div>
+          </div>
+          <div class="npc-rel-badge" style="color: {relationshipColor(npc.relationship_to_player)}; border-color: {relationshipColor(npc.relationship_to_player)}">
+            {npc.relationship_to_player}
+          </div>
         </div>
-        <div class="npc-detail">📍 {npc.last_known_location}</div>
-        <div class="npc-detail">{npc.appearance.physical_description}</div>
-        <div class="npc-detail muted">{npc.appearance.current_clothing}</div>
+
+        <div class="npc-detail-row">
+          <IconMapPin size={13} strokeWidth={1.5} className="npc-icon" />
+          <span>{npc.last_known_location}</span>
+        </div>
+
+        <div class="npc-detail-row">
+          <IconFace size={13} strokeWidth={1.5} className="npc-icon" />
+          <span>{npc.appearance.physical_description}</span>
+        </div>
+
+        <div class="npc-detail-row muted">
+          <IconShirt size={13} strokeWidth={1.5} className="npc-icon" />
+          <span>{npc.appearance.current_clothing}</span>
+        </div>
+
         {#if npc.notes}
-          <div class="npc-notes">{npc.notes}</div>
+          <div class="npc-notes">
+            <IconDocument size={13} strokeWidth={1.5} className="npc-icon npc-notes-icon" />
+            <span>{npc.notes}</span>
+          </div>
         {/if}
       </div>
     {/each}
@@ -106,9 +149,9 @@
 {/snippet}
 
 {#if inline}
-  <!-- Desktop sidebar: always visible -->
   <div class="sidebar">
     <div class="sidebar-header">
+      <IconUsers size={16} strokeWidth={1.5} className="npc-header-icon" />
       <span>Known NPCs ({$npcs.length})</span>
     </div>
     <div class="sidebar-body" data-scroll-root="modal">
@@ -116,12 +159,12 @@
     </div>
   </div>
 {:else if $showNPCTracker}
-  <!-- Mobile overlay -->
   <!-- svelte-ignore a11y_click_events_have_key_events -->
   <!-- svelte-ignore a11y_no_static_element_interactions -->
   <div class="overlay" onclick={() => showNPCTracker.set(false)}></div>
   <div class="panel">
     <div class="panel-header">
+      <IconUsers size={16} strokeWidth={1.5} className="npc-header-icon" />
       <span>Known NPCs ({$npcs.length})</span>
       <button onclick={() => showNPCTracker.set(false)}>×</button>
     </div>
@@ -137,53 +180,111 @@
     border-left: 1px solid var(--border);
   }
 
+  /* ── Header icon ───────────────────────────────────── */
+  :global(.npc-header-icon) {
+    color: var(--text);
+    flex-shrink: 0;
+    margin-right: 0.4rem;
+    opacity: 0.6;
+  }
+
   /* ── Shared content styles ────────────────────────── */
   .sidebar-body,
   .panel-body {
     padding: 0.75rem;
     gap: 0.75rem;
   }
+
+  /* ── NPC Card ──────────────────────────────────────── */
   .npc-card {
     background: var(--bg-input);
     border: 1px solid var(--border);
     border-radius: 6px;
-    padding: 0.75rem;
+    padding: 0.65rem 0.75rem;
     display: flex;
     flex-direction: column;
-    gap: 0.25rem;
+    gap: 0.35rem;
   }
+
+  .npc-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 0.5rem;
+  }
+
+  .npc-identity {
+    display: flex;
+    flex-direction: column;
+    gap: 0.1rem;
+  }
+
   .npc-name {
     font-weight: 600;
     font-family: var(--font-story);
     color: var(--text);
     font-size: 1rem;
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+  }
+  :global(.gender-icon) {
+    color: var(--text);
+    flex-shrink: 0;
+    opacity: 0.5;
   }
   .npc-race {
     font-size: 0.8rem;
     color: var(--text-dim);
     font-style: italic;
   }
-  .npc-rel {
-    font-size: 0.8rem;
+
+  .npc-rel-badge {
+    font-size: 0.7rem;
     font-weight: 600;
     text-transform: uppercase;
     letter-spacing: 0.05em;
+    border: 1px solid;
+    border-radius: var(--radius-pill);
+    padding: 0.15rem 0.5rem;
+    white-space: nowrap;
+    flex-shrink: 0;
+    margin-top: 0.1rem;
   }
-  .npc-detail {
+
+  /* ── Detail rows with icons ────────────────────────── */
+  .npc-detail-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.4rem;
     font-size: 0.85rem;
     color: var(--text);
     line-height: 1.4;
   }
-  .npc-detail.muted {
+  .npc-detail-row.muted {
     color: var(--text-dim);
     font-style: italic;
   }
+
+  :global(.npc-icon) {
+    color: var(--text);
+    flex-shrink: 0;
+    margin-top: 2px;
+    opacity: 0.35;
+  }
+
   .npc-notes {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.4rem;
     font-size: 0.8rem;
     color: var(--text-dim);
-    margin-top: 0.25rem;
+    margin-top: 0.15rem;
     border-top: 1px solid var(--border);
     padding-top: 0.4rem;
     line-height: 1.4;
+  }
+  :global(.npc-notes-icon) {
+    margin-top: 1px;
   }
 </style>

@@ -59,6 +59,13 @@ turns.put("/:id", zValidator("json", UpdateTurnRequestSchema), (c) => {
   return c.json({ ok: true })
 })
 
+turns.delete("/:id", (c) => {
+  const id = Number(c.req.param("id"))
+  const deleted = db.deleteTurn(id)
+  if (!deleted) return c.json({ error: "Turn not found" }, 404)
+  return c.json({ ok: true })
+})
+
 turns.post("/cancel-last", zValidator("json", CancelLastRequestSchema), (c) => {
   const body = c.req.valid("json")
   try {

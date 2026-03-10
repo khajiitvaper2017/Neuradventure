@@ -25,6 +25,7 @@ export const MainCharacterStateSchema = z.object({
 export const NPCStateSchema = z.object({
   name: z.string(),
   race: z.string(),
+  gender: z.string().default(""),
   last_known_location: z.string(),
   appearance: CharacterAppearanceSchema,
   personality_traits: z.array(z.string()),

@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onMount } from "svelte"
   import { api, type StoryMeta, type StoryCharacterGroup } from "../api/client.js"
-  import { navigate, showError } from "../stores/ui.js"
+  import { navigate, showError, showConfirm } from "../stores/ui.js"
   import { theme } from "../stores/settings.js"
   import IconDots from "../icons/IconDots.svelte"
   import IconGear from "../icons/IconGear.svelte"
@@ -103,7 +103,13 @@
   }
 
   async function deleteStory(id: number) {
-    if (!confirm("Delete this story? This cannot be undone.")) return
+    const confirmed = await showConfirm({
+      title: "Delete story",
+      message: "Delete this story? This cannot be undone.",
+      confirmLabel: "Delete",
+      danger: true,
+    })
+    if (!confirmed) return
     try {
       await api.stories.delete(id)
       stories = stories.filter((s) => s.id !== id)

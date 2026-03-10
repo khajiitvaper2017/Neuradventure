@@ -87,6 +87,7 @@ function formatNPCs(npcs: NPCState[]): string {
       (npc) =>
         `[${npc.name}]\n` +
         `  Race: ${npc.race}\n` +
+        (npc.gender ? `  Gender: ${npc.gender}\n` : "") +
         `  Location: ${npc.last_known_location}\n` +
         `  Appearance: ${npc.appearance.physical_description}\n` +
         `  Wearing: ${npc.appearance.current_clothing}\n` +

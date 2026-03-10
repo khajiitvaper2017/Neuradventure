@@ -13,7 +13,7 @@
 
     "world_state_update:",
     "  Always fully populate all three fields.",
-    "  current_scene: Describe the player's current location and immediate surroundings.",
+    "  current_scene: Describe the player's current location (1-5 words).",
     "  time_of_day: 24-hour HH:MM format only (00:00–23:59). Never use am/pm or descriptive words.",
     "  recent_events: 2–3 sentences summarizing what just happened.",
 
@@ -140,7 +140,7 @@
     "- You may add 1–2 setting-implied NPCs only if their presence is strongly implied (e.g. a bartender in a tavern). Do not invent beyond this.",
 
     "EACH NPC ENTRY MUST CONTAIN EXACTLY THESE FIELDS:",
-    "  name, race, last_known_location, appearance.physical_description, appearance.current_clothing, personality_traits, relationship_to_player, notes",
+    "  name, race, gender, last_known_location, appearance.physical_description, appearance.current_clothing, personality_traits, relationship_to_player, notes",
 
     "relationship_to_player:",
     "- Describe by role or dynamic only: 'older sister', 'childhood friend', 'rival merchant', 'estranged father'.",

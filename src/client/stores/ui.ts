@@ -98,6 +98,33 @@ export function showError(msg: string, durationMs = 4000) {
   setTimeout(() => errorMessage.set(null), durationMs)
 }
 
+// ─── Confirm dialog ──────────────────────────────────────────────────────────
+
+export interface ConfirmOptions {
+  title: string
+  message: string
+  confirmLabel?: string
+  danger?: boolean
+}
+
+type ConfirmResolve = (confirmed: boolean) => void
+
+export const confirmDialog = writable<(ConfirmOptions & { resolve: ConfirmResolve }) | null>(null)
+
+export function showConfirm(options: ConfirmOptions): Promise<boolean> {
+  return new Promise((resolve) => {
+    confirmDialog.set({ ...options, resolve })
+  })
+}
+
+export function resolveConfirm(confirmed: boolean) {
+  const current = get(confirmDialog)
+  if (current) {
+    current.resolve(confirmed)
+    confirmDialog.set(null)
+  }
+}
+
 const DESKTOP_MQ = "(min-width: 1200px)"
 
 export const isDesktop = readable(

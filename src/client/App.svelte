@@ -10,6 +10,7 @@
   import CharSheet from "./lib/CharSheet.svelte"
   import NPCTracker from "./lib/NPCTracker.svelte"
   import Settings from "./lib/Settings.svelte"
+  import ConfirmDialog from "./lib/ConfirmDialog.svelte"
   import { loadStoryById } from "./lib/storyLoader.js"
 
   let appEl: HTMLDivElement | null = null
@@ -39,16 +40,19 @@
     e.preventDefault()
   }
 
+  let appReady = $state(false)
+  let restoringStory = $state(false)
+
   onMount(() => {
-    void initSettings()
     initRouter()
+    initSettings().finally(() => { appReady = true })
     window.addEventListener("wheel", handleWheel, { passive: false })
     return () => window.removeEventListener("wheel", handleWheel)
   })
 
   let gameActive = $derived($activeScreen === "game")
-  let desktopGame = $derived(gameActive && $isDesktop)
-  let restoringStory = false
+  let gameReady = $derived(gameActive && !restoringStory && $currentStoryId !== null)
+  let desktopGame = $derived(gameReady && $isDesktop)
 
   $effect(() => {
     if ($activeScreen !== "game") return
@@ -79,33 +83,38 @@
   class:game-active={desktopGame}
   bind:this={appEl}
 >
-  {#if $activeScreen === "game"}
-    {#if $isDesktop}
-      <!-- Desktop game layout: three-column grid -->
-      <CharSheet inline />
+  {#if appReady}
+    {#if gameReady}
+      {#if $isDesktop}
+        <CharSheet inline />
+      {/if}
+
+      <GameScreen />
+
+      {#if $isDesktop}
+        <NPCTracker inline />
+      {/if}
+    {:else if !gameActive}
+      {#if $activeScreen === "home"}
+        <HomeScreen />
+      {:else if $activeScreen === "char-create"}
+        <CharCreate />
+      {:else if $activeScreen === "new-story"}
+        <NewStory />
+      {:else if $activeScreen === "settings"}
+        <Settings />
+      {/if}
     {/if}
 
-    <GameScreen />
-
-    {#if $isDesktop}
-      <NPCTracker inline />
-    {/if}
-  {:else if $activeScreen === "home"}
-    <HomeScreen />
-  {:else if $activeScreen === "char-create"}
-    <CharCreate />
-  {:else if $activeScreen === "new-story"}
-    <NewStory />
-  {:else if $activeScreen === "settings"}
-    <Settings />
+    <CharSheet />
+    <NPCTracker />
   {/if}
-
-  <CharSheet />
-  <NPCTracker />
 
   {#if $errorMessage}
     <div class="toast">{$errorMessage}</div>
   {/if}
+
+  <ConfirmDialog />
 </div>
 
 <style>
