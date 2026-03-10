@@ -130,6 +130,19 @@ export interface CancelLastResult {
   npcs: NPCState[]
 }
 
+export interface UndoCancelResult {
+  turn_id: number
+  story_id: number
+  turn_number: number
+  action_mode: "do" | "say" | "story"
+  player_input: string
+  narrative_text: string
+  active_variant_id: number | null
+  character: MainCharacterState
+  world: WorldState
+  npcs: NPCState[]
+}
+
 export interface TurnVariantSummary {
   id: number
   variant_index: number
@@ -276,6 +289,11 @@ export const api = {
       }),
     cancelLast: (storyId: number) =>
       request<CancelLastResult>("/api/turns/cancel-last", {
+        method: "POST",
+        body: JSON.stringify({ story_id: storyId }),
+      }),
+    undoCancel: (storyId: number) =>
+      request<UndoCancelResult>("/api/turns/undo-cancel", {
         method: "POST",
         body: JSON.stringify({ story_id: storyId }),
       }),

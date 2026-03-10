@@ -1,7 +1,8 @@
 <script lang="ts">
   import { onMount } from "svelte"
-  import { activeScreen, errorMessage, isDesktop } from "./stores/ui.js"
+  import { activeScreen, errorMessage, initRouter, isDesktop, navigate, routeStoryId, showError } from "./stores/ui.js"
   import { theme, design, textJustify, colorScheme, initSettings } from "./stores/settings.js"
+  import { currentStoryId } from "./stores/game.js"
   import HomeScreen from "./lib/HomeScreen.svelte"
   import CharCreate from "./lib/CharCreate.svelte"
   import NewStory from "./lib/NewStory.svelte"
@@ -9,6 +10,7 @@
   import CharSheet from "./lib/CharSheet.svelte"
   import NPCTracker from "./lib/NPCTracker.svelte"
   import Settings from "./lib/Settings.svelte"
+  import { loadStoryById } from "./lib/storyLoader.js"
 
   let appEl: HTMLDivElement | null = null
 
@@ -39,12 +41,30 @@
 
   onMount(() => {
     void initSettings()
+    initRouter()
     window.addEventListener("wheel", handleWheel, { passive: false })
     return () => window.removeEventListener("wheel", handleWheel)
   })
 
   let gameActive = $derived($activeScreen === "game")
   let desktopGame = $derived(gameActive && $isDesktop)
+  let restoringStory = false
+
+  $effect(() => {
+    if ($activeScreen !== "game") return
+    if (!$routeStoryId) return
+    if ($currentStoryId === $routeStoryId) return
+    if (restoringStory) return
+    restoringStory = true
+    void loadStoryById($routeStoryId)
+      .catch(() => {
+        showError("Failed to load story")
+        navigate("home", { replace: true, reset: true })
+      })
+      .finally(() => {
+        restoringStory = false
+      })
+  })
 </script>
 
 <div

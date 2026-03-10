@@ -16,7 +16,7 @@ const character: MainCharacterState = {
 
 const world: WorldState = {
   current_scene: "The Rusted Flagon tavern",
-  time_of_day: "night",
+  time_of_day: "21:00",
   recent_events_summary: "You arrived in the village of Ashford after a long journey through the rain.",
 }
 

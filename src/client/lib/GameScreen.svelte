@@ -47,6 +47,7 @@
   let activeVariantId: number | null = null
   let variantsTurnId: number | null = null
   let variantsLoading = false
+  let canUndoCancel = false
   let flashScene = false
   let flashOpening = false
   let lastSceneText = ""
@@ -123,6 +124,7 @@
         created_at: new Date().toISOString(),
       }
       turns.update((t) => [...t, newTurn])
+      canUndoCancel = false
       await loadVariants(result.turn_id, true)
       await tick()
       scrollToBottom()
@@ -183,6 +185,7 @@
         nextLastId = remaining[remaining.length - 1]?.id ?? null
         return remaining
       })
+      canUndoCancel = true
       if (nextLastId) {
         await loadVariants(nextLastId, true)
       } else {
@@ -198,6 +201,40 @@
         showError(err.message)
       } else {
         showError("Failed to cancel last turn")
+      }
+    } finally {
+      isGenerating.set(false)
+    }
+  }
+
+  async function undoCancelLastTurn() {
+    if ($isGenerating || !$currentStoryId) return
+    isGenerating.set(true)
+    try {
+      const result = await api.turns.undoCancel($currentStoryId)
+      character.set(result.character)
+      worldState.set(result.world)
+      npcs.set(result.npcs)
+      const restoredTurn: TurnSummary = {
+        id: result.turn_id,
+        turn_number: result.turn_number,
+        action_mode: result.action_mode,
+        active_variant_id: result.active_variant_id,
+        player_input: result.player_input,
+        narrative_text: result.narrative_text,
+        world: result.world,
+        created_at: new Date().toISOString(),
+      }
+      turns.update((t) => [...t, restoredTurn])
+      canUndoCancel = false
+      await loadVariants(result.turn_id, true)
+      await tick()
+      scrollToBottom()
+    } catch (err) {
+      if (err instanceof ApiError) {
+        showError(err.message)
+      } else {
+        showError("Failed to undo cancel")
       }
     } finally {
       isGenerating.set(false)
@@ -391,6 +428,7 @@
     lastOpeningText = ""
     flashScene = false
     flashOpening = false
+    canUndoCancel = false
     if (sceneFlashTimer) window.clearTimeout(sceneFlashTimer)
     if (openingFlashTimer) window.clearTimeout(openingFlashTimer)
   }
@@ -565,6 +603,18 @@
       >
         ↶
       </button>
+
+      {#if canUndoCancel}
+        <button
+          class="mode-undo-cancel"
+          onclick={undoCancelLastTurn}
+          disabled={$isGenerating}
+          title="Undo cancel"
+          aria-label="Undo cancel"
+        >
+          ↷
+        </button>
+      {/if}
 
       <button
         class="mode-regen"
@@ -1068,6 +1118,7 @@
     color: #0d0b08;
   }
   .mode-undo,
+  .mode-undo-cancel,
   .mode-regen {
     background: var(--bg-action);
     border: 1px solid var(--border);
@@ -1085,15 +1136,20 @@
   .mode-undo {
     margin-left: 0.35rem;
   }
+  .mode-undo-cancel {
+    margin-left: 0.25rem;
+  }
   .mode-regen {
     margin-left: 0.25rem;
   }
   .mode-undo:hover:not(:disabled),
+  .mode-undo-cancel:hover:not(:disabled),
   .mode-regen:hover:not(:disabled) {
     color: var(--text);
     border-color: var(--border-hover);
   }
   .mode-undo:disabled,
+  .mode-undo-cancel:disabled,
   .mode-regen:disabled {
     cursor: not-allowed;
     opacity: 0.4;

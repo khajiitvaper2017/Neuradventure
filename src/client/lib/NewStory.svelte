@@ -3,6 +3,7 @@
   import { api, type MainCharacterState, type NPCState, type StoryCharacterGroup } from "../api/client.js"
   import { navigate, showError } from "../stores/ui.js"
   import { autoresize } from "./actions/autoresize.js"
+  import { loadStoryById } from "./storyLoader.js"
   import {
     pendingCharacter,
     pendingStoryTitle,
@@ -11,14 +12,6 @@
     pendingStoryLocation,
     pendingStoryGenerateDescription,
     pendingCharacterId,
-    currentStoryId,
-    currentStoryTitle,
-    currentStoryOpeningScenario,
-    currentStoryInitialWorld,
-    character,
-    worldState,
-    npcs,
-    turns,
   } from "../stores/game.js"
 
   let submitting = false
@@ -110,15 +103,7 @@
         payload.character_data = charData
       }
       const { id } = await api.stories.create(payload)
-      const [detail, storyTurns] = await Promise.all([api.stories.get(id), api.turns.list(id)])
-      currentStoryId.set(id)
-      currentStoryTitle.set(detail.title)
-      currentStoryOpeningScenario.set(detail.opening_scenario)
-      currentStoryInitialWorld.set(detail.initial_world)
-      character.set(detail.character)
-      worldState.set(detail.world)
-      npcs.set(detail.npcs)
-      turns.set(storyTurns)
+      await loadStoryById(id)
       pendingCharacter.set(null)
       pendingCharacterId.set(null)
       pendingStoryTitle.set("")
@@ -126,7 +111,7 @@
       pendingStoryNPCs.set([])
       pendingStoryLocation.set("")
       pendingStoryGenerateDescription.set("")
-      navigate("game", { reset: true })
+      navigate("game", { reset: true, params: { storyId: id } })
     } catch (err) {
       showError(err instanceof Error ? err.message : "Failed to create story")
     } finally {

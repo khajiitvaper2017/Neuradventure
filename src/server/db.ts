@@ -174,6 +174,12 @@ export function initDb() {
 
     CREATE INDEX IF NOT EXISTS idx_turn_variants_turn ON turn_variants(turn_id, variant_index);
 
+    CREATE TABLE IF NOT EXISTS canceled_turns (
+      story_id     INTEGER PRIMARY KEY REFERENCES stories(id) ON DELETE CASCADE,
+      payload_json TEXT NOT NULL,
+      canceled_at  TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+
     CREATE TABLE IF NOT EXISTS settings (
       id            INTEGER PRIMARY KEY CHECK (id = 1),
       settings_json TEXT NOT NULL,
@@ -462,6 +468,26 @@ export interface TurnVariantRow {
   created_at: string
 }
 
+export interface CanceledTurnVariantPayload {
+  variant_index: number
+  narrative_text: string
+  character: MainCharacterState
+  world: WorldState
+  npcs: NPCState[]
+}
+
+export interface CanceledTurnPayload {
+  turn_number: number
+  action_mode: string
+  active_variant_index: number | null
+  player_input: string
+  narrative_text: string
+  character: MainCharacterState
+  world: WorldState
+  npcs: NPCState[]
+  variants: CanceledTurnVariantPayload[]
+}
+
 export function getTurnsForStory(story_id: number): TurnRow[] {
   return getDb().prepare("SELECT * FROM turns WHERE story_id = ? ORDER BY turn_number ASC").all(story_id) as TurnRow[]
 }
@@ -623,6 +649,32 @@ export function createTurnVariant(
 export function setActiveTurnVariant(turn_id: number, variant_id: number): boolean {
   const result = getDb().prepare("UPDATE turns SET active_variant_id = ? WHERE id = ?").run(variant_id, turn_id)
   return result.changes > 0
+}
+
+export function saveCanceledTurn(story_id: number, payload: CanceledTurnPayload): void {
+  getDb()
+    .prepare(
+      `INSERT INTO canceled_turns (story_id, payload_json)
+       VALUES (?, ?)
+       ON CONFLICT(story_id) DO UPDATE SET payload_json = excluded.payload_json, canceled_at = datetime('now')`,
+    )
+    .run(story_id, JSON.stringify(payload))
+}
+
+export function getCanceledTurn(story_id: number): CanceledTurnPayload | undefined {
+  const row = getDb()
+    .prepare("SELECT payload_json FROM canceled_turns WHERE story_id = ?")
+    .get(story_id) as { payload_json: string } | undefined
+  if (!row) return undefined
+  try {
+    return JSON.parse(row.payload_json) as CanceledTurnPayload
+  } catch {
+    return undefined
+  }
+}
+
+export function clearCanceledTurn(story_id: number): void {
+  getDb().prepare("DELETE FROM canceled_turns WHERE story_id = ?").run(story_id)
 }
 
 // ─── Settings ────────────────────────────────────────────────────────────────

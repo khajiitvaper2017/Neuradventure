@@ -6,9 +6,10 @@ import {
   RegenerateLastRequestSchema,
   SelectTurnVariantRequestSchema,
   TakeTurnRequestSchema,
+  UndoCancelRequestSchema,
   UpdateTurnRequestSchema,
 } from "../models.js"
-import { cancelLastTurn, processTurn, regenerateLastTurn, selectTurnVariant } from "../game.js"
+import { cancelLastTurn, processTurn, regenerateLastTurn, selectTurnVariant, undoCancelLastTurn } from "../game.js"
 
 const turns = new Hono()
 
@@ -62,6 +63,18 @@ turns.post("/cancel-last", zValidator("json", CancelLastRequestSchema), (c) => {
   const body = c.req.valid("json")
   try {
     const result = cancelLastTurn(body.story_id)
+    return c.json(result)
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Unknown error"
+    if (message.includes("not found")) return c.json({ error: message }, 404)
+    return c.json({ error: message }, 400)
+  }
+})
+
+turns.post("/undo-cancel", zValidator("json", UndoCancelRequestSchema), (c) => {
+  const body = c.req.valid("json")
+  try {
+    const result = undoCancelLastTurn(body.story_id)
     return c.json(result)
   } catch (err) {
     const message = err instanceof Error ? err.message : "Unknown error"

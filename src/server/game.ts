@@ -24,12 +24,8 @@ function applyPlayerUpdate(
   if (update.clothing_update) {
     updated.appearance = { ...updated.appearance, current_clothing: update.clothing_update }
   }
-  if (update.inventory_add.length > 0) {
-    updated.inventory = [...updated.inventory, ...update.inventory_add]
-  }
-  if (update.inventory_remove.length > 0) {
-    const removeSet = new Set(update.inventory_remove.map((n) => n.toLowerCase()))
-    updated.inventory = updated.inventory.filter((i) => !removeSet.has(i.name.toLowerCase()))
+  if (update.inventory_update !== undefined) {
+    updated.inventory = update.inventory_update
   }
 
   return updated
@@ -149,6 +145,19 @@ export interface CancelLastResult {
   npcs: NPCState[]
 }
 
+export interface UndoCancelResult {
+  turn_id: number
+  story_id: number
+  turn_number: number
+  action_mode: string
+  player_input: string
+  narrative_text: string
+  active_variant_id: number | null
+  character: MainCharacterState
+  world: WorldState
+  npcs: NPCState[]
+}
+
 export function cancelLastTurn(storyId: number): CancelLastResult {
   const story = db.getStory(storyId)
   if (!story) throw new Error(`Story ${storyId} not found`)
@@ -156,6 +165,36 @@ export function cancelLastTurn(storyId: number): CancelLastResult {
   const turnRows = db.getTurnsForStory(storyId)
   const lastTurn = turnRows[turnRows.length - 1]
   if (!lastTurn) throw new Error("No turns to cancel")
+
+  const lastSnapshot = parseTurnSnapshot(lastTurn)
+  const variants = db.listTurnVariants(lastTurn.id)
+  const activeVariant =
+    lastTurn.active_variant_id !== null
+      ? variants.find((variant) => variant.id === lastTurn.active_variant_id) ?? null
+      : null
+  const activeVariantIndex =
+    activeVariant?.variant_index ?? (variants.length > 0 ? variants[variants.length - 1].variant_index : null)
+  const variantPayloads = variants.map((variant) => {
+    const snapshot = parseTurnVariantSnapshot(variant)
+    return {
+      variant_index: variant.variant_index,
+      narrative_text: variant.narrative_text,
+      character: snapshot.character,
+      world: snapshot.world,
+      npcs: snapshot.npcs,
+    }
+  })
+  db.saveCanceledTurn(storyId, {
+    turn_number: lastTurn.turn_number,
+    action_mode: lastTurn.action_mode,
+    active_variant_index: activeVariantIndex,
+    player_input: lastTurn.player_input,
+    narrative_text: lastTurn.narrative_text,
+    character: lastSnapshot.character,
+    world: lastSnapshot.world,
+    npcs: lastSnapshot.npcs,
+    variants: variantPayloads,
+  })
 
   const previousTurn = turnRows.length > 1 ? turnRows[turnRows.length - 2] : null
   const snapshot = previousTurn ? parseTurnSnapshot(previousTurn) : parseInitialStorySnapshot(story)
@@ -168,6 +207,69 @@ export function cancelLastTurn(storyId: number): CancelLastResult {
     character: snapshot.character,
     world: snapshot.world,
     npcs: snapshot.npcs,
+  }
+}
+
+export function undoCancelLastTurn(storyId: number): UndoCancelResult {
+  const story = db.getStory(storyId)
+  if (!story) throw new Error(`Story ${storyId} not found`)
+
+  const canceled = db.getCanceledTurn(storyId)
+  if (!canceled) throw new Error("No canceled turn to restore")
+
+  const currentLast = db.getLastTurnForStory(storyId)
+  const expectedPrev = canceled.turn_number - 1
+  if (currentLast) {
+    if (currentLast.turn_number !== expectedPrev) {
+      throw new Error("Cannot undo cancel after new turns were added")
+    }
+  } else if (canceled.turn_number !== 1) {
+    throw new Error("Cannot undo cancel after new turns were added")
+  }
+
+  const turnId = db.createTurn(
+    storyId,
+    canceled.turn_number,
+    canceled.action_mode,
+    canceled.player_input,
+    canceled.narrative_text,
+    canceled.character,
+    canceled.world,
+    canceled.npcs,
+  )
+
+  let activeVariantId: number | null = null
+  let lastVariantId: number | null = null
+  const sortedVariants = [...canceled.variants].sort((a, b) => a.variant_index - b.variant_index)
+  for (const variant of sortedVariants) {
+    const created = db.createTurnVariant(turnId, variant.narrative_text, variant.character, variant.world, variant.npcs)
+    lastVariantId = created.id
+    if (canceled.active_variant_index !== null && variant.variant_index === canceled.active_variant_index) {
+      activeVariantId = created.id
+    }
+  }
+
+  if (activeVariantId === null && lastVariantId !== null) {
+    activeVariantId = lastVariantId
+  }
+  if (activeVariantId !== null) {
+    db.setActiveTurnVariant(turnId, activeVariantId)
+  }
+
+  db.updateStory(storyId, canceled.character, canceled.world, canceled.npcs)
+  db.clearCanceledTurn(storyId)
+
+  return {
+    turn_id: turnId,
+    story_id: storyId,
+    turn_number: canceled.turn_number,
+    action_mode: canceled.action_mode,
+    player_input: canceled.player_input,
+    narrative_text: canceled.narrative_text,
+    active_variant_id: activeVariantId,
+    character: canceled.character,
+    world: canceled.world,
+    npcs: canceled.npcs,
   }
 }
 

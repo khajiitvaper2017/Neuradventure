@@ -8,14 +8,6 @@
   import IconPlus from "../icons/IconPlus.svelte"
   import IconUser from "../icons/IconUser.svelte"
   import {
-    currentStoryId,
-    currentStoryTitle,
-    currentStoryOpeningScenario,
-    currentStoryInitialWorld,
-    character,
-    worldState,
-    npcs,
-    turns,
     resetGame,
     pendingCharacter,
     pendingCharacterId,
@@ -24,6 +16,7 @@
     pendingStoryNPCs,
     pendingStoryLocation,
   } from "../stores/game.js"
+  import { loadStoryById } from "./storyLoader.js"
 
   let stories: StoryMeta[] = []
   let loading = true
@@ -60,16 +53,8 @@
 
   async function openStory(story: StoryMeta) {
     try {
-      const [detail, storyTurns] = await Promise.all([api.stories.get(story.id), api.turns.list(story.id)])
-    currentStoryId.set(detail.id)
-    currentStoryTitle.set(detail.title)
-    currentStoryOpeningScenario.set(detail.opening_scenario)
-    currentStoryInitialWorld.set(detail.initial_world)
-    character.set(detail.character)
-    worldState.set(detail.world)
-      npcs.set(detail.npcs)
-      turns.set(storyTurns)
-      navigate("game", { reset: true })
+      await loadStoryById(story.id)
+      navigate("game", { reset: true, params: { storyId: story.id } })
     } catch {
       showError("Failed to load story")
     }
@@ -77,16 +62,8 @@
 
   async function openStoryById(id: number) {
     try {
-      const [detail, storyTurns] = await Promise.all([api.stories.get(id), api.turns.list(id)])
-    currentStoryId.set(detail.id)
-    currentStoryTitle.set(detail.title)
-    currentStoryOpeningScenario.set(detail.opening_scenario)
-    currentStoryInitialWorld.set(detail.initial_world)
-    character.set(detail.character)
-    worldState.set(detail.world)
-      npcs.set(detail.npcs)
-      turns.set(storyTurns)
-      navigate("game", { reset: true })
+      await loadStoryById(id)
+      navigate("game", { reset: true, params: { storyId: id } })
     } catch {
       showError("Failed to load story")
     }

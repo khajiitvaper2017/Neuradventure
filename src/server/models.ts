@@ -52,8 +52,7 @@ export const NPCStateUpdateSchema = z.object({
 export const PlayerStateUpdateSchema = z.object({
   appearance_update: z.string().optional(),
   clothing_update: z.string().optional(),
-  inventory_add: z.array(InventoryItemSchema).default([]),
-  inventory_remove: z.array(z.string()).default([]),
+  inventory_update: z.array(InventoryItemSchema).optional(),
 })
 
 export const TurnResponseSchema = z.object({
@@ -152,6 +151,10 @@ export const CancelLastRequestSchema = z.object({
   story_id: z.number().int(),
 })
 
+export const UndoCancelRequestSchema = z.object({
+  story_id: z.number().int(),
+})
+
 export const SelectTurnVariantRequestSchema = z.object({
   variant_id: z.number().int(),
 })
@@ -171,6 +174,7 @@ export type CreateStoryRequest = z.infer<typeof CreateStoryRequestSchema>
 export type TakeTurnRequest = z.infer<typeof TakeTurnRequestSchema>
 export type RegenerateLastRequest = z.infer<typeof RegenerateLastRequestSchema>
 export type CancelLastRequest = z.infer<typeof CancelLastRequestSchema>
+export type UndoCancelRequest = z.infer<typeof UndoCancelRequestSchema>
 export type SelectTurnVariantRequest = z.infer<typeof SelectTurnVariantRequestSchema>
 export type GenerateCharacterResponse = z.infer<typeof GenerateCharacterResponseSchema>
 export type GenerateCharacterAppearanceResponse = z.infer<typeof GenerateCharacterAppearanceResponseSchema>
