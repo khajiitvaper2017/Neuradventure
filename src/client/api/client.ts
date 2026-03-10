@@ -69,6 +69,7 @@ export interface TurnSummary {
   active_variant_id?: number | null
   player_input: string
   narrative_text: string
+  world: WorldState
   created_at: string
 }
 

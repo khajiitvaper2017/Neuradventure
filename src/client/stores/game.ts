@@ -9,6 +9,7 @@ export const worldState = writable<WorldState | null>(null)
 export const npcs = writable<NPCState[]>([])
 export const turns = writable<TurnSummary[]>([])
 export const isGenerating = writable(false)
+export const llmUpdateId = writable(0)
 
 // Pending character being built in char-create screen (not yet saved)
 export const pendingCharacter = writable<Omit<MainCharacterState, "inventory"> | null>(null)
@@ -33,9 +34,14 @@ export function resetGame() {
   npcs.set([])
   turns.set([])
   isGenerating.set(false)
+  llmUpdateId.set(0)
   pendingStoryNPCs.set([])
   pendingStoryLocation.set("")
   pendingStoryGenerateDescription.set("")
   pendingCharacterGenerateDescription.set("")
   pendingCharacterId.set(null)
+}
+
+export function markLlmUpdate() {
+  llmUpdateId.update((n) => n + 1)
 }

@@ -21,6 +21,8 @@
     turns,
     isGenerating,
     resetGame,
+    llmUpdateId,
+    markLlmUpdate,
   } from "../stores/game.js"
 
   type ActionMode = "do" | "say" | "story"
@@ -44,6 +46,30 @@
   let activeVariantId: number | null = null
   let variantsTurnId: number | null = null
   let variantsLoading = false
+  let flashScene = false
+  let flashOpening = false
+  let lastSceneText = ""
+  let lastOpeningText = ""
+  let baselineWorldSet = false
+  let lastLlmUpdateId = 0
+  let sceneFlashTimer: number | null = null
+  let openingFlashTimer: number | null = null
+
+  function triggerSceneFlash() {
+    flashScene = true
+    if (sceneFlashTimer) window.clearTimeout(sceneFlashTimer)
+    sceneFlashTimer = window.setTimeout(() => {
+      flashScene = false
+    }, 900)
+  }
+
+  function triggerOpeningFlash() {
+    flashOpening = true
+    if (openingFlashTimer) window.clearTimeout(openingFlashTimer)
+    openingFlashTimer = window.setTimeout(() => {
+      flashOpening = false
+    }, 900)
+  }
 
   function matchCase(match: string, replacement: string): string {
     if (match.toUpperCase() === match) return replacement.toUpperCase()
@@ -85,12 +111,14 @@
       character.set(result.character)
       worldState.set(result.world)
       npcs.set(result.npcs)
+      markLlmUpdate()
       const newTurn: TurnSummary = {
         id: result.turn_id,
         turn_number: result.turn_number,
         action_mode: actionMode,
         player_input: text,
         narrative_text: result.narrative_text,
+        world: result.world,
         created_at: new Date().toISOString(),
       }
       turns.update((t) => [...t, newTurn])
@@ -117,9 +145,12 @@
       character.set(result.character)
       worldState.set(result.world)
       npcs.set(result.npcs)
+      markLlmUpdate()
       turns.update((t) =>
         t.map((turn) =>
-          turn.id === result.turn_id ? { ...turn, narrative_text: result.narrative_text, action_mode: lastMode } : turn,
+          turn.id === result.turn_id
+            ? { ...turn, narrative_text: result.narrative_text, action_mode: lastMode, world: result.world }
+            : turn,
         ),
       )
       await loadVariants(result.turn_id, true)
@@ -293,10 +324,16 @@
       character.set(result.character)
       worldState.set(result.world)
       npcs.set(result.npcs)
+      markLlmUpdate()
       turns.update((t) =>
         t.map((turn) =>
           turn.id === result.turn_id
-            ? { ...turn, narrative_text: result.narrative_text, active_variant_id: result.active_variant_id }
+            ? {
+                ...turn,
+                narrative_text: result.narrative_text,
+                active_variant_id: result.active_variant_id,
+                world: result.world,
+              }
             : turn,
         ),
       )
@@ -324,6 +361,38 @@
     activeVariantId = null
     variantsTurnId = null
   }
+
+  $: if (!baselineWorldSet && ($worldState || $currentStoryOpeningScenario)) {
+    lastSceneText = $worldState ? `${$worldState.current_scene} · ${$worldState.time_of_day}` : ""
+    lastOpeningText = $currentStoryOpeningScenario || $worldState?.recent_events_summary || ""
+    baselineWorldSet = true
+  }
+
+  $: if ($llmUpdateId !== lastLlmUpdateId) {
+    const sceneText = $worldState ? `${$worldState.current_scene} · ${$worldState.time_of_day}` : ""
+    const openingText = $currentStoryOpeningScenario || $worldState?.recent_events_summary || ""
+    if (baselineWorldSet) {
+      if (sceneText && sceneText !== lastSceneText) {
+        triggerSceneFlash()
+      }
+      if (openingText && openingText !== lastOpeningText) {
+        triggerOpeningFlash()
+      }
+    }
+    lastSceneText = sceneText
+    lastOpeningText = openingText
+    lastLlmUpdateId = $llmUpdateId
+  }
+
+  $: if (!$currentStoryId) {
+    baselineWorldSet = false
+    lastSceneText = ""
+    lastOpeningText = ""
+    flashScene = false
+    flashOpening = false
+    if (sceneFlashTimer) window.clearTimeout(sceneFlashTimer)
+    if (openingFlashTimer) window.clearTimeout(openingFlashTimer)
+  }
 </script>
 
 <div class="screen game">
@@ -334,6 +403,11 @@
     <span class="header-sep desktop-only">•</span>
     <span class="flame" aria-hidden="true">🕯</span>
     <span class="story-name">{$currentStoryTitle}</span>
+    {#if $worldState}
+      <span class="header-scene desktop-only" class:flash={flashScene}>
+        {$worldState.current_scene} · {$worldState.time_of_day}
+      </span>
+    {/if}
     <div class="spacer"></div>
     <span class="turn-count">{$turns.length}</span>
     <button class="hbtn mobile-only" title="Character Sheet" onclick={() => showCharSheet.update((v) => !v)}>
@@ -359,7 +433,7 @@
   <div class="story-area" data-scroll-root="screen" bind:this={storyDiv}>
     <!-- Opening scene context -->
     {#if $worldState}
-      <p class="scene-crumb">
+      <p class="scene-crumb mobile-only" class:flash={flashScene}>
         {$worldState.current_scene} · {$worldState.time_of_day}
       </p>
     {/if}
@@ -384,7 +458,9 @@
           <button class="btn-accent" onclick={saveOpening} disabled={$isGenerating}>Save</button>
         </div>
       {:else}
-        <p class="opening-text">{$currentStoryOpeningScenario || $worldState?.recent_events_summary || ""}</p>
+        <p class="opening-text" class:flash={flashOpening}>
+          {$currentStoryOpeningScenario || $worldState?.recent_events_summary || ""}
+        </p>
       {/if}
     </div>
 
@@ -424,6 +500,9 @@
 
         <!-- Narrative paragraphs -->
         <div class="narrative-block" class:fresh={i === $turns.length - 1 && !$isGenerating}>
+          {#if turn.world}
+            <p class="turn-scene">{turn.world.current_scene} · {turn.world.time_of_day}</p>
+          {/if}
           {#each paragraphs(turn.narrative_text) as para, j}
             <p class="para" style="animation-delay: {j * 0.06}s">{para}</p>
           {/each}
@@ -566,6 +645,17 @@
     max-width: 300px;
     letter-spacing: 0.01em;
   }
+  .header-scene {
+    font-family: var(--font-ui);
+    font-size: 0.7rem;
+    color: var(--text-scene);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 240px;
+  }
   .spacer {
     flex: 1;
   }
@@ -682,6 +772,14 @@
     text-transform: uppercase;
     letter-spacing: 0.1em;
     margin-bottom: 1.25rem;
+  }
+  .turn-scene {
+    font-family: var(--font-ui);
+    font-size: 0.65rem;
+    color: var(--text-scene);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    margin-bottom: 0.4rem;
   }
   .opening-text {
     font-family: var(--font-story);

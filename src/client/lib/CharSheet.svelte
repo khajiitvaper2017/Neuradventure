@@ -1,8 +1,95 @@
 <script lang="ts">
   import { showCharSheet } from "../stores/ui.js"
-  import { character } from "../stores/game.js"
+  import { character, llmUpdateId } from "../stores/game.js"
+  import type { MainCharacterState } from "../api/client.js"
 
   let { inline = false }: { inline?: boolean } = $props()
+
+  type CharacterSigs = {
+    identity: string
+    appearance: string
+    clothing: string
+    traits: string
+    inventory: string
+  }
+
+  let lastSigs: CharacterSigs | null = null
+  let lastLlmUpdateId = 0
+  let flashIdentity = false
+  let flashAppearance = false
+  let flashClothing = false
+  let flashTraits = false
+  let flashInventory = false
+  let identityTimer: number | null = null
+  let appearanceTimer: number | null = null
+  let clothingTimer: number | null = null
+  let traitsTimer: number | null = null
+  let inventoryTimer: number | null = null
+
+  function buildCharacterSigs(c: MainCharacterState): CharacterSigs {
+    return {
+      identity: `${c.name}|${c.race}|${c.gender}`,
+      appearance: c.appearance?.physical_description ?? "",
+      clothing: c.appearance?.current_clothing ?? "",
+      traits: [...c.personality_traits, ...c.custom_traits].join("|"),
+      inventory: c.inventory.map((item) => `${item.name}:${item.description}`).join("|"),
+    }
+  }
+
+  function triggerFlash(kind: "identity" | "appearance" | "clothing" | "traits" | "inventory") {
+    if (kind === "identity") {
+      flashIdentity = true
+      if (identityTimer) window.clearTimeout(identityTimer)
+      identityTimer = window.setTimeout(() => (flashIdentity = false), 900)
+      return
+    }
+    if (kind === "appearance") {
+      flashAppearance = true
+      if (appearanceTimer) window.clearTimeout(appearanceTimer)
+      appearanceTimer = window.setTimeout(() => (flashAppearance = false), 900)
+      return
+    }
+    if (kind === "clothing") {
+      flashClothing = true
+      if (clothingTimer) window.clearTimeout(clothingTimer)
+      clothingTimer = window.setTimeout(() => (flashClothing = false), 900)
+      return
+    }
+    if (kind === "traits") {
+      flashTraits = true
+      if (traitsTimer) window.clearTimeout(traitsTimer)
+      traitsTimer = window.setTimeout(() => (flashTraits = false), 900)
+      return
+    }
+    flashInventory = true
+    if (inventoryTimer) window.clearTimeout(inventoryTimer)
+    inventoryTimer = window.setTimeout(() => (flashInventory = false), 900)
+  }
+
+  $effect(() => {
+    if (!lastSigs && $character) {
+      lastSigs = buildCharacterSigs($character)
+    }
+  })
+
+  $effect(() => {
+    if ($llmUpdateId !== lastLlmUpdateId) {
+      if ($character) {
+        const nextSigs = buildCharacterSigs($character)
+        if (lastSigs) {
+          if (nextSigs.identity !== lastSigs.identity) triggerFlash("identity")
+          if (nextSigs.appearance !== lastSigs.appearance) triggerFlash("appearance")
+          if (nextSigs.clothing !== lastSigs.clothing) triggerFlash("clothing")
+          if (nextSigs.traits !== lastSigs.traits) triggerFlash("traits")
+          if (nextSigs.inventory !== lastSigs.inventory) triggerFlash("inventory")
+        }
+        lastSigs = nextSigs
+      } else {
+        lastSigs = null
+      }
+      lastLlmUpdateId = $llmUpdateId
+    }
+  })
 </script>
 
 {#if inline}
@@ -14,17 +101,19 @@
     {#if $character}
       <div class="sidebar-body" data-scroll-root="modal">
         <div class="section-label">Identity</div>
-        <div class="value">{$character.name} · {$character.race} · {$character.gender}</div>
+        <div class="value" class:flash={flashIdentity}>
+          {$character.name} · {$character.race} · {$character.gender}
+        </div>
 
         <div class="section-label">Appearance</div>
-        <div class="value">{$character.appearance.physical_description}</div>
+        <div class="value" class:flash={flashAppearance}>{$character.appearance.physical_description}</div>
 
         <div class="section-label">Wearing</div>
-        <div class="value">{$character.appearance.current_clothing}</div>
+        <div class="value" class:flash={flashClothing}>{$character.appearance.current_clothing}</div>
 
         {#if $character.personality_traits.length > 0 || $character.custom_traits.length > 0}
           <div class="section-label">Traits</div>
-          <div class="chips">
+          <div class="chips" class:flash={flashTraits}>
             {#each [...$character.personality_traits, ...$character.custom_traits] as t}
               <span class="chip">{t}</span>
             {/each}
@@ -33,9 +122,9 @@
 
         <div class="section-label">Inventory ({$character.inventory.length})</div>
         {#if $character.inventory.length === 0}
-          <div class="value muted">Nothing</div>
+          <div class="value muted" class:flash={flashInventory}>Nothing</div>
         {:else}
-          <ul class="inventory">
+          <ul class="inventory" class:flash={flashInventory}>
             {#each $character.inventory as item}
               <li>
                 <span class="item-name">{item.name}</span>
@@ -64,17 +153,19 @@
     {#if $character}
       <div class="panel-body" data-scroll-root="modal">
         <div class="section-label">Identity</div>
-        <div class="value">{$character.name} · {$character.race} · {$character.gender}</div>
+        <div class="value" class:flash={flashIdentity}>
+          {$character.name} · {$character.race} · {$character.gender}
+        </div>
 
         <div class="section-label">Appearance</div>
-        <div class="value">{$character.appearance.physical_description}</div>
+        <div class="value" class:flash={flashAppearance}>{$character.appearance.physical_description}</div>
 
         <div class="section-label">Wearing</div>
-        <div class="value">{$character.appearance.current_clothing}</div>
+        <div class="value" class:flash={flashClothing}>{$character.appearance.current_clothing}</div>
 
         {#if $character.personality_traits.length > 0 || $character.custom_traits.length > 0}
           <div class="section-label">Traits</div>
-          <div class="chips">
+          <div class="chips" class:flash={flashTraits}>
             {#each [...$character.personality_traits, ...$character.custom_traits] as t}
               <span class="chip">{t}</span>
             {/each}
@@ -83,9 +174,9 @@
 
         <div class="section-label">Inventory ({$character.inventory.length})</div>
         {#if $character.inventory.length === 0}
-          <div class="value muted">Nothing</div>
+          <div class="value muted" class:flash={flashInventory}>Nothing</div>
         {:else}
-          <ul class="inventory">
+          <ul class="inventory" class:flash={flashInventory}>
             {#each $character.inventory as item}
               <li>
                 <span class="item-name">{item.name}</span>

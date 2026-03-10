@@ -156,6 +156,23 @@ input[type="checkbox"] {
   flex-direction: column;
 }
 
+/* ── LLM state flash ───────────────────────────────── */
+.flash {
+  animation: flashPulse 0.9s ease;
+  border-radius: 4px;
+}
+@keyframes flashPulse {
+  0% {
+    box-shadow: 0 0 0 2px var(--accent-dim) inset;
+  }
+  60% {
+    box-shadow: 0 0 0 2px var(--accent-dim) inset;
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(0, 0, 0, 0);
+  }
+}
+
 /* Desktop: wider non-game screens */
 @media (min-width: 1200px) {
   .screen {

@@ -13,8 +13,7 @@
     "npc_updates: Include only NPCs whose state changed this turn. Available fields: last_known_location, appearance_update, clothing_update, relationship_change, notes_update.",
 
     "new_npcs: Include only NPCs appearing for the first time this turn. When assigning personality_traits, prefer traits from this list: {npcTraits}."
-  ]
-  ,
+  ],
   "generateCharacterPrompt": [
     "Act as a strict character generation engine for a text-based medical simulation. Parse the provided input to output a highly detailed, concrete character profile.",
     "Mandatory constraints: Generate empirical, objective descriptions. Do not use prose, metaphors, abstract concepts, or vague generalizations.",
@@ -67,56 +66,56 @@
     "- Custom Behavioral Traits: Use custom_traits for unique baseline quirks or permanent mannerisms. These must be concrete, objective phrases of 3-12 words.",
     "- Format: Ensure all traits represent permanent behavioral baselines, not temporary moods or reactions."
   ],
-"generateStoryPrompt": [
-  "You are a story designer for a text adventure game. Your output shapes the entire player experience — precision and consistency are mandatory.",
+  "generateStoryPrompt": [
+    "You are a story designer for a text adventure game. Your output shapes the entire player experience — precision and consistency are mandatory.",
 
-  "TASK: Given a brief description and a character, generate a title, opening scenario, starting location, and pregenerated NPCs.",
+    "TASK: Given a brief description and a character, generate a title, opening scenario, starting location, and pregenerated NPCs.",
 
-  "WRITING RULES:",
-  "- Write exclusively in second-person present tense.",
-  "- Never name the player character. Always use 'you' / 'your'.",
+    "WRITING RULES:",
+    "- Write exclusively in second-person present tense.",
+    "- Never name the player character. Always use 'you' / 'your'.",
 
-  "title:",
-  "- 3–5 words, evocative and directly tied to the opening scenario.",
-  "- Avoid generic titles like 'The Adventure Begins'.",
+    "title:",
+    "- 3–5 words, evocative and directly tied to the opening scenario.",
+    "- Avoid generic titles like 'The Adventure Begins'.",
 
-  "opening_scenario:",
-  "- 1–3 paragraphs separated by a single blank line. Do not lump all text into one paragraph.",
-  "- If you use multiple paragraphs, insert a blank line by outputting \\n\\n between them (literal newline characters).",
-  "- Drop the player into an immediate, specific situation with concrete sensory detail and clear stakes.",
-  "- No preamble, no backstory dump. Use the paragraph break to create a natural pause or shift in tension.",
-  "- The opening can be brief if it serves the scene. Avoid generic setups like 'You wake up in a strange place' or 'You find yourself trapped'.",
+    "opening_scenario:",
+    "- 1–3 paragraphs separated by a single blank line. Do not lump all text into one paragraph.",
+    "- If you use multiple paragraphs, insert a blank line by outputting \\n\\n between them (literal newline characters).",
+    "- Drop the player into an immediate, specific situation with concrete sensory detail and clear stakes.",
+    "- No preamble, no backstory dump. Use the paragraph break to create a natural pause or shift in tension.",
+    "- The opening can be brief if it serves the scene. Avoid generic setups like 'You wake up in a strange place' or 'You find yourself trapped'.",
 
-  "starting_location:",
-  "- 1–3 word concrete location phrase that directly matches where opening_scenario begins.",
+    "starting_location:",
+    "- 1–3 word concrete location phrase that directly matches where opening_scenario begins.",
 
-  "PREGENERATED NPCs:",
-  "- Always output pregen_npcs, even if it is an empty array.",
-  "- Never include the player character as an NPC.",
-  "- Every NPC must have a generated name — no exceptions. If the description says 'your sister', assign her a name.",
-  "- Every character named or distinctly identified in the description MUST appear in pregen_npcs with all fields filled.",
-  "- You may add 1–2 setting-implied NPCs only if their presence is strongly implied (e.g. a bartender in a tavern). Do not invent beyond this.",
+    "PREGENERATED NPCs:",
+    "- Always output pregen_npcs, even if it is an empty array.",
+    "- Never include the player character as an NPC.",
+    "- Every NPC must have a generated name — no exceptions. If the description says 'your sister', assign her a name.",
+    "- Every character named or distinctly identified in the description MUST appear in pregen_npcs with all fields filled.",
+    "- You may add 1–2 setting-implied NPCs only if their presence is strongly implied (e.g. a bartender in a tavern). Do not invent beyond this.",
 
-  "EACH NPC ENTRY MUST CONTAIN EXACTLY THESE FIELDS:",
-  "  name, race, last_known_location, appearance.physical_description, appearance.current_clothing, personality_traits, relationship_to_player, notes",
+    "EACH NPC ENTRY MUST CONTAIN EXACTLY THESE FIELDS:",
+    "  name, race, last_known_location, appearance.physical_description, appearance.current_clothing, personality_traits, relationship_to_player, notes",
 
-  "relationship_to_player:",
-  "- Describe by role or dynamic only: 'older sister', 'childhood friend', 'rival merchant', 'estranged father'.",
-  "- Never include the player's name.",
+    "relationship_to_player:",
+    "- Describe by role or dynamic only: 'older sister', 'childhood friend', 'rival merchant', 'estranged father'.",
+    "- Never include the player's name.",
 
-  "last_known_location:",
-  "- A specific 1–5 word phrase that functions as a unique location identifier.",
-  "- Use named places, not generic room types: 'Mira's Workshop' not 'workshop'; 'The Rusty Flagon Bar' not 'tavern'.",
-  "- Never use: 'unknown', 'adjacent room', 'nearby', or any other vague term.",
-  "- If the description does not place the NPC with the player, they must be located elsewhere.",
+    "last_known_location:",
+    "- A specific 1–5 word phrase that functions as a unique location identifier.",
+    "- Use named places, not generic room types: 'Mira's Workshop' not 'workshop'; 'The Rusty Flagon Bar' not 'tavern'.",
+    "- Never use: 'unknown', 'adjacent room', 'nearby', or any other vague term.",
+    "- If the description does not place the NPC with the player, they must be located elsewhere.",
 
-  "CONSISTENCY CHECK — verify before output:",
-  "- title is specific and tied to the scenario.",
-  "- starting_location matches opening_scenario.",
-  "- Player character is not in pregen_npcs.",
-  "- Every named or identified character from the input appears in pregen_npcs.",
-  "- No NPC is at the player's starting location unless explicitly stated.",
-  "- Every NPC has a real name — no placeholders like 'Unknown' or 'Sister'.",
-  "- No relationship_to_player field contains the player's name."
-]
+    "CONSISTENCY CHECK — verify before output:",
+    "- title is specific and tied to the scenario.",
+    "- starting_location matches opening_scenario.",
+    "- Player character is not in pregen_npcs.",
+    "- Every named or identified character from the input appears in pregen_npcs.",
+    "- No NPC is at the player's starting location unless explicitly stated.",
+    "- Every NPC has a real name — no placeholders like 'Unknown' or 'Sister'.",
+    "- No relationship_to_player field contains the player's name."
+  ]
 }

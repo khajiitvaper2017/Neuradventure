@@ -1,6 +1,7 @@
 <script lang="ts">
   import { showNPCTracker } from "../stores/ui.js"
-  import { npcs } from "../stores/game.js"
+  import { npcs, llmUpdateId } from "../stores/game.js"
+  import type { NPCState } from "../api/client.js"
 
   let { inline = false }: { inline?: boolean } = $props()
 
@@ -18,6 +19,68 @@
     }
     return "#888"
   }
+
+  let lastNpcSigs = new Map<string, string>()
+  let lastLlmUpdateId = 0
+  let flashNpcNames: string[] = []
+  let flashTimer: number | null = null
+
+  function npcSignature(npc: NPCState): string {
+    return [
+      npc.name,
+      npc.race,
+      npc.relationship_to_player,
+      npc.last_known_location,
+      npc.appearance.physical_description,
+      npc.appearance.current_clothing,
+      npc.notes ?? "",
+    ].join("|")
+  }
+
+  function triggerNpcFlash(names: string[]) {
+    flashNpcNames = names
+    if (flashTimer) window.clearTimeout(flashTimer)
+    flashTimer = window.setTimeout(() => {
+      flashNpcNames = []
+    }, 900)
+  }
+
+  $effect(() => {
+    if (lastNpcSigs.size === 0 && $npcs.length > 0) {
+      const initial = new Map<string, string>()
+      for (const npc of $npcs) {
+        initial.set(npc.name, npcSignature(npc))
+      }
+      lastNpcSigs = initial
+    }
+  })
+
+  $effect(() => {
+    if ($npcs.length === 0 && lastNpcSigs.size > 0) {
+      lastNpcSigs = new Map<string, string>()
+      flashNpcNames = []
+    }
+  })
+
+  $effect(() => {
+    if ($llmUpdateId !== lastLlmUpdateId) {
+      const nextSigs = new Map<string, string>()
+      const changed: string[] = []
+      for (const npc of $npcs) {
+        const sig = npcSignature(npc)
+        nextSigs.set(npc.name, sig)
+        const prev = lastNpcSigs.get(npc.name)
+        if (!prev || prev !== sig) {
+          changed.push(npc.name)
+        }
+      }
+      if (changed.length > 0) {
+        triggerNpcFlash(changed)
+      }
+      lastNpcSigs = nextSigs
+      lastLlmUpdateId = $llmUpdateId
+    }
+  })
 </script>
 
 {#snippet npcContent()}
@@ -25,7 +88,7 @@
     <div class="empty">No known characters yet.</div>
   {:else}
     {#each $npcs as npc}
-      <div class="npc-card">
+      <div class="npc-card" class:flash={flashNpcNames.includes(npc.name)}>
         <div class="npc-name">{npc.name}</div>
         <div class="npc-race">{npc.race}</div>
         <div class="npc-rel" style="color: {relationshipColor(npc.relationship_to_player)}">
