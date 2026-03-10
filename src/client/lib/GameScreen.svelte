@@ -158,15 +158,18 @@
     }
 
     const schedule = () => requestAnimationFrame(resize)
+    const handleResize = () => schedule()
 
     schedule()
     node.addEventListener("input", schedule)
+    window.addEventListener("resize", handleResize)
     return {
       update() {
         schedule()
       },
       destroy() {
         node.removeEventListener("input", schedule)
+        window.removeEventListener("resize", handleResize)
       },
     }
   }
