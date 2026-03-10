@@ -37,7 +37,7 @@ type PromptConfig = {
   generateStoryPrompt: string[]
 }
 
-const CONFIG_PATH = join(__dirname, "../../config.json")
+const CONFIG_PATH = join(__dirname, "../../shared/config.json")
 let cachedConfig: PromptConfig | null = null
 let cachedConfigMtime = 0
 
