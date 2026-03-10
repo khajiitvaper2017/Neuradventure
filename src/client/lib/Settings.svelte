@@ -93,14 +93,6 @@
 
   const samplingParams: ParamDef[] = [
     {
-      key: "temperature",
-      label: "Temperature",
-      sub: "Controls randomness (0 = deterministic)",
-      min: 0,
-      max: 5,
-      step: 0.05,
-    },
-    {
       key: "max_tokens",
       label: "Max Tokens",
       sub: "Maximum tokens to generate per request",
@@ -110,6 +102,15 @@
       int: true,
     },
     {
+      key: "temperature",
+      label: "Temperature",
+      sub: "Controls randomness (0 = deterministic)",
+      min: 0,
+      max: 5,
+      step: 0.05,
+    },
+    { key: "top_p", label: "Top-P (Nucleus)", sub: "Cumulative probability threshold", min: 0, max: 1, step: 0.01 },
+    {
       key: "top_k",
       label: "Top-K",
       sub: "Keep only K most probable tokens (0 = disabled)",
@@ -118,7 +119,6 @@
       step: 1,
       int: true,
     },
-    { key: "top_p", label: "Top-P (Nucleus)", sub: "Cumulative probability threshold", min: 0, max: 1, step: 0.01 },
     {
       key: "min_p",
       label: "Min-P",
@@ -155,15 +155,6 @@
       step: 0.05,
     },
     {
-      key: "repeat_last_n",
-      label: "Repeat Penalty Range",
-      sub: "Tokens to scan for repeats (-1 = context, 0 = off)",
-      min: -1,
-      max: 4096,
-      step: 1,
-      int: true,
-    },
-    {
       key: "presence_penalty",
       label: "Presence Penalty",
       sub: "Penalty if token appeared at all (0 = disabled)",
@@ -178,6 +169,15 @@
       min: -2,
       max: 2,
       step: 0.05,
+    },
+    {
+      key: "repeat_last_n",
+      label: "Repeat Penalty Range",
+      sub: "Tokens to scan for repeats (-1 = context, 0 = off)",
+      min: -1,
+      max: 4096,
+      step: 1,
+      int: true,
     },
   ]
 
@@ -223,6 +223,15 @@
       max: 5,
       step: 0.05,
     },
+    {
+      key: "dry_penalty_last_n",
+      label: "DRY Penalty Range",
+      sub: "Tokens to scan (-1 = context, 0 = off)",
+      min: -1,
+      max: 4096,
+      step: 1,
+      int: true,
+    },
     { key: "dry_base", label: "DRY Base", sub: "Base multiplier for penalty", min: 1, max: 4, step: 0.05 },
     {
       key: "dry_allowed_length",
@@ -230,15 +239,6 @@
       sub: "Repetitions up to this length are allowed",
       min: 0,
       max: 20,
-      step: 1,
-      int: true,
-    },
-    {
-      key: "dry_penalty_last_n",
-      label: "DRY Penalty Range",
-      sub: "Tokens to scan (-1 = context, 0 = off)",
-      min: -1,
-      max: 4096,
       step: 1,
       int: true,
     },
@@ -478,6 +478,28 @@
 
       <div class="divider"></div>
 
+      <!-- DRY -->
+      <div class="section-label">DRY (Diverse Repetition Penalty)</div>
+      {#each dryParams as p}
+        <label class="row row-input">
+          <span class="row-text">
+            <span class="row-title">{p.label}</span>
+            <span class="row-sub">{p.sub}</span>
+          </span>
+          <input
+            class="num-input"
+            type="number"
+            value={$generation[p.key]}
+            min={p.min}
+            max={p.max}
+            step={p.step}
+            onchange={(e) => handleNumInput(p.key, e, p.int)}
+          />
+        </label>
+      {/each}
+
+      <div class="divider"></div>
+
       <!-- Mirostat -->
       <div class="section-label">Mirostat</div>
       {#each mirostatParams as p}
@@ -503,28 +525,6 @@
       <!-- Dynamic Temperature -->
       <div class="section-label">Dynamic Temperature</div>
       {#each dynatempParams as p}
-        <label class="row row-input">
-          <span class="row-text">
-            <span class="row-title">{p.label}</span>
-            <span class="row-sub">{p.sub}</span>
-          </span>
-          <input
-            class="num-input"
-            type="number"
-            value={$generation[p.key]}
-            min={p.min}
-            max={p.max}
-            step={p.step}
-            onchange={(e) => handleNumInput(p.key, e, p.int)}
-          />
-        </label>
-      {/each}
-
-      <div class="divider"></div>
-
-      <!-- DRY -->
-      <div class="section-label">DRY (Diverse Repetition Penalty)</div>
-      {#each dryParams as p}
         <label class="row row-input">
           <span class="row-text">
             <span class="row-title">{p.label}</span>
