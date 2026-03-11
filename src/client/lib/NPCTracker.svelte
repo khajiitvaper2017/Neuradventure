@@ -39,6 +39,70 @@
     return `npc-${field}-${base || "unknown"}`
   }
 
+  type FieldKind = "input" | "textarea"
+  type EditField = {
+    id: string
+    label: string
+    kind: FieldKind
+    value: string
+    onInput: (value: string) => void
+  }
+
+  function updateField(field: EditField, event: Event) {
+    const target = event.target as HTMLInputElement | HTMLTextAreaElement
+    field.onInput(target.value)
+  }
+
+  function npcEditFields(npc: NPCState): EditField[] {
+    return [
+      { id: npcFieldId(npc, "name"), label: "Name", kind: "input", value: draft.name, onInput: (v) => (draft.name = v) },
+      { id: npcFieldId(npc, "race"), label: "Race", kind: "input", value: draft.race, onInput: (v) => (draft.race = v) },
+      { id: npcFieldId(npc, "gender"), label: "Gender", kind: "input", value: draft.gender, onInput: (v) => (draft.gender = v) },
+      {
+        id: npcFieldId(npc, "relationship"),
+        label: "Relationship",
+        kind: "input",
+        value: draft.relationship,
+        onInput: (v) => (draft.relationship = v),
+      },
+      {
+        id: npcFieldId(npc, "location"),
+        label: "Last Known Location",
+        kind: "input",
+        value: draft.location,
+        onInput: (v) => (draft.location = v),
+      },
+      {
+        id: npcFieldId(npc, "appearance"),
+        label: "Appearance",
+        kind: "textarea",
+        value: draft.appearance,
+        onInput: (v) => (draft.appearance = v),
+      },
+      {
+        id: npcFieldId(npc, "clothing"),
+        label: "Clothing",
+        kind: "textarea",
+        value: draft.clothing,
+        onInput: (v) => (draft.clothing = v),
+      },
+      {
+        id: npcFieldId(npc, "traits"),
+        label: "Traits (comma separated)",
+        kind: "input",
+        value: draft.traits,
+        onInput: (v) => (draft.traits = v),
+      },
+      {
+        id: npcFieldId(npc, "notes"),
+        label: "Notes",
+        kind: "textarea",
+        value: draft.notes,
+        onInput: (v) => (draft.notes = v),
+      },
+    ]
+  }
+
   function startNpcEdit(npc: NPCState) {
     editingNpcName = npc.name
     draft = {
@@ -314,44 +378,16 @@
 
         {#if editingNpcName === npc.name}
           <div class="npc-edit">
-            <div class="field">
-              <label for={npcFieldId(npc, "name")}>Name</label>
-              <input id={npcFieldId(npc, "name")} type="text" bind:value={draft.name} />
-            </div>
-            <div class="field">
-              <label for={npcFieldId(npc, "race")}>Race</label>
-              <input id={npcFieldId(npc, "race")} type="text" bind:value={draft.race} />
-            </div>
-            <div class="field">
-              <label for={npcFieldId(npc, "gender")}>Gender</label>
-              <input id={npcFieldId(npc, "gender")} type="text" bind:value={draft.gender} />
-            </div>
-            <div class="field">
-              <label for={npcFieldId(npc, "relationship")}>Relationship</label>
-              <input id={npcFieldId(npc, "relationship")} type="text" bind:value={draft.relationship} />
-            </div>
-            <div class="field">
-              <label for={npcFieldId(npc, "location")}>Last Known Location</label>
-              <input id={npcFieldId(npc, "location")} type="text" bind:value={draft.location} />
-            </div>
-            <div class="field">
-              <label for={npcFieldId(npc, "appearance")}>Appearance</label>
-              <textarea id={npcFieldId(npc, "appearance")} bind:value={draft.appearance} use:autoresize={draft.appearance}
-              ></textarea>
-            </div>
-            <div class="field">
-              <label for={npcFieldId(npc, "clothing")}>Clothing</label>
-              <textarea id={npcFieldId(npc, "clothing")} bind:value={draft.clothing} use:autoresize={draft.clothing}
-              ></textarea>
-            </div>
-            <div class="field">
-              <label for={npcFieldId(npc, "traits")}>Traits (comma separated)</label>
-              <input id={npcFieldId(npc, "traits")} type="text" bind:value={draft.traits} />
-            </div>
-            <div class="field">
-              <label for={npcFieldId(npc, "notes")}>Notes</label>
-              <textarea id={npcFieldId(npc, "notes")} bind:value={draft.notes} use:autoresize={draft.notes}></textarea>
-            </div>
+            {#each npcEditFields(npc) as field}
+              <div class="field">
+                <label for={field.id}>{field.label}</label>
+                {#if field.kind === "textarea"}
+                  <textarea id={field.id} value={field.value} oninput={(e) => updateField(field, e)} use:autoresize={field.value}></textarea>
+                {:else}
+                  <input id={field.id} type="text" value={field.value} oninput={(e) => updateField(field, e)} />
+                {/if}
+              </div>
+            {/each}
             <div class="npc-edit-actions">
               <button class="btn-ghost" onclick={cancelNpcEdit} disabled={savingNpc}>Cancel</button>
               <button class="btn-primary" onclick={saveNpcEdit} disabled={savingNpc || !$currentStoryId}>

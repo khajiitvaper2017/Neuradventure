@@ -61,6 +61,15 @@
     inventory: [],
   })
 
+  type FieldKind = "input" | "textarea"
+  type EditField = {
+    id: string
+    label: string
+    kind: FieldKind
+    value: string
+    onInput: (value: string) => void
+  }
+
   function buildCharacterSigs(c: MainCharacterState): CharacterSigs {
     return {
       identity: `${c.name}|${c.race}|${c.gender}`,
@@ -99,6 +108,47 @@
     flashInventory = true
     if (inventoryTimer) window.clearTimeout(inventoryTimer)
     inventoryTimer = window.setTimeout(() => (flashInventory = false), 900)
+  }
+
+  function updateField(field: EditField, event: Event) {
+    const target = event.target as HTMLInputElement | HTMLTextAreaElement
+    field.onInput(target.value)
+  }
+
+  function characterFields(): EditField[] {
+    return [
+      { id: "cs-name", label: "Name", kind: "input", value: draft.name, onInput: (v) => (draft.name = v) },
+      { id: "cs-race", label: "Race", kind: "input", value: draft.race, onInput: (v) => (draft.race = v) },
+      { id: "cs-gender", label: "Gender", kind: "input", value: draft.gender, onInput: (v) => (draft.gender = v) },
+      {
+        id: "cs-appearance",
+        label: "Appearance",
+        kind: "textarea",
+        value: draft.appearance,
+        onInput: (v) => (draft.appearance = v),
+      },
+      {
+        id: "cs-clothing",
+        label: "Wearing",
+        kind: "textarea",
+        value: draft.clothing,
+        onInput: (v) => (draft.clothing = v),
+      },
+      {
+        id: "cs-personality",
+        label: "Personality Traits (comma separated)",
+        kind: "input",
+        value: draft.personalityTraits,
+        onInput: (v) => (draft.personalityTraits = v),
+      },
+      {
+        id: "cs-custom-traits",
+        label: "Custom Traits (comma separated)",
+        kind: "input",
+        value: draft.customTraits,
+        onInput: (v) => (draft.customTraits = v),
+      },
+    ]
   }
 
   function startEdit() {
@@ -219,34 +269,16 @@
   {#if $character}
     {#if editing}
       <div class="cs-edit">
-        <div class="field">
-          <label for="cs-name">Name</label>
-          <input id="cs-name" type="text" bind:value={draft.name} />
-        </div>
-        <div class="field">
-          <label for="cs-race">Race</label>
-          <input id="cs-race" type="text" bind:value={draft.race} />
-        </div>
-        <div class="field">
-          <label for="cs-gender">Gender</label>
-          <input id="cs-gender" type="text" bind:value={draft.gender} />
-        </div>
-        <div class="field">
-          <label for="cs-appearance">Appearance</label>
-          <textarea id="cs-appearance" bind:value={draft.appearance} use:autoresize={draft.appearance}></textarea>
-        </div>
-        <div class="field">
-          <label for="cs-clothing">Wearing</label>
-          <textarea id="cs-clothing" bind:value={draft.clothing} use:autoresize={draft.clothing}></textarea>
-        </div>
-        <div class="field">
-          <label for="cs-personality">Personality Traits (comma separated)</label>
-          <input id="cs-personality" type="text" bind:value={draft.personalityTraits} />
-        </div>
-        <div class="field">
-          <label for="cs-custom-traits">Custom Traits (comma separated)</label>
-          <input id="cs-custom-traits" type="text" bind:value={draft.customTraits} />
-        </div>
+        {#each characterFields() as field}
+          <div class="field">
+            <label for={field.id}>{field.label}</label>
+            {#if field.kind === "textarea"}
+              <textarea id={field.id} value={field.value} oninput={(e) => updateField(field, e)} use:autoresize={field.value}></textarea>
+            {:else}
+              <input id={field.id} type="text" value={field.value} oninput={(e) => updateField(field, e)} />
+            {/if}
+          </div>
+        {/each}
         <div class="field">
           <div class="label-row">
             <!-- svelte-ignore a11y_label_has_associated_control -->
