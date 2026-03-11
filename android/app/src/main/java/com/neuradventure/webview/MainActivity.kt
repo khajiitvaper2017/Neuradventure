@@ -1,170 +1,98 @@
 package com.neuradventure.webview
 
+import android.content.Context
 import android.content.Intent
 import android.net.Uri
+import android.net.wifi.WifiManager
 import android.os.Bundle
+import android.text.format.Formatter
 import android.view.View
-import android.widget.Toast
 import android.webkit.WebChromeClient
 import android.webkit.WebResourceRequest
 import android.webkit.WebView
 import android.webkit.WebViewClient
+import android.widget.Toast
 import androidx.activity.addCallback
 import androidx.appcompat.app.AppCompatActivity
-import com.google.android.material.dialog.MaterialAlertDialogBuilder
-import com.google.android.material.textfield.TextInputEditText
-import org.json.JSONObject
+import kotlinx.coroutines.*
+import java.net.InetSocketAddress
+import java.net.Socket
 
 class MainActivity : AppCompatActivity() {
     private lateinit var webView: WebView
-    private lateinit var settingsButton: com.google.android.material.floatingactionbutton.FloatingActionButton
-    private var startUrlNormalized: String? = null
-    private val prefsName = "webview_config"
-    private val prefsUrlKey = "config_url"
+    private val serverPort = 3001
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
         webView = findViewById(R.id.web_view)
-        settingsButton = findViewById<com.google.android.material.floatingactionbutton.FloatingActionButton>(
-            R.id.settings_button
-        )
+        setupWebView()
 
-        val settings = webView.settings
-        settings.javaScriptEnabled = true
-        settings.domStorageEnabled = true
-        settings.loadWithOverviewMode = true
-        settings.useWideViewPort = true
+        // Auto-discover every time the app opens
+        discoverAndLoad()
+
+        onBackPressedDispatcher.addCallback(this) {
+            if (webView.canGoBack()) webView.goBack() else finish()
+        }
+    }
+
+    private fun setupWebView() {
+        webView.settings.apply {
+            javaScriptEnabled = true
+            domStorageEnabled = true
+            loadWithOverviewMode = true
+            useWideViewPort = true
+        }
 
         webView.webChromeClient = WebChromeClient()
         webView.webViewClient = object : WebViewClient() {
             override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean {
-                return handleExternalUrl(request.url.toString())
-            }
-
-            @Deprecated("Deprecated in Java")
-            override fun shouldOverrideUrlLoading(view: WebView, url: String): Boolean {
-                return handleExternalUrl(url)
-            }
-
-            override fun onPageFinished(view: WebView, url: String) {
-                updateSettingsVisibility(url)
-            }
-        }
-
-        val startUrl = loadConfiguredUrl()
-        startUrlNormalized = normalizeUrlForCompare(startUrl)
-        webView.loadUrl(startUrl)
-        updateSettingsVisibility(startUrl)
-
-        settingsButton.setOnClickListener {
-            showUrlDialog()
-        }
-
-        onBackPressedDispatcher.addCallback(this) {
-            if (webView.canGoBack()) {
-                webView.goBack()
-            } else {
-                finish()
+                val url = request.url.toString()
+                if (url.startsWith("http")) return false
+                startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
+                return true
             }
         }
     }
 
-    private fun loadConfiguredUrl(): String {
-        val prefs = getSharedPreferences(prefsName, MODE_PRIVATE)
-        val saved = prefs.getString(prefsUrlKey, null)
-        if (!saved.isNullOrBlank()) {
-            return saved
+    private fun discoverAndLoad() {
+        val wifiManager = applicationContext.getSystemService(Context.WIFI_SERVICE) as WifiManager
+        val ipAddress = Formatter.formatIpAddress(wifiManager.connectionInfo.ipAddress)
+        
+        if (ipAddress == "0.0.0.0") {
+            Toast.makeText(this, "Please connect to Wi-Fi", Toast.LENGTH_LONG).show()
+            return
         }
 
-        val assetUrl = readUrlFromAssets()
-        if (!assetUrl.isNullOrBlank()) {
-            return assetUrl
-        }
-        return getString(R.string.default_url)
-    }
+        val subnet = ipAddress.substringBeforeLast(".") + "."
 
-    private fun readUrlFromAssets(): String? {
-        return try {
-            assets.open("app_config.json").bufferedReader().use { reader ->
-                val json = JSONObject(reader.readText())
-                json.optString("url", null)
-            }
-        } catch (e: Exception) {
-            null
-        }
-    }
-
-    private fun showUrlDialog() {
-        val view = layoutInflater.inflate(R.layout.dialog_url, null)
-        val input = view.findViewById<TextInputEditText>(R.id.url_input)
-        val current = loadConfiguredUrl()
-        input.setText(current)
-
-        MaterialAlertDialogBuilder(this)
-            .setTitle(getString(R.string.settings))
-            .setView(view)
-            .setPositiveButton(getString(R.string.save)) { _, _ ->
-                val raw = input.text?.toString()?.trim().orEmpty()
-                val normalized = normalizeUrl(raw)
-                if (normalized == null) {
-                    Toast.makeText(this, R.string.invalid_url, Toast.LENGTH_SHORT).show()
-                    return@setPositiveButton
+        // Using a lifecycle-aware scope is better, but GlobalScope/MainScope works for this one-shot task
+        CoroutineScope(Dispatchers.IO).launch {
+            val jobs = (1..254).map { i ->
+                async {
+                    val testIp = subnet + i
+                    try {
+                        Socket().use { socket ->
+                            // 100ms is fast; increase to 200ms if your network is laggy
+                            socket.connect(InetSocketAddress(testIp, serverPort), 100)
+                            testIp
+                        }
+                    } catch (e: Exception) {
+                        null
+                    }
                 }
-                val prefs = getSharedPreferences(prefsName, MODE_PRIVATE)
-                prefs.edit().putString(prefsUrlKey, normalized).apply()
-                startUrlNormalized = normalizeUrlForCompare(normalized)
-                webView.loadUrl(normalized)
             }
-            .setNegativeButton(getString(R.string.cancel), null)
-            .show()
-    }
 
-    private fun normalizeUrl(input: String): String? {
-        if (input.isBlank()) return null
-        val withScheme = if (input.startsWith("http://") || input.startsWith("https://")) {
-            input
-        } else {
-            "http://$input"
-        }
-        val uri = Uri.parse(withScheme)
-        val scheme = uri.scheme?.lowercase()
-        val host = uri.host
-        if ((scheme == "http" || scheme == "https") && !host.isNullOrBlank()) {
-            return withScheme
-        }
-        return null
-    }
+            val foundIp = jobs.awaitAll().filterNotNull().firstOrNull()
 
-    private fun normalizeUrlForCompare(url: String): String? {
-        val uri = Uri.parse(url.trim())
-        val scheme = uri.scheme?.lowercase() ?: return null
-        val host = uri.host?.lowercase() ?: return null
-        val port = if (uri.port != -1) ":${uri.port}" else ""
-        val path = uri.path?.ifBlank { "/" } ?: "/"
-        val normalizedPath = if (path == "/") "/" else path.trimEnd('/')
-        return "$scheme://$host$port$normalizedPath"
-    }
-
-    private fun updateSettingsVisibility(currentUrl: String?) {
-        val current = currentUrl?.let { normalizeUrlForCompare(it) }
-        val start = startUrlNormalized
-        settingsButton.visibility = if (current != null && start != null && current == start) {
-            View.VISIBLE
-        } else {
-            View.GONE
+            withContext(Dispatchers.Main) {
+                if (foundIp != null) {
+                    webView.loadUrl("http://$foundIp:$serverPort")
+                } else {
+                    Toast.makeText(this@MainActivity, "No app found on port $serverPort", Toast.LENGTH_SHORT).show()
+                }
+            }
         }
-    }
-
-    private fun handleExternalUrl(url: String): Boolean {
-        val uri = Uri.parse(url)
-        val scheme = uri.scheme?.lowercase()
-        if (scheme == "http" || scheme == "https") {
-            return false
-        }
-        val intent = Intent(Intent.ACTION_VIEW, uri)
-        startActivity(intent)
-        return true
     }
 }
