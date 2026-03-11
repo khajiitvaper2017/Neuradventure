@@ -13,7 +13,7 @@ export async function loadPresets() {
     presetsStore.set(list)
     loaded = true
   } catch (err) {
-    console.error("[presets] Failed to load presets", err)
+    console.error("[presets] Failed to load presets.", err)
   }
 }
 
