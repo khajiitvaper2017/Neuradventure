@@ -5,6 +5,18 @@ export interface InventoryItem {
   description: string
 }
 
+export interface LocationItem {
+  name: string
+  description: string
+}
+
+export interface Location {
+  name: string
+  description: string
+  characters: string[]
+  available_items: LocationItem[]
+}
+
 export interface CharacterAppearance {
   physical_description: string
   current_clothing: string
@@ -36,6 +48,7 @@ export interface WorldState {
   day_of_week: string
   time_of_day: string
   recent_events_summary: string
+  locations: Location[]
 }
 
 export interface StoryMeta {

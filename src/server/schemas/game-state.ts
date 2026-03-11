@@ -5,6 +5,7 @@ import {
   normalizeAppearance,
   normalizeCurrentScene,
   normalizeDayOfWeek,
+  normalizeLocations,
   normalizeNonEmptyString,
   normalizePersonalityTraits,
   normalizeRecentEventsSummary,
@@ -19,6 +20,42 @@ export const InventoryItemSchema = z
     description: z.string().min(1).describe(desc("state.inventory_item.description")),
   })
   .strict()
+
+export const LocationItemSchema = z
+  .object({
+    name: z.string().min(1).describe(desc("state.location_item.name")),
+    description: z.string().min(1).describe(desc("state.location_item.description")),
+  })
+  .strict()
+
+export const LocationSchema = z
+  .object({
+    name: z.string().min(1).describe(desc("state.location.name")),
+    description: z.string().min(1).describe(desc("state.location.description")),
+    characters: z.array(z.string().min(1)).describe(desc("state.location.characters")),
+    available_items: z.array(LocationItemSchema).describe(desc("state.location.available_items")),
+  })
+  .strict()
+
+const LocationsSchema = z
+  .array(LocationSchema)
+  .min(1)
+  .superRefine((locations, ctx) => {
+    const seen = new Set<string>()
+    locations.forEach((location, index) => {
+      const key = location.name.trim().toLowerCase()
+      if (!key) return
+      if (seen.has(key)) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "Location names must be unique",
+          path: [index, "name"],
+        })
+      } else {
+        seen.add(key)
+      }
+    })
+  })
 
 export const CharacterAppearanceSchema = z
   .object({
@@ -78,10 +115,7 @@ export const NPCStateStoredSchema = z
 
 export const WorldStateSchema = z
   .object({
-    current_scene: z
-      .string()
-      .min(1)
-      .describe(desc("llm.world_state_update.current_scene")),
+    current_scene: z.string().min(1).describe(desc("llm.world_state_update.current_scene")),
     day_of_week: z
       .enum(["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"])
       .describe(desc("llm.world_state_update.day_of_week")),
@@ -89,12 +123,10 @@ export const WorldStateSchema = z
       .string()
       .regex(TIME_OF_DAY_REGEX, "time_of_day must be 24h HH:MM")
       .describe(desc("llm.world_state_update.time_of_day")),
-    recent_events_summary: z.preprocess(
-      (value) => (typeof value === "string" ? stripSummaryLeak(value) : value),
-      z
-        .string()
-        .min(1),
-    ).describe(desc("llm.world_state_update.recent_events_summary")),
+    recent_events_summary: z
+      .preprocess((value) => (typeof value === "string" ? stripSummaryLeak(value) : value), z.string().min(1))
+      .describe(desc("llm.world_state_update.recent_events_summary")),
+    locations: LocationsSchema.describe(desc("llm.world_state_update.locations")),
   })
   .describe(desc("llm.turn_response.world_state_update"))
   .strict()
@@ -105,12 +137,17 @@ export const WorldStateStoredSchema = z
     day_of_week: z.string().optional().describe(desc("llm.world_state_update.day_of_week")),
     time_of_day: z.string().optional().describe(desc("llm.world_state_update.time_of_day")),
     recent_events_summary: z.string().optional().describe(desc("llm.world_state_update.recent_events_summary")),
+    locations: z.unknown().optional().describe(desc("llm.world_state_update.locations")),
   })
   .passthrough()
-  .transform((value) => ({
-    current_scene: normalizeCurrentScene(value.current_scene),
-    day_of_week: normalizeDayOfWeek(value.day_of_week),
-    time_of_day: normalizeTimeOfDay(value.time_of_day),
-    recent_events_summary: normalizeRecentEventsSummary(value.recent_events_summary),
-  }))
+  .transform((value) => {
+    const currentScene = normalizeCurrentScene(value.current_scene)
+    return {
+      current_scene: currentScene,
+      day_of_week: normalizeDayOfWeek(value.day_of_week),
+      time_of_day: normalizeTimeOfDay(value.time_of_day),
+      recent_events_summary: normalizeRecentEventsSummary(value.recent_events_summary),
+      locations: normalizeLocations(value.locations, currentScene),
+    }
+  })
   .pipe(WorldStateSchema)

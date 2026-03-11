@@ -18,6 +18,7 @@
   import GameScreen from "./lib/GameScreen.svelte"
   import CharSheet from "./lib/CharSheet.svelte"
   import NPCTracker from "./lib/NPCTracker.svelte"
+  import LocationsPanel from "./lib/LocationsPanel.svelte"
   import Settings from "./lib/Settings.svelte"
   import ConfirmDialog from "./lib/ConfirmDialog.svelte"
   import { loadStoryById } from "./lib/storyLoader.js"
@@ -104,6 +105,7 @@
 
       {#if $isDesktop}
         <NPCTracker inline />
+        <LocationsPanel inline />
       {/if}
     {:else if !gameActive}
       {#if $activeScreen === "home"}
@@ -119,6 +121,7 @@
 
     <CharSheet />
     <NPCTracker />
+    <LocationsPanel />
   {/if}
 
   {#if $errorMessage}
@@ -142,9 +145,9 @@
   /* ── Desktop game: three-column grid ──────────────── */
   .app.game-active {
     display: grid;
-    grid-template-columns: var(--sidebar-width) minmax(0, 1fr) var(--sidebar-width);
+    grid-template-columns: var(--sidebar-width) minmax(0, 1fr) var(--sidebar-width) var(--sidebar-width);
     grid-template-rows: 100dvh;
-    max-width: 1600px;
+    max-width: 1800px;
     margin: 0 auto;
   }
 

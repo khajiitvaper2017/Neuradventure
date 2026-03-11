@@ -1,12 +1,20 @@
 <script lang="ts">
   import { tick, untrack } from "svelte"
   import { api, type TurnSummary, type TurnVariantSummary, ApiError } from "../api/client.js"
-  import { navigate, showCharSheet, showNPCTracker, showError, showConfirm, showQuietNotice } from "../stores/ui.js"
+  import {
+    navigate,
+    showCharSheet,
+    showNPCTracker,
+    showLocations,
+    showError,
+    showConfirm,
+    showQuietNotice,
+  } from "../stores/ui.js"
   import { autoresize } from "./actions/autoresize.js"
   import IconDots from "../icons/IconDots.svelte"
-  import IconDownload from "../icons/IconDownload.svelte"
   import IconFace from "../icons/IconFace.svelte"
   import IconHome from "../icons/IconHome.svelte"
+  import IconMapPin from "../icons/IconMapPin.svelte"
   import IconPencilSquare from "../icons/IconPencilSquare.svelte"
   import IconSend from "../icons/IconSend.svelte"
   import IconSpinner from "../icons/IconSpinner.svelte"
@@ -512,15 +520,6 @@
     navigate("home", { reset: true })
   }
 
-  function downloadStory() {
-    if (!$currentStoryId) return
-    const a = document.createElement("a")
-    a.href = api.stories.exportUrl($currentStoryId)
-    a.download = `story-${$currentStoryId}.json`
-    a.click()
-    showMenu = false
-  }
-
   // Split narrative into paragraphs for proper rendering
   function paragraphs(text: string): string[] {
     let normalized = text.replace(/\r\n/g, "\n")
@@ -789,13 +788,15 @@
       <button class="hbtn mobile-only" title="NPC Tracker" onclick={() => showNPCTracker.update((v) => !v)}>
         <IconUsers size={15} strokeWidth={1.8} />
       </button>
+      <button class="hbtn mobile-only" title="Locations" onclick={() => showLocations.update((v) => !v)}>
+        <IconMapPin size={15} strokeWidth={1.8} />
+      </button>
       <div class="menu-wrap">
         <button class="hbtn" aria-label="More options" onclick={() => (showMenu = !showMenu)}>
           <IconDots size={15} strokeWidth={1.8} />
         </button>
         {#if showMenu}
           <div class="dropdown">
-            <button onclick={downloadStory}>Export JSON</button>
             <button onclick={goHome} class="danger-item">← Back to Stories</button>
           </div>
         {/if}
@@ -1054,8 +1055,8 @@
       <button class="tbtn" onclick={() => showNPCTracker.update((v) => !v)} title="NPCs">
         <IconUsers size={14} strokeWidth={1.8} />
       </button>
-      <button class="tbtn" onclick={downloadStory} title="Export">
-        <IconDownload size={14} strokeWidth={1.8} />
+      <button class="tbtn" onclick={() => showLocations.update((v) => !v)} title="Locations">
+        <IconMapPin size={14} strokeWidth={1.8} />
       </button>
     </div>
   </div>

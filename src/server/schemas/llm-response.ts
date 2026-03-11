@@ -11,26 +11,18 @@ export const buildNPCStateUpdateSchema = (nameSchema: z.ZodType<string>): z.ZodT
   const withRace = base.extend({ race: z.string().min(1).describe(desc("llm.npc_update.race")) })
   const withGender = base.extend({ gender: z.string().min(1).describe(desc("llm.npc_update.gender")) })
   const withLocation = base.extend({ set_location: z.string().min(1).describe(desc("llm.npc_update.set_location")) })
-  const withAppearance = base.extend({ set_appearance: z.string().min(1).describe(desc("llm.npc_update.set_appearance")) })
+  const withAppearance = base.extend({
+    set_appearance: z.string().min(1).describe(desc("llm.npc_update.set_appearance")),
+  })
   const withClothing = base.extend({ set_clothing: z.string().min(1).describe(desc("llm.npc_update.set_clothing")) })
   const withRelationship = base.extend({
     set_relationship: z.string().min(1).describe(desc("llm.npc_update.set_relationship")),
   })
   const withNotes = base.extend({ set_notes: z.string().min(1).describe(desc("llm.npc_update.set_notes")) })
-  return z.union([
-    withRace,
-    withGender,
-    withLocation,
-    withAppearance,
-    withClothing,
-    withRelationship,
-    withNotes,
-  ])
+  return z.union([withRace, withGender, withLocation, withAppearance, withClothing, withRelationship, withNotes])
 }
 
-export const NPCStateUpdateSchema = buildNPCStateUpdateSchema(
-  z.string().min(1).describe(desc("llm.npc_update.name")),
-)
+export const NPCStateUpdateSchema = buildNPCStateUpdateSchema(z.string().min(1).describe(desc("llm.npc_update.name")))
 
 export const NPCCreationSchema = z
   .object({
@@ -50,9 +42,7 @@ export const AppearanceChangeSection = z.string().min(1).describe(desc("llm.turn
 
 export const ClothingChangeSection = z.string().min(1).describe(desc("llm.turn_response.clothing_change"))
 
-export const InventoryChangeSection = z
-  .array(InventoryItemSchema)
-  .describe(desc("llm.turn_response.inventory_change"))
+export const InventoryChangeSection = z.array(InventoryItemSchema).describe(desc("llm.turn_response.inventory_change"))
 
 export const buildNPCChangesSection = (nameSchema: z.ZodType<string>) => {
   const updateSchema = buildNPCStateUpdateSchema(nameSchema)
@@ -60,16 +50,11 @@ export const buildNPCChangesSection = (nameSchema: z.ZodType<string>) => {
 }
 export const NPCChangesSection = buildNPCChangesSection(z.string().min(1).describe(desc("llm.npc_update.name")))
 
-export const NPCIntroductionsSection = z
-  .array(NPCCreationSchema)
-  .describe(desc("llm.turn_response.npc_introductions"))
+export const NPCIntroductionsSection = z.array(NPCCreationSchema).describe(desc("llm.turn_response.npc_introductions"))
 
 export const TurnResponseSchema = z
   .object({
-    narrative_text: z
-      .string()
-      .min(1)
-      .describe(desc("llm.turn_response.narrative_text")),
+    narrative_text: z.string().min(1).describe(desc("llm.turn_response.narrative_text")),
     world_state_update: WorldStateSchema.describe(desc("llm.turn_response.world_state_update")),
     appearance_change: AppearanceChangeSection.optional(),
     clothing_change: ClothingChangeSection.optional(),

@@ -1,6 +1,14 @@
 import { DAY_NAMES, DEFAULT_RECENT_EVENTS_SUMMARY } from "./constants.js"
 import { npcTraitEnumValues, npcTraitLookup } from "./npc-traits.js"
 
+type NormalizedLocationItem = { name: string; description: string }
+type NormalizedLocation = {
+  name: string
+  description: string
+  characters: string[]
+  available_items: NormalizedLocationItem[]
+}
+
 export function normalizeDayOfWeek(value: unknown): string {
   if (typeof value === "string") {
     const trimmed = value.trim().toLowerCase()
@@ -116,4 +124,83 @@ export function normalizeAppearance(value: unknown): { physical_description: str
     physical_description: "Unknown appearance",
     current_clothing: "Unknown clothing",
   }
+}
+
+function normalizeStringList(value: unknown): string[] {
+  const items: string[] = []
+  if (Array.isArray(value)) {
+    for (const entry of value) {
+      if (typeof entry !== "string") continue
+      const trimmed = entry.trim()
+      if (!trimmed) continue
+      if (!items.includes(trimmed)) items.push(trimmed)
+    }
+  }
+  return items
+}
+
+function normalizeLocationItems(value: unknown): NormalizedLocationItem[] {
+  const items: NormalizedLocationItem[] = []
+  if (Array.isArray(value)) {
+    for (const entry of value) {
+      if (!entry || typeof entry !== "object") continue
+      const obj = entry as Record<string, unknown>
+      const name = normalizeNonEmptyString(obj.name, "")
+      if (!name) continue
+      const description = normalizeNonEmptyString(obj.description, "Unknown item")
+      items.push({ name, description })
+    }
+  }
+  return items
+}
+
+export function normalizeLocations(value: unknown, fallbackScene: string): NormalizedLocation[] {
+  const locations: NormalizedLocation[] = []
+  if (Array.isArray(value)) {
+    for (const entry of value) {
+      if (!entry || typeof entry !== "object") continue
+      const obj = entry as Record<string, unknown>
+      const name = normalizeNonEmptyString(obj.name, "")
+      if (!name) continue
+      const description = normalizeNonEmptyString(obj.description, "Unknown location details")
+      const characters = normalizeStringList(obj.characters)
+      const available_items = normalizeLocationItems(obj.available_items)
+      locations.push({ name, description, characters, available_items })
+    }
+  }
+
+  if (locations.length === 0) {
+    const fallback = normalizeNonEmptyString(fallbackScene, "Unknown location")
+    locations.push({
+      name: fallback,
+      description: "Unknown location details",
+      characters: [],
+      available_items: [],
+    })
+  }
+
+  const fallbackName = normalizeNonEmptyString(fallbackScene, "")
+  if (fallbackName) {
+    const fallbackKey = fallbackName.trim().toLowerCase()
+    const hasScene = locations.some((location) => location.name.trim().toLowerCase() === fallbackKey)
+    if (!hasScene) {
+      locations.push({
+        name: fallbackName,
+        description: "Unknown location details",
+        characters: [],
+        available_items: [],
+      })
+    }
+  }
+
+  const deduped: NormalizedLocation[] = []
+  const seen = new Set<string>()
+  for (const location of locations) {
+    const key = location.name.trim().toLowerCase()
+    if (!key || seen.has(key)) continue
+    seen.add(key)
+    deduped.push(location)
+  }
+
+  return deduped
 }

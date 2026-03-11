@@ -225,7 +225,6 @@
     }
   }
 
-
   let lastNpcSigs = new Map<string, string>()
   let lastLlmUpdateId = 0
   let flashNpcNames = $state<string[]>([])

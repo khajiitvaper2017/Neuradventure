@@ -36,6 +36,92 @@ function applyPlayerUpdate(character: MainCharacterState, turnResponse: TurnResp
   }
 }
 
+function mergeLocations(previous: WorldState["locations"], updated: WorldState["locations"]): WorldState["locations"] {
+  const merged = new Map<string, WorldState["locations"][number]>()
+  for (const location of previous) {
+    const key = location.name.trim().toLowerCase()
+    if (!key) continue
+    merged.set(key, location)
+  }
+  for (const location of updated) {
+    const key = location.name.trim().toLowerCase()
+    if (!key) continue
+    merged.set(key, location)
+  }
+  return Array.from(merged.values())
+}
+
+function syncLocationCharacters(world: WorldState, character: MainCharacterState, npcs: NPCState[]): WorldState {
+  const locations = world.locations.map((location) => ({
+    ...location,
+    characters: [...location.characters],
+  }))
+  const locationLookup = new Map<string, (typeof locations)[number]>()
+  for (const location of locations) {
+    const key = location.name.trim().toLowerCase()
+    if (!key) continue
+    if (!locationLookup.has(key)) locationLookup.set(key, location)
+  }
+
+  const playerName = character.name.trim()
+
+  const removeCharacter = (name: string) => {
+    const key = name.trim().toLowerCase()
+    if (!key) return
+    for (const location of locations) {
+      location.characters = location.characters.filter((entry) => entry.trim().toLowerCase() !== key)
+    }
+  }
+
+  if (playerName) removeCharacter(playerName)
+  for (const npc of npcs) {
+    if (npc.name.trim()) removeCharacter(npc.name)
+  }
+
+  const ensureLocation = (locationName: string) => {
+    const key = locationName.trim().toLowerCase()
+    if (!key) return null
+    const existing = locationLookup.get(key)
+    if (existing) return existing
+    const created = {
+      name: locationName.trim(),
+      description: "Unknown location details",
+      characters: [],
+      available_items: [],
+    }
+    locations.push(created)
+    locationLookup.set(key, created)
+    return created
+  }
+
+  const currentLocation = ensureLocation(world.current_scene)
+  if (currentLocation && playerName) {
+    currentLocation.characters.push(playerName)
+  }
+
+  for (const npc of npcs) {
+    const locationName = npc.last_known_location.trim()
+    if (!locationName) continue
+    const location = ensureLocation(locationName)
+    if (!location) continue
+    location.characters.push(npc.name)
+  }
+
+  for (const location of locations) {
+    const seen = new Set<string>()
+    location.characters = location.characters.filter((entry) => {
+      const key = entry.trim()
+      if (!key) return false
+      const lower = key.toLowerCase()
+      if (seen.has(lower)) return false
+      seen.add(lower)
+      return true
+    })
+  }
+
+  return { ...world, locations }
+}
+
 function buildNpcFromCreation(creation: NPCCreation): NPCState {
   return {
     name: creation.name,
@@ -92,7 +178,8 @@ function collectLlmWarnings(world: WorldState, npcs: NPCState[], turnResponse: T
     worldUpdate.current_scene === world.current_scene &&
     worldUpdate.time_of_day === world.time_of_day &&
     worldUpdate.day_of_week === world.day_of_week &&
-    worldUpdate.recent_events_summary === world.recent_events_summary
+    worldUpdate.recent_events_summary === world.recent_events_summary &&
+    JSON.stringify(worldUpdate.locations) === JSON.stringify(world.locations)
   ) {
     warnings.push("world_state_update matches existing world state")
   }
@@ -151,10 +238,7 @@ export interface CreateNpcResult {
   npcs: NPCState[]
 }
 
-export async function createNpcFromTurnPrompt(
-  storyId: number,
-  npcName: string,
-): Promise<CreateNpcResult> {
+export async function createNpcFromTurnPrompt(storyId: number, npcName: string): Promise<CreateNpcResult> {
   const story = db.getStory(storyId)
   if (!story) throw new Error(`Story ${storyId} not found`)
 
@@ -177,7 +261,8 @@ export async function createNpcFromTurnPrompt(
   const updatedNpcs = applyNPCCreations(npcs, [creation])
   const newNpc = buildNpcFromCreation(creation)
 
-  db.updateStory(storyId, character, world, updatedNpcs)
+  const syncedWorld = syncLocationCharacters(world, character, updatedNpcs)
+  db.updateStory(storyId, character, syncedWorld, updatedNpcs)
 
   return {
     npc: newNpc,
@@ -202,18 +287,17 @@ export async function processTurn(
   const ctxLimit = getCtxLimitCached()
 
   const messages = buildTurnMessages(character, world, npcs, recentTurns, playerInput, actionMode, initial, ctxLimit)
-  const turnResponse = await callLLM(
-    messages,
-    npcs,
-  )
+  const turnResponse = await callLLM(messages, npcs)
   const llmWarnings = collectLlmWarnings(world, npcs, turnResponse)
 
   const newCharacter = applyPlayerUpdate(character, turnResponse)
-  const newWorld = turnResponse.world_state_update
   const npcUpdates: NPCUpdateArray = turnResponse.npc_changes ?? []
   const updatedNpcs = applyNPCUpdates(npcs, npcUpdates)
   const npcCreations: NPCCreation[] = turnResponse.npc_introductions ?? []
   const newNpcs = applyNPCCreations(updatedNpcs, npcCreations)
+  const worldUpdate = turnResponse.world_state_update
+  const mergedLocations = mergeLocations(world.locations, worldUpdate.locations)
+  const newWorld = syncLocationCharacters({ ...worldUpdate, locations: mergedLocations }, newCharacter, newNpcs)
 
   db.updateStory(storyId, newCharacter, newWorld, newNpcs)
 
@@ -244,10 +328,7 @@ export async function processTurn(
   }
 }
 
-export async function impersonatePlayerAction(
-  storyId: number,
-  actionMode: string,
-): Promise<{ player_action: string }> {
+export async function impersonatePlayerAction(storyId: number, actionMode: string): Promise<{ player_action: string }> {
   const story = db.getStory(storyId)
   if (!story) throw new Error(`Story ${storyId} not found`)
 
@@ -471,10 +552,7 @@ export async function regenerateLastTurn(storyId: number, actionMode?: string): 
     initial,
     ctxLimit,
   )
-  const turnResponse = await callLLM(
-    messages,
-    snapshot.npcs,
-  )
+  const turnResponse = await callLLM(messages, snapshot.npcs)
   const llmWarnings = collectLlmWarnings(snapshot.world, snapshot.npcs, turnResponse)
 
   const newCharacter = applyPlayerUpdate(snapshot.character, turnResponse)
@@ -559,11 +637,26 @@ export function createNewStory(
   startingScene?: string,
   characterId: number | null = null,
 ): number {
+  const sceneName = startingScene?.trim() || "Unknown location"
+  const sceneCharacters = [
+    character.name,
+    ...npcs
+      .filter((npc) => npc.last_known_location.trim().toLowerCase() === sceneName.trim().toLowerCase())
+      .map((npc) => npc.name),
+  ]
   const world: WorldState = {
-    current_scene: startingScene?.trim() || "Unknown location",
+    current_scene: sceneName,
     day_of_week: "Monday",
     time_of_day: "day",
     recent_events_summary: opening_scenario.trim(),
+    locations: [
+      {
+        name: sceneName,
+        description: "Unknown location details",
+        characters: sceneCharacters,
+        available_items: [],
+      },
+    ],
   }
   return db.createStory(title, opening_scenario, character, world, npcs, characterId)
 }

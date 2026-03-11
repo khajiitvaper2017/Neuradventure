@@ -16,12 +16,12 @@ generate.post(
     }),
   ),
   async (c) => {
-  const { description } = c.req.valid("json")
-  try {
-    return c.json(await generateCharacter(description))
-  } catch (err) {
-    return c.json({ error: err instanceof Error ? err.message : "Generation failed" }, 500)
-  }
+    const { description } = c.req.valid("json")
+    try {
+      return c.json(await generateCharacter(description))
+    } catch (err) {
+      return c.json({ error: err instanceof Error ? err.message : "Generation failed" }, 500)
+    }
   },
 )
 
@@ -31,15 +31,15 @@ const characterContextSchema = z.object({
   gender: z.string().default("").describe(desc("requests.generate_character_context.gender")),
   appearance: z
     .object({
-      physical_description: z
-        .string()
-        .default("")
-        .describe(desc("state.appearance.physical_description")),
+      physical_description: z.string().default("").describe(desc("state.appearance.physical_description")),
       current_clothing: z.string().default("").describe(desc("state.appearance.current_clothing")),
     })
     .default({ physical_description: "", current_clothing: "" })
     .describe(desc("requests.generate_character_context.appearance")),
-  personality_traits: z.array(z.string()).default([]).describe(desc("requests.generate_character_context.personality_traits")),
+  personality_traits: z
+    .array(z.string())
+    .default([])
+    .describe(desc("requests.generate_character_context.personality_traits")),
   custom_traits: z.array(z.string()).default([]).describe(desc("requests.generate_character_context.custom_traits")),
 })
 

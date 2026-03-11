@@ -20,6 +20,17 @@ const world: WorldState = {
   day_of_week: "Tuesday",
   time_of_day: "21:00",
   recent_events_summary: "You arrived in the village of Ashford after a long journey through the rain.",
+  locations: [
+    {
+      name: "The Rusted Flagon tavern",
+      description: "Low-ceilinged taproom with smoke-stained beams and a crowded bar.",
+      characters: ["Kira"],
+      available_items: [
+        { name: "Wooden stool", description: "scarred stool with a missing rung" },
+        { name: "Tin mug", description: "dented mug with stale ale residue" },
+      ],
+    },
+  ],
 }
 
 const npcs: NPCState[] = []
@@ -39,10 +50,7 @@ async function main() {
   console.log("\nUser context:", messages[1].content)
 
   console.log("\nCalling LLM...")
-  const response = await callLLM(
-    messages,
-    npcs,
-  )
+  const response = await callLLM(messages, npcs)
   console.log("\n=== LLM Response ===")
   console.log("Narrative:", response.narrative_text)
   console.log("\nWorld update:", response.world_state_update)

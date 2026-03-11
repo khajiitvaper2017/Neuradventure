@@ -89,6 +89,7 @@ export function goBack(fallback: Screen = "home") {
 }
 export const showCharSheet = writable(false)
 export const showNPCTracker = writable(false)
+export const showLocations = writable(false)
 export const errorMessage = writable<string | null>(null)
 export const quietNotice = writable<string | null>(null)
 

@@ -120,14 +120,6 @@
     openMenuId = null
   }
 
-  function downloadStory(id: number) {
-    const a = document.createElement("a")
-    a.href = api.stories.exportUrl(id)
-    a.download = `story-${id}.json`
-    a.click()
-    openMenuId = null
-  }
-
   async function importStory() {
     const input = document.createElement("input")
     input.type = "file"
@@ -259,7 +251,6 @@
             </button>
             {#if openMenuId === story.id}
               <div class="dropdown">
-                <button onclick={() => downloadStory(story.id)}>Export JSON</button>
                 <button class="danger-item" onclick={() => deleteStory(story.id)}>Delete</button>
               </div>
             {/if}

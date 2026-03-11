@@ -10,16 +10,17 @@
       "npc_introductions": "List of newly introduced NPCs with full details."
     },
     "world_state_update": {
-      "current_scene": "1-4 word description of the player's immediate location.",
+      "current_scene": "Unique 1-5 word name of the player's immediate location.",
       "day_of_week": "Day of week (Monday-Sunday).",
       "time_of_day": "24-hour HH:MM time.",
-      "recent_events_summary": "1-3 sentences summarizing what just happened."
+      "recent_events_summary": "1-3 sentences summarizing what just happened.",
+      "locations": "List of all known locations in the story so far."
     },
     "npc_update": {
       "name": "NPC name to update.",
       "race": "Updated race.",
       "gender": "Updated gender.",
-      "set_location": "Last known location. Update only when changed.",
+      "set_location": "Last known unique location name. Update only when changed.",
       "set_appearance": "Objective, clinical description of current physical state; baseline features only. State current facts only; avoid temporal qualifiers (e.g., \"still\") and comparative phrases (e.g., \"otherwise unchanged\").",
       "set_clothing": "Complete list of items currently worn, including all layers and accessories.",
       "set_relationship": "Updated relationship to the player.",
@@ -30,7 +31,7 @@
       "race": "NPC race.",
       "gender": "NPC gender.",
       "personality_traits": "2-5 personality traits; prefer the allowed list when available.",
-      "set_location": "Specific 1-5 word location for the NPC.",
+      "set_location": "Specific 1-5 word unique location name for the NPC.",
       "set_appearance": "Objective, clinical description of current physical state; baseline features only. State current facts only; avoid temporal qualifiers (e.g., \"still\") and comparative phrases (e.g., \"otherwise unchanged\").",
       "set_clothing": "Complete list of items currently worn, including all layers and accessories.",
       "set_relationship": "Relationship to the player.",
@@ -41,6 +42,16 @@
     "inventory_item": {
       "name": "Item name.",
       "description": "Short item description."
+    },
+    "location_item": {
+      "name": "Item name.",
+      "description": "Short item description."
+    },
+    "location": {
+      "name": "Unique location name.",
+      "description": "Short description of how the location looks.",
+      "characters": "List of characters currently in this location.",
+      "available_items": "List of items available to use or take in this location."
     },
     "appearance": {
       "physical_description": "Objective, clinical description of current physical state; baseline features only.",
@@ -59,7 +70,7 @@
       "name": "NPC name.",
       "race": "NPC race.",
       "gender": "NPC gender.",
-      "last_known_location": "NPC last known location.",
+      "last_known_location": "NPC last known unique location name.",
       "appearance": "NPC appearance object.",
       "personality_traits": "NPC personality traits (2-5).",
       "relationship_to_player": "NPC relationship to the player.",
@@ -89,7 +100,7 @@
     "story": {
       "title": "3-5 word title tied to the opening scenario.",
       "opening_scenario": "1-3 paragraphs separated by a blank line.",
-      "starting_location": "1-3 word starting location.",
+      "starting_location": "1-3 word unique starting location name.",
       "pregen_npcs": "List of pre-generated NPCs with full details."
     }
   },

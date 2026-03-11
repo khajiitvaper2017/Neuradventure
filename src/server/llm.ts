@@ -191,13 +191,19 @@ function getSystemPrompt(): string {
 
 function getNpcCreationPrompt(): string {
   const config = getConfig()
-  const lines = config.npcCreationPrompt && config.npcCreationPrompt.length > 0 ? config.npcCreationPrompt : config.systemPromptLines
+  const lines =
+    config.npcCreationPrompt && config.npcCreationPrompt.length > 0
+      ? config.npcCreationPrompt
+      : config.systemPromptLines
   return lines.join("\n").replace("{npcTraits}", npcTraits.join(", "))
 }
 
 function getImpersonatePrompt(): string {
   const config = getConfig()
-  const lines = config.impersonatePrompt && config.impersonatePrompt.length > 0 ? config.impersonatePrompt : DEFAULT_IMPERSONATE_PROMPT
+  const lines =
+    config.impersonatePrompt && config.impersonatePrompt.length > 0
+      ? config.impersonatePrompt
+      : DEFAULT_IMPERSONATE_PROMPT
   return lines.join("\n")
 }
 
@@ -229,6 +235,25 @@ function formatNPCs(npcs: NPCState[]): string {
         `  Location: ${npc.last_known_location}\n` +
         `  Notes: ${npc.notes}`,
     )
+    .join("\n\n")
+}
+
+function formatLocations(locations: WorldState["locations"]): string {
+  if (!locations || locations.length === 0) return ""
+  return locations
+    .map((location) => {
+      const characters = location.characters.length > 0 ? location.characters.join(", ") : "none"
+      const items =
+        location.available_items.length > 0
+          ? location.available_items.map((item) => `${item.name} (${item.description})`).join(", ")
+          : "none"
+      return (
+        `[${location.name}]\n` +
+        `  Description: ${location.description}\n` +
+        `  Characters: ${characters}\n` +
+        `  Items: ${items}`
+      )
+    })
     .join("\n\n")
 }
 
@@ -299,6 +324,8 @@ export function buildTurnMessages(
   ctxLimitOverride?: number,
 ): OpenAI.ChatCompletionMessageParam[] {
   const npcSection = npcs.length > 0 ? `=== KNOWN NPCs ===\n${formatNPCs(npcs)}` : ""
+  const locationSection =
+    world.locations && world.locations.length > 0 ? `=== LOCATIONS ===\n${formatLocations(world.locations)}` : ""
   const initial = initialCharacter ?? character
   const ctxLimit = ctxLimitOverride ?? getGenerationParams().ctx_limit
 
@@ -338,12 +365,25 @@ export function buildTurnMessages(
 
   const joinSections = (sections: Array<string | null | undefined>): string => sections.filter(Boolean).join("\n\n")
   const storyHeader = "=== STORY SO FAR ==="
-  const afterHistory = joinSections([baseSection, currentSection, npcSection || null, storyContext, actionBlock])
+  const afterHistory = joinSections([
+    baseSection,
+    currentSection,
+    npcSection || null,
+    locationSection || null,
+    storyContext,
+    actionBlock,
+  ])
   const baseTokens = estimateTokens(joinSections([initialSection, storyHeader, afterHistory]))
   const { summary, history } = buildHistoryBlock(recentTurns, world, ctxLimit, baseTokens)
 
   const storySoFarHeader = history ? storyHeader : null
-  const contextBlock = joinSections([initialSection, summary || null, storySoFarHeader, history || null, afterHistory || null])
+  const contextBlock = joinSections([
+    initialSection,
+    summary || null,
+    storySoFarHeader,
+    history || null,
+    afterHistory || null,
+  ])
 
   return [
     { role: "system", content: getSystemPrompt() },
@@ -360,6 +400,8 @@ export function buildNpcCreationMessages(
   ctxLimitOverride?: number,
 ): OpenAI.ChatCompletionMessageParam[] {
   const npcSection = npcs.length > 0 ? `=== KNOWN NPCs ===\n${formatNPCs(npcs)}` : ""
+  const locationSection =
+    world.locations && world.locations.length > 0 ? `=== LOCATIONS ===\n${formatLocations(world.locations)}` : ""
   const ctxLimit = ctxLimitOverride ?? getGenerationParams().ctx_limit
   const actionBlock = npcName.trim().length > 0 ? `===INTRODUCE NEW NPC===\n${npcName}` : "===INTRODUCE NEW NPC==="
 
@@ -383,7 +425,14 @@ export function buildNpcCreationMessages(
   const joinSections = (sections: Array<string | null | undefined>): string => sections.filter(Boolean).join("\n\n")
 
   const storyHeader = "=== STORY SO FAR ==="
-  const afterHistory = joinSections([baseSection, currentSection, npcSection || null, storyContext, actionBlock])
+  const afterHistory = joinSections([
+    baseSection,
+    currentSection,
+    npcSection || null,
+    locationSection || null,
+    storyContext,
+    actionBlock,
+  ])
   const baseTokens = estimateTokens(joinSections([storyHeader, afterHistory]))
   const { summary, history } = buildHistoryBlock(recentTurns, world, ctxLimit, baseTokens)
 
@@ -406,6 +455,8 @@ export function buildImpersonateMessages(
   ctxLimitOverride?: number,
 ): OpenAI.ChatCompletionMessageParam[] {
   const npcSection = npcs.length > 0 ? `=== KNOWN NPCs ===\n${formatNPCs(npcs)}` : ""
+  const locationSection =
+    world.locations && world.locations.length > 0 ? `=== LOCATIONS ===\n${formatLocations(world.locations)}` : ""
   const initial = initialCharacter ?? character
   const ctxLimit = ctxLimitOverride ?? getGenerationParams().ctx_limit
   const actionModeHint =
@@ -440,12 +491,25 @@ export function buildImpersonateMessages(
   const joinSections = (sections: Array<string | null | undefined>): string => sections.filter(Boolean).join("\n\n")
 
   const storyHeader = "=== STORY SO FAR ==="
-  const afterHistory = joinSections([baseSection, currentSection, npcSection || null, storyContext, actionModeSection])
+  const afterHistory = joinSections([
+    baseSection,
+    currentSection,
+    npcSection || null,
+    locationSection || null,
+    storyContext,
+    actionModeSection,
+  ])
   const baseTokens = estimateTokens(joinSections([initialSection, storyHeader, afterHistory]))
   const { summary, history } = buildHistoryBlock(recentTurns, world, ctxLimit, baseTokens)
 
   const storySoFarHeader = history ? storyHeader : null
-  const contextBlock = joinSections([initialSection, summary || null, storySoFarHeader, history || null, afterHistory || null])
+  const contextBlock = joinSections([
+    initialSection,
+    summary || null,
+    storySoFarHeader,
+    history || null,
+    afterHistory || null,
+  ])
   const prompt = `${contextBlock}\n\n=== PLAYER'S ACTION ===\n`
 
   return [
@@ -505,14 +569,10 @@ function buildSamplingParams(
 }
 
 function buildTurnResponseSchema(knownNpcs: NPCState[]): z.ZodType<TurnResponse, z.ZodTypeDef, unknown> {
-  const uniqueNames = Array.from(
-    new Set(knownNpcs.map((npc) => npc.name.trim()).filter((name) => name.length > 0)),
-  )
+  const uniqueNames = Array.from(new Set(knownNpcs.map((npc) => npc.name.trim()).filter((name) => name.length > 0)))
 
   if (uniqueNames.length === 0) {
-    const emptyUpdates = buildNPCStateUpdateSchema(
-      z.string().min(1).describe(desc("llm.npc_update.name")),
-    )
+    const emptyUpdates = buildNPCStateUpdateSchema(z.string().min(1).describe(desc("llm.npc_update.name")))
     return TurnResponseSchema.extend({
       npc_changes: z.array(emptyUpdates).max(0).optional(),
     })
@@ -638,13 +698,13 @@ function extractFirstJsonValue(text: string): string | null {
         escape = true
         continue
       }
-      if (char === "\"") {
+      if (char === '"') {
         inString = false
       }
       continue
     }
 
-    if (char === "\"") {
+    if (char === '"') {
       inString = true
       continue
     }
