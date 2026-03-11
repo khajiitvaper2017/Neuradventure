@@ -1,7 +1,9 @@
 <script lang="ts">
-  import { showNPCTracker } from "../stores/ui.js"
-  import { npcs, llmUpdateId } from "../stores/game.js"
+  import { api, ApiError } from "../api/client.js"
+  import { showNPCTracker, showError, showQuietNotice } from "../stores/ui.js"
+  import { currentStoryId, npcs, llmUpdateId } from "../stores/game.js"
   import type { NPCState } from "../api/client.js"
+  import { autoresize } from "./actions/autoresize.js"
   import IconMale from "../icons/IconMale.svelte"
   import IconFemale from "../icons/IconFemale.svelte"
   import IconFace from "../icons/IconFace.svelte"
@@ -36,6 +38,85 @@
     return "#888"
   }
 
+  function splitCsv(value: string): string[] {
+    return value
+      .split(",")
+      .map((item) => item.trim())
+      .filter((item) => item.length > 0)
+  }
+
+  function npcFieldId(npc: NPCState, field: string): string {
+    const base = npc.name
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/(^-|-$)/g, "")
+    return `npc-${field}-${base || "unknown"}`
+  }
+
+  function startNpcEdit(npc: NPCState) {
+    editingNpcName = npc.name
+    draftName = npc.name
+    draftRace = npc.race
+    draftGender = npc.gender
+    draftRelationship = npc.relationship_to_player
+    draftLocation = npc.last_known_location
+    draftAppearance = npc.appearance.physical_description
+    draftClothing = npc.appearance.current_clothing
+    draftNotes = npc.notes ?? ""
+    draftTraits = npc.personality_traits.join(", ")
+  }
+
+  function cancelNpcEdit() {
+    editingNpcName = null
+  }
+
+  async function saveNpcEdit() {
+    if (!$currentStoryId) {
+      showError("No active story to update.")
+      return
+    }
+    if (!editingNpcName) return
+    const name = draftName.trim()
+    const race = draftRace.trim()
+    const gender = draftGender.trim()
+    const relationship = draftRelationship.trim()
+    const location = draftLocation.trim()
+    const appearance = draftAppearance.trim()
+    const clothing = draftClothing.trim()
+    const notes = draftNotes.trim() || "None"
+    if (!name || !race || !gender || !relationship || !location || !appearance || !clothing) {
+      showError("Name, race, gender, relationship, location, appearance, and clothing are required.")
+      return
+    }
+    const traits = splitCsv(draftTraits)
+    const updatedNpc: NPCState = {
+      name,
+      race,
+      gender,
+      relationship_to_player: relationship,
+      last_known_location: location,
+      appearance: { physical_description: appearance, current_clothing: clothing },
+      personality_traits: traits,
+      notes,
+    }
+    const updatedList = $npcs.map((npc) => (npc.name === editingNpcName ? updatedNpc : npc))
+    savingNpc = true
+    try {
+      const result = await api.stories.updateState($currentStoryId, { npcs: updatedList })
+      npcs.set(result.npcs)
+      showQuietNotice("NPC updated.")
+      editingNpcName = null
+    } catch (err) {
+      if (err instanceof ApiError) {
+        showError(err.message)
+      } else {
+        showError("Failed to update NPC.")
+      }
+    } finally {
+      savingNpc = false
+    }
+  }
+
   let lastNpcSigs = new Map<string, string>()
   let lastLlmUpdateId = 0
   let flashNpcNames = $state<string[]>([])
@@ -45,6 +126,17 @@
   let sidebarBodyEl = $state<HTMLElement | null>(null)
   let panelBodyEl = $state<HTMLElement | null>(null)
   let lastSortSig = $state("")
+  let editingNpcName = $state<string | null>(null)
+  let savingNpc = $state(false)
+  let draftName = $state("")
+  let draftRace = $state("")
+  let draftGender = $state("")
+  let draftRelationship = $state("")
+  let draftLocation = $state("")
+  let draftAppearance = $state("")
+  let draftClothing = $state("")
+  let draftNotes = $state("")
+  let draftTraits = $state("")
 
   function npcSignature(npc: NPCState): string {
     return [
@@ -171,6 +263,12 @@
       lastLlmUpdateId = $llmUpdateId
     }
   })
+
+  $effect(() => {
+    if (!inline && !$showNPCTracker && editingNpcName) {
+      editingNpcName = null
+    }
+  })
 </script>
 
 {#snippet npcContent()}
@@ -191,47 +289,108 @@
             </div>
             <div class="npc-race">{npc.race}{npc.gender ? ` · ${npc.gender}` : ""}</div>
           </div>
-          <div
-            class="npc-rel-badge"
-            style="color: {relationshipColor(npc.relationship_to_player)}; border-color: {relationshipColor(
-              npc.relationship_to_player,
-            )}"
-          >
-            {npc.relationship_to_player}
+          <div class="npc-header-actions">
+            <div
+              class="npc-rel-badge"
+              style="color: {relationshipColor(npc.relationship_to_player)}; border-color: {relationshipColor(
+                npc.relationship_to_player,
+              )}"
+            >
+              {npc.relationship_to_player}
+            </div>
+            <button
+              class="npc-edit-btn"
+              onclick={() => startNpcEdit(npc)}
+              disabled={savingNpc ||
+                editingNpcName === npc.name ||
+                (editingNpcName && editingNpcName !== npc.name) ||
+                !$currentStoryId}
+            >
+              {editingNpcName === npc.name ? "Editing" : "Edit"}
+            </button>
           </div>
         </div>
 
-        <div class="npc-detail-row">
-          <IconMapPin size={13} strokeWidth={1.5} className="npc-icon" />
-          <span>{npc.last_known_location}</span>
-        </div>
-
-        <div class="npc-detail-row">
-          <IconFace size={13} strokeWidth={1.5} className="npc-icon" />
-          <span>{npc.appearance.physical_description}</span>
-        </div>
-
-        <div class="npc-detail-row muted">
-          <IconShirt size={13} strokeWidth={1.5} className="npc-icon" />
-          <span>{npc.appearance.current_clothing}</span>
-        </div>
-
-        {#if npc.personality_traits.length > 0}
-          <div class="npc-traits">
-            <IconStar size={13} strokeWidth={1.5} className="npc-icon npc-traits-icon" />
-            <div class="chips">
-              {#each npc.personality_traits as trait}
-                <span class="chip">{trait}</span>
-              {/each}
+        {#if editingNpcName === npc.name}
+          <div class="npc-edit">
+            <div class="field">
+              <label for={npcFieldId(npc, "name")}>Name</label>
+              <input id={npcFieldId(npc, "name")} type="text" bind:value={draftName} />
+            </div>
+            <div class="field">
+              <label for={npcFieldId(npc, "race")}>Race</label>
+              <input id={npcFieldId(npc, "race")} type="text" bind:value={draftRace} />
+            </div>
+            <div class="field">
+              <label for={npcFieldId(npc, "gender")}>Gender</label>
+              <input id={npcFieldId(npc, "gender")} type="text" bind:value={draftGender} />
+            </div>
+            <div class="field">
+              <label for={npcFieldId(npc, "relationship")}>Relationship</label>
+              <input id={npcFieldId(npc, "relationship")} type="text" bind:value={draftRelationship} />
+            </div>
+            <div class="field">
+              <label for={npcFieldId(npc, "location")}>Last Known Location</label>
+              <input id={npcFieldId(npc, "location")} type="text" bind:value={draftLocation} />
+            </div>
+            <div class="field">
+              <label for={npcFieldId(npc, "appearance")}>Appearance</label>
+              <textarea id={npcFieldId(npc, "appearance")} bind:value={draftAppearance} use:autoresize={draftAppearance}
+              ></textarea>
+            </div>
+            <div class="field">
+              <label for={npcFieldId(npc, "clothing")}>Clothing</label>
+              <textarea id={npcFieldId(npc, "clothing")} bind:value={draftClothing} use:autoresize={draftClothing}
+              ></textarea>
+            </div>
+            <div class="field">
+              <label for={npcFieldId(npc, "traits")}>Traits (comma separated)</label>
+              <input id={npcFieldId(npc, "traits")} type="text" bind:value={draftTraits} />
+            </div>
+            <div class="field">
+              <label for={npcFieldId(npc, "notes")}>Notes</label>
+              <textarea id={npcFieldId(npc, "notes")} bind:value={draftNotes} use:autoresize={draftNotes}></textarea>
+            </div>
+            <div class="npc-edit-actions">
+              <button class="btn-ghost" onclick={cancelNpcEdit} disabled={savingNpc}>Cancel</button>
+              <button class="btn-primary" onclick={saveNpcEdit} disabled={savingNpc || !$currentStoryId}>
+                {savingNpc ? "Saving..." : "Save"}
+              </button>
             </div>
           </div>
-        {/if}
-
-        {#if npc.notes}
-          <div class="npc-notes">
-            <IconDocument size={13} strokeWidth={1.5} className="npc-icon npc-notes-icon" />
-            <span>{npc.notes}</span>
+        {:else}
+          <div class="npc-detail-row">
+            <IconMapPin size={13} strokeWidth={1.5} className="npc-icon" />
+            <span>{npc.last_known_location}</span>
           </div>
+
+          <div class="npc-detail-row">
+            <IconFace size={13} strokeWidth={1.5} className="npc-icon" />
+            <span>{npc.appearance.physical_description}</span>
+          </div>
+
+          <div class="npc-detail-row muted">
+            <IconShirt size={13} strokeWidth={1.5} className="npc-icon" />
+            <span>{npc.appearance.current_clothing}</span>
+          </div>
+
+          {#if npc.personality_traits.length > 0}
+            <div class="npc-traits">
+              <IconStar size={13} strokeWidth={1.5} className="npc-icon npc-traits-icon" />
+              <div class="chips">
+                {#each npc.personality_traits as trait}
+                  <span class="chip">{trait}</span>
+                {/each}
+              </div>
+            </div>
+          {/if}
+
+          {#if npc.notes}
+            <div class="npc-notes">
+              <IconDocument size={13} strokeWidth={1.5} className="npc-icon npc-notes-icon" />
+              <span>{npc.notes}</span>
+            </div>
+          {/if}
         {/if}
       </div>
     {/each}
@@ -303,6 +462,27 @@
     gap: 0.5rem;
   }
 
+  .npc-header-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+  }
+
+  .npc-edit-btn {
+    background: var(--bg-input);
+    border: 1px solid var(--border);
+    color: var(--text);
+    border-radius: var(--radius-pill);
+    padding: 0.2rem 0.55rem;
+    font-size: 0.65rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+  .npc-edit-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
   .npc-identity {
     display: flex;
     flex-direction: column;
@@ -361,6 +541,19 @@
     flex-shrink: 0;
     margin-top: 2px;
     opacity: 0.35;
+  }
+
+  .npc-edit {
+    display: flex;
+    flex-direction: column;
+    gap: 0.65rem;
+    margin-top: 0.5rem;
+  }
+
+  .npc-edit-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.5rem;
   }
 
   .npc-notes {

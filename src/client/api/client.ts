@@ -59,6 +59,11 @@ export interface StoryDetail {
   updated_at: string
 }
 
+export interface UpdateStoryStateResult {
+  character: MainCharacterState
+  npcs: NPCState[]
+}
+
 export interface StoryCharacterGroup {
   id: number
   character: Omit<MainCharacterState, "inventory">
@@ -273,6 +278,8 @@ export const api = {
     }) => request<{ id: number }>("/api/stories", { method: "POST", body: JSON.stringify(data) }),
     update: (id: number, data: { title?: string; opening_scenario?: string }) =>
       request<{ ok: boolean }>(`/api/stories/${id}`, { method: "PUT", body: JSON.stringify(data) }),
+    updateState: (id: number, data: { character?: MainCharacterState; npcs?: NPCState[] }) =>
+      request<UpdateStoryStateResult>(`/api/stories/${id}/state`, { method: "PUT", body: JSON.stringify(data) }),
     delete: (id: number) => request<{ ok: boolean }>(`/api/stories/${id}`, { method: "DELETE" }),
     exportUrl: (id: number) => `/api/stories/${id}/export`,
     import: (data: object) =>

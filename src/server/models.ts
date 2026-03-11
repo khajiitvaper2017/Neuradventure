@@ -399,6 +399,15 @@ export const UpdateStoryRequestSchema = z.object({
   opening_scenario: z.string().min(1).optional(),
 })
 
+export const UpdateStoryStateRequestSchema = z
+  .object({
+    character: MainCharacterStateSchema.optional(),
+    npcs: z.array(NPCStateStoredSchema).optional(),
+  })
+  .refine((value) => value.character || value.npcs, {
+    message: "Provide character or npcs updates",
+  })
+
 export const UpdateTurnRequestSchema = z.object({
   player_input: z.string().min(1).optional(),
   narrative_text: z.string().min(1).optional(),
@@ -445,6 +454,7 @@ export type NPCCreation = z.infer<typeof NPCCreationSchema>
 
 export type CreateCharacterRequest = z.infer<typeof CreateCharacterRequestSchema>
 export type CreateStoryRequest = z.infer<typeof CreateStoryRequestSchema>
+export type UpdateStoryStateRequest = z.infer<typeof UpdateStoryStateRequestSchema>
 export type TakeTurnRequest = z.infer<typeof TakeTurnRequestSchema>
 export type RegenerateLastRequest = z.infer<typeof RegenerateLastRequestSchema>
 export type CancelLastRequest = z.infer<typeof CancelLastRequestSchema>

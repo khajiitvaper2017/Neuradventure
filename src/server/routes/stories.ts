@@ -8,6 +8,7 @@ import {
   MainCharacterStateSchema,
   NPCStateStoredSchema,
   UpdateStoryRequestSchema,
+  UpdateStoryStateRequestSchema,
   WorldStateStoredSchema,
 } from "../models.js"
 import { createNewStory } from "../game.js"
@@ -114,6 +115,20 @@ stories.put("/:id", zValidator("json", UpdateStoryRequestSchema), (c) => {
   if (!row) return c.json({ error: "Story not found" }, 404)
   db.updateStoryMeta(id, c.req.valid("json"))
   return c.json({ ok: true })
+})
+
+stories.put("/:id/state", zValidator("json", UpdateStoryStateRequestSchema), (c) => {
+  const id = Number(c.req.param("id"))
+  const row = db.getStory(id)
+  if (!row) return c.json({ error: "Story not found" }, 404)
+  const body = c.req.valid("json")
+  const currentCharacter = MainCharacterStateSchema.parse(JSON.parse(row.character_state_json))
+  const currentWorld = WorldStateStoredSchema.parse(JSON.parse(row.world_state_json))
+  const currentNpcs = (JSON.parse(row.npc_states_json) as unknown[]).map((n) => NPCStateStoredSchema.parse(n))
+  const nextCharacter = body.character ? MainCharacterStateSchema.parse(body.character) : currentCharacter
+  const nextNpcs = body.npcs ? body.npcs.map((n) => NPCStateStoredSchema.parse(n)) : currentNpcs
+  db.updateStory(id, nextCharacter, currentWorld, nextNpcs)
+  return c.json({ character: nextCharacter, npcs: nextNpcs })
 })
 
 stories.delete("/:id", (c) => {
