@@ -15,6 +15,14 @@ import { createNewStory } from "../game.js"
 
 const stories = new Hono()
 
+function parseStoryState(row: db.StoryRow) {
+  const world = WorldStateStoredSchema.parse(JSON.parse(row.world_state_json))
+  const initialWorld = WorldStateStoredSchema.parse(JSON.parse(row.initial_world_state_json ?? row.world_state_json))
+  const character = JSON.parse(row.character_state_json)
+  const npcs = (JSON.parse(row.npc_states_json) as unknown[]).map((n) => NPCStateStoredSchema.parse(n))
+  return { character, world, initialWorld, npcs }
+}
+
 stories.get("/", (c) => {
   const rows = db.listStories()
   return c.json(
@@ -62,16 +70,15 @@ stories.get("/:id", (c) => {
   const id = Number(c.req.param("id"))
   const row = db.getStory(id)
   if (!row) return c.json({ error: "Story not found" }, 404)
-  const world = WorldStateStoredSchema.parse(JSON.parse(row.world_state_json))
-  const initialWorld = WorldStateStoredSchema.parse(JSON.parse(row.initial_world_state_json ?? row.world_state_json))
+  const { character, world, initialWorld, npcs } = parseStoryState(row)
   return c.json({
     id: row.id,
     title: row.title,
     opening_scenario: row.opening_scenario,
-    character: JSON.parse(row.character_state_json),
+    character,
     world,
     initial_world: initialWorld,
-    npcs: (JSON.parse(row.npc_states_json) as unknown[]).map((n) => NPCStateStoredSchema.parse(n)),
+    npcs,
     created_at: row.created_at,
     updated_at: row.updated_at,
   })
@@ -123,8 +130,7 @@ stories.put("/:id/state", zValidator("json", UpdateStoryStateRequestSchema), (c)
   if (!row) return c.json({ error: "Story not found" }, 404)
   const body = c.req.valid("json")
   const currentCharacter = MainCharacterStateSchema.parse(JSON.parse(row.character_state_json))
-  const currentWorld = WorldStateStoredSchema.parse(JSON.parse(row.world_state_json))
-  const currentNpcs = (JSON.parse(row.npc_states_json) as unknown[]).map((n) => NPCStateStoredSchema.parse(n))
+  const { world: currentWorld, npcs: currentNpcs } = parseStoryState(row)
   const nextCharacter = body.character ? MainCharacterStateSchema.parse(body.character) : currentCharacter
   const nextNpcs = body.npcs ? body.npcs.map((n) => NPCStateStoredSchema.parse(n)) : currentNpcs
   db.updateStory(id, nextCharacter, currentWorld, nextNpcs)
@@ -141,15 +147,15 @@ stories.get("/:id/export", (c) => {
   const id = Number(c.req.param("id"))
   const row = db.getStory(id)
   if (!row) return c.json({ error: "Story not found" }, 404)
-  const world = WorldStateStoredSchema.parse(JSON.parse(row.world_state_json))
+  const { character, world, npcs } = parseStoryState(row)
   const turns = db.getTurnsForStory(id)
   const data = JSON.stringify(
     {
       title: row.title,
       opening_scenario: row.opening_scenario,
-      character: JSON.parse(row.character_state_json),
+      character,
       world,
-      npcs: (JSON.parse(row.npc_states_json) as unknown[]).map((n) => NPCStateStoredSchema.parse(n)),
+      npcs,
       turns: turns.map((t) => ({
         turn_number: t.turn_number,
         player_input: t.player_input,
