@@ -1,7 +1,7 @@
 <script lang="ts">
   import { api, ApiError } from "../api/client.js"
   import { showNPCTracker, showError, showQuietNotice } from "../stores/ui.js"
-  import { currentStoryId, npcs, llmUpdateId } from "../stores/game.js"
+  import { currentStoryId, npcs, llmUpdateId, markLlmUpdate } from "../stores/game.js"
   import type { NPCState } from "../api/client.js"
   import { autoresize } from "./actions/autoresize.js"
   import { genderIcon, splitCsv } from "./utils/text.js"
@@ -200,6 +200,10 @@
   let lastSortSig = $state("")
   let editingNpcName = $state<string | null>(null)
   let savingNpc = $state(false)
+  let addNpcOpen = $state(false)
+  let addingNpc = $state(false)
+  let addNpcName = $state("")
+  let addNpcDescription = $state("")
   type NpcDraft = {
     name: string
     race: string
@@ -222,6 +226,67 @@
     notes: "",
     traits: "",
   })
+  let canAddNpc = $derived(() => Boolean($currentStoryId) && addNpcName.trim().length > 0 && !addingNpc)
+
+  function resetAddNpcForm() {
+    addNpcName = ""
+    addNpcDescription = ""
+    addNpcOpen = false
+  }
+
+  async function addNpcFromLlm() {
+    if (!$currentStoryId) {
+      showError("No active story to update.")
+      return
+    }
+    const name = addNpcName.trim()
+    if (!name) {
+      showError("Name is required.")
+      return
+    }
+    const description = addNpcDescription.trim()
+    if ($npcs.some((npc) => npc.name.toLowerCase() === name.toLowerCase())) {
+      showError("That NPC already exists.")
+      return
+    }
+    addingNpc = true
+    try {
+      const promptParts = [`Create an NPC with the exact name \"${name}\".`]
+      if (description) {
+        promptParts.push(`Description: ${description}`)
+      }
+      const result = await api.generate.character(promptParts.join(" "))
+      const notesParts: string[] = []
+      if (description) notesParts.push(description)
+      if (result.custom_traits.length > 0) {
+        notesParts.push(`Custom traits: ${result.custom_traits.join(", ")}`)
+      }
+      const newNpc: NPCState = {
+        name,
+        race: result.race,
+        gender: result.gender,
+        last_known_location: "Unknown location",
+        relationship_to_player: "Neutral",
+        appearance: { physical_description: result.physical_description, current_clothing: result.current_clothing },
+        personality_traits: result.personality_traits,
+        notes: notesParts.join(" ").trim() || "None",
+      }
+      const updatedList = [...$npcs, newNpc]
+      const saved = await api.stories.updateState($currentStoryId, { npcs: updatedList })
+      npcs.set(saved.npcs)
+      markLlmUpdate()
+      showQuietNotice("NPC added.")
+      resetAddNpcForm()
+    } catch (err) {
+      if (err instanceof ApiError) {
+        showError(err.message)
+      } else {
+        showError("Failed to add NPC.")
+      }
+    } finally {
+      addingNpc = false
+    }
+  }
 
   function npcSignature(npc: NPCState): string {
     return [
@@ -346,6 +411,48 @@
 </script>
 
 {#snippet npcContent()}
+  <div class="npc-add">
+    <div class="npc-add-header">
+      <div class="npc-add-title">Add NPC</div>
+      <button class="btn-ghost small" onclick={() => (addNpcOpen = !addNpcOpen)} disabled={addingNpc}>
+        {addNpcOpen ? "Hide" : "Add"}
+      </button>
+    </div>
+    {#if addNpcOpen}
+      <div class="npc-add-body">
+        <div class="field">
+          <label for="npc-add-name">Name</label>
+          <input
+            id="npc-add-name"
+            type="text"
+            value={addNpcName}
+            oninput={(e) => (addNpcName = (e.target as HTMLInputElement).value)}
+            placeholder="Required"
+          />
+        </div>
+        <div class="field">
+          <label for="npc-add-description">
+            Description <span class="hint">(optional)</span>
+          </label>
+          <textarea
+            id="npc-add-description"
+            value={addNpcDescription}
+            oninput={(e) => (addNpcDescription = (e.target as HTMLTextAreaElement).value)}
+            use:autoresize={addNpcDescription}
+            placeholder="Optional details the LLM should honor."
+          ></textarea>
+        </div>
+        <div class="npc-add-actions">
+          <button class="btn-ghost small" onclick={resetAddNpcForm} disabled={addingNpc}>
+            Cancel
+          </button>
+          <button class="btn-primary small" onclick={addNpcFromLlm} disabled={!canAddNpc}>
+            {addingNpc ? "Generating..." : "Generate & Add"}
+          </button>
+        </div>
+      </div>
+    {/if}
+  </div>
   {#if $npcs.length === 0}
     <div class="empty">No known characters yet.</div>
   {:else}
@@ -521,6 +628,44 @@
     display: flex;
     align-items: center;
     gap: 0.35rem;
+  }
+
+  .npc-add {
+    background: var(--bg-input);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 0.75rem 0.85rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+
+  .npc-add-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+  }
+
+  .npc-add-title {
+    font-family: var(--font-ui);
+    font-weight: 600;
+    font-size: 0.85rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--text-dim);
+  }
+
+  .npc-add-body {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+
+  .npc-add-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.5rem;
   }
 
   .npc-edit-btn {
