@@ -40,34 +40,19 @@ export const NPCCreationSchema = z
   })
   .strict()
 
-export const AppearanceChangeSection = z.union([
-  z.object({ changed: z.literal(false) }).strict(),
-  z.object({ changed: z.literal(true), description: z.string().min(1) }).strict(),
-])
+export const AppearanceChangeSection = z.string().min(1)
 
-export const ClothingChangeSection = z.union([
-  z.object({ changed: z.literal(false) }).strict(),
-  z.object({ changed: z.literal(true), description: z.string().min(1) }).strict(),
-])
+export const ClothingChangeSection = z.string().min(1)
 
-export const InventoryChangeSection = z.union([
-  z.object({ changed: z.literal(false) }).strict(),
-  z.object({ changed: z.literal(true), items: z.array(InventoryItemSchema) }).strict(),
-])
+export const InventoryChangeSection = z.array(InventoryItemSchema)
 
 export const buildNPCChangesSection = (nameSchema: z.ZodType<string>) => {
   const updateSchema = buildNPCStateUpdateSchema(nameSchema)
-  return z.union([
-    z.object({ has_updates: z.literal(false) }).strict(),
-    z.object({ has_updates: z.literal(true), updates: z.array(updateSchema).min(1) }).strict(),
-  ])
+  return z.array(updateSchema)
 }
 export const NPCChangesSection = buildNPCChangesSection(z.string().min(1))
 
-export const NPCIntroductionsSection = z.union([
-  z.object({ has_new_npcs: z.literal(false) }).strict(),
-  z.object({ has_new_npcs: z.literal(true), npcs: z.array(NPCCreationSchema).min(1) }).strict(),
-])
+export const NPCIntroductionsSection = z.array(NPCCreationSchema)
 
 export const TurnResponseSchema = z
   .object({

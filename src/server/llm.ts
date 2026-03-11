@@ -5,6 +5,7 @@ import { dirname, join } from "path"
 import { z } from "zod"
 import { buildJsonSchemaResponseFormat, zodSchemaToJsonSchema } from "./json-schema.js"
 import {
+  buildNPCStateUpdateSchema,
   buildNPCChangesSection,
   TurnResponseSchema,
   GenerateCharacterResponseSchema,
@@ -495,8 +496,9 @@ function buildTurnResponseSchema(knownNpcNames: string[]): z.ZodType<TurnRespons
   const uniqueNames = Array.from(new Set(knownNpcNames.map((name) => name.trim()).filter((name) => name.length > 0)))
 
   if (uniqueNames.length === 0) {
+    const emptyUpdates = buildNPCStateUpdateSchema(z.string().min(1))
     return TurnResponseSchema.extend({
-      npc_changes: z.object({ has_updates: z.literal(false) }).strict(),
+      npc_changes: z.array(emptyUpdates).max(0),
     })
   }
 
