@@ -78,7 +78,7 @@ const startServer = async () => {
             resolve()
             return
           }
-          vite.middlewares(req, res, (err) => {
+          vite.middlewares(req, res, (err?: Error) => {
             if (err) {
               reject(err)
               return

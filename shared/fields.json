@@ -1,0 +1,228 @@
+{
+  "llm": {
+    "turn_response": {
+      "narrative_text": "1-3 short paragraphs in second-person present tense. Separate paragraphs with a literal \\n\\n.",
+      "world_state_update": "Full world state update object.",
+      "appearance_change": "Objective, clinical description of current physical state; baseline features only.",
+      "clothing_change": "Complete list of items currently worn, including all layers and accessories.",
+      "inventory_change": "Complete, updated inventory list (not a diff).",
+      "npc_changes": "List of updates for existing NPCs whose state changed this turn.",
+      "npc_introductions": "List of newly introduced NPCs with full details."
+    },
+    "world_state_update": {
+      "current_scene": "1-4 word description of the player's immediate location.",
+      "day_of_week": "Day of week (Monday-Sunday).",
+      "time_of_day": "24-hour HH:MM time.",
+      "recent_events_summary": "1-3 sentences summarizing what just happened."
+    },
+    "npc_update": {
+      "name": "NPC name to update.",
+      "race": "Updated race.",
+      "gender": "Updated gender.",
+      "set_location": "Last known location. Update only when changed.",
+      "set_appearance": "Objective, clinical description of current physical state; baseline features only. State current facts only; avoid temporal qualifiers (e.g., \"still\") and comparative phrases (e.g., \"otherwise unchanged\").",
+      "set_clothing": "Complete list of items currently worn, including all layers and accessories.",
+      "set_relationship": "Updated relationship to the player.",
+      "set_notes": "Concise, factual notes about the NPC. State current facts only; avoid temporal qualifiers (e.g., \"still\") and comparative phrases (e.g., \"otherwise unchanged\")."
+    },
+    "npc_creation": {
+      "name": "New NPC name.",
+      "race": "NPC race.",
+      "gender": "NPC gender.",
+      "personality_traits": "2-5 personality traits; prefer the allowed list when available.",
+      "set_location": "Specific 1-5 word location for the NPC.",
+      "set_appearance": "Objective, clinical description of current physical state; baseline features only. State current facts only; avoid temporal qualifiers (e.g., \"still\") and comparative phrases (e.g., \"otherwise unchanged\").",
+      "set_clothing": "Complete list of items currently worn, including all layers and accessories.",
+      "set_relationship": "Relationship to the player.",
+      "set_notes": "Concise, factual notes about the NPC's role or relevance. State current facts only; avoid temporal qualifiers (e.g., \"still\") and comparative phrases (e.g., \"otherwise unchanged\")."
+    }
+  },
+  "state": {
+    "inventory_item": {
+      "name": "Item name.",
+      "description": "Short item description."
+    },
+    "appearance": {
+      "physical_description": "Objective, clinical description of current physical state; baseline features only.",
+      "current_clothing": "Complete list of items currently worn, including all layers and accessories."
+    },
+    "main_character": {
+      "name": "Player character name.",
+      "race": "Player character race.",
+      "gender": "Player character gender.",
+      "appearance": "Player character appearance object.",
+      "personality_traits": "List of personality traits.",
+      "custom_traits": "List of custom traits or quirks.",
+      "inventory": "Complete inventory list."
+    },
+    "npc_state": {
+      "name": "NPC name.",
+      "race": "NPC race.",
+      "gender": "NPC gender.",
+      "last_known_location": "NPC last known location.",
+      "appearance": "NPC appearance object.",
+      "personality_traits": "NPC personality traits (2-5).",
+      "relationship_to_player": "NPC relationship to the player.",
+      "notes": "Concise factual notes about the NPC."
+    }
+  },
+  "generation": {
+    "character": {
+      "name": "Character name.",
+      "race": "Character race.",
+      "gender": "Character gender.",
+      "physical_description": "Objective physical description.",
+      "current_clothing": "Complete current clothing description.",
+      "personality_traits": "2-5 personality traits.",
+      "custom_traits": "Custom traits (3-12 words each)."
+    },
+    "character_appearance": {
+      "physical_description": "Objective physical description only."
+    },
+    "character_clothing": {
+      "current_clothing": "Complete current clothing description only."
+    },
+    "character_traits": {
+      "personality_traits": "2-5 personality traits.",
+      "custom_traits": "Custom traits (1-6 words each)."
+    },
+    "story": {
+      "title": "3-5 word title tied to the opening scenario.",
+      "opening_scenario": "1-3 paragraphs separated by a blank line.",
+      "starting_location": "1-3 word starting location.",
+      "pregen_npcs": "List of pre-generated NPCs with full details."
+    }
+  },
+  "requests": {
+    "create_character": {
+      "name": "Character name.",
+      "race": "Character race.",
+      "gender": "Character gender.",
+      "appearance": "Character appearance object.",
+      "personality_traits": "List of personality traits.",
+      "custom_traits": "List of custom traits."
+    },
+    "create_story": {
+      "title": "Story title.",
+      "opening_scenario": "Opening scenario text.",
+      "starting_scene": "Optional starting scene label.",
+      "character_id": "Optional character ID to reuse.",
+      "character_data": "Inline character data when not using character_id.",
+      "npcs": "Optional list of NPCs."
+    },
+    "create_story_character": {
+      "name": "Character name.",
+      "race": "Character race.",
+      "gender": "Character gender.",
+      "appearance": "Character appearance object.",
+      "personality_traits": "List of personality traits.",
+      "custom_traits": "List of custom traits."
+    },
+    "update_story": {
+      "title": "Updated story title.",
+      "opening_scenario": "Updated opening scenario text."
+    },
+    "update_story_state": {
+      "character": "Updated character state.",
+      "npcs": "Updated NPC state list."
+    },
+    "update_turn": {
+      "player_input": "Updated player input text.",
+      "narrative_text": "Updated narrative text."
+    },
+    "take_turn": {
+      "story_id": "Story ID.",
+      "player_input": "Player input for this turn.",
+      "action_mode": "Action mode: do, say, or story.",
+      "request_id": "Optional client request ID for idempotency."
+    },
+    "regenerate_last": {
+      "story_id": "Story ID.",
+      "action_mode": "Optional action mode override."
+    },
+    "impersonate": {
+      "story_id": "Story ID.",
+      "action_mode": "Action mode: do, say, or story."
+    },
+    "cancel_last": {
+      "story_id": "Story ID."
+    },
+    "undo_cancel": {
+      "story_id": "Story ID."
+    },
+    "select_turn_variant": {
+      "variant_id": "Turn variant ID."
+    },
+    "generate_character": {
+      "description": "Character description prompt."
+    },
+    "generate_character_part": {
+      "part": "Which section to generate: appearance, traits, or clothing.",
+      "context": "Current character context used as generation input."
+    },
+    "generate_character_context": {
+      "name": "Character name.",
+      "race": "Character race.",
+      "gender": "Character gender.",
+      "appearance": "Character appearance object.",
+      "personality_traits": "List of personality traits.",
+      "custom_traits": "List of custom traits."
+    },
+    "generate_story": {
+      "description": "Story description prompt.",
+      "character": "Character data for story generation."
+    },
+    "import_story": {
+      "title": "Story title.",
+      "opening_scenario": "Opening scenario text.",
+      "character": "Full character state.",
+      "world": "World state (stored format accepted).",
+      "npcs": "NPC state list (stored format accepted)."
+    }
+  },
+  "settings": {
+    "generation": {
+      "max_tokens": "Maximum tokens to generate.",
+      "ctx_limit": "Context limit override (0 to auto-detect).",
+      "temperature": "Sampling temperature.",
+      "top_k": "Top-k sampling.",
+      "top_p": "Top-p (nucleus) sampling.",
+      "min_p": "Minimum probability threshold.",
+      "typical_p": "Typical sampling parameter.",
+      "top_n_sigma": "Top-n sigma parameter.",
+      "repeat_penalty": "Repeat penalty.",
+      "repeat_last_n": "Repeat penalty window.",
+      "presence_penalty": "Presence penalty.",
+      "frequency_penalty": "Frequency penalty.",
+      "mirostat": "Mirostat mode (0-2).",
+      "mirostat_tau": "Mirostat tau.",
+      "mirostat_eta": "Mirostat eta.",
+      "dynatemp_range": "Dynamic temperature range.",
+      "dynatemp_exponent": "Dynamic temperature exponent.",
+      "dry_multiplier": "DRY sampler multiplier.",
+      "dry_base": "DRY sampler base.",
+      "dry_allowed_length": "DRY allowed length.",
+      "dry_penalty_last_n": "DRY penalty window.",
+      "xtc_probability": "XTC probability.",
+      "xtc_threshold": "XTC threshold.",
+      "seed": "Random seed (-1 for random)."
+    },
+    "connector": {
+      "type": "Connector type.",
+      "url": "Connector base URL.",
+      "api_key": "Connector API key."
+    },
+    "update": {
+      "theme": "UI theme.",
+      "design": "UI design variant.",
+      "textJustify": "Whether to justify text.",
+      "colorScheme": "UI color scheme.",
+      "connector": "Connector settings update.",
+      "generation": "Generation settings update."
+    }
+  },
+  "traits": {
+    "personality_traits": "List of 2-5 personality traits.",
+    "custom_traits": "List of custom traits or quirks."
+  }
+}

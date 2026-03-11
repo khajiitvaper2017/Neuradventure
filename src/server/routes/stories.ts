@@ -12,6 +12,7 @@ import {
   WorldStateStoredSchema,
 } from "../models.js"
 import { createNewStory } from "../game.js"
+import { desc } from "../schemas/field-descriptions.js"
 
 const stories = new Hono()
 
@@ -180,11 +181,11 @@ stories.post(
   zValidator(
     "json",
     z.object({
-      title: z.string(),
-      opening_scenario: z.string(),
-      character: MainCharacterStateSchema,
-      world: WorldStateStoredSchema,
-      npcs: z.array(NPCStateStoredSchema),
+      title: z.string().describe(desc("requests.import_story.title")),
+      opening_scenario: z.string().describe(desc("requests.import_story.opening_scenario")),
+      character: MainCharacterStateSchema.describe(desc("requests.import_story.character")),
+      world: WorldStateStoredSchema.describe(desc("requests.import_story.world")),
+      npcs: z.array(NPCStateStoredSchema).describe(desc("requests.import_story.npcs")),
     }),
   ),
   (c) => {

@@ -9,7 +9,7 @@ import {
   type TurnResponse,
   type WorldState,
 } from "./models.js"
-type NPCUpdateArray = TurnResponse["npc_changes"]
+type NPCUpdateArray = NPCStateUpdate[]
 import * as db from "./db.js"
 import {
   buildNpcCreationMessages,
@@ -25,14 +25,14 @@ import {
 function applyPlayerUpdate(character: MainCharacterState, turnResponse: TurnResponse): MainCharacterState {
   const appearance = {
     ...character.appearance,
-    physical_description: turnResponse.appearance_change,
-    current_clothing: turnResponse.clothing_change,
+    physical_description: turnResponse.appearance_change ?? character.appearance.physical_description,
+    current_clothing: turnResponse.clothing_change ?? character.appearance.current_clothing,
   }
 
   return {
     ...character,
     appearance,
-    inventory: turnResponse.inventory_change,
+    inventory: turnResponse.inventory_change ?? character.inventory,
   }
 }
 
@@ -97,7 +97,7 @@ function collectLlmWarnings(world: WorldState, npcs: NPCState[], turnResponse: T
     warnings.push("world_state_update matches existing world state")
   }
 
-  const npcUpdates = turnResponse.npc_changes
+  const npcUpdates = turnResponse.npc_changes ?? []
   for (const npcUpdate of npcUpdates) {
     const patch = npcUpdate as NPCStateUpdate
     const npc = findNpcByUpdate(npcs, patch)
@@ -122,7 +122,7 @@ function collectLlmWarnings(world: WorldState, npcs: NPCState[], turnResponse: T
     }
   }
 
-  const npcCreations = turnResponse.npc_introductions
+  const npcCreations = turnResponse.npc_introductions ?? []
   for (const creation of npcCreations) {
     const existing = npcs.find((npc) => npc.name.toLowerCase() === creation.name.toLowerCase())
     if (existing) {
@@ -204,15 +204,15 @@ export async function processTurn(
   const messages = buildTurnMessages(character, world, npcs, recentTurns, playerInput, actionMode, initial, ctxLimit)
   const turnResponse = await callLLM(
     messages,
-    npcs.map((n) => n.name),
+    npcs,
   )
   const llmWarnings = collectLlmWarnings(world, npcs, turnResponse)
 
   const newCharacter = applyPlayerUpdate(character, turnResponse)
   const newWorld = turnResponse.world_state_update
-  const npcUpdates = turnResponse.npc_changes
-  const updatedNpcs = applyNPCUpdates(npcs, npcUpdates as NPCUpdateArray)
-  const npcCreations = turnResponse.npc_introductions
+  const npcUpdates: NPCUpdateArray = turnResponse.npc_changes ?? []
+  const updatedNpcs = applyNPCUpdates(npcs, npcUpdates)
+  const npcCreations: NPCCreation[] = turnResponse.npc_introductions ?? []
   const newNpcs = applyNPCCreations(updatedNpcs, npcCreations)
 
   db.updateStory(storyId, newCharacter, newWorld, newNpcs)
@@ -473,15 +473,15 @@ export async function regenerateLastTurn(storyId: number, actionMode?: string): 
   )
   const turnResponse = await callLLM(
     messages,
-    snapshot.npcs.map((n) => n.name),
+    snapshot.npcs,
   )
   const llmWarnings = collectLlmWarnings(snapshot.world, snapshot.npcs, turnResponse)
 
   const newCharacter = applyPlayerUpdate(snapshot.character, turnResponse)
   const newWorld = turnResponse.world_state_update
-  const npcUpdates = turnResponse.npc_changes
-  const updatedNpcs = applyNPCUpdates(snapshot.npcs, npcUpdates as NPCUpdateArray)
-  const npcCreations = turnResponse.npc_introductions
+  const npcUpdates: NPCUpdateArray = turnResponse.npc_changes ?? []
+  const updatedNpcs = applyNPCUpdates(snapshot.npcs, npcUpdates)
+  const npcCreations: NPCCreation[] = turnResponse.npc_introductions ?? []
   const newNpcs = applyNPCCreations(updatedNpcs, npcCreations)
 
   db.updateStory(storyId, newCharacter, newWorld, newNpcs)

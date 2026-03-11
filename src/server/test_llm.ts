@@ -41,7 +41,7 @@ async function main() {
   console.log("\nCalling LLM...")
   const response = await callLLM(
     messages,
-    npcs.map((npc) => npc.name),
+    npcs,
   )
   console.log("\n=== LLM Response ===")
   console.log("Narrative:", response.narrative_text)

@@ -1,4 +1,4 @@
-import { DAY_NAMES, DEFAULT_RECENT_EVENTS_SUMMARY, TWO_TO_THREE_SENTENCES_REGEX } from "./constants.js"
+import { DAY_NAMES, DEFAULT_RECENT_EVENTS_SUMMARY } from "./constants.js"
 import { npcTraitEnumValues, npcTraitLookup } from "./npc-traits.js"
 
 export function normalizeDayOfWeek(value: unknown): string {
@@ -62,7 +62,7 @@ export function normalizeRecentEventsSummary(value: unknown): string {
       if (sentences.length === 1) sentences.push("Further details are unknown.")
       if (sentences.length > 3) sentences = sentences.slice(0, 3)
       const summary = sentences.join(" ").trim()
-      if (TWO_TO_THREE_SENTENCES_REGEX.test(summary)) return summary
+      return summary
     }
   }
   return DEFAULT_RECENT_EVENTS_SUMMARY

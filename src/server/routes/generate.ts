@@ -3,30 +3,44 @@ import { zValidator } from "@hono/zod-validator"
 import { z } from "zod"
 import { CreateCharacterRequestSchema } from "../models.js"
 import { generateCharacter, generateCharacterPart, generateStory } from "../llm.js"
+import { desc } from "../schemas/field-descriptions.js"
 
 const generate = new Hono()
 
-generate.post("/character", zValidator("json", z.object({ description: z.string().min(1) })), async (c) => {
+generate.post(
+  "/character",
+  zValidator(
+    "json",
+    z.object({
+      description: z.string().min(1).describe(desc("requests.generate_character.description")),
+    }),
+  ),
+  async (c) => {
   const { description } = c.req.valid("json")
   try {
     return c.json(await generateCharacter(description))
   } catch (err) {
     return c.json({ error: err instanceof Error ? err.message : "Generation failed" }, 500)
   }
-})
+  },
+)
 
 const characterContextSchema = z.object({
-  name: z.string().default(""),
-  race: z.string().default(""),
-  gender: z.string().default(""),
+  name: z.string().default("").describe(desc("requests.generate_character_context.name")),
+  race: z.string().default("").describe(desc("requests.generate_character_context.race")),
+  gender: z.string().default("").describe(desc("requests.generate_character_context.gender")),
   appearance: z
     .object({
-      physical_description: z.string().default(""),
-      current_clothing: z.string().default(""),
+      physical_description: z
+        .string()
+        .default("")
+        .describe(desc("state.appearance.physical_description")),
+      current_clothing: z.string().default("").describe(desc("state.appearance.current_clothing")),
     })
-    .default({ physical_description: "", current_clothing: "" }),
-  personality_traits: z.array(z.string()).default([]),
-  custom_traits: z.array(z.string()).default([]),
+    .default({ physical_description: "", current_clothing: "" })
+    .describe(desc("requests.generate_character_context.appearance")),
+  personality_traits: z.array(z.string()).default([]).describe(desc("requests.generate_character_context.personality_traits")),
+  custom_traits: z.array(z.string()).default([]).describe(desc("requests.generate_character_context.custom_traits")),
 })
 
 generate.post(
@@ -34,8 +48,8 @@ generate.post(
   zValidator(
     "json",
     z.object({
-      part: z.enum(["appearance", "traits", "clothing"]),
-      context: characterContextSchema,
+      part: z.enum(["appearance", "traits", "clothing"]).describe(desc("requests.generate_character_part.part")),
+      context: characterContextSchema.describe(desc("requests.generate_character_part.context")),
     }),
   ),
   async (c) => {
@@ -53,8 +67,8 @@ generate.post(
   zValidator(
     "json",
     z.object({
-      description: z.string().min(1),
-      character: CreateCharacterRequestSchema,
+      description: z.string().min(1).describe(desc("requests.generate_story.description")),
+      character: CreateCharacterRequestSchema.describe(desc("requests.generate_story.character")),
     }),
   ),
   async (c) => {

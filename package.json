@@ -10,7 +10,7 @@
     "build": "vite build",
     "preview": "vite preview",
     "format": "prettier --write \"src/**/*.{ts,svelte,css}\" \"*.{json,js,ts}\"",
-    "lint": "eslint src",
+    "lint": "eslint src && tsc -p tsconfig.json --noEmit",
     "check": "svelte-check --tsconfig ./tsconfig.app.json && tsc -p tsconfig.node.json",
     "test-llm": "tsx --tsconfig tsconfig.json src/server/test_llm.ts"
   },

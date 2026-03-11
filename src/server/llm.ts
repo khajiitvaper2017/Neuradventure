@@ -3,7 +3,7 @@ import { readFileSync, statSync } from "fs"
 import { fileURLToPath } from "url"
 import { dirname, join } from "path"
 import { z } from "zod"
-import { buildJsonSchemaResponseFormat, zodSchemaToJsonSchema } from "./json-schema.js"
+import { buildJsonSchemaResponseFormat, derefJsonSchema, zodSchemaToJsonSchema } from "./json-schema.js"
 import {
   buildNPCStateUpdateSchema,
   buildNPCChangesSection,
@@ -26,6 +26,7 @@ import {
   type GenerateStoryResponse,
 } from "./models.js"
 import { type TurnRow, type GenerationParams, type LLMConnector, getSettings } from "./db.js"
+import { desc } from "./schemas/field-descriptions.js"
 
 // ─── OpenAI client (re-created when connector settings change) ───────────────
 
@@ -141,6 +142,8 @@ export async function initCtxLimit(): Promise<void> {
 }
 
 export function getCtxLimitCached(): number {
+  const gen = getGenerationParams()
+  if (gen.ctx_limit > 0) return gen.ctx_limit
   return cachedCtxLimit
 }
 
@@ -239,13 +242,13 @@ function buildHistoryBlock(
   world: WorldState,
   ctxLimit: number,
   baseTokens: number,
-): string {
+): { summary: string | null; history: string | null } {
   const entries = formatHistoryEntries(turns)
-  if (entries.length === 0) return ""
+  if (entries.length === 0) return { summary: null, history: null }
 
   let history = entries.join("\n\n")
-  if (!ctxLimit || ctxLimit <= 0) return history
-  if (baseTokens + estimateTokens(history) <= ctxLimit) return history
+  if (!ctxLimit || ctxLimit <= 0) return { summary: null, history }
+  if (baseTokens + estimateTokens(history) <= ctxLimit) return { summary: null, history }
 
   const summary = [
     "=== COMPRESSED EARLIER CONTEXT ===",
@@ -266,16 +269,23 @@ function buildHistoryBlock(
     removedTokens += estimateTokens(removed) + 1
   }
 
-  let combined = [summary, ...remaining].join("\n\n")
-  if (baseTokens + estimateTokens(combined) <= ctxLimit) return combined
+  let combinedHistory = remaining.join("\n\n")
+  if (baseTokens + estimateTokens([summary, combinedHistory].join("\n\n")) <= ctxLimit) {
+    return { summary, history: combinedHistory || null }
+  }
 
-  while (remaining.length > 0 && baseTokens + estimateTokens([summary, ...remaining].join("\n\n")) > ctxLimit) {
+  while (
+    remaining.length > 0 &&
+    baseTokens + estimateTokens([summary, remaining.join("\n\n")].join("\n\n")) > ctxLimit
+  ) {
     remaining.shift()
   }
 
-  combined = [summary, ...remaining].join("\n\n")
-  if (baseTokens + estimateTokens(combined) <= ctxLimit) return combined
-  return summary
+  combinedHistory = remaining.join("\n\n")
+  if (baseTokens + estimateTokens([summary, combinedHistory].join("\n\n")) <= ctxLimit) {
+    return { summary, history: combinedHistory || null }
+  }
+  return { summary, history: null }
 }
 
 export function buildTurnMessages(
@@ -327,13 +337,13 @@ export function buildTurnMessages(
     `Inventory: ${formatInventory(character.inventory)}`
 
   const joinSections = (sections: Array<string | null | undefined>): string => sections.filter(Boolean).join("\n\n")
-
-  const prefix = joinSections([initialSection, "=== STORY SO FAR ==="]) + "\n"
+  const storyHeader = "=== STORY SO FAR ==="
   const afterHistory = joinSections([baseSection, currentSection, npcSection || null, storyContext, actionBlock])
-  const baseTokens = estimateTokens(`${prefix}${afterHistory ? `\n\n${afterHistory}` : ""}`)
-  const history = buildHistoryBlock(recentTurns, world, ctxLimit, baseTokens)
+  const baseTokens = estimateTokens(joinSections([initialSection, storyHeader, afterHistory]))
+  const { summary, history } = buildHistoryBlock(recentTurns, world, ctxLimit, baseTokens)
 
-  const contextBlock = `${prefix}${history}${afterHistory ? `\n\n${afterHistory}` : ""}`
+  const storySoFarHeader = history ? storyHeader : null
+  const contextBlock = joinSections([initialSection, summary || null, storySoFarHeader, history || null, afterHistory || null])
 
   return [
     { role: "system", content: getSystemPrompt() },
@@ -372,12 +382,13 @@ export function buildNpcCreationMessages(
 
   const joinSections = (sections: Array<string | null | undefined>): string => sections.filter(Boolean).join("\n\n")
 
-  const prefix = "=== STORY SO FAR ===\n"
+  const storyHeader = "=== STORY SO FAR ==="
   const afterHistory = joinSections([baseSection, currentSection, npcSection || null, storyContext, actionBlock])
-  const baseTokens = estimateTokens(`${prefix}${afterHistory ? `\n\n${afterHistory}` : ""}`)
-  const history = buildHistoryBlock(recentTurns, world, ctxLimit, baseTokens)
+  const baseTokens = estimateTokens(joinSections([storyHeader, afterHistory]))
+  const { summary, history } = buildHistoryBlock(recentTurns, world, ctxLimit, baseTokens)
 
-  const contextBlock = `${prefix}${history}${afterHistory ? `\n\n${afterHistory}` : ""}`
+  const storySoFarHeader = history ? storyHeader : null
+  const contextBlock = joinSections([summary || null, storySoFarHeader, history || null, afterHistory || null])
 
   return [
     { role: "system", content: getNpcCreationPrompt() },
@@ -428,12 +439,13 @@ export function buildImpersonateMessages(
 
   const joinSections = (sections: Array<string | null | undefined>): string => sections.filter(Boolean).join("\n\n")
 
-  const prefix = joinSections([initialSection, "=== STORY SO FAR ==="]) + "\n"
+  const storyHeader = "=== STORY SO FAR ==="
   const afterHistory = joinSections([baseSection, currentSection, npcSection || null, storyContext, actionModeSection])
-  const baseTokens = estimateTokens(`${prefix}${afterHistory ? `\n\n${afterHistory}` : ""}`)
-  const history = buildHistoryBlock(recentTurns, world, ctxLimit, baseTokens)
+  const baseTokens = estimateTokens(joinSections([initialSection, storyHeader, afterHistory]))
+  const { summary, history } = buildHistoryBlock(recentTurns, world, ctxLimit, baseTokens)
 
-  const contextBlock = `${prefix}${history}${afterHistory ? `\n\n${afterHistory}` : ""}`
+  const storySoFarHeader = history ? storyHeader : null
+  const contextBlock = joinSections([initialSection, summary || null, storySoFarHeader, history || null, afterHistory || null])
   const prompt = `${contextBlock}\n\n=== PLAYER'S ACTION ===\n`
 
   return [
@@ -492,27 +504,33 @@ function buildSamplingParams(
   return params
 }
 
-function buildTurnResponseSchema(knownNpcNames: string[]): z.ZodType<TurnResponse> {
-  const uniqueNames = Array.from(new Set(knownNpcNames.map((name) => name.trim()).filter((name) => name.length > 0)))
+function buildTurnResponseSchema(knownNpcs: NPCState[]): z.ZodType<TurnResponse, z.ZodTypeDef, unknown> {
+  const uniqueNames = Array.from(
+    new Set(knownNpcs.map((npc) => npc.name.trim()).filter((name) => name.length > 0)),
+  )
 
   if (uniqueNames.length === 0) {
-    const emptyUpdates = buildNPCStateUpdateSchema(z.string().min(1))
+    const emptyUpdates = buildNPCStateUpdateSchema(
+      z.string().min(1).describe(desc("llm.npc_update.name")),
+    )
     return TurnResponseSchema.extend({
-      npc_changes: z.array(emptyUpdates).max(0),
+      npc_changes: z.array(emptyUpdates).max(0).optional(),
     })
   }
 
   const enumValues = uniqueNames as [string, ...string[]]
+  const npcChangesSchema = buildNPCChangesSection(z.enum(enumValues).describe(desc("llm.npc_update.name")))
+
   return TurnResponseSchema.extend({
-    npc_changes: buildNPCChangesSection(z.enum(enumValues)),
+    npc_changes: npcChangesSchema.optional(),
   })
 }
 
 export async function callLLM(
   messages: OpenAI.ChatCompletionMessageParam[],
-  knownNpcNames: string[] = [],
+  knownNpcs: NPCState[] = [],
 ): Promise<TurnResponse> {
-  const turnSchema = buildTurnResponseSchema(knownNpcNames)
+  const turnSchema = buildTurnResponseSchema(knownNpcs)
   const schema = zodSchemaToJsonSchema(turnSchema, "TurnResponse")
   const result = await callLLMRaw<unknown>(messages, "TurnResponse", schema)
   return turnSchema.parse(result)
@@ -538,16 +556,112 @@ async function callLLMRaw<T>(
 ): Promise<T> {
   const gen = getGenerationParams()
   const sampling = buildSamplingParams(gen, maxTokensOverride, options)
+  const jsonSchema = derefJsonSchema(schema)
 
   const res = await getClient().chat.completions.create({
     model: "local",
     messages,
     ...sampling,
-    response_format: buildJsonSchemaResponseFormat(schemaName, schema) as OpenAI.ResponseFormatJSONSchema,
-  })
+    stream: false,
+    response_format: buildJsonSchemaResponseFormat(schemaName, jsonSchema) as OpenAI.ResponseFormatJSONSchema,
+    // Ensure KoboldCpp applies schema-derived grammar even if response_format is ignored.
+    json_schema: jsonSchema,
+    grammar_lazy: false,
+    grammar_triggers: [],
+  } as OpenAI.ChatCompletionCreateParams & { json_schema: object; grammar_lazy: boolean; grammar_triggers: unknown[] })
+  if (!("choices" in res)) {
+    throw new Error("LLM returned a streamed response unexpectedly")
+  }
   const content = res.choices[0]?.message?.content
   if (!content) throw new Error("LLM returned empty response")
-  return JSON.parse(content) as T
+  return parseJsonFromContent(content, schemaName) as T
+}
+
+function parseJsonFromContent(content: string, schemaName: string): unknown {
+  const direct = tryParseJson(content)
+  if (direct.ok) return direct.value
+
+  const fenced = extractFencedJson(content)
+  if (fenced) {
+    const fencedParsed = tryParseJson(fenced)
+    if (fencedParsed.ok) return fencedParsed.value
+  }
+
+  const extracted = extractFirstJsonValue(content)
+  if (extracted) {
+    const extractedParsed = tryParseJson(extracted)
+    if (extractedParsed.ok) return extractedParsed.value
+  }
+
+  const preview = content.length > 280 ? `${content.slice(0, 280)}...` : content
+  const base = direct.error ? ` (${direct.error.message})` : ""
+  throw new Error(`LLM returned invalid JSON for ${schemaName}${base}. Preview: ${preview}`)
+}
+
+function tryParseJson(text: string): { ok: true; value: unknown } | { ok: false; error: Error } {
+  try {
+    return { ok: true, value: JSON.parse(text) }
+  } catch (error) {
+    return { ok: false, error: error instanceof Error ? error : new Error(String(error)) }
+  }
+}
+
+function extractFencedJson(text: string): string | null {
+  const match = text.match(/```(?:json)?\s*([\s\S]*?)\s*```/i)
+  return match ? match[1] : null
+}
+
+function extractFirstJsonValue(text: string): string | null {
+  let start = -1
+  let depth = 0
+  let inString = false
+  let escape = false
+
+  for (let i = 0; i < text.length; i += 1) {
+    const char = text[i]
+    if (start === -1) {
+      if (char === "{" || char === "[") {
+        start = i
+        depth = 1
+        inString = false
+        escape = false
+      }
+      continue
+    }
+
+    if (inString) {
+      if (escape) {
+        escape = false
+        continue
+      }
+      if (char === "\\") {
+        escape = true
+        continue
+      }
+      if (char === "\"") {
+        inString = false
+      }
+      continue
+    }
+
+    if (char === "\"") {
+      inString = true
+      continue
+    }
+
+    if (char === "{" || char === "[") {
+      depth += 1
+      continue
+    }
+    if (char === "}" || char === "]") {
+      depth -= 1
+      if (depth === 0) {
+        return text.slice(start, i + 1)
+      }
+    }
+  }
+
+  return null
 }
 
 async function callLLMText(
