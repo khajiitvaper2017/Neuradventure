@@ -4,6 +4,7 @@
   import { currentStoryId, npcs, llmUpdateId } from "../stores/game.js"
   import type { NPCState } from "../api/client.js"
   import { autoresize } from "./actions/autoresize.js"
+  import { genderIcon, splitCsv } from "./utils/text.js"
   import IconMale from "../icons/IconMale.svelte"
   import IconFemale from "../icons/IconFemale.svelte"
   import IconFace from "../icons/IconFace.svelte"
@@ -22,27 +23,12 @@
     neutral: "#888",
   }
 
-  function genderIcon(gender: string | undefined): "male" | "female" | null {
-    if (!gender) return null
-    const g = gender.toLowerCase()
-    if (g.includes("female")) return "female"
-    if (g.includes("male")) return "male"
-    return null
-  }
-
   function relationshipColor(rel: string): string {
     const key = rel.toLowerCase()
     for (const [k, v] of Object.entries(RELATIONSHIP_COLORS)) {
       if (key.includes(k)) return v
     }
     return "#888"
-  }
-
-  function splitCsv(value: string): string[] {
-    return value
-      .split(",")
-      .map((item) => item.trim())
-      .filter((item) => item.length > 0)
   }
 
   function npcFieldId(npc: NPCState, field: string): string {
