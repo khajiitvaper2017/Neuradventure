@@ -30,3 +30,16 @@ export function savePromptHistory(key: string, prompt: string, max = MAX_HISTORY
   }
   return next
 }
+
+export function removePromptHistory(key: string, prompt: string): string[] {
+  if (typeof window === "undefined") return []
+  const normalized = normalizePrompt(prompt)
+  if (!normalized) return loadPromptHistory(key)
+  const next = loadPromptHistory(key).filter((entry) => entry.toLowerCase() !== normalized.toLowerCase())
+  try {
+    window.localStorage.setItem(key, JSON.stringify(next))
+  } catch {
+    // ignore storage failures
+  }
+  return next
+}

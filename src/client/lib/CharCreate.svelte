@@ -7,7 +7,8 @@
   import { pendingCharacter, pendingCharacterId } from "../stores/game.js"
   import { pendingCharacterGenerateDescription } from "../stores/game.js"
   import personalityOptions from "../../../shared/traits.json"
-  import { loadPromptHistory, savePromptHistory } from "./utils/promptHistory.js"
+  import { loadPromptHistory, savePromptHistory, removePromptHistory } from "./utils/promptHistory.js"
+  import IconTrash from "../icons/IconTrash.svelte"
 
   const CHARACTER_PROMPT_HISTORY_KEY = "na:prompt_history:character"
 
@@ -171,6 +172,10 @@
     pendingCharacterGenerateDescription.set(value)
   }
 
+  function deletePrompt(value: string) {
+    promptHistory = removePromptHistory(CHARACTER_PROMPT_HISTORY_KEY, value)
+  }
+
   function removePerk(t: string) {
     perks = perks.filter((x) => x !== t)
   }
@@ -304,9 +309,20 @@
           <div class="prompt-history-label">Recent prompts</div>
           <div class="prompt-history-list">
             {#each promptHistory.slice(0, 6) as item}
-              <button class="prompt-history-item" onclick={() => usePrompt(item)} title={item}>
-                {item}
-              </button>
+              <div class="prompt-history-item">
+                <button class="prompt-history-use" onclick={() => usePrompt(item)} title={item}>
+                  {item}
+                </button>
+                <button
+                  class="prompt-history-delete"
+                  type="button"
+                  onclick={() => deletePrompt(item)}
+                  aria-label="Delete prompt"
+                  title="Delete prompt"
+                >
+                  <IconTrash size={12} strokeWidth={2} className="prompt-history-trash" />
+                </button>
+              </div>
             {/each}
           </div>
         </div>
@@ -606,6 +622,16 @@
     gap: 0.35rem;
   }
   .prompt-history-item {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+  }
+  .prompt-history-use {
+    flex: 1;
+    min-width: 0;
     text-align: left;
     background: var(--bg-input);
     border: 1px solid var(--border);
@@ -618,7 +644,23 @@
     overflow: hidden;
     text-overflow: ellipsis;
   }
-  .prompt-history-item:hover {
+  .prompt-history-use:hover {
     border-color: var(--accent);
+  }
+  .prompt-history-delete {
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--text-dim);
+    border-radius: 4px;
+    padding: 0.35rem 0.5rem;
+    font-size: 0.8rem;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .prompt-history-delete:hover {
+    border-color: var(--accent);
+    color: var(--text);
   }
 </style>

@@ -10,7 +10,8 @@
   import { navigate, showError } from "../stores/ui.js"
   import { autoresize } from "./actions/autoresize.js"
   import { loadStoryById } from "./storyLoader.js"
-  import { loadPromptHistory, savePromptHistory } from "./utils/promptHistory.js"
+  import { loadPromptHistory, savePromptHistory, removePromptHistory } from "./utils/promptHistory.js"
+  import IconTrash from "../icons/IconTrash.svelte"
   import {
     pendingCharacter,
     pendingStoryTitle,
@@ -68,6 +69,10 @@
 
   function useStoryPrompt(value: string) {
     pendingStoryGenerateDescription.set(value)
+  }
+
+  function deleteStoryPrompt(value: string) {
+    storyPromptHistory = removePromptHistory(STORY_PROMPT_HISTORY_KEY, value)
   }
 
   type StoryRef = { id: number; title: string; updated_at: string }
@@ -266,9 +271,20 @@
           <div class="prompt-history-label">Recent prompts</div>
           <div class="prompt-history-list">
             {#each storyPromptHistory.slice(0, 6) as item}
-              <button class="prompt-history-item" onclick={() => useStoryPrompt(item)} title={item}>
-                {item}
-              </button>
+              <div class="prompt-history-item">
+                <button class="prompt-history-use" onclick={() => useStoryPrompt(item)} title={item}>
+                  {item}
+                </button>
+                <button
+                  class="prompt-history-delete"
+                  type="button"
+                  onclick={() => deleteStoryPrompt(item)}
+                  aria-label="Delete prompt"
+                  title="Delete prompt"
+                >
+                  <IconTrash size={12} strokeWidth={2} className="prompt-history-trash" />
+                </button>
+              </div>
             {/each}
           </div>
         </div>
@@ -512,6 +528,16 @@
     gap: 0.35rem;
   }
   .prompt-history-item {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+  }
+  .prompt-history-use {
+    flex: 1;
+    min-width: 0;
     text-align: left;
     background: var(--bg-input);
     border: 1px solid var(--border);
@@ -524,8 +550,24 @@
     overflow: hidden;
     text-overflow: ellipsis;
   }
-  .prompt-history-item:hover {
+  .prompt-history-use:hover {
     border-color: var(--accent);
+  }
+  .prompt-history-delete {
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--text-dim);
+    border-radius: 4px;
+    padding: 0.35rem 0.5rem;
+    font-size: 0.8rem;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .prompt-history-delete:hover {
+    border-color: var(--accent);
+    color: var(--text);
   }
   .npc-summary {
     background: var(--bg-raised);
