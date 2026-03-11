@@ -7,6 +7,8 @@
   import { genderIcon, splitCsv } from "./utils/text.js"
   import IconMale from "../icons/IconMale.svelte"
   import IconFemale from "../icons/IconFemale.svelte"
+  import IconIntersex from "../icons/IconIntersex.svelte"
+  import IconTransgender from "../icons/IconTransgender.svelte"
   import IconFace from "../icons/IconFace.svelte"
   import IconShirt from "../icons/IconShirt.svelte"
   import IconDocument from "../icons/IconDocument.svelte"
@@ -55,9 +57,27 @@
 
   function npcEditFields(npc: NPCState): EditField[] {
     return [
-      { id: npcFieldId(npc, "name"), label: "Name", kind: "input", value: draft.name, onInput: (v) => (draft.name = v) },
-      { id: npcFieldId(npc, "race"), label: "Race", kind: "input", value: draft.race, onInput: (v) => (draft.race = v) },
-      { id: npcFieldId(npc, "gender"), label: "Gender", kind: "input", value: draft.gender, onInput: (v) => (draft.gender = v) },
+      {
+        id: npcFieldId(npc, "name"),
+        label: "Name",
+        kind: "input",
+        value: draft.name,
+        onInput: (v) => (draft.name = v),
+      },
+      {
+        id: npcFieldId(npc, "race"),
+        label: "Race",
+        kind: "input",
+        value: draft.race,
+        onInput: (v) => (draft.race = v),
+      },
+      {
+        id: npcFieldId(npc, "gender"),
+        label: "Gender",
+        kind: "input",
+        value: draft.gender,
+        onInput: (v) => (draft.gender = v),
+      },
       {
         id: npcFieldId(npc, "relationship"),
         label: "Relationship",
@@ -339,6 +359,10 @@
                 <IconMale size={14} strokeWidth={2} className="gender-icon" />
               {:else if genderIcon(npc.gender) === "female"}
                 <IconFemale size={14} strokeWidth={2} className="gender-icon" />
+              {:else if genderIcon(npc.gender) === "intersex"}
+                <IconIntersex size={14} strokeWidth={2} className="gender-icon" />
+              {:else if genderIcon(npc.gender) === "transgender"}
+                <IconTransgender size={14} strokeWidth={2} className="gender-icon" />
               {/if}
             </div>
             <div class="npc-race">{npc.race}{npc.gender ? ` · ${npc.gender}` : ""}</div>
@@ -371,7 +395,12 @@
               <div class="field">
                 <label for={field.id}>{field.label}</label>
                 {#if field.kind === "textarea"}
-                  <textarea id={field.id} value={field.value} oninput={(e) => updateField(field, e)} use:autoresize={field.value}></textarea>
+                  <textarea
+                    id={field.id}
+                    value={field.value}
+                    oninput={(e) => updateField(field, e)}
+                    use:autoresize={field.value}
+                  ></textarea>
                 {:else}
                   <input id={field.id} type="text" value={field.value} oninput={(e) => updateField(field, e)} />
                 {/if}

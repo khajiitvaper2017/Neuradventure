@@ -7,6 +7,8 @@
   import { genderIcon, splitCsv } from "./utils/text.js"
   import IconMale from "../icons/IconMale.svelte"
   import IconFemale from "../icons/IconFemale.svelte"
+  import IconIntersex from "../icons/IconIntersex.svelte"
+  import IconTransgender from "../icons/IconTransgender.svelte"
   import IconFace from "../icons/IconFace.svelte"
   import IconShirt from "../icons/IconShirt.svelte"
   import IconStar from "../icons/IconStar.svelte"
@@ -273,7 +275,12 @@
           <div class="field">
             <label for={field.id}>{field.label}</label>
             {#if field.kind === "textarea"}
-              <textarea id={field.id} value={field.value} oninput={(e) => updateField(field, e)} use:autoresize={field.value}></textarea>
+              <textarea
+                id={field.id}
+                value={field.value}
+                oninput={(e) => updateField(field, e)}
+                use:autoresize={field.value}
+              ></textarea>
             {:else}
               <input id={field.id} type="text" value={field.value} oninput={(e) => updateField(field, e)} />
             {/if}
@@ -324,6 +331,10 @@
             <IconMale size={14} strokeWidth={2} className="gender-icon" />
           {:else if genderIcon($character.gender) === "female"}
             <IconFemale size={14} strokeWidth={2} className="gender-icon" />
+          {:else if genderIcon($character.gender) === "intersex"}
+            <IconIntersex size={14} strokeWidth={2} className="gender-icon" />
+          {:else if genderIcon($character.gender) === "transgender"}
+            <IconTransgender size={14} strokeWidth={2} className="gender-icon" />
           {/if}
         </div>
         <div class="cs-identity-detail">{$character.race}{$character.gender ? ` · ${$character.gender}` : ""}</div>
