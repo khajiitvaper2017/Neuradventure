@@ -11,8 +11,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - name: Checkout Repository
-      uses: actions/checkout@v4
+    - uses: actions/checkout@v4
 
     - name: Set up JDK 17
       uses: actions/setup-java@v4
@@ -24,16 +23,12 @@ jobs:
     - name: Grant execute permission for gradlew
       run: chmod +x ./android/gradlew
 
-    - name: Build Unsigned Release APK
-      # Uses assembleRelease for optimization. 
-      # Added --no-daemon and --parallel to optimize CI memory and build speed.
-      run: ./android/gradlew -p android :app:assembleRelease --no-daemon --parallel
+    - name: Build with Gradle
+      # -p android points to your subfolder, :app:assembleDebug targets the app specifically
+      run: ./android/gradlew -p android :app:assembleDebug
 
     - name: Publish APK (upload artifact)
       uses: actions/upload-artifact@v4
       with:
-        name: app-release-unsigned-apk
-        # The path changes for release builds. Using a wildcard catches the unsigned apk.
-        path: android/app/build/outputs/apk/release/*.apk
-        # Optional: Set retention days to save GitHub storage space
-        retention-days: 14
+        name: app-debug-apk
+        path: android/app/build/outputs/apk/debug/app-debug.apk
