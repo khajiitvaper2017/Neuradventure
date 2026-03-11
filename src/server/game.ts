@@ -11,7 +11,7 @@ import {
 } from "./models.js"
 type NPCUpdateArray = Extract<TurnResponse["npc_changes"], { has_updates: true }>["updates"]
 import * as db from "./db.js"
-import { buildTurnMessages, callLLM, generatePlayerAction, getCtxLimitCached } from "./llm.js"
+import { buildTurnMessages, callLLM, generateNpcCreation, generatePlayerAction, getCtxLimitCached } from "./llm.js"
 
 // ─── State Application ─────────────────────────────────────────────────────────
 
@@ -171,6 +171,48 @@ export interface TurnResult {
   world: WorldState
   npcs: NPCState[]
   llm_warnings?: string[]
+}
+
+export interface CreateNpcResult {
+  npc: NPCState
+  npcs: NPCState[]
+}
+
+export async function createNpcFromTurnPrompt(
+  storyId: number,
+  npcName: string,
+  actionMode: string,
+): Promise<CreateNpcResult> {
+  const story = db.getStory(storyId)
+  if (!story) throw new Error(`Story ${storyId} not found`)
+
+  const trimmedName = npcName.trim()
+  if (!trimmedName) throw new Error("NPC name is required")
+
+  const character = MainCharacterStateSchema.parse(JSON.parse(story.character_state_json))
+  const world = WorldStateStoredSchema.parse(JSON.parse(story.world_state_json))
+  const npcs = (JSON.parse(story.npc_states_json) as unknown[]).map((n) => NPCStateStoredSchema.parse(n))
+
+  if (npcs.some((npc) => npc.name.toLowerCase() === trimmedName.toLowerCase())) {
+    throw new Error(`NPC "${trimmedName}" already exists`)
+  }
+
+  const initial = parseInitialStorySnapshot(story).character
+  const recentTurns = db.getTurnsForStory(storyId)
+  const ctxLimit = getCtxLimitCached()
+  const actionInput = `Introduce a new NPC named "${trimmedName}".`
+
+  const messages = buildTurnMessages(character, world, npcs, recentTurns, actionInput, actionMode, initial, ctxLimit)
+  const creation = await generateNpcCreation(messages, trimmedName)
+  const updatedNpcs = applyNPCCreations(npcs, [creation])
+  const newNpc = buildNpcFromCreation(creation)
+
+  db.updateStory(storyId, character, world, updatedNpcs)
+
+  return {
+    npc: newNpc,
+    npcs: updatedNpcs,
+  }
 }
 
 export async function processTurn(

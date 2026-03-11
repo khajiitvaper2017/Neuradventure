@@ -1,7 +1,7 @@
 <script lang="ts">
   import { api, ApiError } from "../api/client.js"
   import { showNPCTracker, showError, showQuietNotice } from "../stores/ui.js"
-  import { currentStoryId, npcs, llmUpdateId } from "../stores/game.js"
+  import { currentStoryId, npcs, llmUpdateId, isGenerating, markLlmUpdate } from "../stores/game.js"
   import type { NPCState } from "../api/client.js"
   import { autoresize } from "./actions/autoresize.js"
   import { genderIcon, splitCsv } from "./utils/text.js"
@@ -200,6 +200,8 @@
   let lastSortSig = $state("")
   let editingNpcName = $state<string | null>(null)
   let savingNpc = $state(false)
+  let addingNpc = $state(false)
+  let newNpcName = $state("")
   type NpcDraft = {
     name: string
     race: string
@@ -222,6 +224,48 @@
     notes: "",
     traits: "",
   })
+
+  function createRequestId(): string {
+    if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
+      return crypto.randomUUID()
+    }
+    return `req_${Date.now()}_${Math.random().toString(36).substring(2, 10)}`
+  }
+
+  async function addNpc() {
+    if ($isGenerating || addingNpc) return
+    if (!$currentStoryId) {
+      showError("No active story to update.")
+      return
+    }
+    const name = newNpcName.trim()
+    if (!name) {
+      showError("Name is required.")
+      return
+    }
+    if ($npcs.some((npc) => npc.name.toLowerCase() === name.toLowerCase())) {
+      showError(`NPC "${name}" already exists.`)
+      return
+    }
+    addingNpc = true
+    isGenerating.set(true)
+    try {
+      const result = await api.turns.createNpc($currentStoryId, name, "do", createRequestId())
+      npcs.set(result.npcs)
+      markLlmUpdate()
+      newNpcName = ""
+      showQuietNotice(`Added NPC: ${result.npc.name}.`)
+    } catch (err) {
+      if (err instanceof ApiError) {
+        showError(err.message)
+      } else {
+        showError("Failed to add NPC. Is KoboldCpp running?")
+      }
+    } finally {
+      addingNpc = false
+      isGenerating.set(false)
+    }
+  }
 
   function npcSignature(npc: NPCState): string {
     return [
@@ -346,6 +390,25 @@
 </script>
 
 {#snippet npcContent()}
+  <div class="npc-add">
+    <input
+      class="text-input npc-add-input"
+      type="text"
+      placeholder="Add NPC by name"
+      bind:value={newNpcName}
+      disabled={$isGenerating || addingNpc || !$currentStoryId}
+      onkeydown={(e) => {
+        if (e.key === "Enter") addNpc()
+      }}
+    />
+    <button
+      class="btn-accent small npc-add-btn"
+      onclick={addNpc}
+      disabled={$isGenerating || addingNpc || !$currentStoryId || !newNpcName.trim()}
+    >
+      {addingNpc ? "Adding..." : "Add"}
+    </button>
+  </div>
   {#if $npcs.length === 0}
     <div class="empty">No known characters yet.</div>
   {:else}
@@ -497,6 +560,21 @@
   .panel-body {
     padding: 0.75rem;
     gap: 0.75rem;
+  }
+
+  .npc-add {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  .npc-add-input {
+    flex: 1;
+    width: auto;
+  }
+
+  .npc-add-btn {
+    flex-shrink: 0;
   }
 
   /* ── NPC Card ──────────────────────────────────────── */

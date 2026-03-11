@@ -14,6 +14,7 @@ import {
 import {
   buildTurnResultFromRow,
   cancelLastTurn,
+  createNpcFromTurnPrompt,
   impersonatePlayerAction,
   processTurn,
   regenerateLastTurn,
@@ -23,6 +24,7 @@ import {
 
 const turns = new Hono()
 const inFlight = new Map<string, ReturnType<typeof processTurn>>()
+const npcInFlight = new Map<string, ReturnType<typeof createNpcFromTurnPrompt>>()
 
 turns.post("/", zValidator("json", TakeTurnRequestSchema), async (c) => {
   const body = c.req.valid("json")
@@ -53,6 +55,36 @@ turns.post("/", zValidator("json", TakeTurnRequestSchema), async (c) => {
     }
     console.error("LLM error:", err)
     return c.json({ error: "LLM generation failed: " + message }, 500)
+  }
+})
+
+turns.post("/create-npc", zValidator("json", TakeTurnRequestSchema), async (c) => {
+  const body = c.req.valid("json")
+  const story = db.getStory(body.story_id)
+  if (!story) return c.json({ error: "Story not found" }, 404)
+
+  try {
+    const requestId = body.request_id?.trim() || undefined
+    if (requestId) {
+      const inflight = npcInFlight.get(requestId)
+      if (inflight) return c.json(await inflight)
+    }
+
+    const task = createNpcFromTurnPrompt(body.story_id, body.player_input, body.action_mode)
+    if (requestId) npcInFlight.set(requestId, task)
+    try {
+      const result = await task
+      return c.json(result)
+    } finally {
+      if (requestId) npcInFlight.delete(requestId)
+    }
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Unknown error"
+    if (message.includes("ECONNREFUSED") || message.includes("fetch failed")) {
+      return c.json({ error: "KoboldCpp is not running. Please start KoboldCpp first." }, 503)
+    }
+    if (message.includes("not found")) return c.json({ error: message }, 404)
+    return c.json({ error: message }, 400)
   }
 })
 

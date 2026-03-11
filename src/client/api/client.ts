@@ -131,6 +131,11 @@ export interface TurnResult {
   llm_warnings?: string[]
 }
 
+export interface CreateNpcResult {
+  npc: NPCState
+  npcs: NPCState[]
+}
+
 export interface ImpersonateResult {
   player_action: string
 }
@@ -299,6 +304,16 @@ export const api = {
         body: JSON.stringify({
           story_id: storyId,
           player_input: playerInput,
+          action_mode: actionMode,
+          request_id: requestId,
+        }),
+      }),
+    createNpc: (storyId: number, npcName: string, actionMode: "do" | "say" | "story", requestId?: string) =>
+      request<CreateNpcResult>("/api/turns/create-npc", {
+        method: "POST",
+        body: JSON.stringify({
+          story_id: storyId,
+          player_input: npcName,
           action_mode: actionMode,
           request_id: requestId,
         }),

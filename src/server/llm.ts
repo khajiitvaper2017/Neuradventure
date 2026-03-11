@@ -12,8 +12,10 @@ import {
   GenerateCharacterClothingResponseSchema,
   GenerateCharacterTraitsResponseSchema,
   GenerateStoryResponseSchema,
+  NPCCreationSchema,
   type MainCharacterState,
   type NPCState,
+  type NPCCreation,
   type TurnResponse,
   type WorldState,
   type GenerateCharacterResponse,
@@ -515,6 +517,17 @@ export async function callLLM(
   const schema = zodToJsonSchema(turnSchema, { name: "TurnResponse" })
   const result = await callLLMRaw<unknown>(messages, "TurnResponse", schema)
   return turnSchema.parse(result)
+}
+
+export async function generateNpcCreation(
+  messages: OpenAI.ChatCompletionMessageParam[],
+  forcedName?: string,
+): Promise<NPCCreation> {
+  const creationSchema = NPCCreationSchema
+  const schema = zodToJsonSchema(creationSchema, { name: "NPCCreation" })
+  const result = await callLLMRaw<unknown>(messages, "NPCCreation", schema)
+  const parsed = creationSchema.parse(result)
+  return forcedName ? { ...parsed, name: forcedName } : parsed
 }
 
 async function callLLMRaw<T>(
