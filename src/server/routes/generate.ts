@@ -40,17 +40,14 @@ const characterContextSchema = z.object({
   baseline_description: z.string().default("").describe(desc("state.character.baseline_description")),
   current_activity: z.string().default("").describe(desc("state.character.current_activity")),
   personality_traits: z.array(z.string()).default([]).describe(desc("traits.personality_traits")),
+  major_flaws: z.array(z.string()).default([]).describe(desc("traits.major_flaws")),
   quirks: z.array(z.string()).default([]).describe(desc("traits.quirks")),
   perks: z.array(z.string()).default([]).describe(desc("traits.perks")),
-  relationship_scores: z
-    .array(
-      z.object({
-        name: z.string().default(""),
-        affinity: z.number().int().default(0),
-      }),
-    )
-    .default([])
-    .describe(desc("state.character.relationship_scores")),
+})
+
+const generateStoryCharacterSchema = CreateCharacterRequestSchema.extend({
+  baseline_description: z.string().default("").describe(desc("state.character.baseline_description")),
+  current_activity: z.string().default("").describe(desc("state.character.current_activity")),
 })
 
 generate.post(
@@ -78,7 +75,7 @@ generate.post(
     "json",
     z.object({
       description: z.string().min(1).describe(desc("requests.generate_story.description")),
-      character: CreateCharacterRequestSchema.describe(desc("requests.generate_story.character")),
+      character: generateStoryCharacterSchema.describe(desc("requests.generate_story.character")),
     }),
   ),
   async (c) => {

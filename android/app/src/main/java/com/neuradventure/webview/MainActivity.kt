@@ -2,6 +2,7 @@ package com.neuradventure.webview
 
 import android.content.Context
 import android.content.Intent
+import android.graphics.Color
 import android.net.Uri
 import android.net.wifi.WifiManager
 import android.os.Bundle
@@ -38,6 +39,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun setupWebView() {
+        webView.setBackgroundColor(Color.BLACK)
         webView.settings.apply {
             javaScriptEnabled = true
             domStorageEnabled = true

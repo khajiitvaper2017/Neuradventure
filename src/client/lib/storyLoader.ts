@@ -3,6 +3,8 @@ import {
   currentStoryId,
   currentStoryTitle,
   currentStoryOpeningScenario,
+  currentStoryAuthorNote,
+  currentStoryAuthorNoteDepth,
   currentStoryInitialWorld,
   character,
   worldState,
@@ -15,6 +17,8 @@ export async function loadStoryById(id: number): Promise<void> {
   currentStoryId.set(detail.id)
   currentStoryTitle.set(detail.title)
   currentStoryOpeningScenario.set(detail.opening_scenario)
+  currentStoryAuthorNote.set(detail.author_note ?? "")
+  currentStoryAuthorNoteDepth.set(detail.author_note_depth ?? 4)
   currentStoryInitialWorld.set(detail.initial_world)
   character.set(detail.character)
   worldState.set(detail.world)

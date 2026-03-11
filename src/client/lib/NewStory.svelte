@@ -18,6 +18,8 @@
     pendingStoryScenario,
     pendingStoryNPCs,
     pendingStoryLocation,
+    pendingStoryDate,
+    pendingStoryTime,
     pendingStoryGenerateDescription,
     pendingCharacterId,
   } from "../stores/game.js"
@@ -159,12 +161,13 @@
       pendingStoryTitle.set(result.title)
       pendingStoryScenario.set(result.opening_scenario)
       pendingStoryLocation.set(result.starting_location)
+      pendingStoryDate.set(result.starting_date)
+      pendingStoryTime.set(result.starting_time)
       pendingStoryNPCs.set(result.pregen_npcs ?? [])
       const updatedCharacter = {
         ...$pendingCharacter,
         baseline_description: result.character_baseline_description,
         current_activity: result.character_current_activity,
-        relationship_scores: result.character_relationship_scores ?? [],
         appearance: {
           ...$pendingCharacter.appearance,
           current_appearance: result.character_current_appearance,
@@ -210,6 +213,8 @@
         title: string
         opening_scenario: string
         starting_scene?: string
+        starting_date?: string
+        starting_time?: string
         character_id?: number
         character_data?: Omit<MainCharacterState, "inventory">
         npcs?: NPCState[]
@@ -217,6 +222,8 @@
         title: $pendingStoryTitle.trim(),
         opening_scenario: $pendingStoryScenario.trim(),
         starting_scene: $pendingStoryLocation.trim() || undefined,
+        starting_date: $pendingStoryDate.trim() || undefined,
+        starting_time: $pendingStoryTime.trim() || undefined,
         npcs: $pendingStoryNPCs,
       }
       if ($pendingCharacterId) {
@@ -232,6 +239,8 @@
       pendingStoryScenario.set("")
       pendingStoryNPCs.set([])
       pendingStoryLocation.set("")
+      pendingStoryDate.set("")
+      pendingStoryTime.set("")
       pendingStoryGenerateDescription.set("")
       navigate("game", { reset: true, params: { storyId: id } })
     } catch (err) {

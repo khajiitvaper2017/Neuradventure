@@ -94,6 +94,10 @@ export function normalizeRecentEventsSummary(value: unknown): string {
   return DEFAULT_RECENT_EVENTS_SUMMARY
 }
 
+export function normalizeMemory(value: unknown): string {
+  return normalizeRecentEventsSummary(value)
+}
+
 export function normalizeNonEmptyString(value: unknown, fallback: string): string {
   if (typeof value === "string") {
     const trimmed = value.trim()
@@ -182,34 +186,6 @@ function normalizeStringList(value: unknown): string[] {
     }
   }
   return items
-}
-
-type NormalizedRelationshipScore = { name: string; affinity: number }
-
-function normalizeAffinity(value: unknown): number {
-  const n = typeof value === "number" ? value : Number(value)
-  if (!Number.isFinite(n)) return 0
-  const rounded = Math.round(n)
-  if (rounded < -100) return -100
-  if (rounded > 100) return 100
-  return rounded
-}
-
-export function normalizeRelationshipScores(value: unknown): NormalizedRelationshipScore[] {
-  const scores: NormalizedRelationshipScore[] = []
-  if (Array.isArray(value)) {
-    for (const entry of value) {
-      if (!entry || typeof entry !== "object") continue
-      const obj = entry as Record<string, unknown>
-      const name = normalizeNonEmptyString(obj.name, "")
-      if (!name) continue
-      const affinity = normalizeAffinity(obj.affinity)
-      const key = name.trim().toLowerCase()
-      if (scores.some((s) => s.name.trim().toLowerCase() === key)) continue
-      scores.push({ name, affinity })
-    }
-  }
-  return scores
 }
 
 function normalizeLocationItems(value: unknown): NormalizedLocationItem[] {

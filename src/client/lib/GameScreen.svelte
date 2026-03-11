@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { tick, untrack } from "svelte"
+  import { onMount, tick, untrack } from "svelte"
   import { api, type TurnSummary, type TurnVariantSummary, ApiError } from "../api/client.js"
   import {
     navigate,
@@ -25,6 +25,8 @@
     currentStoryId,
     currentStoryTitle,
     currentStoryOpeningScenario,
+    currentStoryAuthorNote,
+    currentStoryAuthorNoteDepth,
     currentStoryInitialWorld,
     character,
     worldState,
@@ -47,6 +49,7 @@
   let input = $state("")
   let actionMode = $state<ActionMode>("do")
   let storyDiv: HTMLDivElement
+  let inputEl: HTMLTextAreaElement | null = null
   let showMenu = $state(false)
   let editingOpening = $state(false)
   let openingDraft = $state("")
@@ -58,6 +61,11 @@
   let variantsTurnId = $state<number | null>(null)
   let variantsLoading = $state(false)
   let canUndoCancel = $state(false)
+  let showMemoryEditor = $state(false)
+  let memoryDraft = $state("")
+  let showAuthorNoteEditor = $state(false)
+  let authorNoteDraft = $state("")
+  let authorNoteDepthDraft = $state(4)
   let flashScene = $state(false)
   let flashOpening = $state(false)
   let isImpersonating = $state(false)
@@ -67,6 +75,8 @@
   let lastLlmUpdateId = 0
   let sceneFlashTimer: number | null = null
   let openingFlashTimer: number | null = null
+  let keyboardScrollTimer: number | null = null
+  let lastViewportHeight = 0
 
   let initialScrollDone = $state(false)
   let userActed = $state(false)
@@ -414,7 +424,7 @@
   }
 
   function startEditOpening() {
-    openingDraft = $currentStoryOpeningScenario || $worldState?.recent_events_summary || ""
+    openingDraft = $currentStoryOpeningScenario || $worldState?.memory || ""
     editingOpening = true
   }
 
@@ -435,6 +445,50 @@
       editingOpening = false
     } catch {
       showError("Failed to update opening scenario")
+    }
+  }
+
+  function openMemoryEditor() {
+    memoryDraft = $worldState?.memory ?? ""
+    showMemoryEditor = true
+    showMenu = false
+  }
+
+  async function saveMemory() {
+    if (!$currentStoryId) return
+    const text = memoryDraft.trim()
+    if (!text) {
+      showError("Memory cannot be empty")
+      return
+    }
+    try {
+      const result = await api.stories.updateState($currentStoryId, { world: { memory: text } })
+      worldState.set(result.world)
+      showMemoryEditor = false
+    } catch {
+      showError("Failed to update memory")
+    }
+  }
+
+  function openAuthorNoteEditor() {
+    authorNoteDraft = $currentStoryAuthorNote
+    authorNoteDepthDraft = $currentStoryAuthorNoteDepth
+    showAuthorNoteEditor = true
+    showMenu = false
+  }
+
+  async function saveAuthorNote() {
+    if (!$currentStoryId) return
+    try {
+      await api.stories.update($currentStoryId, {
+        author_note: authorNoteDraft,
+        author_note_depth: authorNoteDepthDraft,
+      })
+      currentStoryAuthorNote.set(authorNoteDraft)
+      currentStoryAuthorNoteDepth.set(authorNoteDepthDraft)
+      showAuthorNoteEditor = false
+    } catch {
+      showError("Failed to update author's note")
     }
   }
 
@@ -513,6 +567,12 @@
         storyDiv.scrollTop = storyDiv.scrollHeight
       }
     }
+  }
+
+  function scheduleKeyboardScroll() {
+    if (keyboardScrollTimer) window.clearTimeout(keyboardScrollTimer)
+    requestAnimationFrame(() => scrollToBottom())
+    keyboardScrollTimer = window.setTimeout(() => scrollToBottom(), 120)
   }
 
   function goHome() {
@@ -687,7 +747,7 @@
           loadVariants(lastId).then(() => {
             if (!initialScrollDone) {
               initialScrollDone = true
-              tick().then(() => requestAnimationFrame(scrollToBottom))
+              tick().then(() => requestAnimationFrame(() => scrollToBottom()))
             }
           })
         }
@@ -709,7 +769,7 @@
     untrack(() => {
       if (!baselineWorldSet && (ws || opening)) {
         lastSceneText = ws ? `${ws.current_scene} · ${ws.current_date} · ${ws.time_of_day}` : ""
-        lastOpeningText = opening || ws?.recent_events_summary || ""
+        lastOpeningText = opening || ws?.memory || ""
         baselineWorldSet = true
       }
     })
@@ -722,7 +782,7 @@
     untrack(() => {
       if (updateId !== lastLlmUpdateId) {
         const sceneText = ws ? `${ws.current_scene} · ${ws.current_date} · ${ws.time_of_day}` : ""
-        const openingText = opening || ws?.recent_events_summary || ""
+        const openingText = opening || ws?.memory || ""
         if (baselineWorldSet) {
           if (sceneText && sceneText !== lastSceneText) {
             triggerSceneFlash()
@@ -752,6 +812,28 @@
         if (openingFlashTimer) window.clearTimeout(openingFlashTimer)
       }
     })
+  })
+
+  onMount(() => {
+    if (typeof window === "undefined") return
+    const viewport = window.visualViewport
+    lastViewportHeight = viewport?.height ?? 0
+    if (!viewport) return
+
+    const handleViewportResize = () => {
+      if (!inputEl || document.activeElement !== inputEl) return
+      const next = viewport.height
+      if (next && next !== lastViewportHeight) {
+        lastViewportHeight = next
+        scheduleKeyboardScroll()
+      }
+    }
+
+    viewport.addEventListener("resize", handleViewportResize)
+    return () => {
+      viewport.removeEventListener("resize", handleViewportResize)
+      if (keyboardScrollTimer) window.clearTimeout(keyboardScrollTimer)
+    }
   })
 </script>
 
@@ -797,12 +879,68 @@
         </button>
         {#if showMenu}
           <div class="dropdown">
-            <button onclick={goHome} class="danger-item">← Back to Stories</button>
+            <button onclick={openMemoryEditor}>Memory</button>
+            <button onclick={openAuthorNoteEditor}>Author's Note</button>
+            {#if $currentStoryId}
+              <a href={api.stories.exportUrl($currentStoryId, "neuradventure")} download class="dropdown-link"
+                >Export JSON</a
+              >
+              <a href={api.stories.exportUrl($currentStoryId, "tavern")} download class="dropdown-link"
+                >Export ST Chat</a
+              >
+              <a href={api.stories.exportUrl($currentStoryId, "plaintext")} download class="dropdown-link"
+                >Export Text</a
+              >
+            {/if}
           </div>
         {/if}
       </div>
     </div>
   </header>
+
+  <!-- ── Memory editor overlay ─────────────────────────── -->
+  {#if showMemoryEditor}
+    <div class="editor-overlay">
+      <div class="editor-panel">
+        <div class="editor-header">
+          <span>Memory</span>
+          <span class="editor-hint">Persistent summary — updated by AI each turn, editable by you</span>
+        </div>
+        <textarea class="edit-textarea" bind:value={memoryDraft} rows="6" use:autoresize={memoryDraft}></textarea>
+        <div class="edit-actions">
+          <button class="btn-ghost" onclick={() => (showMemoryEditor = false)}>Cancel</button>
+          <button class="btn-accent" onclick={saveMemory}>Save</button>
+        </div>
+      </div>
+    </div>
+  {/if}
+
+  <!-- ── Author's Note editor overlay ──────────────────── -->
+  {#if showAuthorNoteEditor}
+    <div class="editor-overlay">
+      <div class="editor-panel">
+        <div class="editor-header">
+          <span>Author's Note</span>
+          <span class="editor-hint">Injected into the prompt at the specified depth in history</span>
+        </div>
+        <textarea
+          class="edit-textarea"
+          bind:value={authorNoteDraft}
+          rows="4"
+          placeholder="e.g. Focus on dialogue and character emotions"
+          use:autoresize={authorNoteDraft}
+        ></textarea>
+        <div class="depth-row">
+          <label for="an-depth">Depth (entries from bottom):</label>
+          <input id="an-depth" type="number" min="0" max="100" bind:value={authorNoteDepthDraft} class="depth-input" />
+        </div>
+        <div class="edit-actions">
+          <button class="btn-ghost" onclick={() => (showAuthorNoteEditor = false)}>Cancel</button>
+          <button class="btn-accent" onclick={saveAuthorNote}>Save</button>
+        </div>
+      </div>
+    </div>
+  {/if}
 
   <!-- ── Story scroll area ───────────────────────────────── -->
   <div
@@ -844,7 +982,7 @@
         </div>
       {:else}
         <p class="opening-text" class:flash={flashOpening}>
-          {#each tokenizeInline($currentStoryOpeningScenario || $worldState?.recent_events_summary || "") as token}
+          {#each tokenizeInline($currentStoryOpeningScenario || $worldState?.memory || "") as token}
             {#if token.type === "text"}
               {token.content}
             {:else if token.type === "code"}
@@ -1036,11 +1174,13 @@
 
     <!-- Text input -->
     <textarea
+      bind:this={inputEl}
       bind:value={input}
       placeholder={MODE_HINTS[actionMode]}
       rows="2"
       disabled={$isGenerating}
       onkeydown={handleKeydown}
+      onfocus={scheduleKeyboardScroll}
       use:autoresize={input}
     ></textarea>
 
@@ -1688,5 +1828,77 @@
   }
   .tbtn:hover {
     color: var(--text);
+  }
+
+  /* Editor overlay */
+  .editor-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.6);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 100;
+    padding: 1rem;
+  }
+  .editor-panel {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 1.25rem;
+    width: 100%;
+    max-width: 480px;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+  .editor-header {
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+  }
+  .editor-header > span:first-child {
+    font-family: var(--font-ui);
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--text);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+  }
+  .editor-hint {
+    font-size: 0.75rem;
+    color: var(--text-dim);
+  }
+  .depth-row {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.82rem;
+    color: var(--text-dim);
+  }
+  .depth-input {
+    width: 60px;
+    padding: 0.3rem 0.5rem;
+    background: var(--bg-input);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    color: var(--text);
+    font-size: 0.82rem;
+  }
+  .dropdown-link {
+    display: block;
+    padding: 0.5rem 0.75rem;
+    font-size: 0.82rem;
+    color: var(--text);
+    text-decoration: none;
+    background: none;
+    border: none;
+    text-align: left;
+    cursor: pointer;
+    transition: background 0.1s;
+    white-space: nowrap;
+  }
+  .dropdown-link:hover {
+    background: var(--bg-action);
   }
 </style>

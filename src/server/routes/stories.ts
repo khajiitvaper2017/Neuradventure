@@ -13,6 +13,15 @@ import {
 } from "../models.js"
 import { createNewStory } from "../game.js"
 import { desc } from "../schemas/field-descriptions.js"
+import {
+  characterToTavernCard,
+  tavernCardToCharacter,
+  storyToTavernJSONL,
+  storyToPlaintext,
+  detectImportFormat,
+  parseTavernJSONL,
+  type TavernCardV2,
+} from "../converters/tavern.js"
 
 const stories = new Hono()
 
@@ -35,6 +44,23 @@ function parseStoryState(row: db.StoryRow) {
   const npcs = (JSON.parse(row.npc_states_json) as unknown[]).map((n) => NPCStateStoredSchema.parse(n))
   return { character, world, initialWorld, npcs }
 }
+
+const ImportTurnSchema = z.object({
+  player_input: z.string().min(1),
+  narrative_text: z.string().min(1),
+  action_mode: z.string().optional(),
+})
+
+const ImportStorySchema = z.object({
+  title: z.string().describe(desc("requests.story_title")),
+  opening_scenario: z.string().describe(desc("requests.opening_scenario")),
+  character: MainCharacterStateStoredSchema.describe(desc("requests.import_story.character")),
+  world: WorldStateStoredSchema.describe(desc("requests.import_story.world")),
+  npcs: z.array(NPCStateStoredSchema).describe(desc("requests.import_story.npcs")).default([]),
+  author_note: z.string().optional(),
+  author_note_depth: z.number().int().min(0).max(100).optional(),
+  turns: z.array(ImportTurnSchema).optional(),
+})
 
 stories.get("/", (c) => {
   const rows = db.listStories()
@@ -131,6 +157,8 @@ stories.get("/:id", (c) => {
     id: row.id,
     title: row.title,
     opening_scenario: row.opening_scenario,
+    author_note: row.author_note ?? "",
+    author_note_depth: row.author_note_depth ?? 4,
     character,
     world,
     initial_world: initialWorld,
@@ -167,6 +195,8 @@ stories.post("/", zValidator("json", CreateStoryRequestSchema), async (c) => {
     character,
     body.npcs ?? [],
     body.starting_scene,
+    body.starting_date,
+    body.starting_time,
     characterId,
   )
   return c.json({ id }, 201)
@@ -189,8 +219,11 @@ stories.put("/:id/state", zValidator("json", UpdateStoryStateRequestSchema), (c)
   const { world: currentWorld, npcs: currentNpcs } = parseStoryState(row)
   const nextCharacter = body.character ? MainCharacterStateSchema.parse(body.character) : currentCharacter
   const nextNpcs = body.npcs ? body.npcs.map((n) => NPCStateStoredSchema.parse(n)) : currentNpcs
-  db.updateStory(id, nextCharacter, currentWorld, nextNpcs)
-  return c.json({ character: nextCharacter, npcs: nextNpcs })
+  const nextWorld = body.world
+    ? { ...currentWorld, ...(body.world.memory !== undefined ? { memory: body.world.memory } : {}) }
+    : currentWorld
+  db.updateStory(id, nextCharacter, nextWorld, nextNpcs)
+  return c.json({ character: nextCharacter, world: nextWorld, npcs: nextNpcs })
 })
 
 stories.delete("/:id", (c) => {
@@ -199,16 +232,43 @@ stories.delete("/:id", (c) => {
   return c.json({ ok: true })
 })
 
+// ─── Story Export (multiple formats) ──────────────────────────────────────────
+
 stories.get("/:id/export", (c) => {
   const id = Number(c.req.param("id"))
+  const format = (c.req.query("format") || "neuradventure") as string
   const row = db.getStory(id)
   if (!row) return c.json({ error: "Story not found" }, 404)
   const { character, world, npcs } = parseStoryState(row)
   const turns = db.getTurnsForStory(id)
+
+  if (format === "tavern") {
+    const jsonl = storyToTavernJSONL(row.title, row.opening_scenario, character.name, turns)
+    return new Response(jsonl, {
+      headers: {
+        "Content-Type": "application/x-jsonlines",
+        "Content-Disposition": `attachment; filename="story-${id}.jsonl"`,
+      },
+    })
+  }
+
+  if (format === "plaintext") {
+    const text = storyToPlaintext(row.title, row.opening_scenario, turns)
+    return new Response(text, {
+      headers: {
+        "Content-Type": "text/plain; charset=utf-8",
+        "Content-Disposition": `attachment; filename="story-${id}.txt"`,
+      },
+    })
+  }
+
+  // Default: neuradventure format
   const data = JSON.stringify(
     {
       title: row.title,
       opening_scenario: row.opening_scenario,
+      author_note: row.author_note ?? "",
+      author_note_depth: row.author_note_depth ?? 4,
       character,
       world,
       npcs,
@@ -231,37 +291,165 @@ stories.get("/:id/export", (c) => {
   })
 })
 
-stories.post(
-  "/import",
-  zValidator(
-    "json",
-    z.object({
-      title: z.string().describe(desc("requests.story_title")),
-      opening_scenario: z.string().describe(desc("requests.opening_scenario")),
-      character: MainCharacterStateSchema.describe(desc("requests.import_story.character")),
-      world: WorldStateStoredSchema.describe(desc("requests.import_story.world")),
-      npcs: z.array(NPCStateStoredSchema).describe(desc("requests.import_story.npcs")),
-    }),
-  ),
-  (c) => {
-    const body = c.req.valid("json")
-    const base = {
-      name: body.character.name,
-      race: body.character.race,
-      gender: body.character.gender,
-      current_location: body.character.current_location,
-      appearance: body.character.appearance,
-      baseline_description: body.character.baseline_description,
-      current_activity: body.character.current_activity,
-      personality_traits: body.character.personality_traits,
-      quirks: body.character.quirks,
-      perks: body.character.perks,
-      relationship_scores: body.character.relationship_scores,
+// ─── Story Import ─────────────────────────────────────────────────────────────
+
+stories.post("/import", async (c) => {
+  const raw = await c.req.text()
+  let data: unknown = raw
+  try {
+    data = JSON.parse(raw)
+  } catch {
+    // keep raw text for JSONL detection
+  }
+
+  const format = detectImportFormat(data)
+
+  if (format === "tavern-card") {
+    return c.json({ error: "Character card detected. Use character import instead." }, 400)
+  }
+
+  if (format === "tavern-jsonl") {
+    try {
+      const parsed = parseTavernJSONL(typeof data === "string" ? data : raw)
+      const character = MainCharacterStateStoredSchema.parse({ name: parsed.userName })
+      const { inventory: _inventory, ...base } = character
+      void _inventory
+      const characterId = db.createCharacter(base)
+      const title =
+        parsed.characterName && parsed.characterName !== "Narrator"
+          ? `Imported Chat with ${parsed.characterName}`
+          : "Imported Chat"
+      const storyId = createNewStory(title, parsed.openingScenario, character, [], undefined, undefined, undefined, characterId)
+      const storyRow = db.getStory(storyId)
+      if (storyRow) {
+        const snapshot = parseStoryState(storyRow)
+        parsed.turns.forEach((turn, index) => {
+          db.createTurn(
+            storyId,
+            index + 1,
+            "do",
+            null,
+            turn.player_input,
+            turn.narrative_text,
+            snapshot.character,
+            snapshot.world,
+            snapshot.npcs,
+          )
+        })
+      }
+      return c.json({ id: storyId }, 201)
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Invalid JSONL format"
+      return c.json({ error: message }, 400)
     }
+  }
+
+  if (format === "neuradventure") {
+    const parsed = ImportStorySchema.parse(data)
+    const { inventory: _inventory, ...base } = parsed.character
+    void _inventory
     const characterId = db.createCharacter(base)
-    const id = db.createStory(body.title, body.opening_scenario, body.character, body.world, body.npcs, characterId)
+    const id = db.createStory(
+      parsed.title,
+      parsed.opening_scenario,
+      parsed.character,
+      parsed.world,
+      parsed.npcs,
+      characterId,
+    )
+    if (parsed.author_note !== undefined || parsed.author_note_depth !== undefined) {
+      db.updateStoryMeta(id, {
+        author_note: parsed.author_note,
+        author_note_depth: parsed.author_note_depth,
+      })
+    }
+    if (parsed.turns && parsed.turns.length > 0) {
+      const row = db.getStory(id)
+      if (row) {
+        const snapshot = parseStoryState(row)
+        parsed.turns.forEach((turn, index) => {
+          db.createTurn(
+            id,
+            index + 1,
+            turn.action_mode ?? "do",
+            null,
+            turn.player_input,
+            turn.narrative_text,
+            snapshot.character,
+            snapshot.world,
+            snapshot.npcs,
+          )
+        })
+      }
+    }
     return c.json({ id }, 201)
-  },
-)
+  }
+
+  return c.json({ error: "Unrecognized import format. Expected Neuradventure JSON or SillyTavern JSONL." }, 400)
+})
+
+// ─── Character Export ─────────────────────────────────────────────────────────
+
+stories.get("/characters/:id/export", (c) => {
+  const charId = Number(c.req.param("id"))
+  const format = (c.req.query("format") || "neuradventure") as string
+  const charRow = db.getCharacter(charId)
+  if (!charRow) return c.json({ error: "Character not found" }, 404)
+
+  const parsed = MainCharacterStateStoredSchema.parse(JSON.parse(charRow.state_json))
+
+  if (format === "tavern-card") {
+    const card = characterToTavernCard(parsed)
+    const data = JSON.stringify(card, null, 2)
+    return new Response(data, {
+      headers: {
+        "Content-Type": "application/json",
+        "Content-Disposition": `attachment; filename="character-${parsed.name.replace(/\s+/g, "_")}.json"`,
+      },
+    })
+  }
+
+  // Default: neuradventure
+  const { inventory: _inventory, ...base } = parsed
+  void _inventory
+  const data = JSON.stringify(base, null, 2)
+  return new Response(data, {
+    headers: {
+      "Content-Type": "application/json",
+      "Content-Disposition": `attachment; filename="character-${parsed.name.replace(/\s+/g, "_")}.json"`,
+    },
+  })
+})
+
+// ─── Character Import ─────────────────────────────────────────────────────────
+
+stories.post("/characters/import", async (c) => {
+  const body = await c.req.json()
+  const format = detectImportFormat(body)
+
+  if (format === "tavern-card") {
+    const result = tavernCardToCharacter(body as TavernCardV2)
+    if (!result.needs_review) {
+      const characterId = db.createCharacter(result.character)
+      return c.json({ id: characterId, character: result.character, needs_review: false }, 201)
+    }
+    return c.json({
+      character: result.character,
+      needs_review: true,
+      source: result.source,
+      source_text: result.source_text,
+    })
+  }
+
+  const parsed = MainCharacterStateStoredSchema.safeParse(body)
+  if (parsed.success) {
+    const { inventory: _inventory, ...base } = parsed.data
+    void _inventory
+    const characterId = db.createCharacter(base)
+    return c.json({ id: characterId, character: base, needs_review: false }, 201)
+  }
+
+  return c.json({ error: "Unrecognized import format. Expected TavernCardV2 or Neuradventure character." }, 400)
+})
 
 export default stories

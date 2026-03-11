@@ -23,11 +23,6 @@ export interface CharacterAppearance {
   current_clothing: string
 }
 
-export interface RelationshipScore {
-  name: string
-  affinity: number
-}
-
 export interface CharacterState {
   name: string
   race: string
@@ -37,9 +32,9 @@ export interface CharacterState {
   baseline_description: string
   current_activity: string
   personality_traits: string[]
+  major_flaws: string[]
   quirks: string[]
   perks: string[]
-  relationship_scores: RelationshipScore[]
   inventory: InventoryItem[]
 }
 
@@ -50,7 +45,7 @@ export interface WorldState {
   current_scene: string
   current_date: string
   time_of_day: string
-  recent_events_summary: string
+  memory: string
   locations: Location[]
 }
 
@@ -67,6 +62,8 @@ export interface StoryDetail {
   id: number
   title: string
   opening_scenario: string
+  author_note: string
+  author_note_depth: number
   character: MainCharacterState
   world: WorldState
   initial_world: WorldState
@@ -77,6 +74,7 @@ export interface StoryDetail {
 
 export interface UpdateStoryStateResult {
   character: MainCharacterState
+  world: WorldState
   npcs: NPCState[]
 }
 
@@ -110,6 +108,7 @@ export interface GenerateCharacterResponse {
   baseline_appearance: string
   current_clothing: string
   personality_traits: string[]
+  major_flaws: string[]
   quirks: string[]
   perks: string[]
 }
@@ -125,32 +124,20 @@ export interface GenerateCharacterClothingResponse {
 
 export interface GenerateCharacterTraitsResponse {
   personality_traits: string[]
+  major_flaws: string[]
   quirks: string[]
   perks: string[]
-}
-
-export interface GenerateCharacterContext {
-  name: string
-  race: string
-  gender: string
-  current_location: string
-  appearance: CharacterAppearance
-  baseline_description: string
-  current_activity: string
-  personality_traits: string[]
-  quirks: string[]
-  perks: string[]
-  relationship_scores: RelationshipScore[]
 }
 
 export interface GenerateStoryResponse {
   title: string
   opening_scenario: string
   starting_location: string
+  starting_date: string
+  starting_time: string
   character_baseline_description: string
   character_current_appearance: string
   character_current_activity: string
-  character_relationship_scores: RelationshipScore[]
   pregen_npcs: NPCState[]
 }
 
@@ -253,6 +240,14 @@ export interface AppSettings {
   ctx_limit_detected?: number
 }
 
+export interface CharacterImportResult {
+  id?: number
+  character: Omit<MainCharacterState, "inventory">
+  needs_review: boolean
+  source?: "neuradventure" | "tavern"
+  source_text?: string
+}
+
 export interface SamplerPreset {
   name: string
   description: string
@@ -315,20 +310,42 @@ export const api = {
       title: string
       opening_scenario: string
       starting_scene?: string
+      starting_date?: string
+      starting_time?: string
       character_id?: number
       character_data?: Omit<MainCharacterState, "inventory">
       npcs?: NPCState[]
     }) => request<{ id: number }>("/api/stories", { method: "POST", body: JSON.stringify(data) }),
-    update: (id: number, data: { title?: string; opening_scenario?: string }) =>
-      request<{ ok: boolean }>(`/api/stories/${id}`, { method: "PUT", body: JSON.stringify(data) }),
-    updateState: (id: number, data: { character?: MainCharacterState; npcs?: NPCState[] }) =>
-      request<UpdateStoryStateResult>(`/api/stories/${id}/state`, { method: "PUT", body: JSON.stringify(data) }),
+    update: (
+      id: number,
+      data: { title?: string; opening_scenario?: string; author_note?: string; author_note_depth?: number },
+    ) => request<{ ok: boolean }>(`/api/stories/${id}`, { method: "PUT", body: JSON.stringify(data) }),
+    updateState: (
+      id: number,
+      data: { character?: MainCharacterState; npcs?: NPCState[]; world?: { memory?: string } },
+    ) => request<UpdateStoryStateResult>(`/api/stories/${id}/state`, { method: "PUT", body: JSON.stringify(data) }),
     delete: (id: number) => request<{ ok: boolean }>(`/api/stories/${id}`, { method: "DELETE" }),
-    exportUrl: (id: number) => `/api/stories/${id}/export`,
-    import: (data: object) =>
-      request<{ id: number }>("/api/stories/import", { method: "POST", body: JSON.stringify(data) }),
+    exportUrl: (id: number, format?: "neuradventure" | "tavern" | "plaintext") =>
+      `/api/stories/${id}/export${format ? `?format=${format}` : ""}`,
+    import: (data: object | string) => {
+      const options: RequestInit = {
+        method: "POST",
+        body: typeof data === "string" ? data : JSON.stringify(data),
+      }
+      if (typeof data === "string") {
+        options.headers = { "Content-Type": "text/plain" }
+      }
+      return request<{ id: number }>("/api/stories/import", options)
+    },
     characters: () => request<StoryCharacterGroup[]>("/api/stories/characters"),
     npcs: () => request<StoryNpcGroup[]>("/api/stories/npcs"),
+    exportCharacter: (charId: number, format?: "neuradventure" | "tavern-card") =>
+      `/api/stories/characters/${charId}/export${format ? `?format=${format}` : ""}`,
+    importCharacter: (data: object) =>
+      request<CharacterImportResult>("/api/stories/characters/import", {
+        method: "POST",
+        body: JSON.stringify(data),
+      }),
   },
 
   turns: {

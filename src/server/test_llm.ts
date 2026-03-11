@@ -16,9 +16,9 @@ const character: MainCharacterState = {
     "Lives in Ashford's north quarter; estranged father in Graybend; two close friends in the local militia.",
   current_activity: "Sits at the tavern bar, scanning the room.",
   personality_traits: ["Brave", "Curious"],
+  major_flaws: ["Reckless in danger"],
   quirks: ["Counts exits on entry"],
   perks: ["Skilled tracker"],
-  relationship_scores: [],
   inventory: [{ name: "Dagger", description: "a small iron dagger" }],
 }
 
@@ -26,7 +26,7 @@ const world: WorldState = {
   current_scene: "The Rusted Flagon tavern",
   current_date: "2026-03-11",
   time_of_day: "21:00",
-  recent_events_summary: "You arrived in the village of Ashford after a long journey through the rain.",
+  memory: "You arrived in the village of Ashford after a long journey through the rain.",
   locations: [
     {
       name: "The Rusted Flagon tavern",

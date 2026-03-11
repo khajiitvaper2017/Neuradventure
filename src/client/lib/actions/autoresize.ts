@@ -1,7 +1,20 @@
-export function autoresize(node: HTMLTextAreaElement) {
+export function autoresize(node: HTMLTextAreaElement, _value?: string) {
+  void _value
+  const getScrollRoot = () => node.closest<HTMLElement>("[data-scroll-root]")
+
   const resize = () => {
-    node.style.height = "0px"
+    const root = getScrollRoot()
+    const prevScrollTop = root?.scrollTop ?? 0
+    const prevScrollLeft = root?.scrollLeft ?? 0
+    const isActive = document.activeElement === node
+
+    node.style.height = "auto"
     node.style.height = `${node.scrollHeight}px`
+
+    if (root && isActive) {
+      root.scrollTop = prevScrollTop
+      root.scrollLeft = prevScrollLeft
+    }
   }
 
   const schedule = () => requestAnimationFrame(resize)
@@ -17,7 +30,8 @@ export function autoresize(node: HTMLTextAreaElement) {
   }
 
   return {
-    update() {
+    update(_nextValue?: string) {
+      void _nextValue
       schedule()
     },
     destroy() {

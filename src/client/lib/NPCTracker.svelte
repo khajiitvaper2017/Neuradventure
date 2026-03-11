@@ -18,6 +18,7 @@
   import IconUsers from "../icons/IconUsers.svelte"
 
   let { inline = false }: { inline?: boolean } = $props()
+  let showBaselineDetails = $state(false)
 
   function npcFieldId(npc: NPCState, field: string): string {
     const base = npc.name
@@ -39,38 +40,6 @@
   function updateField(field: EditField, event: Event) {
     const target = event.target as HTMLInputElement | HTMLTextAreaElement
     field.onInput(target.value)
-  }
-
-  function clampAffinity(value: number): number {
-    if (!Number.isFinite(value)) return 0
-    if (value < -100) return -100
-    if (value > 100) return 100
-    return Math.round(value)
-  }
-
-  function formatRelationshipScores(scores: NPCState["relationship_scores"]): string {
-    if (!scores || scores.length === 0) return ""
-    return scores.map((score) => `${score.name}: ${score.affinity}`).join("\n")
-  }
-
-  function parseRelationshipScores(text: string): NPCState["relationship_scores"] {
-    const lines = text
-      .split("\n")
-      .map((line) => line.trim())
-      .filter(Boolean)
-    const scores: NPCState["relationship_scores"] = []
-    const seen = new Set<string>()
-    for (const line of lines) {
-      const match = /^(.*?)\s*[:|]\s*(-?\d+)/.exec(line)
-      if (!match) continue
-      const name = match[1].trim()
-      if (!name) continue
-      const key = name.toLowerCase()
-      if (seen.has(key)) continue
-      seen.add(key)
-      scores.push({ name, affinity: clampAffinity(Number(match[2])) })
-    }
-    return scores
   }
 
   function npcEditFields(npc: NPCState): EditField[] {
@@ -146,6 +115,13 @@
         onInput: (v) => (draft.traits = v),
       },
       {
+        id: npcFieldId(npc, "major-flaws"),
+        label: "Major Flaws (comma separated)",
+        kind: "input",
+        value: draft.majorFlaws,
+        onInput: (v) => (draft.majorFlaws = v),
+      },
+      {
         id: npcFieldId(npc, "quirks"),
         label: "Quirks (comma separated)",
         kind: "input",
@@ -158,13 +134,6 @@
         kind: "input",
         value: draft.perks,
         onInput: (v) => (draft.perks = v),
-      },
-      {
-        id: npcFieldId(npc, "relationships"),
-        label: "Relationship Scores (Name: affinity per line)",
-        kind: "textarea",
-        value: draft.relationshipScores,
-        onInput: (v) => (draft.relationshipScores = v),
       },
     ]
   }
@@ -182,9 +151,9 @@
       baselineDescription: npc.baseline_description,
       currentActivity: npc.current_activity,
       traits: npc.personality_traits.join(", "),
+      majorFlaws: npc.major_flaws.join(", "),
       quirks: npc.quirks.join(", "),
       perks: npc.perks.join(", "),
-      relationshipScores: formatRelationshipScores(npc.relationship_scores),
     }
   }
 
@@ -216,9 +185,9 @@
       return
     }
     const traits = splitCsv(draft.traits)
+    const majorFlaws = splitCsv(draft.majorFlaws)
     const quirks = splitCsv(draft.quirks)
     const perks = splitCsv(draft.perks)
-    const relationshipScores = parseRelationshipScores(draft.relationshipScores)
     const existingNpc = $npcs.find((npc) => npc.name === editingNpcName)
     const updatedNpc: NPCState = {
       name,
@@ -233,9 +202,9 @@
       baseline_description: baselineDescription,
       current_activity: currentActivity,
       personality_traits: traits,
+      major_flaws: majorFlaws,
       quirks,
       perks,
-      relationship_scores: relationshipScores,
       inventory: existingNpc?.inventory ?? [],
     }
     const updatedList = $npcs.map((npc) => (npc.name === editingNpcName ? updatedNpc : npc))
@@ -316,9 +285,9 @@
     baselineDescription: string
     currentActivity: string
     traits: string
+    majorFlaws: string
     quirks: string
     perks: string
-    relationshipScores: string
   }
   let draft = $state<NpcDraft>({
     name: "",
@@ -331,9 +300,9 @@
     baselineDescription: "",
     currentActivity: "",
     traits: "",
+    majorFlaws: "",
     quirks: "",
     perks: "",
-    relationshipScores: "",
   })
 
   function createRequestId(): string {
@@ -392,7 +361,6 @@
       npc.personality_traits.join(","),
       npc.quirks.join(","),
       npc.perks.join(","),
-      (npc.relationship_scores ?? []).map((s) => `${s.name}:${s.affinity}`).join(","),
     ].join("|")
   }
 
@@ -600,10 +568,12 @@
             <span>{npc.current_location}</span>
           </div>
 
-          <div class="npc-detail-row">
-            <IconFace size={13} strokeWidth={1.5} className="npc-icon" />
-            <span>{npc.appearance.baseline_appearance}</span>
-          </div>
+          {#if showBaselineDetails}
+            <div class="npc-detail-row">
+              <IconFace size={13} strokeWidth={1.5} className="npc-icon" />
+              <span>{npc.appearance.baseline_appearance}</span>
+            </div>
+          {/if}
 
           <div class="npc-detail-row">
             <IconFace size={13} strokeWidth={1.5} className="npc-icon" />
@@ -615,46 +585,38 @@
             <span>{npc.appearance.current_clothing}</span>
           </div>
 
-          <div class="npc-detail-row">
-            <IconDocument size={13} strokeWidth={1.5} className="npc-icon" />
-            <span>{npc.baseline_description}</span>
-          </div>
+          {#if showBaselineDetails}
+            <div class="npc-detail-row">
+              <IconDocument size={13} strokeWidth={1.5} className="npc-icon" />
+              <span>{npc.baseline_description}</span>
+            </div>
+          {/if}
 
           <div class="npc-detail-row">
             <IconDocument size={13} strokeWidth={1.5} className="npc-icon" />
             <span>{npc.current_activity}</span>
           </div>
 
-          {#if npc.personality_traits.length > 0 || npc.quirks.length > 0 || npc.perks.length > 0}
+          {#if npc.personality_traits.length > 0 || npc.major_flaws.length > 0 || npc.quirks.length > 0 || npc.perks.length > 0}
             <div class="npc-traits">
               <IconStar size={13} strokeWidth={1.5} className="npc-icon npc-traits-icon" />
               <div class="chips">
                 {#each npc.personality_traits as trait}
-                  <span class="chip">Trait · {trait}</span>
+                  <span class="chip">{trait}</span>
+                {/each}
+                {#each npc.major_flaws as trait}
+                  <span class="chip">{trait}</span>
                 {/each}
                 {#each npc.quirks as trait}
-                  <span class="chip">Quirk · {trait}</span>
+                  <span class="chip">{trait}</span>
                 {/each}
                 {#each npc.perks as trait}
-                  <span class="chip">Perk · {trait}</span>
+                  <span class="chip">{trait}</span>
                 {/each}
               </div>
             </div>
           {/if}
 
-          {#if npc.relationship_scores.length > 0}
-            <div class="npc-relationships">
-              <IconUsers size={13} strokeWidth={1.5} className="npc-icon npc-rel-icon" />
-              <ul class="npc-rel-list">
-                {#each npc.relationship_scores as score}
-                  <li>
-                    <span class="npc-rel-name">{score.name}</span>
-                    <span class="npc-rel-affinity">{score.affinity}</span>
-                  </li>
-                {/each}
-              </ul>
-            </div>
-          {/if}
         {/if}
       </div>
     {/each}
@@ -666,6 +628,9 @@
     <div class="sidebar-header">
       <IconUsers size={16} strokeWidth={1.5} className="npc-header-icon" />
       <span>Known NPCs ({$npcs.length})</span>
+      <button class="npc-toggle-btn" onclick={() => (showBaselineDetails = !showBaselineDetails)} disabled={$npcs.length === 0}>
+        {showBaselineDetails ? "Hide Baseline" : "Show Baseline"}
+      </button>
     </div>
     <div class="sidebar-body" data-scroll-root="modal" bind:this={sidebarBodyEl}>
       {@render npcContent()}
@@ -679,6 +644,9 @@
     <div class="panel-header">
       <IconUsers size={16} strokeWidth={1.5} className="npc-header-icon" />
       <span>Known NPCs ({$npcs.length})</span>
+      <button class="npc-toggle-btn" onclick={() => (showBaselineDetails = !showBaselineDetails)} disabled={$npcs.length === 0}>
+        {showBaselineDetails ? "Hide Baseline" : "Show Baseline"}
+      </button>
       <button onclick={() => showNPCTracker.set(false)}>×</button>
     </div>
     <div class="panel-body" data-scroll-root="modal" bind:this={panelBodyEl}>
@@ -699,6 +667,26 @@
     flex-shrink: 0;
     margin-right: 0.4rem;
     opacity: 0.6;
+  }
+  .npc-toggle-btn {
+    margin-left: auto;
+    background: transparent;
+    border: 1px dashed var(--border);
+    color: var(--text-dim);
+    border-radius: var(--radius-pill);
+    padding: 0.2rem 0.6rem;
+    font-size: 0.62rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    min-width: auto;
+    min-height: auto;
+  }
+  .npc-toggle-btn:hover:not(:disabled) {
+    color: var(--text);
+    border-color: var(--border-hover);
+  }
+  .npc-toggle-btn:disabled {
+    opacity: 0.5;
   }
 
   /* ── Shared content styles ────────────────────────── */
@@ -840,42 +828,6 @@
     display: flex;
     justify-content: flex-end;
     gap: 0.5rem;
-  }
-
-  .npc-relationships {
-    display: flex;
-    align-items: flex-start;
-    gap: 0.4rem;
-    margin-top: 0.15rem;
-  }
-
-  .npc-rel-list {
-    list-style: none;
-    padding: 0;
-    margin: 0;
-    display: flex;
-    flex-direction: column;
-    gap: 0.25rem;
-    font-size: 0.8rem;
-  }
-
-  .npc-rel-list li {
-    display: flex;
-    justify-content: space-between;
-    gap: 0.5rem;
-  }
-
-  .npc-rel-name {
-    color: var(--text);
-  }
-
-  .npc-rel-affinity {
-    color: var(--text-dim);
-    font-variant-numeric: tabular-nums;
-  }
-
-  :global(.npc-rel-icon) {
-    margin-top: 1px;
   }
 
   .npc-traits {

@@ -1,6 +1,6 @@
 import { z } from "zod"
 import { NPCStateUpdateBaseSchema } from "./npc-state-update-base.js"
-import { InventoryItemSchema, WorldStateSchema, NPCStateSchema, RelationshipScoresSchema } from "./game-state.js"
+import { InventoryItemSchema, WorldStateSchema, NPCStateSchema } from "./game-state.js"
 import { desc } from "./field-descriptions.js"
 
 type NPCStateUpdateBase = z.infer<typeof NPCStateUpdateBaseSchema>
@@ -21,10 +21,7 @@ export const buildNPCStateUpdateSchema = (nameSchema: z.ZodType<string>): z.ZodT
   const withActivity = base.extend({
     set_current_activity: z.string().min(1).describe(desc("llm.npc_update.set_current_activity")),
   })
-  const withRelationships = base.extend({
-    set_relationship_scores: RelationshipScoresSchema.describe(desc("state.character.relationship_scores")),
-  })
-  return z.union([withRace, withGender, withLocation, withAppearance, withClothing, withActivity, withRelationships])
+  return z.union([withRace, withGender, withLocation, withAppearance, withClothing, withActivity])
 }
 
 export const NPCStateUpdateSchema = buildNPCStateUpdateSchema(z.string().min(1).describe(desc("llm.npc_update.name")))

@@ -29,13 +29,13 @@ function normalizeCharacterBase(input: Partial<CharacterBase>): CharacterBase {
     baseline_description: input.baseline_description ?? "",
     current_activity: input.current_activity ?? "",
     personality_traits: Array.isArray(input.personality_traits) ? input.personality_traits : [],
+    major_flaws: Array.isArray(input.major_flaws) ? input.major_flaws : [],
     quirks: Array.isArray(input.quirks)
       ? input.quirks
       : Array.isArray((input as { custom_traits?: string[] }).custom_traits)
         ? ((input as { custom_traits?: string[] }).custom_traits ?? [])
         : [],
     perks: Array.isArray(input.perks) ? input.perks : [],
-    relationship_scores: Array.isArray(input.relationship_scores) ? input.relationship_scores : [],
   }
 }
 
@@ -218,6 +218,12 @@ export function initDb() {
   if (!storyColumnNames.has("character_id")) {
     database.exec("ALTER TABLE stories ADD COLUMN character_id INTEGER REFERENCES characters(id)")
   }
+  if (!storyColumnNames.has("author_note")) {
+    database.exec("ALTER TABLE stories ADD COLUMN author_note TEXT NOT NULL DEFAULT ''")
+  }
+  if (!storyColumnNames.has("author_note_depth")) {
+    database.exec("ALTER TABLE stories ADD COLUMN author_note_depth INTEGER NOT NULL DEFAULT 4")
+  }
   database.exec(`
     UPDATE stories
     SET initial_character_state_json = COALESCE(initial_character_state_json, character_state_json),
@@ -362,6 +368,8 @@ export interface StoryRow {
   initial_character_state_json: string | null
   initial_world_state_json: string | null
   initial_npc_states_json: string | null
+  author_note: string
+  author_note_depth: number
   created_at: string
   updated_at: string
 }
@@ -454,7 +462,10 @@ export function updateStory(id: number, character: MainCharacterState, world: Wo
     .run(JSON.stringify(character), JSON.stringify(world), JSON.stringify(npcs), id)
 }
 
-export function updateStoryMeta(id: number, fields: { title?: string; opening_scenario?: string }): void {
+export function updateStoryMeta(
+  id: number,
+  fields: { title?: string; opening_scenario?: string; author_note?: string; author_note_depth?: number },
+): void {
   const updates: string[] = ["updated_at = datetime('now')"]
   const values: unknown[] = []
   if (fields.title !== undefined) {
@@ -464,6 +475,14 @@ export function updateStoryMeta(id: number, fields: { title?: string; opening_sc
   if (fields.opening_scenario !== undefined) {
     updates.push("opening_scenario = ?")
     values.push(fields.opening_scenario)
+  }
+  if (fields.author_note !== undefined) {
+    updates.push("author_note = ?")
+    values.push(fields.author_note)
+  }
+  if (fields.author_note_depth !== undefined) {
+    updates.push("author_note_depth = ?")
+    values.push(fields.author_note_depth)
   }
   values.push(id)
   getDb()

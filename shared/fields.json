@@ -12,13 +12,13 @@
       "current_scene": "Unique 1-5 word name of the player's immediate location.",
       "current_date": "Current date in YYYY-MM-DD format.",
       "time_of_day": "24-hour HH:MM time.",
-      "recent_events_summary": "1-3 sentences summarizing what just happened.",
+      "memory": "Running summary of key events and important facts. Updated by AI each turn, also user-editable. 2-3 short sentences.",
       "locations": "List of all known locations in the story so far."
     },
     "npc_update": {
       "name": "NPC name to update.",
       "race": "Updated race.",
-      "gender": "Updated gender.",
+      "gender": "Updated gender (male, female, futanari, intersex and so on).",
       "set_current_location": "Updated current unique location name. Update only when changed.",
       "set_current_appearance": "Precise, surgical description of current physical state. Include baseline features and current changes only; avoid temporal qualifiers (e.g., \"still\") and comparative phrases (e.g., \"otherwise unchanged\").",
       "set_current_activity": "Concise, factual description of what the NPC is doing right now."
@@ -27,13 +27,17 @@
   "state": {
     "inventory_item": {
       "name": "Item name.",
-      "description": "Short item description."
+      "description": "Short item description.",
+      "entry": "Inventory item entry."
     },
     "location": {
       "name": "Unique location name.",
       "description": "Short description of how the location looks.",
       "characters": "List of characters currently in this location.",
-      "available_items": "List of items available to use or take in this location."
+      "character": "Character name present in this location.",
+      "available_items": "List of items available to use or take in this location.",
+      "available_item": "Item entry available at this location.",
+      "entry": "Location entry."
     },
     "appearance": {
       "baseline_appearance": "Immutable, surgical baseline appearance (permanent features only).",
@@ -43,18 +47,12 @@
     "character": {
       "name": "Full legal name.",
       "race": "Character race.",
-      "gender": "Character gender.",
+      "gender": "Character gender (male, female, futanari, intersex and so on).",
       "current_location": "Character current unique location name.",
       "appearance": "Character appearance object.",
       "baseline_description": "Where the character lives, relatives, and friends (including off-story).",
       "current_activity": "Concise, factual description of what the character is doing right now.",
-      "relationship_scores": "Complete relationship_scores array with affinity (-100 to 100) for every other known character.",
       "inventory": "Complete inventory list."
-    },
-    "relationship_scores": {
-      "entries": "List of relationship score entries.",
-      "name": "Other character full legal name.",
-      "affinity": "Affinity score from -100 to 100."
     }
   },
   "generation": {
@@ -62,6 +60,8 @@
       "title": "3-5 word title tied to the opening scenario.",
       "opening_scenario": "1-3 paragraphs separated by a blank line.",
       "starting_location": "1-3 word unique starting location name.",
+      "starting_date": "Starting date in YYYY-MM-DD format.",
+      "starting_time": "Starting time in 24h HH:MM format.",
       "pregen_npcs": "List of pre-generated NPCs with full details."
     }
   },
@@ -71,7 +71,9 @@
     "opening_scenario": "Opening scenario text.",
     "action_mode": "Action mode: do, say, or story.",
     "create_story": {
-      "starting_scene": "Optional starting scene label.",
+      "starting_scene": "Starting scene label.",
+      "starting_date": "Starting date (YYYY-MM-DD).",
+      "starting_time": "Starting time (HH:MM).",
       "character_id": "Optional character ID to reuse.",
       "character_data": "Inline character data when not using character_id.",
       "npcs": "Optional list of NPCs."
@@ -157,8 +159,13 @@
     }
   },
   "traits": {
-    "personality_traits": "List of 2-5 personality traits.",
-    "quirks": "Quirks (1-8 words each).",
-    "perks": "Perks (1-8 words each)."
+    "personality_traits": "List of 2-5 personality traits describing stable temperament and behavior.",
+    "personality_trait": "Single personality trait: a concise temperament or behavior descriptor of 1-8 words.",
+    "major_flaws": "List of 0-3 major flaws describing significant, enduring weaknesses or liabilities.",
+    "major_flaw": "Single major flaw: a significant, enduring weakness or liability of 1-8 words.",
+    "quirks": "List of 0-5 quirks describing small, idiosyncratic habits or mannerisms.",
+    "quirk": "Single quirk: a small, specific habit or mannerisms of 1-8 words.",
+    "perks": "List of 0-5 perks describing practical advantages, talents, or resources.",
+    "perk": "Single perk: a concrete advantage, talent, or resource of 1-8 words."
   }
 }

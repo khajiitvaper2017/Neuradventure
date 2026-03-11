@@ -4,6 +4,8 @@ import type { MainCharacterState, NPCState, WorldState, TurnSummary } from "../a
 export const currentStoryId = writable<number | null>(null)
 export const currentStoryTitle = writable<string>("")
 export const currentStoryOpeningScenario = writable<string>("")
+export const currentStoryAuthorNote = writable<string>("")
+export const currentStoryAuthorNoteDepth = writable<number>(4)
 export const currentStoryInitialWorld = writable<WorldState | null>(null)
 export const character = writable<MainCharacterState | null>(null)
 export const worldState = writable<WorldState | null>(null)
@@ -15,21 +17,26 @@ export const llmUpdateId = writable(0)
 // Pending character being built in char-create screen (not yet saved)
 export const pendingCharacter = writable<Omit<MainCharacterState, "inventory"> | null>(null)
 export const pendingCharacterId = writable<number | null>(null)
+export const pendingCharacterImportText = writable<string>("")
 
 // Pending new-story fields (persist across char-create navigation)
 export const pendingStoryTitle = writable("")
 export const pendingStoryScenario = writable("")
 export const pendingStoryNPCs = writable<NPCState[]>([])
 export const pendingStoryLocation = writable("")
+export const pendingStoryDate = writable("")
+export const pendingStoryTime = writable("")
 export const pendingStoryGenerateDescription = writable("")
 export const pendingCharacterGenerateDescription = writable("")
 
 export const characterName = derived(character, ($c) => $c?.name ?? "")
 
-export function resetGame() {
+export function resetActiveStory() {
   currentStoryId.set(null)
   currentStoryTitle.set("")
   currentStoryOpeningScenario.set("")
+  currentStoryAuthorNote.set("")
+  currentStoryAuthorNoteDepth.set(4)
   currentStoryInitialWorld.set(null)
   character.set(null)
   worldState.set(null)
@@ -37,10 +44,17 @@ export function resetGame() {
   turns.set([])
   isGenerating.set(false)
   llmUpdateId.set(0)
+}
+
+export function resetGame() {
+  resetActiveStory()
   pendingStoryNPCs.set([])
   pendingStoryLocation.set("")
+  pendingStoryDate.set("")
+  pendingStoryTime.set("")
   pendingStoryGenerateDescription.set("")
   pendingCharacterGenerateDescription.set("")
+  pendingCharacterImportText.set("")
   pendingCharacterId.set(null)
 }
 

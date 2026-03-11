@@ -2,9 +2,9 @@
   import { get } from "svelte/store"
   import { onMount } from "svelte"
   import { api } from "../api/client.js"
-  import { goBack, navigate, showError } from "../stores/ui.js"
+  import { goBack, navigate, showError, showQuietNotice } from "../stores/ui.js"
   import { autoresize } from "./actions/autoresize.js"
-  import { pendingCharacter, pendingCharacterId } from "../stores/game.js"
+  import { pendingCharacter, pendingCharacterId, pendingCharacterImportText } from "../stores/game.js"
   import { pendingCharacterGenerateDescription } from "../stores/game.js"
   import personalityOptions from "../../../shared/traits.json"
   import { loadPromptHistory, savePromptHistory, removePromptHistory } from "./utils/promptHistory.js"
@@ -56,6 +56,8 @@
   const initialPersonality = splitPersonalityTraits(existing?.personality_traits ?? [])
 
   let generating = false
+  let savingCharacter = false
+  let autofilling = false
   let regeneratingAppearance = false
   let regeneratingClothing = false
   let regeneratingTraits = false
@@ -82,12 +84,79 @@
       const split = splitPersonalityTraits(result.personality_traits)
       selectedTraits = split.selected
       customPersonalityTraits = split.custom
+      majorFlaws = result.major_flaws
       quirks = result.quirks
       perks = result.perks
     } catch (err) {
       showError(err instanceof Error ? err.message : "Generation failed")
     } finally {
       generating = false
+    }
+  }
+
+  const isMissingText = (value: string) => {
+    const trimmed = value.trim()
+    return !trimmed || /^unknown\b/i.test(trimmed)
+  }
+
+  function mergeTraits(existing: string[], incoming: string[], limit = 5): string[] {
+    const seen = new Set(existing.map(normalizeKey))
+    const out = [...existing]
+    for (const trait of incoming) {
+      const key = normalizeKey(trait)
+      if (!key || seen.has(key)) continue
+      out.push(trait)
+      seen.add(key)
+      if (out.length >= limit) break
+    }
+    return out
+  }
+
+  async function autofillFromImport() {
+    if (autofilling) return
+    const seed = $pendingCharacterImportText.trim()
+    if (!seed) {
+      showError("No import data available for autofill")
+      return
+    }
+    autofilling = true
+    try {
+      const prompt = [
+        "Use the following SillyTavern character card data to infer missing fields.",
+        "Focus on race, gender, baseline appearance, clothing, personality traits, quirks, and perks.",
+        seed,
+      ].join("\n")
+      const result = await api.generate.character(prompt)
+
+      if (isMissingText(name)) name = result.name
+      if (isMissingText(race)) race = result.race
+      if (isMissingText(gender) || gender.toLowerCase() === "unknown") {
+        gender = normalizeGender(result.gender, gender)
+      }
+      if (isMissingText(baselineAppearance)) baselineAppearance = result.baseline_appearance
+      if (isMissingText(currentAppearance)) currentAppearance = result.baseline_appearance
+      if (isMissingText(currentClothing)) currentClothing = result.current_clothing
+
+      const existingTraits = [...selectedTraits, ...customPersonalityTraits]
+      const generatedTraits = result.personality_traits
+      if (existingTraits.length < 2) {
+        const split = splitPersonalityTraits(generatedTraits)
+        selectedTraits = split.selected
+        customPersonalityTraits = split.custom
+      } else if (existingTraits.length < 5) {
+        const merged = mergeTraits(existingTraits, generatedTraits, 5)
+        const split = splitPersonalityTraits(merged)
+        selectedTraits = split.selected
+        customPersonalityTraits = split.custom
+      }
+
+      if (quirks.length === 0) quirks = result.quirks
+      if (majorFlaws.length === 0) majorFlaws = result.major_flaws
+      if (perks.length === 0) perks = result.perks
+    } catch (err) {
+      showError(err instanceof Error ? err.message : "Autofill failed")
+    } finally {
+      autofilling = false
     }
   }
 
@@ -107,6 +176,8 @@
   let selectedTraits: string[] = initialPersonality.selected
   let customPersonalityInput = ""
   let customPersonalityTraits: string[] = initialPersonality.custom
+  let majorFlawInput = ""
+  let majorFlaws: string[] = existing?.major_flaws ?? []
   let quirkInput = ""
   let perkInput = ""
   let quirks: string[] = existing?.quirks ?? []
@@ -157,8 +228,20 @@
     quirkInput = ""
   }
 
+  function addMajorFlaw() {
+    const t = majorFlawInput.trim()
+    if (t && !majorFlaws.includes(t)) {
+      majorFlaws = [...majorFlaws, t]
+    }
+    majorFlawInput = ""
+  }
+
   function removeQuirk(t: string) {
     quirks = quirks.filter((x) => x !== t)
+  }
+
+  function removeMajorFlaw(t: string) {
+    majorFlaws = majorFlaws.filter((x) => x !== t)
   }
 
   function addPerk() {
@@ -216,9 +299,9 @@
       baseline_description: baselineDescription.trim(),
       current_activity: currentActivity.trim(),
       personality_traits: uniquePersonality([...selectedTraits, ...customPersonalityTraits]).filter((_, i) => i < 5),
+      major_flaws: majorFlaws,
       quirks,
       perks,
-      relationship_scores: existing?.relationship_scores ?? [],
     }
   }
 
@@ -248,6 +331,7 @@
       const split = splitPersonalityTraits(result.personality_traits)
       selectedTraits = split.selected
       customPersonalityTraits = split.custom
+      majorFlaws = result.major_flaws
       quirks = result.quirks
       perks = result.perks
     } catch (err) {
@@ -280,6 +364,28 @@
     pendingCharacterId.set(null)
     navigate("new-story")
   }
+
+  async function saveCharacter() {
+    if (savingCharacter) return
+    const err = validate()
+    if (err) {
+      showError(err)
+      return
+    }
+    savingCharacter = true
+    try {
+      const result = await api.stories.importCharacter(buildCharacterData())
+      if (result.needs_review) {
+        showError("Saved character needs review. Please check the fields and try again.")
+        return
+      }
+      showQuietNotice(`Character "${result.character.name}" saved.`)
+    } catch (err) {
+      showError(err instanceof Error ? err.message : "Failed to save character")
+    } finally {
+      savingCharacter = false
+    }
+  }
 </script>
 
 <div class="screen char-create">
@@ -305,6 +411,14 @@
           >{generating ? "Generating..." : "✦ Generate"}</button
         >
       </div>
+      {#if $pendingCharacterImportText.trim()}
+        <div class="import-autofill">
+          <div class="import-label">Imported character detected.</div>
+          <button class="btn-ghost small" onclick={autofillFromImport} disabled={autofilling}
+            >{autofilling ? "Autofilling..." : "Autofill Missing Fields"}</button
+          >
+        </div>
+      {/if}
       {#if promptHistory.length > 0}
         <div class="prompt-history">
           <div class="prompt-history-label">Recent prompts</div>
@@ -446,6 +560,32 @@
     </div>
 
     <div class="field">
+      <label for="major-flaw-input">Major Flaws <span class="hint">(optional)</span></label>
+      <div class="custom-input">
+        <input
+          id="major-flaw-input"
+          type="text"
+          bind:value={majorFlawInput}
+          placeholder="e.g. crippling fear of fire"
+          onkeydown={(e) => {
+            if (e.key === "Enter") {
+              e.preventDefault()
+              addMajorFlaw()
+            }
+          }}
+        />
+        <button class="btn-ghost" onclick={addMajorFlaw}>+ Add</button>
+      </div>
+      {#if majorFlaws.length > 0}
+        <div class="chips">
+          {#each majorFlaws as t}
+            <button class="chip selected" onclick={() => removeMajorFlaw(t)}>{t} ×</button>
+          {/each}
+        </div>
+      {/if}
+    </div>
+
+    <div class="field">
       <label for="quirk-input">Quirks <span class="hint">(optional)</span></label>
       <div class="custom-input">
         <input
@@ -499,6 +639,9 @@
   </div>
 
   <div class="actions">
+    <button class="btn-ghost" onclick={saveCharacter} disabled={savingCharacter}>
+      {savingCharacter ? "Saving..." : "Save Character"}
+    </button>
     <button class="btn-accent" onclick={useNow}>Use Now →</button>
   </div>
 </div>
@@ -611,6 +754,17 @@
     display: flex;
     flex-direction: column;
     gap: 0.4rem;
+  }
+  .import-autofill {
+    margin-top: 0.6rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+  }
+  .import-label {
+    font-size: 0.75rem;
+    color: var(--text-dim);
   }
   .prompt-history-label {
     font-size: 0.7rem;

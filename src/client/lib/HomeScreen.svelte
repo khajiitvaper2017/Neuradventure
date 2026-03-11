@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount } from "svelte"
-  import { api, type StoryMeta, type StoryCharacterGroup } from "../api/client.js"
+  import { api, type StoryMeta, type StoryCharacterGroup, type CharacterImportResult } from "../api/client.js"
   import { navigate, showError, showConfirm } from "../stores/ui.js"
   import { theme } from "../stores/settings.js"
   import IconDots from "../icons/IconDots.svelte"
@@ -8,9 +8,12 @@
   import IconPlus from "../icons/IconPlus.svelte"
   import IconUser from "../icons/IconUser.svelte"
   import {
+    resetActiveStory,
     resetGame,
     pendingCharacter,
     pendingCharacterId,
+    pendingCharacterImportText,
+    pendingCharacterGenerateDescription,
     pendingStoryTitle,
     pendingStoryScenario,
     pendingStoryNPCs,
@@ -70,35 +73,19 @@
   }
 
   function startNew() {
-    resetGame()
-    pendingCharacter.set(null)
-    pendingCharacterId.set(null)
-    pendingStoryTitle.set("")
-    pendingStoryScenario.set("")
-    pendingStoryNPCs.set([])
-    pendingStoryLocation.set("")
+    resetActiveStory()
     navigate("new-story")
   }
 
   function startNewCharacter() {
-    resetGame()
-    pendingCharacter.set(null)
-    pendingCharacterId.set(null)
-    pendingStoryTitle.set("")
-    pendingStoryScenario.set("")
-    pendingStoryNPCs.set([])
-    pendingStoryLocation.set("")
+    resetActiveStory()
     navigate("char-create")
   }
 
   function startNewWithCharacter(group: StoryCharacterGroup) {
-    resetGame()
+    resetActiveStory()
     pendingCharacter.set(group.character)
     pendingCharacterId.set(group.id)
-    pendingStoryTitle.set("")
-    pendingStoryScenario.set("")
-    pendingStoryNPCs.set([])
-    pendingStoryLocation.set("")
     navigate("new-story")
   }
 
@@ -123,21 +110,63 @@
   async function importStory() {
     const input = document.createElement("input")
     input.type = "file"
+    input.accept = ".json,.jsonl"
+    input.onchange = async () => {
+      const file = input.files?.[0]
+      if (!file) return
+      try {
+        const text = await file.text()
+        let payload: object | string = text
+        try {
+          payload = JSON.parse(text)
+        } catch {
+          // keep raw text for JSONL
+        }
+        const { id } = await api.stories.import(payload)
+        showError(`Story imported (id: ${id})`)
+        await loadStories()
+        await loadCharacters()
+      } catch {
+        showError("Failed to import story — invalid format")
+      }
+    }
+    input.click()
+  }
+
+  async function importCharacter() {
+    const input = document.createElement("input")
+    input.type = "file"
     input.accept = ".json"
     input.onchange = async () => {
       const file = input.files?.[0]
       if (!file) return
       try {
         const text = await file.text()
-        const { id } = await api.stories.import(JSON.parse(text))
-        showError(`Story imported (id: ${id})`)
-        await loadStories()
-        await loadCharacters()
+        const result: CharacterImportResult = await api.stories.importCharacter(JSON.parse(text))
+        if (result.needs_review) {
+          resetGame()
+          pendingCharacter.set(result.character)
+          pendingCharacterId.set(null)
+          pendingCharacterImportText.set(result.source_text ?? "")
+          pendingCharacterGenerateDescription.set(result.source_text ?? "")
+          pendingStoryTitle.set("")
+          pendingStoryScenario.set("")
+          pendingStoryNPCs.set([])
+          pendingStoryLocation.set("")
+          navigate("char-create")
+        } else {
+          showError(`Character "${result.character.name}" imported`)
+          await loadCharacters()
+        }
       } catch {
-        showError("Failed to import story — invalid JSON format")
+        showError("Failed to import character — invalid format")
       }
     }
     input.click()
+  }
+
+  function exportCharacter(group: StoryCharacterGroup, format: "neuradventure" | "tavern-card") {
+    window.open(api.stories.exportCharacter(group.id, format), "_blank")
   }
 
   function relativeTime(dateStr: string): string {
@@ -203,7 +232,9 @@
               ) || "No traits"}
             </div>
             <div class="char-card-actions">
-              <button class="btn-ghost small" onclick={() => startNewWithCharacter(group)}> New Story </button>
+              <button class="btn-ghost small" onclick={() => startNewWithCharacter(group)}>New Story</button>
+              <button class="btn-ghost small" onclick={() => exportCharacter(group, "tavern-card")}>Export ST</button>
+              <button class="btn-ghost small" onclick={() => exportCharacter(group, "neuradventure")}>Export</button>
             </div>
             <div class="char-card-stories">
               <div class="char-card-label">Stories</div>
@@ -253,6 +284,10 @@
             </button>
             {#if openMenuId === story.id}
               <div class="dropdown">
+                <a href={api.stories.exportUrl(story.id, "neuradventure")} download class="dropdown-link">Export JSON</a
+                >
+                <a href={api.stories.exportUrl(story.id, "tavern")} download class="dropdown-link">Export ST Chat</a>
+                <a href={api.stories.exportUrl(story.id, "plaintext")} download class="dropdown-link">Export Text</a>
                 <button class="danger-item" onclick={() => deleteStory(story.id)}>Delete</button>
               </div>
             {/if}
@@ -264,6 +299,7 @@
 
   <footer>
     <button class="btn-ghost" onclick={importStory}>Import Story</button>
+    <button class="btn-ghost" onclick={importCharacter}>Import Character</button>
   </footer>
 </div>
 
@@ -501,6 +537,22 @@
     position: absolute;
     right: 0;
     top: 100%;
+  }
+  .dropdown-link {
+    display: block;
+    padding: 0.5rem 0.75rem;
+    font-size: 0.82rem;
+    color: var(--text);
+    text-decoration: none;
+    background: none;
+    border: none;
+    text-align: left;
+    cursor: pointer;
+    transition: background 0.1s;
+    white-space: nowrap;
+  }
+  .dropdown-link:hover {
+    background: var(--bg-action);
   }
 
   footer {

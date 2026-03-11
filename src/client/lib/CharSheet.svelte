@@ -25,8 +25,6 @@
     clothing: string
     baselineDescription: string
     currentActivity: string
-    traits: string
-    relationships: string
     inventory: string
   }
 
@@ -35,21 +33,18 @@
   let flashIdentity = $state(false)
   let flashAppearance = $state(false)
   let flashClothing = $state(false)
-  let flashTraits = $state(false)
   let flashBackground = $state(false)
   let flashActivity = $state(false)
-  let flashRelationships = $state(false)
   let flashInventory = $state(false)
   let identityTimer: number | null = null
   let appearanceTimer: number | null = null
   let clothingTimer: number | null = null
-  let traitsTimer: number | null = null
   let backgroundTimer: number | null = null
   let activityTimer: number | null = null
-  let relationshipsTimer: number | null = null
   let inventoryTimer: number | null = null
   let editing = $state(false)
   let saving = $state(false)
+  let showBaselineDetails = $state(false)
 
   type InventoryDraft = { name: string; description: string }
   type CharacterDraft = {
@@ -62,9 +57,9 @@
     baselineDescription: string
     currentActivity: string
     personalityTraits: string
+    majorFlaws: string
     quirks: string
     perks: string
-    relationshipScores: string
     inventory: InventoryDraft[]
   }
   let draft = $state<CharacterDraft>({
@@ -77,9 +72,9 @@
     baselineDescription: "",
     currentActivity: "",
     personalityTraits: "",
+    majorFlaws: "",
     quirks: "",
     perks: "",
-    relationshipScores: "",
     inventory: [],
   })
 
@@ -100,14 +95,12 @@
       clothing: c.appearance?.current_clothing ?? "",
       baselineDescription: c.baseline_description ?? "",
       currentActivity: c.current_activity ?? "",
-      traits: [...c.personality_traits, ...c.quirks, ...c.perks].join("|"),
-      relationships: (c.relationship_scores ?? []).map((s) => `${s.name}:${s.affinity}`).join("|"),
       inventory: c.inventory.map((item) => `${item.name}:${item.description}`).join("|"),
     }
   }
 
   function triggerFlash(
-    kind: "identity" | "appearance" | "clothing" | "traits" | "background" | "activity" | "relationships" | "inventory",
+    kind: "identity" | "appearance" | "clothing" | "background" | "activity" | "inventory",
   ) {
     if (kind === "identity") {
       flashIdentity = true
@@ -127,12 +120,6 @@
       clothingTimer = window.setTimeout(() => (flashClothing = false), 900)
       return
     }
-    if (kind === "traits") {
-      flashTraits = true
-      if (traitsTimer) window.clearTimeout(traitsTimer)
-      traitsTimer = window.setTimeout(() => (flashTraits = false), 900)
-      return
-    }
     if (kind === "background") {
       flashBackground = true
       if (backgroundTimer) window.clearTimeout(backgroundTimer)
@@ -145,12 +132,6 @@
       activityTimer = window.setTimeout(() => (flashActivity = false), 900)
       return
     }
-    if (kind === "relationships") {
-      flashRelationships = true
-      if (relationshipsTimer) window.clearTimeout(relationshipsTimer)
-      relationshipsTimer = window.setTimeout(() => (flashRelationships = false), 900)
-      return
-    }
     flashInventory = true
     if (inventoryTimer) window.clearTimeout(inventoryTimer)
     inventoryTimer = window.setTimeout(() => (flashInventory = false), 900)
@@ -159,38 +140,6 @@
   function updateField(field: EditField, event: Event) {
     const target = event.target as HTMLInputElement | HTMLTextAreaElement
     field.onInput(target.value)
-  }
-
-  function clampAffinity(value: number): number {
-    if (!Number.isFinite(value)) return 0
-    if (value < -100) return -100
-    if (value > 100) return 100
-    return Math.round(value)
-  }
-
-  function formatRelationshipScores(scores: MainCharacterState["relationship_scores"]): string {
-    if (!scores || scores.length === 0) return ""
-    return scores.map((score) => `${score.name}: ${score.affinity}`).join("\n")
-  }
-
-  function parseRelationshipScores(text: string): MainCharacterState["relationship_scores"] {
-    const lines = text
-      .split("\n")
-      .map((line) => line.trim())
-      .filter(Boolean)
-    const scores: MainCharacterState["relationship_scores"] = []
-    const seen = new Set<string>()
-    for (const line of lines) {
-      const match = /^(.*?)\s*[:|]\s*(-?\d+)/.exec(line)
-      if (!match) continue
-      const name = match[1].trim()
-      if (!name) continue
-      const key = name.toLowerCase()
-      if (seen.has(key)) continue
-      seen.add(key)
-      scores.push({ name, affinity: clampAffinity(Number(match[2])) })
-    }
-    return scores
   }
 
   function characterFields(): EditField[] {
@@ -241,6 +190,13 @@
         onInput: (v) => (draft.personalityTraits = v),
       },
       {
+        id: "cs-major-flaws",
+        label: "Major Flaws (comma separated)",
+        kind: "input",
+        value: draft.majorFlaws,
+        onInput: (v) => (draft.majorFlaws = v),
+      },
+      {
         id: "cs-quirks",
         label: "Quirks (comma separated)",
         kind: "input",
@@ -253,13 +209,6 @@
         kind: "input",
         value: draft.perks,
         onInput: (v) => (draft.perks = v),
-      },
-      {
-        id: "cs-relationships",
-        label: "Relationship Scores (Name: affinity per line)",
-        kind: "textarea",
-        value: draft.relationshipScores,
-        onInput: (v) => (draft.relationshipScores = v),
       },
     ]
   }
@@ -276,9 +225,9 @@
       baselineDescription: $character.baseline_description,
       currentActivity: $character.current_activity,
       personalityTraits: $character.personality_traits.join(", "),
+      majorFlaws: $character.major_flaws.join(", "),
       quirks: $character.quirks.join(", "),
       perks: $character.perks.join(", "),
-      relationshipScores: formatRelationshipScores($character.relationship_scores),
       inventory: $character.inventory.map((item) => ({ name: item.name, description: item.description })),
     }
     editing = true
@@ -322,9 +271,9 @@
       return
     }
     const personalityTraits = splitCsv(draft.personalityTraits)
+    const majorFlaws = splitCsv(draft.majorFlaws)
     const quirks = splitCsv(draft.quirks)
     const perks = splitCsv(draft.perks)
-    const relationshipScores = parseRelationshipScores(draft.relationshipScores)
     const inventory = draft.inventory
       .map((item) => ({ name: item.name.trim(), description: item.description.trim() }))
       .filter((item) => item.name.length > 0 || item.description.length > 0)
@@ -347,9 +296,9 @@
       baseline_description: baselineDescription,
       current_activity: currentActivity,
       personality_traits: personalityTraits,
+      major_flaws: majorFlaws,
       quirks,
       perks,
-      relationship_scores: relationshipScores,
       inventory,
     }
     saving = true
@@ -388,10 +337,8 @@
             triggerFlash("appearance")
           }
           if (nextSigs.clothing !== lastSigs.clothing) triggerFlash("clothing")
-          if (nextSigs.traits !== lastSigs.traits) triggerFlash("traits")
           if (nextSigs.baselineDescription !== lastSigs.baselineDescription) triggerFlash("background")
           if (nextSigs.currentActivity !== lastSigs.currentActivity) triggerFlash("activity")
-          if (nextSigs.relationships !== lastSigs.relationships) triggerFlash("relationships")
           if (nextSigs.inventory !== lastSigs.inventory) triggerFlash("inventory")
         }
         lastSigs = nextSigs
@@ -482,13 +429,15 @@
         <div class="cs-identity-detail">{$character.race}{$character.gender ? ` · ${$character.gender}` : ""}</div>
       </div>
 
-      <div class="cs-section" class:flash={flashAppearance}>
-        <div class="cs-section-header">
-          <IconFace size={14} strokeWidth={1.5} className="cs-icon" />
-          <span class="section-label">Baseline Appearance</span>
+      {#if showBaselineDetails}
+        <div class="cs-section" class:flash={flashAppearance}>
+          <div class="cs-section-header">
+            <IconFace size={14} strokeWidth={1.5} className="cs-icon" />
+            <span class="section-label">Baseline Appearance</span>
+          </div>
+          <div class="cs-value">{$character.appearance.baseline_appearance}</div>
         </div>
-        <div class="cs-value">{$character.appearance.baseline_appearance}</div>
-      </div>
+      {/if}
 
       <div class="cs-section" class:flash={flashAppearance}>
         <div class="cs-section-header">
@@ -506,13 +455,15 @@
         <div class="cs-value">{$character.appearance.current_clothing}</div>
       </div>
 
-      <div class="cs-section" class:flash={flashBackground}>
-        <div class="cs-section-header">
-          <IconDocument size={14} strokeWidth={1.5} className="cs-icon" />
-          <span class="section-label">Baseline Description</span>
+      {#if showBaselineDetails}
+        <div class="cs-section" class:flash={flashBackground}>
+          <div class="cs-section-header">
+            <IconDocument size={14} strokeWidth={1.5} className="cs-icon" />
+            <span class="section-label">Baseline Description</span>
+          </div>
+          <div class="cs-value">{$character.baseline_description}</div>
         </div>
-        <div class="cs-value">{$character.baseline_description}</div>
-      </div>
+      {/if}
 
       <div class="cs-section" class:flash={flashActivity}>
         <div class="cs-section-header">
@@ -522,44 +473,28 @@
         <div class="cs-value">{$character.current_activity}</div>
       </div>
 
-      {#if $character.personality_traits.length > 0 || $character.quirks.length > 0 || $character.perks.length > 0}
-        <div class="cs-section" class:flash={flashTraits}>
+      {#if $character.personality_traits.length > 0 || $character.major_flaws.length > 0 || $character.quirks.length > 0 || $character.perks.length > 0}
+        <div class="cs-section">
           <div class="cs-section-header">
             <IconStar size={14} strokeWidth={1.5} className="cs-icon" />
-            <span class="section-label">Traits · Quirks · Perks</span>
+            <span class="section-label">Traits · Flaws · Quirks · Perks</span>
           </div>
           <div class="chips">
             {#each $character.personality_traits as t}
-              <span class="chip">Trait · {t}</span>
+              <span class="chip">{t}</span>
+            {/each}
+            {#each $character.major_flaws as t}
+              <span class="chip">{t}</span>
             {/each}
             {#each $character.quirks as t}
-              <span class="chip">Quirk · {t}</span>
+              <span class="chip">{t}</span>
             {/each}
             {#each $character.perks as t}
-              <span class="chip">Perk · {t}</span>
+              <span class="chip">{t}</span>
             {/each}
           </div>
         </div>
       {/if}
-
-      <div class="cs-section" class:flash={flashRelationships}>
-        <div class="cs-section-header">
-          <IconDocument size={14} strokeWidth={1.5} className="cs-icon" />
-          <span class="section-label">Relationship Scores</span>
-        </div>
-        {#if $character.relationship_scores.length === 0}
-          <div class="cs-value muted">No scores yet.</div>
-        {:else}
-          <ul class="cs-relationships">
-            {#each $character.relationship_scores as score}
-              <li>
-                <span class="cs-rel-name">{score.name}</span>
-                <span class="cs-rel-affinity">{score.affinity}</span>
-              </li>
-            {/each}
-          </ul>
-        {/if}
-      </div>
 
       <div class="cs-section" class:flash={flashInventory}>
         <div class="cs-section-header">
@@ -595,9 +530,14 @@
         <IconDocument size={16} strokeWidth={1.5} className="cs-header-icon" />
         <span>Character Sheet</span>
       </div>
-      <button class="cs-edit-btn" onclick={startEdit} disabled={editing || !$character || !$currentStoryId || saving}>
-        Edit
-      </button>
+      <div class="cs-header-actions">
+        <button class="cs-toggle-btn" onclick={() => (showBaselineDetails = !showBaselineDetails)} disabled={!$character}>
+          {showBaselineDetails ? "Hide Baseline" : "Show Baseline"}
+        </button>
+        <button class="cs-edit-btn" onclick={startEdit} disabled={editing || !$character || !$currentStoryId || saving}>
+          Edit
+        </button>
+      </div>
     </div>
     <div class="sidebar-body" data-scroll-root="modal">
       {@render charContent()}
@@ -614,6 +554,9 @@
         <span>Character Sheet</span>
       </div>
       <div class="cs-header-actions">
+        <button class="cs-toggle-btn" onclick={() => (showBaselineDetails = !showBaselineDetails)} disabled={!$character}>
+          {showBaselineDetails ? "Hide Baseline" : "Show Baseline"}
+        </button>
         <button class="cs-edit-btn" onclick={startEdit} disabled={editing || !$character || !$currentStoryId || saving}>
           Edit
         </button>
@@ -648,6 +591,25 @@
     display: flex;
     align-items: center;
     gap: 0.4rem;
+  }
+  .cs-toggle-btn {
+    background: transparent;
+    border: 1px dashed var(--border);
+    color: var(--text-dim);
+    border-radius: var(--radius-pill);
+    padding: 0.2rem 0.6rem;
+    font-size: 0.62rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    min-width: auto;
+    min-height: auto;
+  }
+  .cs-toggle-btn:hover:not(:disabled) {
+    color: var(--text);
+    border-color: var(--border-hover);
+  }
+  .cs-toggle-btn:disabled {
+    opacity: 0.5;
   }
   .cs-edit-btn {
     background: var(--bg-input);
@@ -806,28 +768,4 @@
     color: var(--text-dim);
   }
 
-  .cs-relationships {
-    list-style: none;
-    padding: 0;
-    margin: 0;
-    display: flex;
-    flex-direction: column;
-    gap: 0.3rem;
-  }
-
-  .cs-relationships li {
-    display: flex;
-    justify-content: space-between;
-    gap: 0.6rem;
-    font-size: 0.85rem;
-  }
-
-  .cs-rel-name {
-    color: var(--text);
-  }
-
-  .cs-rel-affinity {
-    color: var(--text-dim);
-    font-variant-numeric: tabular-nums;
-  }
 </style>

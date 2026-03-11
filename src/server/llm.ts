@@ -150,6 +150,8 @@ export function getCtxLimitCached(): number {
 // ─── Prompt config (hot-reloaded from shared/config.json) ────────────────────
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
+export type SectionFormat = "xml" | "markdown" | "equals"
+
 type PromptConfig = {
   systemPromptLines: string[]
   generateCharacterPrompt: string[]
@@ -159,6 +161,7 @@ type PromptConfig = {
   generateStoryPrompt: string[]
   npcCreationPrompt?: string[]
   impersonatePrompt?: string[]
+  sectionFormat?: SectionFormat
 }
 
 const CONFIG_PATH = join(__dirname, "../../shared/config.json")
@@ -207,14 +210,29 @@ function getImpersonatePrompt(): string {
   return lines.join("\n")
 }
 
+function getSectionFormat(): SectionFormat {
+  return getConfig().sectionFormat ?? "equals"
+}
+
+function toTitleCase(tag: string): string {
+  return tag.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase())
+}
+
+function wrapSection(tag: string, content: string): string {
+  switch (getSectionFormat()) {
+    case "xml":
+      return `<${tag}>\n${content}\n</${tag}>`
+    case "markdown":
+      return `## ${toTitleCase(tag)}\n${content}`
+    case "equals":
+    default:
+      return `=== ${tag.toUpperCase().replace(/_/g, " ")} ===\n${content}`
+  }
+}
+
 function formatInventory(inventory: MainCharacterState["inventory"]): string {
   if (inventory.length === 0) return "nothing"
   return inventory.map((i) => `${i.name} (${i.description})`).join(", ")
-}
-
-function formatRelationshipScores(scores: { name: string; affinity: number }[]): string {
-  if (!scores || scores.length === 0) return "none"
-  return scores.map((score) => `${score.name} (${score.affinity})`).join(", ")
 }
 
 function estimateTokens(text: string): number {
@@ -225,7 +243,7 @@ function escapeForInlineJson(value: string): string {
   return value.replace(/\\/g, "\\\\").replace(/"/g, '\\"')
 }
 
-function formatNPCs(npcs: NPCState[]): string {
+function formatNPCBaselines(npcs: NPCState[]): string {
   if (npcs.length === 0) return ""
   return npcs
     .map(
@@ -233,16 +251,26 @@ function formatNPCs(npcs: NPCState[]): string {
         `[${npc.name}]\n` +
         `  Race: ${npc.race}\n` +
         (npc.gender ? `  Gender: ${npc.gender}\n` : "") +
-        `  Personality traits: ${npc.personality_traits.join(", ")}\n` +
-        `  Quirks: ${npc.quirks.join(", ") || "none"}\n` +
-        `  Perks: ${npc.perks.join(", ") || "none"}\n` +
         `  Baseline appearance: ${npc.appearance.baseline_appearance}\n` +
+        `  Baseline description: ${npc.baseline_description}\n` +
+        `  Personality traits: ${npc.personality_traits.join(", ")}\n` +
+        `  Major flaws: ${npc.major_flaws.join(", ") || "none"}\n` +
+        `  Quirks: ${npc.quirks.join(", ") || "none"}\n` +
+        `  Perks: ${npc.perks.join(", ") || "none"}`,
+    )
+    .join("\n\n")
+}
+
+function formatNPCCurrentStates(npcs: NPCState[]): string {
+  if (npcs.length === 0) return ""
+  return npcs
+    .map(
+      (npc) =>
+        `[${npc.name}]\n` +
         `  Current appearance: ${npc.appearance.current_appearance}\n` +
         `  Wearing: ${npc.appearance.current_clothing}\n` +
-        `  Baseline description: ${npc.baseline_description}\n` +
         `  Current activity: ${npc.current_activity}\n` +
-        `  Location: ${npc.current_location}\n` +
-        `  Relationships: ${formatRelationshipScores(npc.relationship_scores)}`,
+        `  Location: ${npc.current_location}`,
     )
     .join("\n\n")
 }
@@ -271,28 +299,40 @@ function formatHistoryEntries(turns: TurnRow[]): string[] {
   return turns.map((t) => `> ${t.player_input}\n\n${t.narrative_text}`)
 }
 
+function injectAuthorNote(entries: string[], authorNote: { text: string; depth: number } | null | undefined): string[] {
+  if (!authorNote || !authorNote.text.trim()) return entries
+  const note = `[Author's Note: ${authorNote.text.trim()}]`
+  const depth = Math.max(0, authorNote.depth)
+  const insertIndex = Math.max(0, entries.length - depth)
+  const result = [...entries]
+  result.splice(insertIndex, 0, note)
+  return result
+}
+
 function buildHistoryBlock(
   turns: TurnRow[],
   world: WorldState,
   ctxLimit: number,
   baseTokens: number,
+  authorNote?: { text: string; depth: number } | null,
 ): { summary: string | null; history: string | null } {
-  const entries = formatHistoryEntries(turns)
+  const rawEntries = formatHistoryEntries(turns)
+  const entries = injectAuthorNote(rawEntries, authorNote)
   if (entries.length === 0) return { summary: null, history: null }
 
   let history = entries.join("\n\n")
   if (!ctxLimit || ctxLimit <= 0) return { summary: null, history }
   if (baseTokens + estimateTokens(history) <= ctxLimit) return { summary: null, history }
 
-  const summary = [
-    "=== COMPRESSED EARLIER CONTEXT ===",
+  const summaryContent = [
     "{",
     `  "current_scene": "${escapeForInlineJson(world.current_scene)}",`,
     `  "current_date": "${escapeForInlineJson(world.current_date)}",`,
     `  "time_of_day": "${escapeForInlineJson(world.time_of_day)}",`,
-    `  "recent_events_summary": "${escapeForInlineJson(world.recent_events_summary)}"`,
+    `  "memory": "${escapeForInlineJson(world.memory)}"`,
     "}",
   ].join("\n")
+  const summary = wrapSection("compressed_earlier_context", summaryContent)
 
   const targetRemove = Math.floor(ctxLimit * 0.6)
   let removedTokens = 0
@@ -322,6 +362,93 @@ function buildHistoryBlock(
   return { summary, history: null }
 }
 
+// ─── Shared context block builder ─────────────────────────────────────────────
+
+export interface ContextBlockOpts {
+  character: MainCharacterState
+  world: WorldState
+  npcs: NPCState[]
+  recentTurns: TurnRow[]
+  ctxLimit: number
+  initialCharacter?: MainCharacterState
+  actionBlock?: string | null
+  memory?: string | null
+  authorNote?: { text: string; depth: number } | null
+}
+
+function buildContextBlock(opts: ContextBlockOpts): string {
+  const { character, world, npcs, recentTurns, ctxLimit, initialCharacter, actionBlock, authorNote } = opts
+  const initial = initialCharacter ?? character
+
+  // ── STABLE (cached across turns) ──
+  const initialSection = wrapSection(
+    "initial_character",
+    `Baseline appearance: ${initial.appearance.baseline_appearance}\n` +
+      `Current appearance: ${initial.appearance.current_appearance}\n` +
+      `Wearing: ${initial.appearance.current_clothing}`,
+  )
+
+  const baseSection = wrapSection(
+    "player_character_base",
+    `Name: ${character.name} · ${character.race} · ${character.gender}\n` +
+      `Baseline description: ${character.baseline_description}\n` +
+      `Personality traits: ${character.personality_traits.join(", ") || "none"}\n` +
+      `Major flaws: ${character.major_flaws.join(", ") || "none"}\n` +
+      `Quirks: ${character.quirks.join(", ") || "none"}\n` +
+      `Perks: ${character.perks.join(", ") || "none"}`,
+  )
+
+  const npcBaselineSection = npcs.length > 0 ? wrapSection("npc_baselines", formatNPCBaselines(npcs)) : null
+
+  const locationSection =
+    world.locations && world.locations.length > 0 ? wrapSection("locations", formatLocations(world.locations)) : null
+
+  // ── SEMI-STABLE ──
+  const memorySection = world.memory ? wrapSection("memory", world.memory) : null
+
+  const authorNoteSection =
+    authorNote && authorNote.text.trim() ? wrapSection("author_note", authorNote.text.trim()) : null
+
+  // ── VOLATILE ──
+  const currentSection = wrapSection(
+    "player_character_state",
+    `Current appearance: ${character.appearance.current_appearance}\n` +
+      `Wearing: ${character.appearance.current_clothing}\n` +
+      `Current activity: ${character.current_activity}\n` +
+      `Location: ${character.current_location}\n` +
+      `Inventory: ${formatInventory(character.inventory)}`,
+  )
+
+  const npcCurrentSection = npcs.length > 0 ? wrapSection("npc_current_states", formatNPCCurrentStates(npcs)) : null
+
+  const storyContextSection = wrapSection(
+    "story_context",
+    `Scene: ${world.current_scene}\n` + `Date: ${world.current_date}\n` + `Time: ${world.time_of_day}`,
+  )
+
+  const joinSections = (sections: Array<string | null | undefined>): string => sections.filter(Boolean).join("\n\n")
+
+  const storyHeader = wrapSection("story_so_far", "").replace(/\n$/, "")
+  const afterHistory = joinSections([currentSection, npcCurrentSection, storyContextSection, actionBlock])
+
+  const stableBlock = joinSections([
+    initialSection,
+    baseSection,
+    npcBaselineSection,
+    locationSection,
+    memorySection,
+    authorNoteSection,
+  ])
+
+  const baseTokens = estimateTokens(joinSections([stableBlock, storyHeader, afterHistory]))
+  const { summary, history } = buildHistoryBlock(recentTurns, world, ctxLimit, baseTokens, authorNote)
+
+  const storySoFarHeader = history ? storyHeader : null
+  return joinSections([stableBlock, summary || null, storySoFarHeader, history || null, afterHistory || null])
+}
+
+// ─── Message builders (thin wrappers over buildContextBlock) ──────────────────
+
 export function buildTurnMessages(
   character: MainCharacterState,
   world: WorldState,
@@ -331,75 +458,29 @@ export function buildTurnMessages(
   actionMode: string,
   initialCharacter?: MainCharacterState,
   ctxLimitOverride?: number,
+  authorNote?: { text: string; depth: number } | null,
 ): OpenAI.ChatCompletionMessageParam[] {
-  const npcSection = npcs.length > 0 ? `=== KNOWN NPCs ===\n${formatNPCs(npcs)}` : ""
-  const locationSection =
-    world.locations && world.locations.length > 0 ? `=== LOCATIONS ===\n${formatLocations(world.locations)}` : ""
-  const initial = initialCharacter ?? character
   const ctxLimit = ctxLimitOverride ?? getGenerationParams().ctx_limit
-
-  // Story mode: player injects narrative text directly; AI continues from it
-  // Do/Say modes: player action that the AI responds to
   const hasPlayerInput = playerInput.trim().length > 0
   const actionSection =
     actionMode === "story"
       ? hasPlayerInput
-        ? `=== STORY CONTINUATION (continue naturally from this) ===\n${playerInput}`
-        : "=== STORY CONTINUATION (continue naturally from this) ===\n"
+        ? wrapSection("story_continuation", playerInput)
+        : wrapSection("story_continuation", "")
       : hasPlayerInput
-        ? `=== PLAYER'S ACTION ===\n${actionMode === "say" ? `You say: ${playerInput}` : playerInput}`
-        : ""
-  const actionBlock = actionSection || null
+        ? wrapSection("players_action", actionMode === "say" ? `You say: ${playerInput}` : playerInput)
+        : null
 
-  const storyContext =
-    `=== STORY CONTEXT ===\n` +
-    `Scene: ${world.current_scene}\n` +
-    `Date: ${world.current_date}\n` +
-    `Time: ${world.time_of_day}\n` +
-    `Recent events: ${world.recent_events_summary}`
-
-  const initialSection =
-    `=== INITIAL CHARACTER (STORY START) ===\n` +
-    `Baseline appearance: ${initial.appearance.baseline_appearance}\n` +
-    `Current appearance: ${initial.appearance.current_appearance}\n` +
-    `Wearing: ${initial.appearance.current_clothing}`
-  const baseSection =
-    `=== PLAYER CHARACTER (BASE) ===\n` +
-    `Name: ${character.name} · ${character.race} · ${character.gender}\n` +
-    `Baseline description: ${character.baseline_description}\n` +
-    `Personality traits: ${character.personality_traits.join(", ") || "none"}\n` +
-    `Quirks: ${character.quirks.join(", ") || "none"}\n` +
-    `Perks: ${character.perks.join(", ") || "none"}\n` +
-    `Relationships: ${formatRelationshipScores(character.relationship_scores)}`
-  const currentSection =
-    `=== PLAYER CHARACTER STATE ===\n` +
-    `Current appearance: ${character.appearance.current_appearance}\n` +
-    `Wearing: ${character.appearance.current_clothing}\n` +
-    `Current activity: ${character.current_activity}\n` +
-    `Location: ${character.current_location}\n` +
-    `Inventory: ${formatInventory(character.inventory)}`
-
-  const joinSections = (sections: Array<string | null | undefined>): string => sections.filter(Boolean).join("\n\n")
-  const storyHeader = "=== STORY SO FAR ==="
-  const afterHistory = joinSections([
-    baseSection,
-    currentSection,
-    npcSection || null,
-    locationSection || null,
-    storyContext,
-    actionBlock,
-  ])
-  const baseTokens = estimateTokens(joinSections([initialSection, storyHeader, afterHistory]))
-  const { summary, history } = buildHistoryBlock(recentTurns, world, ctxLimit, baseTokens)
-
-  const storySoFarHeader = history ? storyHeader : null
-  const contextBlock = joinSections([
-    initialSection,
-    summary || null,
-    storySoFarHeader,
-    history || null,
-    afterHistory || null,
-  ])
+  const contextBlock = buildContextBlock({
+    character,
+    world,
+    npcs,
+    recentTurns,
+    ctxLimit,
+    initialCharacter,
+    actionBlock: actionSection,
+    authorNote,
+  })
 
   return [
     { role: "system", content: getSystemPrompt() },
@@ -414,52 +495,21 @@ export function buildNpcCreationMessages(
   recentTurns: TurnRow[],
   npcName: string,
   ctxLimitOverride?: number,
+  authorNote?: { text: string; depth: number } | null,
 ): OpenAI.ChatCompletionMessageParam[] {
-  const npcSection = npcs.length > 0 ? `=== KNOWN NPCs ===\n${formatNPCs(npcs)}` : ""
-  const locationSection =
-    world.locations && world.locations.length > 0 ? `=== LOCATIONS ===\n${formatLocations(world.locations)}` : ""
   const ctxLimit = ctxLimitOverride ?? getGenerationParams().ctx_limit
-  const actionBlock = npcName.trim().length > 0 ? `===INTRODUCE NEW NPC===\n${npcName}` : "===INTRODUCE NEW NPC==="
+  const actionBlock =
+    npcName.trim().length > 0 ? wrapSection("introduce_new_npc", npcName) : wrapSection("introduce_new_npc", "")
 
-  const storyContext =
-    `=== STORY CONTEXT ===\n` +
-    `Scene: ${world.current_scene}\n` +
-    `Date: ${world.current_date}\n` +
-    `Time: ${world.time_of_day}\n` +
-    `Recent events: ${world.recent_events_summary}`
-
-  const baseSection =
-    `=== PLAYER CHARACTER (BASE) ===\n` +
-    `Name: ${character.name} · ${character.race} · ${character.gender}\n` +
-    `Baseline description: ${character.baseline_description}\n` +
-    `Personality traits: ${character.personality_traits.join(", ") || "none"}\n` +
-    `Quirks: ${character.quirks.join(", ") || "none"}\n` +
-    `Perks: ${character.perks.join(", ") || "none"}\n` +
-    `Relationships: ${formatRelationshipScores(character.relationship_scores)}`
-  const currentSection =
-    `=== PLAYER CHARACTER STATE ===\n` +
-    `Current appearance: ${character.appearance.current_appearance}\n` +
-    `Wearing: ${character.appearance.current_clothing}\n` +
-    `Current activity: ${character.current_activity}\n` +
-    `Location: ${character.current_location}\n` +
-    `Inventory: ${formatInventory(character.inventory)}`
-
-  const joinSections = (sections: Array<string | null | undefined>): string => sections.filter(Boolean).join("\n\n")
-
-  const storyHeader = "=== STORY SO FAR ==="
-  const afterHistory = joinSections([
-    baseSection,
-    currentSection,
-    npcSection || null,
-    locationSection || null,
-    storyContext,
+  const contextBlock = buildContextBlock({
+    character,
+    world,
+    npcs,
+    recentTurns,
+    ctxLimit,
     actionBlock,
-  ])
-  const baseTokens = estimateTokens(joinSections([storyHeader, afterHistory]))
-  const { summary, history } = buildHistoryBlock(recentTurns, world, ctxLimit, baseTokens)
-
-  const storySoFarHeader = history ? storyHeader : null
-  const contextBlock = joinSections([summary || null, storySoFarHeader, history || null, afterHistory || null])
+    authorNote,
+  })
 
   return [
     { role: "system", content: getNpcCreationPrompt() },
@@ -475,11 +525,8 @@ export function buildImpersonateMessages(
   actionMode: string,
   initialCharacter?: MainCharacterState,
   ctxLimitOverride?: number,
+  authorNote?: { text: string; depth: number } | null,
 ): OpenAI.ChatCompletionMessageParam[] {
-  const npcSection = npcs.length > 0 ? `=== KNOWN NPCs ===\n${formatNPCs(npcs)}` : ""
-  const locationSection =
-    world.locations && world.locations.length > 0 ? `=== LOCATIONS ===\n${formatLocations(world.locations)}` : ""
-  const initial = initialCharacter ?? character
   const ctxLimit = ctxLimitOverride ?? getGenerationParams().ctx_limit
   const actionModeHint =
     actionMode === "say"
@@ -487,59 +534,19 @@ export function buildImpersonateMessages(
       : actionMode === "story"
         ? "Continue the story in 1-2 short sentences, second-person present tense."
         : "Describe the action the player takes in a short, concrete clause."
-  const actionModeSection = `=== ACTION MODE ===\n${actionMode}\n${actionModeHint}`
+  const actionModeSection = wrapSection("action_mode", `${actionMode}\n${actionModeHint}`)
 
-  const storyContext =
-    `=== STORY CONTEXT ===\n` +
-    `Scene: ${world.current_scene}\n` +
-    `Date: ${world.current_date}\n` +
-    `Time: ${world.time_of_day}\n` +
-    `Recent events: ${world.recent_events_summary}`
-
-  const initialSection =
-    `=== INITIAL CHARACTER (STORY START) ===\n` +
-    `Baseline appearance: ${initial.appearance.baseline_appearance}\n` +
-    `Current appearance: ${initial.appearance.current_appearance}\n` +
-    `Wearing: ${initial.appearance.current_clothing}`
-  const baseSection =
-    `=== PLAYER CHARACTER (BASE) ===\n` +
-    `Name: ${character.name} · ${character.race} · ${character.gender}\n` +
-    `Baseline description: ${character.baseline_description}\n` +
-    `Personality traits: ${character.personality_traits.join(", ") || "none"}\n` +
-    `Quirks: ${character.quirks.join(", ") || "none"}\n` +
-    `Perks: ${character.perks.join(", ") || "none"}\n` +
-    `Relationships: ${formatRelationshipScores(character.relationship_scores)}`
-  const currentSection =
-    `=== PLAYER CHARACTER STATE ===\n` +
-    `Current appearance: ${character.appearance.current_appearance}\n` +
-    `Wearing: ${character.appearance.current_clothing}\n` +
-    `Current activity: ${character.current_activity}\n` +
-    `Location: ${character.current_location}\n` +
-    `Inventory: ${formatInventory(character.inventory)}`
-
-  const joinSections = (sections: Array<string | null | undefined>): string => sections.filter(Boolean).join("\n\n")
-
-  const storyHeader = "=== STORY SO FAR ==="
-  const afterHistory = joinSections([
-    baseSection,
-    currentSection,
-    npcSection || null,
-    locationSection || null,
-    storyContext,
-    actionModeSection,
-  ])
-  const baseTokens = estimateTokens(joinSections([initialSection, storyHeader, afterHistory]))
-  const { summary, history } = buildHistoryBlock(recentTurns, world, ctxLimit, baseTokens)
-
-  const storySoFarHeader = history ? storyHeader : null
-  const contextBlock = joinSections([
-    initialSection,
-    summary || null,
-    storySoFarHeader,
-    history || null,
-    afterHistory || null,
-  ])
-  const prompt = `${contextBlock}\n\n=== PLAYER'S ACTION ===\n`
+  const contextBlock = buildContextBlock({
+    character,
+    world,
+    npcs,
+    recentTurns,
+    ctxLimit,
+    initialCharacter,
+    actionBlock: actionModeSection,
+    authorNote,
+  })
+  const prompt = `${contextBlock}\n\n${wrapSection("players_action", "")}`
 
   return [
     { role: "system", content: getImpersonatePrompt() },
@@ -790,6 +797,7 @@ export async function generatePlayerAction(
   actionMode: string,
   initialCharacter?: MainCharacterState,
   ctxLimitOverride?: number,
+  authorNote?: { text: string; depth: number } | null,
 ): Promise<string> {
   const messages = buildImpersonateMessages(
     character,
@@ -799,6 +807,7 @@ export async function generatePlayerAction(
     actionMode,
     initialCharacter,
     ctxLimitOverride,
+    authorNote,
   )
   const maxTokens = Math.min(getGenerationParams().max_tokens, 160)
   const raw = await callLLMText(messages, maxTokens, { disableRepetition: true, stop: ["\n"] })
@@ -836,9 +845,9 @@ type CharacterGenerationContext = {
   baseline_description: string
   current_activity: string
   personality_traits: string[]
+  major_flaws: string[]
   quirks: string[]
   perks: string[]
-  relationship_scores: { name: string; affinity: number }[]
 }
 
 function formatCharacterContext(
@@ -865,6 +874,7 @@ function formatCharacterContext(
   } else if (part === "appearance") {
     lines.push(`Baseline description: ${context.baseline_description || "Unknown"}`)
     lines.push(`Personality traits: ${context.personality_traits.join(", ") || "Unknown"}`)
+    lines.push(`Major flaws: ${context.major_flaws.join(", ") || "None"}`)
     lines.push(`Quirks: ${context.quirks.join(", ") || "None"}`)
     lines.push(`Perks: ${context.perks.join(", ") || "None"}`)
   } else {
@@ -872,6 +882,7 @@ function formatCharacterContext(
     lines.push(`Current appearance: ${context.appearance.current_appearance.trim() || "Unknown"}`)
     lines.push(`Baseline description: ${context.baseline_description || "Unknown"}`)
     lines.push(`Personality traits: ${context.personality_traits.join(", ") || "Unknown"}`)
+    lines.push(`Major flaws: ${context.major_flaws.join(", ") || "None"}`)
     lines.push(`Quirks: ${context.quirks.join(", ") || "None"}`)
     lines.push(`Perks: ${context.perks.join(", ") || "None"}`)
   }
@@ -908,7 +919,7 @@ export async function generateCharacterPart(
     part === "appearance"
       ? "Do not reuse or paraphrase the current appearance. Keep it consistent with the identity and traits."
       : part === "traits"
-        ? "Do not reuse the current personality traits, quirks, or perks. Keep them consistent with the identity and appearance."
+        ? "Do not reuse the current personality traits, major flaws, quirks, or perks. Keep them consistent with the identity and appearance."
         : "Do not reuse or paraphrase the current clothing. Keep it consistent with the identity, appearance, and traits.",
   ].join("\n")
 
@@ -945,6 +956,7 @@ export async function generateStory(
     baseline_description: string
     current_activity: string
     personality_traits: string[]
+    major_flaws: string[]
     quirks: string[]
     perks: string[]
   },
@@ -957,6 +969,7 @@ export async function generateStory(
   const currentAppearance = character.appearance.current_appearance || baselineAppearance
   const baselineDescription = character.baseline_description || "Unknown"
   const currentActivity = character.current_activity || "Unknown"
+  const majorFlaws = character.major_flaws?.map((t) => t.trim()).filter(Boolean) ?? []
   const result = await callLLMRaw<unknown>(
     [
       { role: "system", content: getConfig().generateStoryPrompt.join("\n") },
@@ -972,6 +985,7 @@ export async function generateStory(
           `Clothing: ${character.appearance.current_clothing || "Unknown"}`,
           `Baseline description: ${baselineDescription}`,
           `Current activity: ${currentActivity}`,
+          `Major flaws: ${majorFlaws.length > 0 ? majorFlaws.join(", ") : "None"}`,
           `Traits: ${traits.length > 0 ? traits.join(", ") : "Unknown"}`,
           `Story description: "${description}"`,
         ].join("\n"),

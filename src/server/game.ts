@@ -19,6 +19,7 @@ import {
   generatePlayerAction,
   getCtxLimitCached,
 } from "./llm.js"
+import { DATE_REGEX, TIME_OF_DAY_REGEX } from "./schemas/constants.js"
 
 // ─── State Application ─────────────────────────────────────────────────────────
 
@@ -145,7 +146,6 @@ function applyNPCUpdates(npcs: NPCState[], updates: NPCUpdateArray): NPCState[] 
         current_clothing: patch.set_current_clothing ?? npc.appearance.current_clothing,
       },
       current_activity: patch.set_current_activity ?? npc.current_activity,
-      relationship_scores: patch.set_relationship_scores ?? npc.relationship_scores,
     }
   })
 }
@@ -157,64 +157,6 @@ function applyNPCCreations(npcs: NPCState[], creations: NPCCreation[]): NPCState
     .filter((creation) => !existingNames.has(creation.name.toLowerCase()))
     .map((creation) => buildNpcFromCreation(creation))
   return [...npcs, ...newNPCs]
-}
-
-type RelationshipScore = { name: string; affinity: number }
-
-function clampAffinity(value: number): number {
-  if (!Number.isFinite(value)) return 0
-  if (value < -100) return -100
-  if (value > 100) return 100
-  return Math.round(value)
-}
-
-function normalizeRelationshipScoresForNames(
-  scores: RelationshipScore[] | undefined,
-  selfName: string,
-  allNames: string[],
-): RelationshipScore[] {
-  const lowerSelf = selfName.trim().toLowerCase()
-  const canonicalNames = new Map(
-    allNames
-      .map((name) => name.trim())
-      .filter(Boolean)
-      .map((name) => [name.toLowerCase(), name]),
-  )
-  const normalized = new Map<string, RelationshipScore>()
-  if (Array.isArray(scores)) {
-    for (const entry of scores) {
-      if (!entry || typeof entry.name !== "string") continue
-      const key = entry.name.trim().toLowerCase()
-      if (!key || key === lowerSelf) continue
-      const canonical = canonicalNames.get(key)
-      if (!canonical) continue
-      if (normalized.has(key)) continue
-      normalized.set(key, { name: canonical, affinity: clampAffinity(entry.affinity) })
-    }
-  }
-
-  for (const [key, name] of canonicalNames) {
-    if (key === lowerSelf) continue
-    if (!normalized.has(key)) normalized.set(key, { name, affinity: 0 })
-  }
-
-  return Array.from(normalized.values())
-}
-
-function syncRelationshipScores(
-  character: MainCharacterState,
-  npcs: NPCState[],
-): { character: MainCharacterState; npcs: NPCState[] } {
-  const allNames = [character.name, ...npcs.map((npc) => npc.name)]
-  const nextCharacter = {
-    ...character,
-    relationship_scores: normalizeRelationshipScoresForNames(character.relationship_scores, character.name, allNames),
-  }
-  const nextNpcs = npcs.map((npc) => ({
-    ...npc,
-    relationship_scores: normalizeRelationshipScoresForNames(npc.relationship_scores, npc.name, allNames),
-  }))
-  return { character: nextCharacter, npcs: nextNpcs }
 }
 
 function syncCharacterLocation(character: MainCharacterState, world: WorldState): MainCharacterState {
@@ -237,7 +179,7 @@ function collectLlmWarnings(world: WorldState, npcs: NPCState[], turnResponse: T
     worldUpdate.current_scene === world.current_scene &&
     worldUpdate.time_of_day === world.time_of_day &&
     worldUpdate.current_date === world.current_date &&
-    worldUpdate.recent_events_summary === world.recent_events_summary &&
+    worldUpdate.memory === world.memory &&
     JSON.stringify(worldUpdate.locations) === JSON.stringify(world.locations)
   ) {
     warnings.push("world_state_update matches existing world state")
@@ -262,12 +204,6 @@ function collectLlmWarnings(world: WorldState, npcs: NPCState[], turnResponse: T
     }
     if (patch.set_current_activity && patch.set_current_activity === npc.current_activity) {
       warnings.push(`npc_changes[${npc.name}].set_current_activity matches existing value`)
-    }
-    if (
-      patch.set_relationship_scores &&
-      JSON.stringify(patch.set_relationship_scores) === JSON.stringify(npc.relationship_scores)
-    ) {
-      warnings.push(`npc_changes[${npc.name}].set_relationship_scores matches existing value`)
     }
   }
 
@@ -318,20 +254,25 @@ export async function createNpcFromTurnPrompt(storyId: number, npcName: string):
   const recentTurns = db.getTurnsForStory(storyId)
   const ctxLimit = getCtxLimitCached()
 
-  const messages = buildNpcCreationMessages(character, world, npcs, recentTurns, trimmedName, ctxLimit)
+  const authorNote = getAuthorNote(story)
+  const messages = buildNpcCreationMessages(character, world, npcs, recentTurns, trimmedName, ctxLimit, authorNote)
   const creation = await generateNpcCreation(messages, trimmedName)
   const updatedNpcs = applyNPCCreations(npcs, [creation])
   const newNpc = buildNpcFromCreation(creation)
-  const relSynced = syncRelationshipScores(character, updatedNpcs)
-
-  const syncedWorld = syncLocationCharacters(world, relSynced.character, relSynced.npcs)
-  const locationSyncedCharacter = syncCharacterLocation(relSynced.character, syncedWorld)
-  db.updateStory(storyId, locationSyncedCharacter, syncedWorld, relSynced.npcs)
+  const syncedWorld = syncLocationCharacters(world, character, updatedNpcs)
+  const locationSyncedCharacter = syncCharacterLocation(character, syncedWorld)
+  db.updateStory(storyId, locationSyncedCharacter, syncedWorld, updatedNpcs)
 
   return {
     npc: newNpc,
-    npcs: relSynced.npcs,
+    npcs: updatedNpcs,
   }
+}
+
+function getAuthorNote(story: db.StoryRow): { text: string; depth: number } | null {
+  const text = story.author_note ?? ""
+  if (!text.trim()) return null
+  return { text, depth: story.author_note_depth ?? 4 }
 }
 
 export async function processTurn(
@@ -349,8 +290,19 @@ export async function processTurn(
   const initial = parseInitialStorySnapshot(story).character
   const recentTurns = db.getTurnsForStory(storyId)
   const ctxLimit = getCtxLimitCached()
+  const authorNote = getAuthorNote(story)
 
-  const messages = buildTurnMessages(character, world, npcs, recentTurns, playerInput, actionMode, initial, ctxLimit)
+  const messages = buildTurnMessages(
+    character,
+    world,
+    npcs,
+    recentTurns,
+    playerInput,
+    actionMode,
+    initial,
+    ctxLimit,
+    authorNote,
+  )
   const turnResponse = await callLLM(messages, npcs)
   const llmWarnings = collectLlmWarnings(world, npcs, turnResponse)
 
@@ -361,15 +313,10 @@ export async function processTurn(
   const newNpcs = applyNPCCreations(updatedNpcs, npcCreations)
   const worldUpdate = turnResponse.world_state_update
   const mergedLocations = mergeLocations(world.locations, worldUpdate.locations)
-  const relSynced = syncRelationshipScores(newCharacter, newNpcs)
-  const newWorld = syncLocationCharacters(
-    { ...worldUpdate, locations: mergedLocations },
-    relSynced.character,
-    relSynced.npcs,
-  )
-  const locationSyncedCharacter = syncCharacterLocation(relSynced.character, newWorld)
+  const newWorld = syncLocationCharacters({ ...worldUpdate, locations: mergedLocations }, newCharacter, newNpcs)
+  const locationSyncedCharacter = syncCharacterLocation(newCharacter, newWorld)
 
-  db.updateStory(storyId, locationSyncedCharacter, newWorld, relSynced.npcs)
+  db.updateStory(storyId, locationSyncedCharacter, newWorld, newNpcs)
 
   const turnNumber = db.getNextTurnNumber(storyId)
   const turnId = db.createTurn(
@@ -381,14 +328,14 @@ export async function processTurn(
     turnResponse.narrative_text,
     locationSyncedCharacter,
     newWorld,
-    relSynced.npcs,
+    newNpcs,
   )
   const variant = db.createTurnVariant(
     turnId,
     turnResponse.narrative_text,
     locationSyncedCharacter,
     newWorld,
-    relSynced.npcs,
+    newNpcs,
   )
   db.setActiveTurnVariant(turnId, variant.id)
 
@@ -399,7 +346,7 @@ export async function processTurn(
     narrative_text: turnResponse.narrative_text,
     character: locationSyncedCharacter,
     world: newWorld,
-    npcs: relSynced.npcs,
+    npcs: newNpcs,
     llm_warnings: llmWarnings.length > 0 ? llmWarnings : undefined,
   }
 }
@@ -415,7 +362,17 @@ export async function impersonatePlayerAction(storyId: number, actionMode: strin
   const recentTurns = db.getTurnsForStory(storyId)
   const ctxLimit = getCtxLimitCached()
 
-  const action = await generatePlayerAction(character, world, npcs, recentTurns, actionMode, initial, ctxLimit)
+  const authorNote = getAuthorNote(story)
+  const action = await generatePlayerAction(
+    character,
+    world,
+    npcs,
+    recentTurns,
+    actionMode,
+    initial,
+    ctxLimit,
+    authorNote,
+  )
   if (!action.trim()) throw new Error("LLM returned empty player action")
   return { player_action: action.trim() }
 }
@@ -611,6 +568,7 @@ export async function regenerateLastTurn(storyId: number, actionMode?: string): 
 
   const initial = parseInitialStorySnapshot(story).character
   const ctxLimit = getCtxLimitCached()
+  const authorNote = getAuthorNote(story)
   const historyTurns = turnRows.filter((_, i) => i < turnRows.length - 1)
   const snapshot =
     historyTurns.length > 0
@@ -627,6 +585,7 @@ export async function regenerateLastTurn(storyId: number, actionMode?: string): 
     mode,
     initial,
     ctxLimit,
+    authorNote,
   )
   const turnResponse = await callLLM(messages, snapshot.npcs)
   const llmWarnings = collectLlmWarnings(snapshot.world, snapshot.npcs, turnResponse)
@@ -711,22 +670,28 @@ export function createNewStory(
   character: MainCharacterState,
   npcs: NPCState[] = [],
   startingScene?: string,
+  startingDate?: string,
+  startingTime?: string,
   characterId: number | null = null,
 ): number {
+  const now = new Date()
+  const fallbackDate = now.toISOString().slice(0, 10)
+  const fallbackTime = `${now.getHours().toString().padStart(2, "0")}:${now.getMinutes().toString().padStart(2, "0")}`
+  const dateCandidate = startingDate?.trim()
+  const timeCandidate = startingTime?.trim()
   const sceneName = startingScene?.trim() || "Unknown location"
   const locationSyncedCharacter = { ...character, current_location: sceneName }
-  const relSynced = syncRelationshipScores(locationSyncedCharacter, npcs)
   const sceneCharacters = [
-    relSynced.character.name,
-    ...relSynced.npcs
+    locationSyncedCharacter.name,
+    ...npcs
       .filter((npc) => npc.current_location.trim().toLowerCase() === sceneName.trim().toLowerCase())
       .map((npc) => npc.name),
   ]
   const world: WorldState = {
     current_scene: sceneName,
-    current_date: new Date().toISOString().slice(0, 10),
-    time_of_day: "day",
-    recent_events_summary: opening_scenario.trim(),
+    current_date: dateCandidate && DATE_REGEX.test(dateCandidate) ? dateCandidate : fallbackDate,
+    time_of_day: timeCandidate && TIME_OF_DAY_REGEX.test(timeCandidate) ? timeCandidate : fallbackTime,
+    memory: opening_scenario.trim(),
     locations: [
       {
         name: sceneName,
@@ -736,5 +701,5 @@ export function createNewStory(
       },
     ],
   }
-  return db.createStory(title, opening_scenario, relSynced.character, world, relSynced.npcs, characterId)
+  return db.createStory(title, opening_scenario, locationSyncedCharacter, world, npcs, characterId)
 }

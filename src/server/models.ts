@@ -10,7 +10,6 @@ import {
   MainCharacterStateSchema,
   NPCStateSchema,
   NPCStateStoredSchema,
-  RelationshipScoresSchema,
   WorldStateSchema,
   WorldStateStoredSchema,
 } from "./schemas/game-state.js"
@@ -60,7 +59,6 @@ export {
   MainCharacterStateStoredSchema,
   NPCStateSchema,
   NPCStateStoredSchema,
-  RelationshipScoresSchema,
   WorldStateSchema,
   WorldStateStoredSchema,
   NPCStateUpdateBaseSchema,

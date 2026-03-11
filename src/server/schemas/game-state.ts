@@ -8,10 +8,9 @@ import {
   normalizeLocations,
   normalizeNonEmptyString,
   normalizePersonalityTraits,
-  normalizeRecentEventsSummary,
+  normalizeMemory,
   normalizeTimeOfDay,
   normalizeTraitList,
-  normalizeRelationshipScores,
   stripSummaryLeak,
 } from "./normalizers.js"
 import { desc } from "./field-descriptions.js"
@@ -22,6 +21,7 @@ export const InventoryItemSchema = z
     description: z.string().min(1).describe(desc("state.inventory_item.description")),
   })
   .strict()
+  .describe(desc("state.inventory_item.entry"))
 
 export const LocationItemSchema = z
   .object({
@@ -29,15 +29,19 @@ export const LocationItemSchema = z
     description: z.string().min(1).describe(desc("state.inventory_item.description")),
   })
   .strict()
+  .describe(desc("state.location.available_item"))
+
+const LocationCharacterSchema = z.string().min(1).describe(desc("state.location.character"))
 
 export const LocationSchema = z
   .object({
     name: z.string().min(1).describe(desc("state.location.name")),
     description: z.string().min(1).describe(desc("state.location.description")),
-    characters: z.array(z.string().min(1)).describe(desc("state.location.characters")),
+    characters: z.array(LocationCharacterSchema).describe(desc("state.location.characters")),
     available_items: z.array(LocationItemSchema).describe(desc("state.location.available_items")),
   })
   .strict()
+  .describe(desc("state.location.entry"))
 
 const LocationsSchema = z
   .array(LocationSchema)
@@ -67,35 +71,13 @@ export const CharacterAppearanceSchema = z
   })
   .strict()
 
-export const RelationshipScoreSchema = z
-  .object({
-    name: z.string().min(1).describe(desc("state.relationship_scores.name")),
-    affinity: z.number().int().min(-100).max(100).describe(desc("state.relationship_scores.affinity")),
-  })
-  .strict()
+const MajorFlawSchema = z.string().min(1).describe(desc("traits.major_flaw"))
+const QuirkSchema = z.string().min(1).describe(desc("traits.quirk"))
+const PerkSchema = z.string().min(1).describe(desc("traits.perk"))
 
-export const RelationshipScoresSchema = z
-  .array(RelationshipScoreSchema)
-  .describe(desc("state.relationship_scores.entries"))
-  .superRefine((scores, ctx) => {
-    const seen = new Set<string>()
-    scores.forEach((score, index) => {
-      const key = score.name.trim().toLowerCase()
-      if (!key) return
-      if (seen.has(key)) {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          message: "Relationship score names must be unique",
-          path: [index, "name"],
-        })
-      } else {
-        seen.add(key)
-      }
-    })
-  })
-
-export const QuirksSchema = z.array(z.string().min(1)).max(6).describe(desc("traits.quirks"))
-export const PerksSchema = z.array(z.string().min(1)).max(6).describe(desc("traits.perks"))
+export const MajorFlawsSchema = z.array(MajorFlawSchema).max(3).describe(desc("traits.major_flaws"))
+export const QuirksSchema = z.array(QuirkSchema).max(6).describe(desc("traits.quirks"))
+export const PerksSchema = z.array(PerkSchema).max(6).describe(desc("traits.perks"))
 
 export const CharacterStateSchema = z
   .object({
@@ -107,9 +89,9 @@ export const CharacterStateSchema = z
     baseline_description: z.string().min(1).describe(desc("state.character.baseline_description")),
     current_activity: z.string().min(1).describe(desc("state.character.current_activity")),
     personality_traits: PersonalityTraitsSchema.describe(desc("traits.personality_traits")),
+    major_flaws: MajorFlawsSchema.describe(desc("traits.major_flaws")),
     quirks: QuirksSchema.describe(desc("traits.quirks")),
     perks: PerksSchema.describe(desc("traits.perks")),
-    relationship_scores: RelationshipScoresSchema.describe(desc("state.character.relationship_scores")),
     inventory: z.array(InventoryItemSchema).describe(desc("state.character.inventory")),
   })
   .strict()
@@ -141,11 +123,11 @@ export const CharacterStateStoredSchema = z
     last_known_location: z.string().optional().describe(desc("state.character.current_location")),
     appearance: z.unknown().optional().describe(desc("state.character.appearance")),
     personality_traits: z.unknown().optional().describe(desc("traits.personality_traits")),
+    major_flaws: z.unknown().optional().describe(desc("traits.major_flaws")),
     quirks: z.unknown().optional().describe(desc("traits.quirks")),
     perks: z.unknown().optional().describe(desc("traits.perks")),
     baseline_description: z.string().optional().describe(desc("state.character.baseline_description")),
     current_activity: z.string().optional().describe(desc("state.character.current_activity")),
-    relationship_scores: z.unknown().optional().describe(desc("state.character.relationship_scores")),
     inventory: z.unknown().optional().describe(desc("state.character.inventory")),
     notes: z.string().optional().describe(desc("state.character.current_activity")),
   })
@@ -157,11 +139,11 @@ export const CharacterStateStoredSchema = z
     current_location: normalizeNonEmptyString(value.current_location ?? value.last_known_location, "Unknown location"),
     appearance: normalizeAppearance(value.appearance),
     personality_traits: normalizePersonalityTraits(value.personality_traits),
+    major_flaws: normalizeTraitList(value.major_flaws, 3),
     quirks: normalizeTraitList(value.quirks ?? (value as Record<string, unknown>).custom_traits, 6),
     perks: normalizeTraitList(value.perks, 6),
     baseline_description: normalizeNonEmptyString(value.baseline_description, "Unknown background"),
     current_activity: normalizeNonEmptyString(value.current_activity ?? value.notes, "Unknown activity"),
-    relationship_scores: normalizeRelationshipScores(value.relationship_scores),
     inventory: normalizeInventoryItems(value.inventory),
   }))
   .pipe(CharacterStateSchema)
@@ -180,9 +162,9 @@ export const WorldStateSchema = z
       .string()
       .regex(TIME_OF_DAY_REGEX, "time_of_day must be 24h HH:MM")
       .describe(desc("llm.world_state_update.time_of_day")),
-    recent_events_summary: z
+    memory: z
       .preprocess((value) => (typeof value === "string" ? stripSummaryLeak(value) : value), z.string().min(1))
-      .describe(desc("llm.world_state_update.recent_events_summary")),
+      .describe(desc("llm.world_state_update.memory")),
     locations: LocationsSchema.describe(desc("llm.world_state_update.locations")),
   })
   .describe(desc("llm.turn_response.world_state_update"))
@@ -193,7 +175,8 @@ export const WorldStateStoredSchema = z
     current_scene: z.string().optional().describe(desc("llm.world_state_update.current_scene")),
     current_date: z.string().optional().describe(desc("llm.world_state_update.current_date")),
     time_of_day: z.string().optional().describe(desc("llm.world_state_update.time_of_day")),
-    recent_events_summary: z.string().optional().describe(desc("llm.world_state_update.recent_events_summary")),
+    memory: z.string().optional().describe(desc("llm.world_state_update.memory")),
+    recent_events_summary: z.string().optional(),
     locations: z.unknown().optional().describe(desc("llm.world_state_update.locations")),
   })
   .passthrough()
@@ -204,7 +187,7 @@ export const WorldStateStoredSchema = z
       current_scene: currentScene,
       current_date: normalizeCurrentDate(value.current_date ?? legacyDayOfWeek),
       time_of_day: normalizeTimeOfDay(value.time_of_day),
-      recent_events_summary: normalizeRecentEventsSummary(value.recent_events_summary),
+      memory: normalizeMemory(value.memory ?? value.recent_events_summary),
       locations: normalizeLocations(value.locations, currentScene),
     }
   })
