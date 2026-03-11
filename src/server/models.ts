@@ -71,7 +71,7 @@ function normalizeCurrentScene(value: unknown): string {
 
 function normalizeRecentEventsSummary(value: unknown): string {
   if (typeof value === "string") {
-    const trimmed = value.trim()
+    const trimmed = stripSummaryLeak(value).trim()
     if (trimmed.length > 0) {
       const matches = trimmed.match(/[^.!?]+[.!?]+/g) ?? []
       let sentences = matches.map((sentence) => sentence.trim()).filter(Boolean)
@@ -84,6 +84,14 @@ function normalizeRecentEventsSummary(value: unknown): string {
     }
   }
   return DEFAULT_RECENT_EVENTS_SUMMARY
+}
+
+function stripSummaryLeak(value: string): string {
+  let sanitized = value
+  sanitized = sanitized.replace(/\/\*[\s\S]*?\*\//g, " ")
+  sanitized = sanitized.replace(/<!--[\s\S]*?-->/g, " ")
+  sanitized = sanitized.replace(/(^|[\s.!?])\/\/.*$/g, "$1")
+  return sanitized.trim()
 }
 
 function normalizeNonEmptyString(value: unknown, fallback: string): string {
@@ -198,10 +206,13 @@ export const WorldStateSchema = z
     current_scene: z.string().min(1).regex(ONE_TO_FIVE_WORDS_REGEX, "current_scene must be 1-5 words"),
     day_of_week: z.enum(["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]),
     time_of_day: z.string().regex(TIME_OF_DAY_REGEX, "time_of_day must be 24h HH:MM"),
-    recent_events_summary: z
-      .string()
-      .min(1)
-      .regex(TWO_TO_THREE_SENTENCES_REGEX, "recent_events_summary must be 2-3 sentences"),
+    recent_events_summary: z.preprocess(
+      (value) => (typeof value === "string" ? stripSummaryLeak(value) : value),
+      z
+        .string()
+        .min(1)
+        .regex(TWO_TO_THREE_SENTENCES_REGEX, "recent_events_summary must be 2-3 sentences"),
+    ),
   })
   .strict()
 
