@@ -250,7 +250,7 @@
     addingNpc = true
     isGenerating.set(true)
     try {
-      const result = await api.turns.createNpc($currentStoryId, name, "do", createRequestId())
+      const result = await api.turns.createNpc($currentStoryId, name, createRequestId())
       npcs.set(result.npcs)
       markLlmUpdate()
       newNpcName = ""

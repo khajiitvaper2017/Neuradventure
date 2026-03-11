@@ -153,6 +153,7 @@ type PromptConfig = {
   generateCharacterClothingPrompt: string[]
   generateCharacterTraitsPrompt: string[]
   generateStoryPrompt: string[]
+  npcCreationPrompt?: string[]
   impersonatePrompt?: string[]
 }
 
@@ -182,6 +183,12 @@ const npcTraits: string[] = JSON.parse(readFileSync(join(__dirname, "../../share
 
 function getSystemPrompt(): string {
   return getConfig().systemPromptLines.join("\n").replace("{npcTraits}", npcTraits.join(", "))
+}
+
+function getNpcCreationPrompt(): string {
+  const config = getConfig()
+  const lines = config.npcCreationPrompt && config.npcCreationPrompt.length > 0 ? config.npcCreationPrompt : config.systemPromptLines
+  return lines.join("\n").replace("{npcTraits}", npcTraits.join(", "))
 }
 
 function getImpersonatePrompt(): string {
@@ -363,11 +370,11 @@ export function buildTurnMessages(
     `Appearance: ${initial.appearance.physical_description}\n` +
     `Wearing: ${initial.appearance.current_clothing}`
   const baseSection =
-    `=== YOUR CHARACTER (BASE) ===\n` +
+    `=== PLAYER CHARACTER (BASE) ===\n` +
     `Name: ${character.name} · ${character.race} · ${character.gender}\n` +
     `Traits: ${[...character.personality_traits, ...character.custom_traits].join(", ")}`
   const currentSection =
-    `=== CURRENT CHARACTER STATE ===\n` +
+    `=== PLAYER CHARACTER STATE ===\n` +
     `Appearance: ${character.appearance.physical_description}\n` +
     `Wearing: ${character.appearance.current_clothing}\n` +
     `Inventory: ${formatInventory(character.inventory)}`
@@ -383,6 +390,50 @@ export function buildTurnMessages(
 
   return [
     { role: "system", content: getSystemPrompt() },
+    { role: "user", content: contextBlock },
+  ]
+}
+
+export function buildNpcCreationMessages(
+  character: MainCharacterState,
+  world: WorldState,
+  npcs: NPCState[],
+  recentTurns: TurnRow[],
+  npcName: string,
+  ctxLimitOverride?: number,
+): OpenAI.ChatCompletionMessageParam[] {
+  const npcSection = npcs.length > 0 ? `=== KNOWN NPCs ===\n${formatNPCs(npcs)}` : ""
+  const ctxLimit = ctxLimitOverride ?? getGenerationParams().ctx_limit
+  const actionBlock = npcName.trim().length > 0 ? `===INTRODUCE NEW NPC===\n${npcName}` : "===INTRODUCE NEW NPC==="
+
+  const storyContext =
+    `=== STORY CONTEXT ===\n` +
+    `Scene: ${world.current_scene}\n` +
+    `Day: ${world.day_of_week}\n` +
+    `Time: ${world.time_of_day}\n` +
+    `Recent events: ${world.recent_events_summary}`
+
+  const baseSection =
+    `=== PLAYER CHARACTER (BASE) ===\n` +
+    `Name: ${character.name} · ${character.race} · ${character.gender}\n` +
+    `Traits: ${[...character.personality_traits, ...character.custom_traits].join(", ")}`
+  const currentSection =
+    `=== PLAYER CHARACTER STATE ===\n` +
+    `Appearance: ${character.appearance.physical_description}\n` +
+    `Wearing: ${character.appearance.current_clothing}\n` +
+    `Inventory: ${formatInventory(character.inventory)}`
+
+  const joinSections = (sections: Array<string | null | undefined>): string => sections.filter(Boolean).join("\n\n")
+
+  const prefix = "=== STORY SO FAR ===\n"
+  const afterHistory = joinSections([baseSection, currentSection, npcSection || null, storyContext, actionBlock])
+  const baseTokens = estimateTokens(`${prefix}${afterHistory ? `\n\n${afterHistory}` : ""}`)
+  const history = buildHistoryBlock(recentTurns, world, ctxLimit, baseTokens)
+
+  const contextBlock = `${prefix}${history}${afterHistory ? `\n\n${afterHistory}` : ""}`
+
+  return [
+    { role: "system", content: getNpcCreationPrompt() },
     { role: "user", content: contextBlock },
   ]
 }
@@ -419,11 +470,11 @@ export function buildImpersonateMessages(
     `Appearance: ${initial.appearance.physical_description}\n` +
     `Wearing: ${initial.appearance.current_clothing}`
   const baseSection =
-    `=== YOUR CHARACTER (BASE) ===\n` +
+    `=== PLAYER CHARACTER (BASE) ===\n` +
     `Name: ${character.name} · ${character.race} · ${character.gender}\n` +
     `Traits: ${[...character.personality_traits, ...character.custom_traits].join(", ")}`
   const currentSection =
-    `=== CURRENT CHARACTER STATE ===\n` +
+    `=== PLAYER CHARACTER STATE ===\n` +
     `Appearance: ${character.appearance.physical_description}\n` +
     `Wearing: ${character.appearance.current_clothing}\n` +
     `Inventory: ${formatInventory(character.inventory)}`

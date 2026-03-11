@@ -70,7 +70,7 @@ turns.post("/create-npc", zValidator("json", TakeTurnRequestSchema), async (c) =
       if (inflight) return c.json(await inflight)
     }
 
-    const task = createNpcFromTurnPrompt(body.story_id, body.player_input, body.action_mode)
+    const task = createNpcFromTurnPrompt(body.story_id, body.player_input)
     if (requestId) npcInFlight.set(requestId, task)
     try {
       const result = await task

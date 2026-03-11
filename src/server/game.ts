@@ -11,7 +11,14 @@ import {
 } from "./models.js"
 type NPCUpdateArray = Extract<TurnResponse["npc_changes"], { has_updates: true }>["updates"]
 import * as db from "./db.js"
-import { buildTurnMessages, callLLM, generateNpcCreation, generatePlayerAction, getCtxLimitCached } from "./llm.js"
+import {
+  buildNpcCreationMessages,
+  buildTurnMessages,
+  callLLM,
+  generateNpcCreation,
+  generatePlayerAction,
+  getCtxLimitCached,
+} from "./llm.js"
 
 // ─── State Application ─────────────────────────────────────────────────────────
 
@@ -181,7 +188,6 @@ export interface CreateNpcResult {
 export async function createNpcFromTurnPrompt(
   storyId: number,
   npcName: string,
-  actionMode: string,
 ): Promise<CreateNpcResult> {
   const story = db.getStory(storyId)
   if (!story) throw new Error(`Story ${storyId} not found`)
@@ -197,12 +203,10 @@ export async function createNpcFromTurnPrompt(
     throw new Error(`NPC "${trimmedName}" already exists`)
   }
 
-  const initial = parseInitialStorySnapshot(story).character
   const recentTurns = db.getTurnsForStory(storyId)
   const ctxLimit = getCtxLimitCached()
-  const actionInput = `Introduce a new NPC named "${trimmedName}".`
 
-  const messages = buildTurnMessages(character, world, npcs, recentTurns, actionInput, actionMode, initial, ctxLimit)
+  const messages = buildNpcCreationMessages(character, world, npcs, recentTurns, trimmedName, ctxLimit)
   const creation = await generateNpcCreation(messages, trimmedName)
   const updatedNpcs = applyNPCCreations(npcs, [creation])
   const newNpc = buildNpcFromCreation(creation)

@@ -308,13 +308,13 @@ export const api = {
           request_id: requestId,
         }),
       }),
-    createNpc: (storyId: number, npcName: string, actionMode: "do" | "say" | "story", requestId?: string) =>
+    createNpc: (storyId: number, npcName: string, requestId?: string) =>
       request<CreateNpcResult>("/api/turns/create-npc", {
         method: "POST",
         body: JSON.stringify({
           story_id: storyId,
           player_input: npcName,
-          action_mode: actionMode,
+          action_mode: "do",
           request_id: requestId,
         }),
       }),
