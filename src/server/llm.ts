@@ -3,7 +3,7 @@ import { readFileSync, statSync } from "fs"
 import { fileURLToPath } from "url"
 import { dirname, join } from "path"
 import { z } from "zod"
-import { zodToJsonSchema } from "zod-to-json-schema"
+import { buildJsonSchemaResponseFormat, zodSchemaToJsonSchema } from "./json-schema.js"
 import {
   buildNPCChangesSection,
   TurnResponseSchema,
@@ -210,58 +210,6 @@ function escapeForInlineJson(value: string): string {
   return value.replace(/\\/g, "\\\\").replace(/"/g, '\\"')
 }
 
-function derefJsonSchema(schema: object): object {
-  const root = schema as Record<string, unknown>
-  const seen = new Map<string, unknown>()
-
-  const resolvePointer = (pointer: string): unknown => {
-    if (!pointer.startsWith("#/")) return undefined
-    const parts = pointer
-      .slice(2)
-      .split("/")
-      .map((part) => part.replace(/~1/g, "/").replace(/~0/g, "~"))
-    let current: unknown = root
-    for (const part of parts) {
-      if (!current || typeof current !== "object") return undefined
-      const obj = current as Record<string, unknown>
-      if (!(part in obj)) return undefined
-      current = obj[part]
-    }
-    return current
-  }
-
-  const derefNode = (node: unknown, path: string): unknown => {
-    if (Array.isArray(node)) return node.map((item, index) => derefNode(item, `${path}/${index}`))
-    if (!node || typeof node !== "object") return node
-
-    const obj = node as Record<string, unknown>
-    const ref = obj.$ref
-    if (typeof ref === "string") {
-      const cached = seen.get(ref)
-      if (cached) return cached
-      const target = resolvePointer(ref)
-      if (target) {
-        const resolved = derefNode(target, ref)
-        seen.set(ref, resolved)
-        return resolved
-      }
-    }
-
-    const out: Record<string, unknown> = {}
-    for (const [k, v] of Object.entries(obj)) {
-      if (k === "$ref" || k === "definitions" || k === "$defs") continue
-      out[k] = derefNode(v, `${path}/${k}`)
-    }
-    return out
-  }
-
-  const resolved = derefNode(root, "#")
-  if (resolved && typeof resolved === "object" && root.$schema && !(resolved as Record<string, unknown>).$schema) {
-    ;(resolved as Record<string, unknown>).$schema = root.$schema
-  }
-  return (resolved ?? schema) as object
-}
-
 function formatNPCs(npcs: NPCState[]): string {
   if (npcs.length === 0) return ""
   return npcs
@@ -280,10 +228,9 @@ function formatNPCs(npcs: NPCState[]): string {
     .join("\n\n")
 }
 
-function formatRecentHistoryEntries(turns: TurnRow[], maxTurns = 8): string[] {
+function formatHistoryEntries(turns: TurnRow[]): string[] {
   if (turns.length === 0) return []
-  const recent = turns.length <= maxTurns ? turns : turns.filter((_, i) => i >= turns.length - maxTurns)
-  return recent.map((t) => `> Player: ${t.player_input}\n  Story: ${t.narrative_text}`)
+  return turns.map((t) => `> ${t.player_input}\n\n${t.narrative_text}`)
 }
 
 function buildHistoryBlock(
@@ -291,10 +238,9 @@ function buildHistoryBlock(
   world: WorldState,
   ctxLimit: number,
   baseTokens: number,
-  maxTurns = 8,
 ): string {
-  const entries = formatRecentHistoryEntries(turns, maxTurns)
-  if (entries.length === 0) return "This is the beginning of the story."
+  const entries = formatHistoryEntries(turns)
+  if (entries.length === 0) return ""
 
   let history = entries.join("\n\n")
   if (!ctxLimit || ctxLimit <= 0) return history
@@ -352,7 +298,7 @@ export function buildTurnMessages(
     actionMode === "story"
       ? hasPlayerInput
         ? `=== STORY CONTINUATION (continue naturally from this) ===\n${playerInput}`
-        : ""
+        : "=== STORY CONTINUATION (continue naturally from this) ===\n"
       : hasPlayerInput
         ? `=== PLAYER'S ACTION ===\n${actionMode === "say" ? `You say: ${playerInput}` : playerInput}`
         : ""
@@ -565,7 +511,7 @@ export async function callLLM(
   knownNpcNames: string[] = [],
 ): Promise<TurnResponse> {
   const turnSchema = buildTurnResponseSchema(knownNpcNames)
-  const schema = zodToJsonSchema(turnSchema, { name: "TurnResponse" })
+  const schema = zodSchemaToJsonSchema(turnSchema, "TurnResponse")
   const result = await callLLMRaw<unknown>(messages, "TurnResponse", schema)
   return turnSchema.parse(result)
 }
@@ -575,7 +521,7 @@ export async function generateNpcCreation(
   forcedName?: string,
 ): Promise<NPCCreation> {
   const creationSchema = NPCCreationSchema
-  const schema = zodToJsonSchema(creationSchema, { name: "NPCCreation" })
+  const schema = zodSchemaToJsonSchema(creationSchema, "NPCCreation")
   const result = await callLLMRaw<unknown>(messages, "NPCCreation", schema)
   const parsed = creationSchema.parse(result)
   return forcedName ? { ...parsed, name: forcedName } : parsed
@@ -595,10 +541,7 @@ async function callLLMRaw<T>(
     model: "local",
     messages,
     ...sampling,
-    response_format: {
-      type: "json_schema",
-      json_schema: { name: schemaName, schema: derefJsonSchema(schema) },
-    } as OpenAI.ResponseFormatJSONSchema,
+    response_format: buildJsonSchemaResponseFormat(schemaName, schema) as OpenAI.ResponseFormatJSONSchema,
   })
   const content = res.choices[0]?.message?.content
   if (!content) throw new Error("LLM returned empty response")
@@ -653,12 +596,12 @@ export async function generatePlayerAction(
     ctxLimitOverride,
   )
   const maxTokens = Math.min(getGenerationParams().max_tokens, 160)
-  const raw = await callLLMText(messages, maxTokens, { disableRepetition: true })
+  const raw = await callLLMText(messages, maxTokens, { disableRepetition: true, stop: ["\n"] })
   return sanitizePlayerAction(raw)
 }
 
 export async function generateCharacter(description: string): Promise<GenerateCharacterResponse> {
-  const schema = zodToJsonSchema(GenerateCharacterResponseSchema, { name: "GenerateCharacterResponse" })
+  const schema = zodSchemaToJsonSchema(GenerateCharacterResponseSchema, "GenerateCharacterResponse")
   const result = await callLLMRaw<unknown>(
     [
       {
@@ -722,10 +665,10 @@ export async function generateCharacterPart(
 ): Promise<GenerateCharacterAppearanceResponse | GenerateCharacterTraitsResponse | GenerateCharacterClothingResponse> {
   const schema =
     part === "appearance"
-      ? zodToJsonSchema(GenerateCharacterAppearanceResponseSchema, { name: "GenerateCharacterAppearanceResponse" })
+      ? zodSchemaToJsonSchema(GenerateCharacterAppearanceResponseSchema, "GenerateCharacterAppearanceResponse")
       : part === "traits"
-        ? zodToJsonSchema(GenerateCharacterTraitsResponseSchema, { name: "GenerateCharacterTraitsResponse" })
-        : zodToJsonSchema(GenerateCharacterClothingResponseSchema, { name: "GenerateCharacterClothingResponse" })
+        ? zodSchemaToJsonSchema(GenerateCharacterTraitsResponseSchema, "GenerateCharacterTraitsResponse")
+        : zodSchemaToJsonSchema(GenerateCharacterClothingResponseSchema, "GenerateCharacterClothingResponse")
 
   const config = getConfig()
   const partPrompt =
@@ -784,7 +727,7 @@ export async function generateStory(
     custom_traits: string[]
   },
 ): Promise<GenerateStoryResponse> {
-  const schema = zodToJsonSchema(GenerateStoryResponseSchema, { name: "GenerateStoryResponse" })
+  const schema = zodSchemaToJsonSchema(GenerateStoryResponseSchema, "GenerateStoryResponse")
   const traits = [...character.personality_traits, ...character.custom_traits].map((t) => t.trim()).filter(Boolean)
   const result = await callLLMRaw<unknown>(
     [
