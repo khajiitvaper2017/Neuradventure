@@ -8,40 +8,40 @@ import {
 import { desc } from "./field-descriptions.js"
 
 export const CreateCharacterRequestSchema = z.object({
-  name: z.string().min(1).describe(desc("requests.create_character.name")),
-  race: z.string().min(1).describe(desc("requests.create_character.race")),
-  gender: z.string().min(1).describe(desc("requests.create_character.gender")),
-  current_location: z.string().min(1).describe(desc("requests.create_character.current_location")),
-  appearance: CharacterAppearanceSchema.describe(desc("requests.create_character.appearance")),
-  baseline_description: z.string().min(1).describe(desc("requests.create_character.baseline_description")),
-  current_activity: z.string().min(1).describe(desc("requests.create_character.current_activity")),
-  personality_traits: z.array(z.string()).describe(desc("requests.create_character.personality_traits")),
-  quirks: z.array(z.string()).describe(desc("requests.create_character.quirks")),
-  perks: z.array(z.string()).describe(desc("requests.create_character.perks")),
-  relationship_scores: RelationshipScoresSchema.describe(desc("requests.create_character.relationship_scores")),
+  name: z.string().min(1).describe(desc("state.character.name")),
+  race: z.string().min(1).describe(desc("state.character.race")),
+  gender: z.string().min(1).describe(desc("state.character.gender")),
+  current_location: z.string().min(1).describe(desc("state.character.current_location")),
+  appearance: CharacterAppearanceSchema.describe(desc("state.character.appearance")),
+  baseline_description: z.string().min(1).describe(desc("state.character.baseline_description")),
+  current_activity: z.string().min(1).describe(desc("state.character.current_activity")),
+  personality_traits: z.array(z.string()).describe(desc("traits.personality_traits")),
+  quirks: z.array(z.string()).describe(desc("traits.quirks")),
+  perks: z.array(z.string()).describe(desc("traits.perks")),
+  relationship_scores: RelationshipScoresSchema.describe(desc("state.character.relationship_scores")),
 })
 
 export const UpdateCharacterRequestSchema = CreateCharacterRequestSchema.partial()
 
 export const CreateStoryRequestSchema = z.object({
-  title: z.string().min(1).describe(desc("requests.create_story.title")),
-  opening_scenario: z.string().min(1).describe(desc("requests.create_story.opening_scenario")),
+  title: z.string().min(1).describe(desc("requests.story_title")),
+  opening_scenario: z.string().min(1).describe(desc("requests.opening_scenario")),
   starting_scene: z.string().min(1).optional().describe(desc("requests.create_story.starting_scene")),
   character_id: z.number().int().optional().describe(desc("requests.create_story.character_id")),
   character_data: z
     .object({
-      name: z.string().min(1).describe(desc("requests.create_story_character.name")),
-      race: z.string().min(1).describe(desc("requests.create_story_character.race")),
-      gender: z.string().min(1).describe(desc("requests.create_story_character.gender")),
-      current_location: z.string().min(1).describe(desc("requests.create_story_character.current_location")),
-      appearance: CharacterAppearanceSchema.describe(desc("requests.create_story_character.appearance")),
-      baseline_description: z.string().min(1).describe(desc("requests.create_story_character.baseline_description")),
-      current_activity: z.string().min(1).describe(desc("requests.create_story_character.current_activity")),
-      personality_traits: z.array(z.string()).describe(desc("requests.create_story_character.personality_traits")),
-      quirks: z.array(z.string()).describe(desc("requests.create_story_character.quirks")),
-      perks: z.array(z.string()).describe(desc("requests.create_story_character.perks")),
+      name: z.string().min(1).describe(desc("state.character.name")),
+      race: z.string().min(1).describe(desc("state.character.race")),
+      gender: z.string().min(1).describe(desc("state.character.gender")),
+      current_location: z.string().min(1).describe(desc("state.character.current_location")),
+      appearance: CharacterAppearanceSchema.describe(desc("state.character.appearance")),
+      baseline_description: z.string().min(1).describe(desc("state.character.baseline_description")),
+      current_activity: z.string().min(1).describe(desc("state.character.current_activity")),
+      personality_traits: z.array(z.string()).describe(desc("traits.personality_traits")),
+      quirks: z.array(z.string()).describe(desc("traits.quirks")),
+      perks: z.array(z.string()).describe(desc("traits.perks")),
       relationship_scores: RelationshipScoresSchema.describe(
-        desc("requests.create_story_character.relationship_scores"),
+        desc("state.character.relationship_scores"),
       ),
     })
     .describe(desc("requests.create_story.character_data"))
@@ -70,9 +70,9 @@ export const UpdateTurnRequestSchema = z.object({
 
 export const TakeTurnRequestSchema = z
   .object({
-    story_id: z.number().int().describe(desc("requests.take_turn.story_id")),
+    story_id: z.number().int().describe(desc("requests.story_id")),
     player_input: z.string().describe(desc("requests.take_turn.player_input")),
-    action_mode: z.enum(["do", "say", "story"]).default("do").describe(desc("requests.take_turn.action_mode")),
+    action_mode: z.enum(["do", "say", "story"]).default("do").describe(desc("requests.action_mode")),
     request_id: z.string().min(1).optional().describe(desc("requests.take_turn.request_id")),
   })
   .refine((v) => v.action_mode === "story" || v.player_input.trim().length > 0, {
@@ -80,21 +80,21 @@ export const TakeTurnRequestSchema = z
   })
 
 export const RegenerateLastRequestSchema = z.object({
-  story_id: z.number().int().describe(desc("requests.regenerate_last.story_id")),
+  story_id: z.number().int().describe(desc("requests.story_id")),
   action_mode: z.enum(["do", "say", "story"]).optional().describe(desc("requests.regenerate_last.action_mode")),
 })
 
 export const ImpersonateRequestSchema = z.object({
-  story_id: z.number().int().describe(desc("requests.impersonate.story_id")),
-  action_mode: z.enum(["do", "say", "story"]).default("do").describe(desc("requests.impersonate.action_mode")),
+  story_id: z.number().int().describe(desc("requests.story_id")),
+  action_mode: z.enum(["do", "say", "story"]).default("do").describe(desc("requests.action_mode")),
 })
 
 export const CancelLastRequestSchema = z.object({
-  story_id: z.number().int().describe(desc("requests.cancel_last.story_id")),
+  story_id: z.number().int().describe(desc("requests.story_id")),
 })
 
 export const UndoCancelRequestSchema = z.object({
-  story_id: z.number().int().describe(desc("requests.undo_cancel.story_id")),
+  story_id: z.number().int().describe(desc("requests.story_id")),
 })
 
 export const SelectTurnVariantRequestSchema = z.object({

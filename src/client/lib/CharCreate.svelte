@@ -66,6 +66,7 @@
   })
 
   async function generate() {
+    if (generating) return
     const prompt = $pendingCharacterGenerateDescription.trim()
     if (!prompt) return
     generating = true

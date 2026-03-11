@@ -25,8 +25,8 @@ export const InventoryItemSchema = z
 
 export const LocationItemSchema = z
   .object({
-    name: z.string().min(1).describe(desc("state.location_item.name")),
-    description: z.string().min(1).describe(desc("state.location_item.description")),
+    name: z.string().min(1).describe(desc("state.inventory_item.name")),
+    description: z.string().min(1).describe(desc("state.inventory_item.description")),
   })
   .strict()
 
@@ -106,9 +106,9 @@ export const CharacterStateSchema = z
     appearance: CharacterAppearanceSchema.describe(desc("state.character.appearance")),
     baseline_description: z.string().min(1).describe(desc("state.character.baseline_description")),
     current_activity: z.string().min(1).describe(desc("state.character.current_activity")),
-    personality_traits: PersonalityTraitsSchema.describe(desc("state.character.personality_traits")),
-    quirks: QuirksSchema.describe(desc("state.character.quirks")),
-    perks: PerksSchema.describe(desc("state.character.perks")),
+    personality_traits: PersonalityTraitsSchema.describe(desc("traits.personality_traits")),
+    quirks: QuirksSchema.describe(desc("traits.quirks")),
+    perks: PerksSchema.describe(desc("traits.perks")),
     relationship_scores: RelationshipScoresSchema.describe(desc("state.character.relationship_scores")),
     inventory: z.array(InventoryItemSchema).describe(desc("state.character.inventory")),
   })
@@ -140,9 +140,9 @@ export const CharacterStateStoredSchema = z
     current_location: z.string().optional().describe(desc("state.character.current_location")),
     last_known_location: z.string().optional().describe(desc("state.character.current_location")),
     appearance: z.unknown().optional().describe(desc("state.character.appearance")),
-    personality_traits: z.unknown().optional().describe(desc("state.character.personality_traits")),
-    quirks: z.unknown().optional().describe(desc("state.character.quirks")),
-    perks: z.unknown().optional().describe(desc("state.character.perks")),
+    personality_traits: z.unknown().optional().describe(desc("traits.personality_traits")),
+    quirks: z.unknown().optional().describe(desc("traits.quirks")),
+    perks: z.unknown().optional().describe(desc("traits.perks")),
     baseline_description: z.string().optional().describe(desc("state.character.baseline_description")),
     current_activity: z.string().optional().describe(desc("state.character.current_activity")),
     relationship_scores: z.unknown().optional().describe(desc("state.character.relationship_scores")),

@@ -236,8 +236,8 @@ stories.post(
   zValidator(
     "json",
     z.object({
-      title: z.string().describe(desc("requests.import_story.title")),
-      opening_scenario: z.string().describe(desc("requests.import_story.opening_scenario")),
+      title: z.string().describe(desc("requests.story_title")),
+      opening_scenario: z.string().describe(desc("requests.opening_scenario")),
       character: MainCharacterStateSchema.describe(desc("requests.import_story.character")),
       world: WorldStateStoredSchema.describe(desc("requests.import_story.world")),
       npcs: z.array(NPCStateStoredSchema).describe(desc("requests.import_story.npcs")),

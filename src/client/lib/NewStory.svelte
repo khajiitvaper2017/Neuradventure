@@ -149,6 +149,7 @@
       : "Select a character"
 
   async function generate() {
+    if (generating) return
     const prompt = $pendingStoryGenerateDescription.trim()
     if (!prompt || !$pendingCharacter) return
     generating = true

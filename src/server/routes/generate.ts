@@ -26,9 +26,9 @@ generate.post(
 )
 
 const characterContextSchema = z.object({
-  name: z.string().default("").describe(desc("requests.generate_character_context.name")),
-  race: z.string().default("").describe(desc("requests.generate_character_context.race")),
-  gender: z.string().default("").describe(desc("requests.generate_character_context.gender")),
+  name: z.string().default("").describe(desc("state.character.name")),
+  race: z.string().default("").describe(desc("state.character.race")),
+  gender: z.string().default("").describe(desc("state.character.gender")),
   appearance: z
     .object({
       baseline_appearance: z.string().default("").describe(desc("state.appearance.baseline_appearance")),
@@ -36,18 +36,18 @@ const characterContextSchema = z.object({
       current_clothing: z.string().default("").describe(desc("state.appearance.current_clothing")),
     })
     .default({ baseline_appearance: "", current_appearance: "", current_clothing: "" })
-    .describe(desc("requests.generate_character_context.appearance")),
+    .describe(desc("state.character.appearance")),
   baseline_description: z
     .string()
     .default("")
-    .describe(desc("requests.generate_character_context.baseline_description")),
-  current_activity: z.string().default("").describe(desc("requests.generate_character_context.current_activity")),
+    .describe(desc("state.character.baseline_description")),
+  current_activity: z.string().default("").describe(desc("state.character.current_activity")),
   personality_traits: z
     .array(z.string())
     .default([])
-    .describe(desc("requests.generate_character_context.personality_traits")),
-  quirks: z.array(z.string()).default([]).describe(desc("requests.generate_character_context.quirks")),
-  perks: z.array(z.string()).default([]).describe(desc("requests.generate_character_context.perks")),
+    .describe(desc("traits.personality_traits")),
+  quirks: z.array(z.string()).default([]).describe(desc("traits.quirks")),
+  perks: z.array(z.string()).default([]).describe(desc("traits.perks")),
   relationship_scores: z
     .array(
       z.object({
@@ -56,7 +56,7 @@ const characterContextSchema = z.object({
       }),
     )
     .default([])
-    .describe(desc("requests.generate_character_context.relationship_scores")),
+    .describe(desc("state.character.relationship_scores")),
 })
 
 generate.post(

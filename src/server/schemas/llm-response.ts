@@ -16,13 +16,13 @@ export const buildNPCStateUpdateSchema = (nameSchema: z.ZodType<string>): z.ZodT
     set_current_appearance: z.string().min(1).describe(desc("llm.npc_update.set_current_appearance")),
   })
   const withClothing = base.extend({
-    set_current_clothing: z.string().min(1).describe(desc("llm.npc_update.set_current_clothing")),
+    set_current_clothing: z.string().min(1).describe(desc("state.appearance.current_clothing")),
   })
   const withActivity = base.extend({
     set_current_activity: z.string().min(1).describe(desc("llm.npc_update.set_current_activity")),
   })
   const withRelationships = base.extend({
-    set_relationship_scores: RelationshipScoresSchema.describe(desc("llm.npc_update.set_relationship_scores")),
+    set_relationship_scores: RelationshipScoresSchema.describe(desc("state.character.relationship_scores")),
   })
   return z.union([withRace, withGender, withLocation, withAppearance, withClothing, withActivity, withRelationships])
 }
@@ -33,7 +33,7 @@ export const NPCCreationSchema = NPCStateSchema
 
 export const AppearanceChangeSection = z.string().min(1).describe(desc("llm.turn_response.appearance_change"))
 
-export const ClothingChangeSection = z.string().min(1).describe(desc("llm.turn_response.clothing_change"))
+export const ClothingChangeSection = z.string().min(1).describe(desc("state.appearance.current_clothing"))
 
 export const InventoryChangeSection = z.array(InventoryItemSchema).describe(desc("llm.turn_response.inventory_change"))
 

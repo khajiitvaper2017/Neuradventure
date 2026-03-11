@@ -260,9 +260,13 @@ input[type="checkbox"] {
     color 0.15s,
     border-color 0.15s;
 }
-.btn-ghost:hover {
+.btn-ghost:hover:not(:disabled) {
   color: var(--text);
   border-color: var(--border-hover);
+}
+.btn-ghost:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
 }
 
 .btn-mini {
@@ -408,7 +412,12 @@ input[type="checkbox"] {
 
 .generate-btn {
   white-space: nowrap;
-  align-self: flex-start;
+  align-self: stretch;
+  width: 100%;
+  min-height: 0;
+  height: auto;
+  padding: 0.45rem 0.75rem;
+  line-height: 1.2;
 }
 
 /* ── Shared inputs ─────────────────────────────────── */

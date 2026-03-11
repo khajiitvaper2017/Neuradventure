@@ -4,7 +4,6 @@
       "narrative_text": "1-3 short paragraphs in second-person present tense. Separate paragraphs with a literal \\n\\n.",
       "world_state_update": "Full world state update object.",
       "appearance_change": "Precise, surgical description of the player's current physical state (full, not partial).",
-      "clothing_change": "Complete list of items currently worn, including all layers and accessories.",
       "inventory_change": "Complete, updated inventory list (not a diff).",
       "npc_changes": "List of updates for existing NPCs whose state changed this turn.",
       "npc_introductions": "List of newly introduced NPCs with full details."
@@ -22,31 +21,11 @@
       "gender": "Updated gender.",
       "set_current_location": "Updated current unique location name. Update only when changed.",
       "set_current_appearance": "Precise, surgical description of current physical state. Include baseline features and current changes only; avoid temporal qualifiers (e.g., \"still\") and comparative phrases (e.g., \"otherwise unchanged\").",
-      "set_current_clothing": "Complete list of items currently worn, including all layers and accessories.",
-      "set_current_activity": "Concise, factual description of what the NPC is doing right now.",
-      "set_relationship_scores": "Complete relationship_scores array with affinity (-100 to 100) for every other known character."
-    },
-    "npc_creation": {
-      "name": "New NPC full legal name.",
-      "race": "NPC race.",
-      "gender": "NPC gender.",
-      "current_location": "Current unique location name for the NPC.",
-      "appearance": "NPC appearance object.",
-      "baseline_description": "Where the NPC lives, relatives, and friends (including off-story).",
-      "current_activity": "Concise, factual description of what the NPC is doing right now.",
-      "personality_traits": "2-5 personality traits; prefer the allowed list when available.",
-      "quirks": "List of quirks.",
-      "perks": "List of perks.",
-      "relationship_scores": "Array of relationships with affinity (-100 to 100).",
-      "inventory": "NPC inventory list."
+      "set_current_activity": "Concise, factual description of what the NPC is doing right now."
     }
   },
   "state": {
     "inventory_item": {
-      "name": "Item name.",
-      "description": "Short item description."
-    },
-    "location_item": {
       "name": "Item name.",
       "description": "Short item description."
     },
@@ -59,7 +38,7 @@
     "appearance": {
       "baseline_appearance": "Immutable, surgical baseline appearance (permanent features only).",
       "current_appearance": "Precise, surgical description of current physical state (full, not partial).",
-      "current_clothing": "Complete list of items currently worn, including all layers and accessories."
+      "current_clothing": "Precise, surgical description of all items currently worn, including all layers and accessories."
     },
     "character": {
       "name": "Full legal name.",
@@ -69,10 +48,7 @@
       "appearance": "Character appearance object.",
       "baseline_description": "Where the character lives, relatives, and friends (including off-story).",
       "current_activity": "Concise, factual description of what the character is doing right now.",
-      "personality_traits": "List of personality traits.",
-      "quirks": "List of quirks.",
-      "perks": "List of perks.",
-      "relationship_scores": "Relationship scores array with affinity (-100 to 100).",
+      "relationship_scores": "Complete relationship_scores array with affinity (-100 to 100) for every other known character.",
       "inventory": "Complete inventory list."
     },
     "relationship_scores": {
@@ -82,73 +58,23 @@
     }
   },
   "generation": {
-    "character": {
-      "name": "Character name.",
-      "race": "Character race.",
-      "gender": "Character gender.",
-      "baseline_appearance": "Immutable, surgical baseline appearance.",
-      "current_clothing": "Complete current clothing description.",
-      "personality_traits": "2-5 personality traits.",
-      "quirks": "Quirks (3-12 words each).",
-      "perks": "Perks (1-6 words each).",
-      "relationship_scores": "Relationship scores array with affinity (-100 to 100)."
-    },
-    "character_appearance": {
-      "baseline_appearance": "Immutable, surgical baseline appearance only.",
-      "current_appearance": "Precise, surgical current appearance only."
-    },
-    "character_clothing": {
-      "current_clothing": "Complete current clothing description only."
-    },
-    "character_traits": {
-      "personality_traits": "2-5 personality traits.",
-      "quirks": "Quirks (1-6 words each).",
-      "perks": "Perks (1-6 words each)."
-    },
     "story": {
       "title": "3-5 word title tied to the opening scenario.",
       "opening_scenario": "1-3 paragraphs separated by a blank line.",
       "starting_location": "1-3 word unique starting location name.",
-      "character_baseline_description": "Where the character lives, relatives, and friends (including off-story).",
-      "character_current_appearance": "Precise, surgical current appearance at story start.",
-      "character_current_activity": "Concise, factual description of what the character is doing right now.",
       "pregen_npcs": "List of pre-generated NPCs with full details."
     }
   },
   "requests": {
-    "create_character": {
-      "name": "Character name.",
-      "race": "Character race.",
-      "gender": "Character gender.",
-      "current_location": "Character current unique location name.",
-      "appearance": "Character appearance object.",
-      "baseline_description": "Where the character lives, relatives, and friends (including off-story).",
-      "current_activity": "Concise, factual description of what the character is doing right now.",
-      "personality_traits": "List of personality traits.",
-      "quirks": "List of quirks.",
-      "perks": "List of perks.",
-      "relationship_scores": "Relationship scores array with affinity (-100 to 100)."
-    },
+    "story_id": "Story ID.",
+    "story_title": "Story title.",
+    "opening_scenario": "Opening scenario text.",
+    "action_mode": "Action mode: do, say, or story.",
     "create_story": {
-      "title": "Story title.",
-      "opening_scenario": "Opening scenario text.",
       "starting_scene": "Optional starting scene label.",
       "character_id": "Optional character ID to reuse.",
       "character_data": "Inline character data when not using character_id.",
       "npcs": "Optional list of NPCs."
-    },
-    "create_story_character": {
-      "name": "Character name.",
-      "race": "Character race.",
-      "gender": "Character gender.",
-      "current_location": "Character current unique location name.",
-      "appearance": "Character appearance object.",
-      "baseline_description": "Where the character lives, relatives, and friends (including off-story).",
-      "current_activity": "Concise, factual description of what the character is doing right now.",
-      "personality_traits": "List of personality traits.",
-      "quirks": "List of quirks.",
-      "perks": "List of perks.",
-      "relationship_scores": "Relationship scores array with affinity (-100 to 100)."
     },
     "update_story": {
       "title": "Updated story title.",
@@ -163,24 +89,11 @@
       "narrative_text": "Updated narrative text."
     },
     "take_turn": {
-      "story_id": "Story ID.",
       "player_input": "Player input for this turn.",
-      "action_mode": "Action mode: do, say, or story.",
       "request_id": "Optional client request ID for idempotency."
     },
     "regenerate_last": {
-      "story_id": "Story ID.",
       "action_mode": "Optional action mode override."
-    },
-    "impersonate": {
-      "story_id": "Story ID.",
-      "action_mode": "Action mode: do, say, or story."
-    },
-    "cancel_last": {
-      "story_id": "Story ID."
-    },
-    "undo_cancel": {
-      "story_id": "Story ID."
     },
     "select_turn_variant": {
       "variant_id": "Turn variant ID."
@@ -192,26 +105,11 @@
       "part": "Which section to generate: appearance, traits, or clothing.",
       "context": "Current character context used as generation input."
     },
-    "generate_character_context": {
-      "name": "Character name.",
-      "race": "Character race.",
-      "gender": "Character gender.",
-      "current_location": "Character current unique location name.",
-      "appearance": "Character appearance object.",
-      "baseline_description": "Where the character lives, relatives, and friends (including off-story).",
-      "current_activity": "Concise, factual description of what the character is doing right now.",
-      "personality_traits": "List of personality traits.",
-      "quirks": "List of quirks.",
-      "perks": "List of perks.",
-      "relationship_scores": "Relationship scores array with affinity (-100 to 100)."
-    },
     "generate_story": {
       "description": "Story description prompt.",
       "character": "Character data for story generation."
     },
     "import_story": {
-      "title": "Story title.",
-      "opening_scenario": "Opening scenario text.",
       "character": "Full character state.",
       "world": "World state (stored format accepted).",
       "npcs": "NPC state list (stored format accepted)."
@@ -260,7 +158,7 @@
   },
   "traits": {
     "personality_traits": "List of 2-5 personality traits.",
-    "quirks": "List of quirks.",
-    "perks": "List of perks."
+    "quirks": "Quirks (1-8 words each).",
+    "perks": "Perks (1-8 words each)."
   }
 }

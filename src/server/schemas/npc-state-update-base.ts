@@ -7,9 +7,9 @@ const npcStateUpdateShape = {
   gender: z.string().min(1).optional().describe(desc("llm.npc_update.gender")),
   set_current_location: z.string().min(1).optional().describe(desc("llm.npc_update.set_current_location")),
   set_current_appearance: z.string().min(1).optional().describe(desc("llm.npc_update.set_current_appearance")),
-  set_current_clothing: z.string().min(1).optional().describe(desc("llm.npc_update.set_current_clothing")),
+  set_current_clothing: z.string().min(1).optional().describe(desc("state.appearance.current_clothing")),
   set_current_activity: z.string().min(1).optional().describe(desc("llm.npc_update.set_current_activity")),
-  set_relationship_scores: RelationshipScoresSchema.optional().describe(desc("llm.npc_update.set_relationship_scores")),
+  set_relationship_scores: RelationshipScoresSchema.optional().describe(desc("state.character.relationship_scores")),
 }
 
 export const NPCStateUpdateBaseSchema = z.object(npcStateUpdateShape).strict()
