@@ -618,13 +618,14 @@ export async function generateNamedNpc(name: string, description?: string): Prom
   const schema = zodToJsonSchema(NamedSchema, { name: "GenerateNamedNpcResponse" })
   const promptBase =
     getConfig().generateCharacterPrompt.join("\n") + `\n\nAvailable personality traits: ${npcTraits.join(", ")}`
-  const lines = [`Create a character based on this description. Use the exact name "${trimmedName}".`]
   const trimmedDescription = description?.trim()
-  if (trimmedDescription) lines.push(`"${trimmedDescription}"`)
+  const descParts = [`Name: ${trimmedName}`]
+  if (trimmedDescription) descParts.push(trimmedDescription)
+  const userPrompt = `Create a character based on this description: "${descParts.join(" ")}"`
   const result = await callLLMRaw<unknown>(
     [
       { role: "system", content: promptBase },
-      { role: "user", content: lines.join("\n\n") },
+      { role: "user", content: userPrompt },
     ],
     "GenerateNamedNpcResponse",
     schema,
