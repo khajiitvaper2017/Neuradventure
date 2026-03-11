@@ -1,6 +1,6 @@
 <script lang="ts">
   import { api, ApiError } from "../api/client.js"
-  import { showNPCTracker, showError, showQuietNotice } from "../stores/ui.js"
+  import { showNPCTracker, showError, showQuietNotice, showConfirm } from "../stores/ui.js"
   import { currentStoryId, npcs, llmUpdateId, isGenerating, markLlmUpdate } from "../stores/game.js"
   import type { NPCState } from "../api/client.js"
   import { autoresize } from "./actions/autoresize.js"
@@ -14,6 +14,7 @@
   import IconDocument from "../icons/IconDocument.svelte"
   import IconMapPin from "../icons/IconMapPin.svelte"
   import IconStar from "../icons/IconStar.svelte"
+  import IconTrash from "../icons/IconTrash.svelte"
   import IconUsers from "../icons/IconUsers.svelte"
 
   let { inline = false }: { inline?: boolean } = $props()
@@ -189,6 +190,42 @@
     }
   }
 
+  async function deleteNpc(npc: NPCState) {
+    if (!$currentStoryId) {
+      showError("No active story to update.")
+      return
+    }
+    if ($isGenerating || savingNpc || deletingNpcName) return
+
+    const confirmed = await showConfirm({
+      title: "Delete NPC",
+      message: `Delete ${npc.name}? This cannot be undone.`,
+      confirmLabel: "Delete",
+      danger: true,
+    })
+    if (!confirmed) return
+
+    deletingNpcName = npc.name
+    try {
+      const updatedList = $npcs.filter((entry) => entry.name !== npc.name)
+      const result = await api.stories.updateState($currentStoryId, { npcs: updatedList })
+      npcs.set(result.npcs)
+      showQuietNotice("NPC deleted.")
+      if (editingNpcName === npc.name) {
+        editingNpcName = null
+      }
+    } catch (err) {
+      if (err instanceof ApiError) {
+        showError(err.message)
+      } else {
+        showError("Failed to delete NPC.")
+      }
+    } finally {
+      deletingNpcName = null
+    }
+  }
+
+
   let lastNpcSigs = new Map<string, string>()
   let lastLlmUpdateId = 0
   let flashNpcNames = $state<string[]>([])
@@ -202,6 +239,7 @@
   let savingNpc = $state(false)
   let addingNpc = $state(false)
   let newNpcName = $state("")
+  let deletingNpcName = $state<string | null>(null)
   type NpcDraft = {
     name: string
     race: string
@@ -445,9 +483,19 @@
               disabled={savingNpc ||
                 editingNpcName === npc.name ||
                 (editingNpcName && editingNpcName !== npc.name) ||
+                deletingNpcName === npc.name ||
                 !$currentStoryId}
             >
               {editingNpcName === npc.name ? "Editing" : "Edit"}
+            </button>
+            <button
+              class="npc-edit-btn danger icon"
+              onclick={() => deleteNpc(npc)}
+              disabled={savingNpc || deletingNpcName !== null || !$currentStoryId}
+              title="Delete NPC"
+              aria-label="Delete NPC"
+            >
+              <IconTrash size={12} strokeWidth={2} className="npc-trash-icon" />
             </button>
           </div>
         </div>
@@ -614,6 +662,26 @@
   .npc-edit-btn:disabled {
     opacity: 0.5;
     cursor: not-allowed;
+  }
+
+  .npc-edit-btn.danger {
+    border-color: #8b2b2b;
+    color: #c65a5a;
+  }
+  .npc-edit-btn.danger:hover:not(:disabled) {
+    border-color: #c0392b;
+    color: #c0392b;
+  }
+
+  .npc-edit-btn.icon {
+    padding: 0.2rem 0.35rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  :global(.npc-trash-icon) {
+    color: currentColor;
   }
 
   .npc-identity {
