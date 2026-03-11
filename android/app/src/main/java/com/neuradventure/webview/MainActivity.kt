@@ -3,6 +3,7 @@ package com.neuradventure.webview
 import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
+import android.view.View
 import android.widget.Toast
 import android.webkit.WebChromeClient
 import android.webkit.WebResourceRequest
@@ -16,6 +17,8 @@ import org.json.JSONObject
 
 class MainActivity : AppCompatActivity() {
     private lateinit var webView: WebView
+    private lateinit var settingsButton: com.google.android.material.floatingactionbutton.FloatingActionButton
+    private var startUrlNormalized: String? = null
     private val prefsName = "webview_config"
     private val prefsUrlKey = "config_url"
 
@@ -24,7 +27,7 @@ class MainActivity : AppCompatActivity() {
         setContentView(R.layout.activity_main)
 
         webView = findViewById(R.id.web_view)
-        val settingsButton = findViewById<com.google.android.material.floatingactionbutton.FloatingActionButton>(
+        settingsButton = findViewById<com.google.android.material.floatingactionbutton.FloatingActionButton>(
             R.id.settings_button
         )
 
@@ -44,10 +47,16 @@ class MainActivity : AppCompatActivity() {
             override fun shouldOverrideUrlLoading(view: WebView, url: String): Boolean {
                 return handleExternalUrl(url)
             }
+
+            override fun onPageFinished(view: WebView, url: String) {
+                updateSettingsVisibility(url)
+            }
         }
 
         val startUrl = loadConfiguredUrl()
+        startUrlNormalized = normalizeUrlForCompare(startUrl)
         webView.loadUrl(startUrl)
+        updateSettingsVisibility(startUrl)
 
         settingsButton.setOnClickListener {
             showUrlDialog()
@@ -105,6 +114,7 @@ class MainActivity : AppCompatActivity() {
                 }
                 val prefs = getSharedPreferences(prefsName, MODE_PRIVATE)
                 prefs.edit().putString(prefsUrlKey, normalized).apply()
+                startUrlNormalized = normalizeUrlForCompare(normalized)
                 webView.loadUrl(normalized)
             }
             .setNegativeButton(getString(R.string.cancel), null)
@@ -125,6 +135,26 @@ class MainActivity : AppCompatActivity() {
             return withScheme
         }
         return null
+    }
+
+    private fun normalizeUrlForCompare(url: String): String? {
+        val uri = Uri.parse(url.trim())
+        val scheme = uri.scheme?.lowercase() ?: return null
+        val host = uri.host?.lowercase() ?: return null
+        val port = if (uri.port != -1) ":${uri.port}" else ""
+        val path = uri.path?.ifBlank { "/" } ?: "/"
+        val normalizedPath = if (path == "/") "/" else path.trimEnd('/')
+        return "$scheme://$host$port$normalizedPath"
+    }
+
+    private fun updateSettingsVisibility(currentUrl: String?) {
+        val current = currentUrl?.let { normalizeUrlForCompare(it) }
+        val start = startUrlNormalized
+        settingsButton.visibility = if (current != null && start != null && current == start) {
+            View.VISIBLE
+        } else {
+            View.GONE
+        }
     }
 
     private fun handleExternalUrl(url: String): Boolean {
