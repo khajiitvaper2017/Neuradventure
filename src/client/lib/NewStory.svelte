@@ -10,6 +10,7 @@
   import { navigate, showError } from "../stores/ui.js"
   import { autoresize } from "./actions/autoresize.js"
   import { loadStoryById } from "./storyLoader.js"
+  import { loadPromptHistory, savePromptHistory } from "./utils/promptHistory.js"
   import {
     pendingCharacter,
     pendingStoryTitle,
@@ -28,10 +29,14 @@
   let showCharacterDropdown = false
   let savedNpcs: StoryNpcGroup[] = []
   let selectedPlayableKey: string | null = null
+  let storyPromptHistory: string[] = []
+
+  const STORY_PROMPT_HISTORY_KEY = "na:prompt_history:story"
 
   onMount(() => {
     loadCharacters()
     loadNpcs()
+    storyPromptHistory = loadPromptHistory(STORY_PROMPT_HISTORY_KEY)
   })
 
   async function loadCharacters() {
@@ -59,6 +64,10 @@
   function refreshPlayable() {
     loadCharacters()
     loadNpcs()
+  }
+
+  function useStoryPrompt(value: string) {
+    pendingStoryGenerateDescription.set(value)
   }
 
   type StoryRef = { id: number; title: string; updated_at: string }
@@ -135,14 +144,26 @@
       : "Select a character"
 
   async function generate() {
-    if (!$pendingStoryGenerateDescription.trim() || !$pendingCharacter) return
+    const prompt = $pendingStoryGenerateDescription.trim()
+    if (!prompt || !$pendingCharacter) return
     generating = true
     try {
-      const result = await api.generate.story($pendingStoryGenerateDescription.trim(), $pendingCharacter)
+      storyPromptHistory = savePromptHistory(STORY_PROMPT_HISTORY_KEY, prompt)
+      const result = await api.generate.story(prompt, $pendingCharacter)
       pendingStoryTitle.set(result.title)
       pendingStoryScenario.set(result.opening_scenario)
       pendingStoryLocation.set(result.starting_location)
       pendingStoryNPCs.set(result.pregen_npcs ?? [])
+      const updatedCharacter = {
+        ...$pendingCharacter,
+        baseline_description: result.character_baseline_description,
+        current_activity: result.character_current_activity,
+        appearance: {
+          ...$pendingCharacter.appearance,
+          current_appearance: result.character_current_appearance,
+        },
+      }
+      pendingCharacter.set(updatedCharacter)
     } catch (err) {
       showError(err instanceof Error ? err.message : "Generation failed")
     } finally {
@@ -164,6 +185,16 @@
     if (!charData && !$pendingCharacterId) {
       showError("No character selected")
       return
+    }
+    if (charData) {
+      const missing: string[] = []
+      if (!charData.appearance?.current_appearance?.trim()) missing.push("Current appearance")
+      if (!charData.baseline_description?.trim()) missing.push("Baseline description")
+      if (!charData.current_activity?.trim()) missing.push("Current activity")
+      if (missing.length > 0) {
+        showError(`Missing ${missing.join(", ")}. Generate the story or fill these fields.`)
+        return
+      }
     }
 
     submitting = true
@@ -230,6 +261,18 @@
           >{generating ? "Generating..." : "✦ Generate"}</button
         >
       </div>
+      {#if storyPromptHistory.length > 0}
+        <div class="prompt-history">
+          <div class="prompt-history-label">Recent prompts</div>
+          <div class="prompt-history-list">
+            {#each storyPromptHistory.slice(0, 6) as item}
+              <button class="prompt-history-item" onclick={() => useStoryPrompt(item)} title={item}>
+                {item}
+              </button>
+            {/each}
+          </div>
+        </div>
+      {/if}
     </div>
 
     <div class="field">
@@ -319,7 +362,9 @@
           {/if}
         </div>
         <button class="btn-ghost" onclick={() => navigate("char-create")}> New </button>
-        <button class="btn-ghost" onclick={refreshPlayable} disabled={loadingCharacters || loadingNpcs}> Refresh </button>
+        <button class="btn-ghost" onclick={refreshPlayable} disabled={loadingCharacters || loadingNpcs}>
+          Refresh
+        </button>
       </div>
     </div>
 
@@ -449,6 +494,38 @@
   .saved-select-meta {
     font-size: 0.75rem;
     color: var(--text-dim);
+  }
+  .prompt-history {
+    margin-top: 0.6rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+  }
+  .prompt-history-label {
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--text-dim);
+  }
+  .prompt-history-list {
+    display: grid;
+    gap: 0.35rem;
+  }
+  .prompt-history-item {
+    text-align: left;
+    background: var(--bg-input);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 0.45rem 0.6rem;
+    border-radius: 4px;
+    font-size: 0.85rem;
+    cursor: pointer;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .prompt-history-item:hover {
+    border-color: var(--accent);
   }
   .npc-summary {
     background: var(--bg-raised);

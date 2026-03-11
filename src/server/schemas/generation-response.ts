@@ -14,10 +14,7 @@ export const GenerateCharacterResponseSchema = z
     race: z.string().min(1).describe(desc("generation.character.race")),
     gender: z.string().min(1).describe(desc("generation.character.gender")),
     baseline_appearance: z.string().min(1).describe(desc("generation.character.baseline_appearance")),
-    current_appearance: z.string().min(1).describe(desc("generation.character.current_appearance")),
     current_clothing: z.string().min(1).describe(desc("generation.character.current_clothing")),
-    baseline_description: z.string().min(1).describe(desc("generation.character.baseline_description")),
-    current_activity: z.string().min(1).describe(desc("generation.character.current_activity")),
     personality_traits: PersonalityTraitsSchema.describe(desc("generation.character.personality_traits")),
     quirks: QuirksStrictSchema.describe(desc("generation.character.quirks")),
     perks: PerksStrictSchema.describe(desc("generation.character.perks")),
@@ -51,6 +48,9 @@ export const GenerateStoryResponseSchema = z
     title: z.string().min(1).describe(desc("generation.story.title")),
     opening_scenario: z.string().min(1).describe(desc("generation.story.opening_scenario")),
     starting_location: z.string().min(1).describe(desc("generation.story.starting_location")),
+    character_baseline_description: z.string().min(1).describe(desc("generation.story.character_baseline_description")),
+    character_current_appearance: z.string().min(1).describe(desc("generation.story.character_current_appearance")),
+    character_current_activity: z.string().min(1).describe(desc("generation.story.character_current_activity")),
     pregen_npcs: z.array(NPCStateSchema).describe(desc("generation.story.pregen_npcs")),
   })
   .strict()

@@ -955,6 +955,10 @@ export async function generateStory(
   const traits = [...character.personality_traits, ...character.quirks, ...character.perks]
     .map((t) => t.trim())
     .filter(Boolean)
+  const baselineAppearance = character.appearance.baseline_appearance || "Unknown"
+  const currentAppearance = character.appearance.current_appearance || baselineAppearance
+  const baselineDescription = character.baseline_description || "Unknown"
+  const currentActivity = character.current_activity || "Unknown"
   const result = await callLLMRaw<unknown>(
     [
       { role: "system", content: getConfig().generateStoryPrompt.join("\n") },
@@ -965,11 +969,11 @@ export async function generateStory(
           `Name: ${character.name}`,
           `Race: ${character.race || "Unknown"}`,
           `Gender: ${character.gender || "Unknown"}`,
-          `Baseline appearance: ${character.appearance.baseline_appearance || "Unknown"}`,
-          `Current appearance: ${character.appearance.current_appearance || "Unknown"}`,
+          `Baseline appearance: ${baselineAppearance}`,
+          `Current appearance: ${currentAppearance}`,
           `Clothing: ${character.appearance.current_clothing || "Unknown"}`,
-          `Baseline description: ${character.baseline_description || "Unknown"}`,
-          `Current activity: ${character.current_activity || "Unknown"}`,
+          `Baseline description: ${baselineDescription}`,
+          `Current activity: ${currentActivity}`,
           `Traits: ${traits.length > 0 ? traits.join(", ") : "Unknown"}`,
           "",
           `Story description: "${description}"`,

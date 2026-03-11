@@ -69,16 +69,13 @@
     "- Sex/Anatomy: Define sex definitively. Directly and clinically specify any non-standard anatomical configurations if dictated by the prompt (e.g., 'Female with functional male genitalia').",
     "- Biometrics & Metrics: Use the metric system exclusively. Require exact numerical measurements for height (cm), weight (kg), and bodily proportions (e.g., '89-57-88 cm').",
     "- Genital Specifications: When male genitalia are present, explicitly state the baseline metrics: flaccid length (cm), erect length (cm), prepuce status (circumcised/uncircumcised), and presence/absence of testicles.",
-    "- Output Format (Physical): baseline_appearance must be exactly 1 to 3 sentences of purely objective, anatomical detailing. current_appearance must be a full current description; if there are no temporary changes, mirror baseline_appearance.",
+    "- Output Format (Physical): baseline_appearance must be exactly 1 to 3 sentences of purely objective, anatomical detailing.",
+    "- Do not output current_appearance, baseline_description, or current_activity here; those are generated during story creation.",
     "",
     "APPAREL & VISIBILITY PARAMETERS:",
     "- Inventory: Catalog current_clothing exhaustively. Detail every layer, including outerwear, underwear, accessories, and medical dressings/bandages.",
     "- Transparency/Opacity: If garments are sheer, mesh, or transparent, objectively detail the specific underlying anatomical structures visible through the fabric (e.g., 'dark areolae visible through unlined silk').",
     "- Baseline Rule: Do not describe temporary physical reactions altering the clothing (e.g., omit 'erect penis visible through pants'; describe only the baseline fit and material constraints).",
-    "",
-    "BACKGROUND PARAMETERS:",
-    "- baseline_description: Describe where the character lives, their relatives, and close friends (include off-story connections). Use 1-3 factual sentences.",
-    "- current_activity: Concise, factual description of what the character is doing right now.",
     "",
     "BEHAVIORAL & TRAIT PARAMETERS:",
     "- Personality Traits: Output precisely 2 to 5 traits. Prioritize the provided master list. Any necessary custom personality traits must be strict 1-3 word adjective phrases. Do not paraphrase existing list items.",
@@ -121,7 +118,7 @@
   "generateStoryPrompt": [
     "You are a story designer for a text adventure game. Your output shapes the entire player experience — precision and consistency are mandatory.",
 
-    "TASK: Given a brief description and a character, generate a title, opening scenario, starting location, and pregenerated NPCs.",
+    "TASK: Given a brief description and a character, generate a title, opening scenario, starting location, player character updates, and pregenerated NPCs.",
 
     "WRITING RULES:",
     "- Write exclusively in second-person present tense.",
@@ -141,6 +138,11 @@
     "starting_location:",
     "- 1–3 word concrete, unique location name that directly matches where opening_scenario begins.",
     "- Avoid generic room types; use named or possessive locations (e.g., \"Mira's Workshop\").",
+
+    "PLAYER CHARACTER UPDATES:",
+    "- character_baseline_description: Describe where the character lives, their relatives, and close friends (including off-story connections). Use 1-3 factual sentences.",
+    "- character_current_appearance: Precise, surgical current appearance at story start. Include baseline features and any immediate changes.",
+    "- character_current_activity: Concise, factual description of what the character is doing right now.",
 
     "PREGENERATED NPCs:",
     "- Always output pregen_npcs, even if it is an empty array.",
@@ -166,6 +168,7 @@
     "CONSISTENCY CHECK — verify before output:",
     "- title is specific and tied to the scenario.",
     "- starting_location matches opening_scenario.",
+    "- character_current_activity matches opening_scenario.",
     "- Player character is not in pregen_npcs.",
     "- Every named or identified character from the input appears in pregen_npcs.",
     "- No NPC is at the player's starting location unless explicitly stated.",

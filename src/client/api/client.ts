@@ -108,10 +108,7 @@ export interface GenerateCharacterResponse {
   race: string
   gender: string
   baseline_appearance: string
-  current_appearance: string
   current_clothing: string
-  baseline_description: string
-  current_activity: string
   personality_traits: string[]
   quirks: string[]
   perks: string[]
@@ -151,6 +148,9 @@ export interface GenerateStoryResponse {
   title: string
   opening_scenario: string
   starting_location: string
+  character_baseline_description: string
+  character_current_appearance: string
+  character_current_activity: string
   pregen_npcs: NPCState[]
 }
 

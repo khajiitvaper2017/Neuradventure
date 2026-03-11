@@ -398,16 +398,17 @@ input[type="checkbox"] {
 .generate-row {
   display: flex;
   gap: 0.5rem;
-  align-items: flex-start;
+  flex-direction: column;
+  align-items: stretch;
 }
 
 .generate-row textarea {
-  flex: 1;
+  width: 100%;
 }
 
 .generate-btn {
   white-space: nowrap;
-  align-self: stretch;
+  align-self: flex-start;
 }
 
 /* ── Shared inputs ─────────────────────────────────── */

@@ -1,11 +1,15 @@
 <script lang="ts">
   import { get } from "svelte/store"
+  import { onMount } from "svelte"
   import { api } from "../api/client.js"
   import { goBack, navigate, showError } from "../stores/ui.js"
   import { autoresize } from "./actions/autoresize.js"
   import { pendingCharacter, pendingCharacterId } from "../stores/game.js"
   import { pendingCharacterGenerateDescription } from "../stores/game.js"
   import personalityOptions from "../../../shared/traits.json"
+  import { loadPromptHistory, savePromptHistory } from "./utils/promptHistory.js"
+
+  const CHARACTER_PROMPT_HISTORY_KEY = "na:prompt_history:character"
 
   // Ordered as opposite pairs — each adjacent pair blocks each other
   const PERSONALITY_OPTIONS = personalityOptions
@@ -54,20 +58,25 @@
   let regeneratingAppearance = false
   let regeneratingClothing = false
   let regeneratingTraits = false
+  let promptHistory: string[] = []
+
+  onMount(() => {
+    promptHistory = loadPromptHistory(CHARACTER_PROMPT_HISTORY_KEY)
+  })
 
   async function generate() {
-    if (!$pendingCharacterGenerateDescription.trim()) return
+    const prompt = $pendingCharacterGenerateDescription.trim()
+    if (!prompt) return
     generating = true
     try {
-      const result = await api.generate.character($pendingCharacterGenerateDescription.trim())
+      promptHistory = savePromptHistory(CHARACTER_PROMPT_HISTORY_KEY, prompt)
+      const result = await api.generate.character(prompt)
       name = result.name
       race = result.race
       gender = normalizeGender(result.gender)
       baselineAppearance = result.baseline_appearance
-      currentAppearance = result.current_appearance
+      currentAppearance = result.baseline_appearance
       currentClothing = result.current_clothing
-      baselineDescription = result.baseline_description
-      currentActivity = result.current_activity
       const split = splitPersonalityTraits(result.personality_traits)
       selectedTraits = split.selected
       customPersonalityTraits = split.custom
@@ -158,6 +167,10 @@
     perkInput = ""
   }
 
+  function usePrompt(value: string) {
+    pendingCharacterGenerateDescription.set(value)
+  }
+
   function removePerk(t: string) {
     perks = perks.filter((x) => x !== t)
   }
@@ -166,10 +179,7 @@
     if (!name.trim()) return "Name is required"
     if (!race.trim()) return "Race is required"
     if (!baselineAppearance.trim()) return "Baseline appearance is required"
-    if (!currentAppearance.trim()) return "Current appearance is required"
     if (!currentClothing.trim()) return "Current clothing is required"
-    if (!baselineDescription.trim()) return "Baseline description is required"
-    if (!currentActivity.trim()) return "Current activity is required"
     return null
   }
 
@@ -194,7 +204,7 @@
       current_location: existing?.current_location ?? "Unknown location",
       appearance: {
         baseline_appearance: baselineAppearance.trim(),
-        current_appearance: currentAppearance.trim(),
+        current_appearance: currentAppearance.trim() || baselineAppearance.trim(),
         current_clothing: currentClothing.trim(),
       },
       baseline_description: baselineDescription.trim(),
@@ -289,6 +299,18 @@
           >{generating ? "Generating..." : "✦ Generate"}</button
         >
       </div>
+      {#if promptHistory.length > 0}
+        <div class="prompt-history">
+          <div class="prompt-history-label">Recent prompts</div>
+          <div class="prompt-history-list">
+            {#each promptHistory.slice(0, 6) as item}
+              <button class="prompt-history-item" onclick={() => usePrompt(item)} title={item}>
+                {item}
+              </button>
+            {/each}
+          </div>
+        </div>
+      {/if}
     </div>
 
     <div class="field">
@@ -296,27 +318,29 @@
       <input id="char-name" type="text" bind:value={name} placeholder="Full legal name" />
     </div>
 
-    <div class="field">
-      <label for="char-race">Race</label>
-      <input id="char-race" type="text" bind:value={race} placeholder="e.g. Human, Elf, Dwarf..." />
-    </div>
+    <div class="field-row">
+      <div class="field">
+        <label for="char-race">Race</label>
+        <input id="char-race" type="text" bind:value={race} placeholder="e.g. Human, Elf, Dwarf..." />
+      </div>
 
-    <div class="field">
-      <label id="gender-label" for="gender-custom">Gender</label>
-      <div class="gender-row">
-        {#each ["male", "female"] as g}
-          <button class="toggle {gender === g ? 'active' : ''}" onclick={() => (gender = g)}
-            >{g.charAt(0).toUpperCase() + g.substring(1)}</button
-          >
-        {/each}
-        <input
-          id="gender-custom"
-          type="text"
-          class="gender-custom {gender !== 'male' && gender !== 'female' ? 'active' : ''}"
-          placeholder="or specify..."
-          value={genderCustom}
-          oninput={(e) => setGenderCustom((e.target as HTMLInputElement).value)}
-        />
+      <div class="field">
+        <label id="gender-label" for="gender-custom">Gender</label>
+        <div class="gender-row">
+          {#each ["male", "female"] as g}
+            <button class="toggle {gender === g ? 'active' : ''}" onclick={() => (gender = g)}
+              >{g.charAt(0).toUpperCase() + g.substring(1)}</button
+            >
+          {/each}
+          <input
+            id="gender-custom"
+            type="text"
+            class="gender-custom {gender !== 'male' && gender !== 'female' ? 'active' : ''}"
+            placeholder="or specify..."
+            value={genderCustom}
+            oninput={(e) => setGenderCustom((e.target as HTMLInputElement).value)}
+          />
+        </div>
       </div>
     </div>
 
@@ -339,16 +363,6 @@
     </div>
 
     <div class="field">
-      <label for="char-current-appearance">Current Appearance</label>
-      <textarea
-        id="char-current-appearance"
-        bind:value={currentAppearance}
-        placeholder="Current physical state (full description)..."
-        use:autoresize={currentAppearance}
-      ></textarea>
-    </div>
-
-    <div class="field">
       <div class="label-row">
         <label for="char-clothing">Starting Clothing</label>
         <button class="btn-ghost btn-mini" onclick={regenerateClothing} disabled={generating || regeneratingClothing}
@@ -360,26 +374,6 @@
         bind:value={currentClothing}
         placeholder="What are they wearing?"
         use:autoresize={currentClothing}
-      ></textarea>
-    </div>
-
-    <div class="field">
-      <label for="char-baseline-description">Baseline Description</label>
-      <textarea
-        id="char-baseline-description"
-        bind:value={baselineDescription}
-        placeholder="Where they live, relatives, friends (even off-story)..."
-        use:autoresize={baselineDescription}
-      ></textarea>
-    </div>
-
-    <div class="field">
-      <label for="char-current-activity">Current Activity</label>
-      <textarea
-        id="char-current-activity"
-        bind:value={currentActivity}
-        placeholder="What are they doing right now?"
-        use:autoresize={currentActivity}
       ></textarea>
     </div>
 
@@ -502,6 +496,68 @@
     display: flex;
     gap: 0.5rem;
     align-items: center;
+    --compact: 0;
+    --custom-len: 0;
+  }
+  .gender-row .toggle {
+    flex: 0 0 calc(5rem - 2.2rem * var(--compact));
+  }
+  .toggle-icon {
+    display: inline-block;
+    opacity: var(--compact);
+    font-size: 1rem;
+    line-height: 1;
+    max-width: calc(1rem * var(--compact));
+    margin-right: calc(0.2rem * var(--compact));
+    overflow: hidden;
+    transition:
+      opacity 220ms ease,
+      max-width 220ms ease,
+      margin-right 220ms ease;
+    transform: scale(calc(0.8 + 0.2 * var(--compact)));
+    transition:
+      opacity 220ms ease,
+      max-width 220ms ease,
+      margin-right 220ms ease,
+      transform 220ms ease;
+  }
+  .toggle-text {
+    display: inline-block;
+    opacity: calc(1 - var(--compact));
+    max-width: calc(4.5rem * (1 - var(--compact)));
+    overflow: hidden;
+    white-space: nowrap;
+    transition:
+      opacity 220ms ease,
+      max-width 220ms ease;
+  }
+  .toggle {
+    transition:
+      min-width 220ms ease,
+      padding 220ms ease;
+    min-width: calc(4.6rem - 1.4rem * var(--compact));
+    padding: calc(0.6rem - 0.08rem * var(--compact));
+  }
+  .gender-custom {
+    flex: 1 1 auto;
+    flex-grow: calc(1 + var(--custom-len) * 0.08);
+    flex-basis: calc(8ch + var(--custom-len) * 0.7ch);
+    max-width: 36ch;
+    min-width: 8ch;
+    transition:
+      flex-basis 240ms ease,
+      max-width 240ms ease,
+      flex-grow 240ms ease;
+  }
+  .field-row {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.75rem;
+  }
+  @media (max-width: 720px) {
+    .field-row {
+      grid-template-columns: 1fr;
+    }
   }
   .gender-custom {
     flex: 1;
@@ -532,5 +588,37 @@
   }
   .custom-input input {
     flex: 1;
+  }
+  .prompt-history {
+    margin-top: 0.6rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+  }
+  .prompt-history-label {
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--text-dim);
+  }
+  .prompt-history-list {
+    display: grid;
+    gap: 0.35rem;
+  }
+  .prompt-history-item {
+    text-align: left;
+    background: var(--bg-input);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 0.45rem 0.6rem;
+    border-radius: 4px;
+    font-size: 0.85rem;
+    cursor: pointer;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .prompt-history-item:hover {
+    border-color: var(--accent);
   }
 </style>

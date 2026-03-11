@@ -87,10 +87,7 @@
       "race": "Character race.",
       "gender": "Character gender.",
       "baseline_appearance": "Immutable, surgical baseline appearance.",
-      "current_appearance": "Precise, surgical current appearance (full, not partial).",
       "current_clothing": "Complete current clothing description.",
-      "baseline_description": "Where the character lives, relatives, and friends (including off-story).",
-      "current_activity": "Concise, factual description of what the character is doing right now.",
       "personality_traits": "2-5 personality traits.",
       "quirks": "Quirks (3-12 words each).",
       "perks": "Perks (1-6 words each).",
@@ -112,6 +109,9 @@
       "title": "3-5 word title tied to the opening scenario.",
       "opening_scenario": "1-3 paragraphs separated by a blank line.",
       "starting_location": "1-3 word unique starting location name.",
+      "character_baseline_description": "Where the character lives, relatives, and friends (including off-story).",
+      "character_current_appearance": "Precise, surgical current appearance at story start.",
+      "character_current_activity": "Concise, factual description of what the character is doing right now.",
       "pregen_npcs": "List of pre-generated NPCs with full details."
     }
   },
