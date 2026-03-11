@@ -1,6 +1,6 @@
 <script lang="ts">
   import { api, ApiError } from "../api/client.js"
-  import { showNPCTracker, showError, showQuietNotice } from "../stores/ui.js"
+  import { showNPCTracker, showError, showQuietNotice, showConfirm } from "../stores/ui.js"
   import { currentStoryId, npcs, llmUpdateId, markLlmUpdate } from "../stores/game.js"
   import type { NPCState } from "../api/client.js"
   import { autoresize } from "./actions/autoresize.js"
@@ -189,6 +189,36 @@
     }
   }
 
+  async function deleteNpc(npc: NPCState) {
+    if (!$currentStoryId) {
+      showError("No active story to update.")
+      return
+    }
+    const confirmed = await showConfirm({
+      title: "Delete NPC",
+      message: `Delete ${npc.name}? This cannot be undone.`,
+      confirmLabel: "Delete",
+      danger: true,
+    })
+    if (!confirmed) return
+    const updatedList = $npcs.filter((entry) => entry.name !== npc.name)
+    savingNpc = true
+    try {
+      const result = await api.stories.updateState($currentStoryId, { npcs: updatedList })
+      npcs.set(result.npcs)
+      showQuietNotice("NPC deleted.")
+      editingNpcName = null
+    } catch (err) {
+      if (err instanceof ApiError) {
+        showError(err.message)
+      } else {
+        showError("Failed to delete NPC.")
+      }
+    } finally {
+      savingNpc = false
+    }
+  }
+
   let lastNpcSigs = new Map<string, string>()
   let lastLlmUpdateId = 0
   let flashNpcNames = $state<string[]>([])
@@ -251,11 +281,7 @@
     }
     addingNpc = true
     try {
-      const promptParts = [`Create an NPC with the exact name \"${name}\".`]
-      if (description) {
-        promptParts.push(`Description: ${description}`)
-      }
-      const result = await api.generate.character(promptParts.join(" "))
+      const result = await api.generate.npc(name, description)
       const notesParts: string[] = []
       if (description) notesParts.push(description)
       if (result.custom_traits.length > 0) {
@@ -515,6 +541,9 @@
             {/each}
             <div class="npc-edit-actions">
               <button class="btn-ghost" onclick={cancelNpcEdit} disabled={savingNpc}>Cancel</button>
+              <button class="btn-ghost" onclick={() => deleteNpc(npc)} disabled={savingNpc || !$currentStoryId}>
+                Delete
+              </button>
               <button class="btn-primary" onclick={saveNpcEdit} disabled={savingNpc || !$currentStoryId}>
                 {savingNpc ? "Saving..." : "Save"}
               </button>

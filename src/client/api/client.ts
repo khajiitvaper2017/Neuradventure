@@ -340,6 +340,11 @@ export const api = {
         method: "POST",
         body: JSON.stringify({ description }),
       }),
+    npc: (name: string, description?: string) =>
+      request<GenerateCharacterResponse>("/api/generate/npc", {
+        method: "POST",
+        body: JSON.stringify({ name, description: description ?? "" }),
+      }),
     characterAppearance: (context: GenerateCharacterContext) =>
       request<GenerateCharacterAppearanceResponse>("/api/generate/character/part", {
         method: "POST",
