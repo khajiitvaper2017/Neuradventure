@@ -164,6 +164,7 @@
         ...$pendingCharacter,
         baseline_description: result.character_baseline_description,
         current_activity: result.character_current_activity,
+        relationship_scores: result.character_relationship_scores ?? [],
         appearance: {
           ...$pendingCharacter.appearance,
           current_appearance: result.character_current_appearance,

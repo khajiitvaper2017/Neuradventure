@@ -40,9 +40,7 @@ export const CreateStoryRequestSchema = z.object({
       personality_traits: z.array(z.string()).describe(desc("traits.personality_traits")),
       quirks: z.array(z.string()).describe(desc("traits.quirks")),
       perks: z.array(z.string()).describe(desc("traits.perks")),
-      relationship_scores: RelationshipScoresSchema.describe(
-        desc("state.character.relationship_scores"),
-      ),
+      relationship_scores: RelationshipScoresSchema.describe(desc("state.character.relationship_scores")),
     })
     .describe(desc("requests.create_story.character_data"))
     .optional(),

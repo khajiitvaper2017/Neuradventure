@@ -112,7 +112,6 @@ export interface GenerateCharacterResponse {
   personality_traits: string[]
   quirks: string[]
   perks: string[]
-  relationship_scores: RelationshipScore[]
 }
 
 export interface GenerateCharacterAppearanceResponse {
@@ -151,6 +150,7 @@ export interface GenerateStoryResponse {
   character_baseline_description: string
   character_current_appearance: string
   character_current_activity: string
+  character_relationship_scores: RelationshipScore[]
   pregen_npcs: NPCState[]
 }
 

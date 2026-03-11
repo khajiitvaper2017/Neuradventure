@@ -18,7 +18,6 @@ export const GenerateCharacterResponseSchema = z
     personality_traits: PersonalityTraitsSchema.describe(desc("traits.personality_traits")),
     quirks: QuirksStrictSchema.describe(desc("traits.quirks")),
     perks: PerksStrictSchema.describe(desc("traits.perks")),
-    relationship_scores: RelationshipScoresSchema.describe(desc("state.character.relationship_scores")),
   })
   .strict()
 
@@ -51,6 +50,7 @@ export const GenerateStoryResponseSchema = z
     character_baseline_description: z.string().min(1).describe(desc("state.character.baseline_description")),
     character_current_appearance: z.string().min(1).describe(desc("state.appearance.current_appearance")),
     character_current_activity: z.string().min(1).describe(desc("state.character.current_activity")),
+    character_relationship_scores: RelationshipScoresSchema.describe(desc("state.character.relationship_scores")),
     pregen_npcs: z.array(NPCStateSchema).describe(desc("generation.story.pregen_npcs")),
   })
   .strict()

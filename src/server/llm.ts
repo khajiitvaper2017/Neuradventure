@@ -902,10 +902,8 @@ export async function generateCharacterPart(
     .join("\n\n")
   const userContent = [
     `Regenerate: ${part}`,
-    "",
     "Character context:",
     formatCharacterContext(context, part),
-    "",
     "Instruction: Use the context above to regenerate ONLY the requested section.",
     part === "appearance"
       ? "Do not reuse or paraphrase the current appearance. Keep it consistent with the identity and traits."
@@ -975,7 +973,6 @@ export async function generateStory(
           `Baseline description: ${baselineDescription}`,
           `Current activity: ${currentActivity}`,
           `Traits: ${traits.length > 0 ? traits.join(", ") : "Unknown"}`,
-          "",
           `Story description: "${description}"`,
         ].join("\n"),
       },
