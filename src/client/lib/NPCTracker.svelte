@@ -239,31 +239,16 @@
   }
 
   $effect(() => {
-    if (lastNpcSigs.size === 0 && $npcs.length > 0) {
-      const initial = new Map<string, string>()
-      const initialChangeIds = new Map<string, number>()
-      for (const npc of $npcs) {
-        initial.set(npc.name, npcSignature(npc))
-        initialChangeIds.set(npc.name, 0)
-      }
-      lastNpcSigs = initial
-      npcChangeIds = initialChangeIds
-    }
-  })
-
-  $effect(() => {
-    if ($npcs.length === 0 && lastNpcSigs.size > 0) {
-      lastNpcSigs = new Map<string, string>()
-      flashNpcNames = []
-      npcChangeIds = new Map<string, number>()
-    }
-  })
-
-  $effect(() => {
     if ($npcs.length === 0) {
       sortedNpcs = []
+      if (lastNpcSigs.size > 0 || flashNpcNames.length > 0 || npcChangeIds.size > 0) {
+        lastNpcSigs = new Map<string, string>()
+        flashNpcNames = []
+        npcChangeIds = new Map<string, number>()
+      }
       return
     }
+
     const nextChangeIds = new Map(npcChangeIds)
     const existingNames = new Set<string>()
     let updated = false
@@ -280,17 +265,21 @@
         updated = true
       }
     }
-    if (updated) {
+    if (lastNpcSigs.size === 0) {
+      const initial = new Map<string, string>()
+      for (const npc of $npcs) {
+        initial.set(npc.name, npcSignature(npc))
+        if (!nextChangeIds.has(npc.name)) {
+          nextChangeIds.set(npc.name, 0)
+        }
+      }
+      lastNpcSigs = initial
+      npcChangeIds = nextChangeIds
+    } else if (updated) {
       npcChangeIds = nextChangeIds
     }
-  })
-
-  $effect(() => {
-    if ($npcs.length === 0) {
-      sortedNpcs = []
-      return
-    }
-    sortedNpcs = sortByLatestChange($npcs, npcChangeIds)
+    const changeIds = updated || lastNpcSigs.size === 0 ? nextChangeIds : npcChangeIds
+    sortedNpcs = sortByLatestChange($npcs, changeIds)
   })
 
   $effect(() => {
