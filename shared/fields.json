@@ -3,7 +3,7 @@
     "turn_response": {
       "narrative_text": "1-3 short paragraphs in second-person present tense. Separate paragraphs with a literal \\n\\n.",
       "world_state_update": "Full world state update object.",
-      "appearance_change": "Objective, clinical description of current physical state; baseline features only.",
+      "appearance_change": "Precise, surgical description of the player's current physical state (full, not partial).",
       "clothing_change": "Complete list of items currently worn, including all layers and accessories.",
       "inventory_change": "Complete, updated inventory list (not a diff).",
       "npc_changes": "List of updates for existing NPCs whose state changed this turn.",
@@ -11,7 +11,7 @@
     },
     "world_state_update": {
       "current_scene": "Unique 1-5 word name of the player's immediate location.",
-      "day_of_week": "Day of week (Monday-Sunday).",
+      "current_date": "Current date in YYYY-MM-DD format.",
       "time_of_day": "24-hour HH:MM time.",
       "recent_events_summary": "1-3 sentences summarizing what just happened.",
       "locations": "List of all known locations in the story so far."
@@ -20,22 +20,25 @@
       "name": "NPC name to update.",
       "race": "Updated race.",
       "gender": "Updated gender.",
-      "set_location": "Last known unique location name. Update only when changed.",
-      "set_appearance": "Objective, clinical description of current physical state; baseline features only. State current facts only; avoid temporal qualifiers (e.g., \"still\") and comparative phrases (e.g., \"otherwise unchanged\").",
-      "set_clothing": "Complete list of items currently worn, including all layers and accessories.",
-      "set_relationship": "Updated relationship to the player.",
-      "set_notes": "Concise, factual notes about the NPC. State current facts only; avoid temporal qualifiers (e.g., \"still\") and comparative phrases (e.g., \"otherwise unchanged\")."
+      "set_current_location": "Updated current unique location name. Update only when changed.",
+      "set_current_appearance": "Precise, surgical description of current physical state. Include baseline features and current changes only; avoid temporal qualifiers (e.g., \"still\") and comparative phrases (e.g., \"otherwise unchanged\").",
+      "set_current_clothing": "Complete list of items currently worn, including all layers and accessories.",
+      "set_current_activity": "Concise, factual description of what the NPC is doing right now.",
+      "set_relationship_scores": "Complete relationship_scores array with affinity (-100 to 100) for every other known character."
     },
     "npc_creation": {
-      "name": "New NPC name.",
+      "name": "New NPC full legal name.",
       "race": "NPC race.",
       "gender": "NPC gender.",
+      "current_location": "Current unique location name for the NPC.",
+      "appearance": "NPC appearance object.",
+      "baseline_description": "Where the NPC lives, relatives, and friends (including off-story).",
+      "current_activity": "Concise, factual description of what the NPC is doing right now.",
       "personality_traits": "2-5 personality traits; prefer the allowed list when available.",
-      "set_location": "Specific 1-5 word unique location name for the NPC.",
-      "set_appearance": "Objective, clinical description of current physical state; baseline features only. State current facts only; avoid temporal qualifiers (e.g., \"still\") and comparative phrases (e.g., \"otherwise unchanged\").",
-      "set_clothing": "Complete list of items currently worn, including all layers and accessories.",
-      "set_relationship": "Relationship to the player.",
-      "set_notes": "Concise, factual notes about the NPC's role or relevance. State current facts only; avoid temporal qualifiers (e.g., \"still\") and comparative phrases (e.g., \"otherwise unchanged\")."
+      "quirks": "List of quirks.",
+      "perks": "List of perks.",
+      "relationship_scores": "Array of relationships with affinity (-100 to 100).",
+      "inventory": "NPC inventory list."
     }
   },
   "state": {
@@ -54,27 +57,28 @@
       "available_items": "List of items available to use or take in this location."
     },
     "appearance": {
-      "physical_description": "Objective, clinical description of current physical state; baseline features only.",
+      "baseline_appearance": "Immutable, surgical baseline appearance (permanent features only).",
+      "current_appearance": "Precise, surgical description of current physical state (full, not partial).",
       "current_clothing": "Complete list of items currently worn, including all layers and accessories."
     },
-    "main_character": {
-      "name": "Player character name.",
-      "race": "Player character race.",
-      "gender": "Player character gender.",
-      "appearance": "Player character appearance object.",
+    "character": {
+      "name": "Full legal name.",
+      "race": "Character race.",
+      "gender": "Character gender.",
+      "current_location": "Character current unique location name.",
+      "appearance": "Character appearance object.",
+      "baseline_description": "Where the character lives, relatives, and friends (including off-story).",
+      "current_activity": "Concise, factual description of what the character is doing right now.",
       "personality_traits": "List of personality traits.",
-      "custom_traits": "List of custom traits or quirks.",
+      "quirks": "List of quirks.",
+      "perks": "List of perks.",
+      "relationship_scores": "Relationship scores array with affinity (-100 to 100).",
       "inventory": "Complete inventory list."
     },
-    "npc_state": {
-      "name": "NPC name.",
-      "race": "NPC race.",
-      "gender": "NPC gender.",
-      "last_known_location": "NPC last known unique location name.",
-      "appearance": "NPC appearance object.",
-      "personality_traits": "NPC personality traits (2-5).",
-      "relationship_to_player": "NPC relationship to the player.",
-      "notes": "Concise factual notes about the NPC."
+    "relationship_scores": {
+      "entries": "List of relationship score entries.",
+      "name": "Other character full legal name.",
+      "affinity": "Affinity score from -100 to 100."
     }
   },
   "generation": {
@@ -82,20 +86,27 @@
       "name": "Character name.",
       "race": "Character race.",
       "gender": "Character gender.",
-      "physical_description": "Objective physical description.",
+      "baseline_appearance": "Immutable, surgical baseline appearance.",
+      "current_appearance": "Precise, surgical current appearance (full, not partial).",
       "current_clothing": "Complete current clothing description.",
+      "baseline_description": "Where the character lives, relatives, and friends (including off-story).",
+      "current_activity": "Concise, factual description of what the character is doing right now.",
       "personality_traits": "2-5 personality traits.",
-      "custom_traits": "Custom traits (3-12 words each)."
+      "quirks": "Quirks (3-12 words each).",
+      "perks": "Perks (1-6 words each).",
+      "relationship_scores": "Relationship scores array with affinity (-100 to 100)."
     },
     "character_appearance": {
-      "physical_description": "Objective physical description only."
+      "baseline_appearance": "Immutable, surgical baseline appearance only.",
+      "current_appearance": "Precise, surgical current appearance only."
     },
     "character_clothing": {
       "current_clothing": "Complete current clothing description only."
     },
     "character_traits": {
       "personality_traits": "2-5 personality traits.",
-      "custom_traits": "Custom traits (1-6 words each)."
+      "quirks": "Quirks (1-6 words each).",
+      "perks": "Perks (1-6 words each)."
     },
     "story": {
       "title": "3-5 word title tied to the opening scenario.",
@@ -109,9 +120,14 @@
       "name": "Character name.",
       "race": "Character race.",
       "gender": "Character gender.",
+      "current_location": "Character current unique location name.",
       "appearance": "Character appearance object.",
+      "baseline_description": "Where the character lives, relatives, and friends (including off-story).",
+      "current_activity": "Concise, factual description of what the character is doing right now.",
       "personality_traits": "List of personality traits.",
-      "custom_traits": "List of custom traits."
+      "quirks": "List of quirks.",
+      "perks": "List of perks.",
+      "relationship_scores": "Relationship scores array with affinity (-100 to 100)."
     },
     "create_story": {
       "title": "Story title.",
@@ -125,9 +141,14 @@
       "name": "Character name.",
       "race": "Character race.",
       "gender": "Character gender.",
+      "current_location": "Character current unique location name.",
       "appearance": "Character appearance object.",
+      "baseline_description": "Where the character lives, relatives, and friends (including off-story).",
+      "current_activity": "Concise, factual description of what the character is doing right now.",
       "personality_traits": "List of personality traits.",
-      "custom_traits": "List of custom traits."
+      "quirks": "List of quirks.",
+      "perks": "List of perks.",
+      "relationship_scores": "Relationship scores array with affinity (-100 to 100)."
     },
     "update_story": {
       "title": "Updated story title.",
@@ -175,9 +196,14 @@
       "name": "Character name.",
       "race": "Character race.",
       "gender": "Character gender.",
+      "current_location": "Character current unique location name.",
       "appearance": "Character appearance object.",
+      "baseline_description": "Where the character lives, relatives, and friends (including off-story).",
+      "current_activity": "Concise, factual description of what the character is doing right now.",
       "personality_traits": "List of personality traits.",
-      "custom_traits": "List of custom traits."
+      "quirks": "List of quirks.",
+      "perks": "List of perks.",
+      "relationship_scores": "Relationship scores array with affinity (-100 to 100)."
     },
     "generate_story": {
       "description": "Story description prompt.",
@@ -234,6 +260,7 @@
   },
   "traits": {
     "personality_traits": "List of 2-5 personality traits.",
-    "custom_traits": "List of custom traits or quirks."
+    "quirks": "List of quirks.",
+    "perks": "List of perks."
   }
 }

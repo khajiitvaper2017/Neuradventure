@@ -4,8 +4,8 @@ import { z } from "zod"
 import * as db from "../db.js"
 import {
   CreateStoryRequestSchema,
-  CreateCharacterRequestSchema,
   MainCharacterStateSchema,
+  MainCharacterStateStoredSchema,
   NPCStateStoredSchema,
   UpdateStoryRequestSchema,
   UpdateStoryStateRequestSchema,
@@ -16,10 +16,22 @@ import { desc } from "../schemas/field-descriptions.js"
 
 const stories = new Hono()
 
+function hashString(value: string): string {
+  let hash = 0
+  for (let i = 0; i < value.length; i++) {
+    hash = (hash * 31 + value.charCodeAt(i)) >>> 0
+  }
+  return hash.toString(16)
+}
+
 function parseStoryState(row: db.StoryRow) {
   const world = WorldStateStoredSchema.parse(JSON.parse(row.world_state_json))
   const initialWorld = WorldStateStoredSchema.parse(JSON.parse(row.initial_world_state_json ?? row.world_state_json))
-  const character = JSON.parse(row.character_state_json)
+  const parsedCharacter = MainCharacterStateStoredSchema.parse(JSON.parse(row.character_state_json))
+  const character =
+    parsedCharacter.current_location.trim().toLowerCase() === world.current_scene.trim().toLowerCase()
+      ? parsedCharacter
+      : { ...parsedCharacter, current_location: world.current_scene }
   const npcs = (JSON.parse(row.npc_states_json) as unknown[]).map((n) => NPCStateStoredSchema.parse(n))
   return { character, world, initialWorld, npcs }
 }
@@ -31,7 +43,7 @@ stories.get("/", (c) => {
       id: r.id,
       title: r.title,
       turn_count: r.turn_count,
-      character_name: MainCharacterStateSchema.parse(JSON.parse(r.character_state_json)).name,
+      character_name: MainCharacterStateStoredSchema.parse(JSON.parse(r.character_state_json)).name,
       created_at: r.created_at,
       updated_at: r.updated_at,
     })),
@@ -51,9 +63,11 @@ stories.get("/characters", (c) => {
   >()
 
   for (const row of characters) {
-    const parsed = CreateCharacterRequestSchema.safeParse(JSON.parse(row.state_json))
+    const parsed = MainCharacterStateStoredSchema.safeParse(JSON.parse(row.state_json))
     if (!parsed.success) continue
-    groups.set(row.id, { id: row.id, character: parsed.data, stories: [] })
+    const { inventory: _inventory, ...base } = parsed.data
+    void _inventory
+    groups.set(row.id, { id: row.id, character: base, stories: [] })
   }
 
   for (const story of storyRefs) {
@@ -61,6 +75,47 @@ stories.get("/characters", (c) => {
     const entry = groups.get(story.character_id)
     if (entry) {
       entry.stories.push({ id: story.id, title: story.title, updated_at: story.updated_at })
+    }
+  }
+
+  return c.json(Array.from(groups.values()))
+})
+
+stories.get("/npcs", (c) => {
+  const rows = db.listStoriesWithNpcs()
+  const groups = new Map<
+    string,
+    {
+      key: string
+      npc: Omit<ReturnType<typeof NPCStateStoredSchema.parse>, "inventory">
+      stories: { id: number; title: string; updated_at: string }[]
+    }
+  >()
+
+  for (const row of rows) {
+    let raw: unknown
+    try {
+      raw = JSON.parse(row.npc_states_json)
+    } catch {
+      continue
+    }
+    if (!Array.isArray(raw)) continue
+    for (const entry of raw) {
+      const parsed = NPCStateStoredSchema.safeParse(entry)
+      if (!parsed.success) continue
+      const { inventory: _inventory, ...base } = parsed.data
+      void _inventory
+      const keySource = JSON.stringify(base)
+      let group = groups.get(keySource)
+      if (!group) {
+        group = {
+          key: `npc_${hashString(keySource)}`,
+          npc: base,
+          stories: [],
+        }
+        groups.set(keySource, group)
+      }
+      group.stories.push({ id: row.id, title: row.title, updated_at: row.updated_at })
     }
   }
 
@@ -93,7 +148,7 @@ stories.post("/", zValidator("json", CreateStoryRequestSchema), async (c) => {
   if (body.character_id) {
     const charRow = db.getCharacter(body.character_id)
     if (!charRow) return c.json({ error: "Character not found" }, 404)
-    const base = CreateCharacterRequestSchema.parse(JSON.parse(charRow.state_json))
+    const base = MainCharacterStateStoredSchema.parse(JSON.parse(charRow.state_json))
     character = { ...base, inventory: [] }
     characterId = charRow.id
   } else if (body.character_data) {
@@ -194,9 +249,14 @@ stories.post(
       name: body.character.name,
       race: body.character.race,
       gender: body.character.gender,
+      current_location: body.character.current_location,
       appearance: body.character.appearance,
+      baseline_description: body.character.baseline_description,
+      current_activity: body.character.current_activity,
       personality_traits: body.character.personality_traits,
-      custom_traits: body.character.custom_traits,
+      quirks: body.character.quirks,
+      perks: body.character.perks,
+      relationship_scores: body.character.relationship_scores,
     }
     const characterId = db.createCharacter(base)
     const id = db.createStory(body.title, body.opening_scenario, body.character, body.world, body.npcs, characterId)

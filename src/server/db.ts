@@ -12,16 +12,30 @@ let db: Database.Database
 export type CharacterBase = Omit<MainCharacterState, "inventory">
 
 function normalizeCharacterBase(input: Partial<CharacterBase>): CharacterBase {
+  const legacyAppearance = input.appearance as { physical_description?: string } | undefined
+  const baselineAppearance = input.appearance?.baseline_appearance ?? legacyAppearance?.physical_description ?? ""
+  const currentAppearance =
+    input.appearance?.current_appearance ?? legacyAppearance?.physical_description ?? baselineAppearance ?? ""
   return {
     name: input.name ?? "",
     race: input.race ?? "",
     gender: input.gender ?? "",
+    current_location: input.current_location ?? "Unknown location",
     appearance: {
-      physical_description: input.appearance?.physical_description ?? "",
+      baseline_appearance: baselineAppearance,
+      current_appearance: currentAppearance,
       current_clothing: input.appearance?.current_clothing ?? "",
     },
+    baseline_description: input.baseline_description ?? "",
+    current_activity: input.current_activity ?? "",
     personality_traits: Array.isArray(input.personality_traits) ? input.personality_traits : [],
-    custom_traits: Array.isArray(input.custom_traits) ? input.custom_traits : [],
+    quirks: Array.isArray(input.quirks)
+      ? input.quirks
+      : Array.isArray((input as { custom_traits?: string[] }).custom_traits)
+        ? ((input as { custom_traits?: string[] }).custom_traits ?? [])
+        : [],
+    perks: Array.isArray(input.perks) ? input.perks : [],
+    relationship_scores: Array.isArray(input.relationship_scores) ? input.relationship_scores : [],
   }
 }
 
@@ -359,6 +373,13 @@ export interface StoryCharacterRow {
   updated_at: string
 }
 
+export interface StoryNpcRow {
+  id: number
+  title: string
+  npc_states_json: string
+  updated_at: string
+}
+
 export function listStories(): (StoryRow & { turn_count: number })[] {
   return getDb()
     .prepare(
@@ -375,6 +396,12 @@ export function listStoriesWithCharacters(): StoryCharacterRow[] {
   return getDb()
     .prepare("SELECT id, title, character_state_json, updated_at FROM stories ORDER BY updated_at DESC")
     .all() as StoryCharacterRow[]
+}
+
+export function listStoriesWithNpcs(): StoryNpcRow[] {
+  return getDb()
+    .prepare("SELECT id, title, npc_states_json, updated_at FROM stories ORDER BY updated_at DESC")
+    .all() as StoryNpcRow[]
 }
 
 export function getStory(id: number): StoryRow | undefined {

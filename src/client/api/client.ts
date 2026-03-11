@@ -18,34 +18,37 @@ export interface Location {
 }
 
 export interface CharacterAppearance {
-  physical_description: string
+  baseline_appearance: string
+  current_appearance: string
   current_clothing: string
 }
 
-export interface MainCharacterState {
+export interface RelationshipScore {
+  name: string
+  affinity: number
+}
+
+export interface CharacterState {
   name: string
   race: string
   gender: string
+  current_location: string
   appearance: CharacterAppearance
+  baseline_description: string
+  current_activity: string
   personality_traits: string[]
-  custom_traits: string[]
+  quirks: string[]
+  perks: string[]
+  relationship_scores: RelationshipScore[]
   inventory: InventoryItem[]
 }
 
-export interface NPCState {
-  name: string
-  race: string
-  gender: string
-  last_known_location: string
-  appearance: CharacterAppearance
-  personality_traits: string[]
-  relationship_to_player: string
-  notes: string
-}
+export type MainCharacterState = CharacterState
+export type NPCState = CharacterState
 
 export interface WorldState {
   current_scene: string
-  day_of_week: string
+  current_date: string
   time_of_day: string
   recent_events_summary: string
   locations: Location[]
@@ -83,6 +86,12 @@ export interface StoryCharacterGroup {
   stories: { id: number; title: string; updated_at: string }[]
 }
 
+export interface StoryNpcGroup {
+  key: string
+  npc: Omit<NPCState, "inventory">
+  stories: { id: number; title: string; updated_at: string }[]
+}
+
 export interface TurnSummary {
   id: number
   turn_number: number
@@ -98,14 +107,20 @@ export interface GenerateCharacterResponse {
   name: string
   race: string
   gender: string
-  physical_description: string
+  baseline_appearance: string
+  current_appearance: string
   current_clothing: string
+  baseline_description: string
+  current_activity: string
   personality_traits: string[]
-  custom_traits: string[]
+  quirks: string[]
+  perks: string[]
+  relationship_scores: RelationshipScore[]
 }
 
 export interface GenerateCharacterAppearanceResponse {
-  physical_description: string
+  baseline_appearance: string
+  current_appearance: string
 }
 
 export interface GenerateCharacterClothingResponse {
@@ -114,16 +129,22 @@ export interface GenerateCharacterClothingResponse {
 
 export interface GenerateCharacterTraitsResponse {
   personality_traits: string[]
-  custom_traits: string[]
+  quirks: string[]
+  perks: string[]
 }
 
 export interface GenerateCharacterContext {
   name: string
   race: string
   gender: string
+  current_location: string
   appearance: CharacterAppearance
+  baseline_description: string
+  current_activity: string
   personality_traits: string[]
-  custom_traits: string[]
+  quirks: string[]
+  perks: string[]
+  relationship_scores: RelationshipScore[]
 }
 
 export interface GenerateStoryResponse {
@@ -307,6 +328,7 @@ export const api = {
     import: (data: object) =>
       request<{ id: number }>("/api/stories/import", { method: "POST", body: JSON.stringify(data) }),
     characters: () => request<StoryCharacterGroup[]>("/api/stories/characters"),
+    npcs: () => request<StoryNpcGroup[]>("/api/stories/npcs"),
   },
 
   turns: {

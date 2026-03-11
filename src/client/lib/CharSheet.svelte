@@ -20,9 +20,13 @@
 
   type CharacterSigs = {
     identity: string
-    appearance: string
+    baselineAppearance: string
+    currentAppearance: string
     clothing: string
+    baselineDescription: string
+    currentActivity: string
     traits: string
+    relationships: string
     inventory: string
   }
 
@@ -32,11 +36,17 @@
   let flashAppearance = $state(false)
   let flashClothing = $state(false)
   let flashTraits = $state(false)
+  let flashBackground = $state(false)
+  let flashActivity = $state(false)
+  let flashRelationships = $state(false)
   let flashInventory = $state(false)
   let identityTimer: number | null = null
   let appearanceTimer: number | null = null
   let clothingTimer: number | null = null
   let traitsTimer: number | null = null
+  let backgroundTimer: number | null = null
+  let activityTimer: number | null = null
+  let relationshipsTimer: number | null = null
   let inventoryTimer: number | null = null
   let editing = $state(false)
   let saving = $state(false)
@@ -46,20 +56,30 @@
     name: string
     race: string
     gender: string
-    appearance: string
+    baselineAppearance: string
+    currentAppearance: string
     clothing: string
+    baselineDescription: string
+    currentActivity: string
     personalityTraits: string
-    customTraits: string
+    quirks: string
+    perks: string
+    relationshipScores: string
     inventory: InventoryDraft[]
   }
   let draft = $state<CharacterDraft>({
     name: "",
     race: "",
     gender: "",
-    appearance: "",
+    baselineAppearance: "",
+    currentAppearance: "",
     clothing: "",
+    baselineDescription: "",
+    currentActivity: "",
     personalityTraits: "",
-    customTraits: "",
+    quirks: "",
+    perks: "",
+    relationshipScores: "",
     inventory: [],
   })
 
@@ -75,14 +95,20 @@
   function buildCharacterSigs(c: MainCharacterState): CharacterSigs {
     return {
       identity: `${c.name}|${c.race}|${c.gender}`,
-      appearance: c.appearance?.physical_description ?? "",
+      baselineAppearance: c.appearance?.baseline_appearance ?? "",
+      currentAppearance: c.appearance?.current_appearance ?? "",
       clothing: c.appearance?.current_clothing ?? "",
-      traits: [...c.personality_traits, ...c.custom_traits].join("|"),
+      baselineDescription: c.baseline_description ?? "",
+      currentActivity: c.current_activity ?? "",
+      traits: [...c.personality_traits, ...c.quirks, ...c.perks].join("|"),
+      relationships: (c.relationship_scores ?? []).map((s) => `${s.name}:${s.affinity}`).join("|"),
       inventory: c.inventory.map((item) => `${item.name}:${item.description}`).join("|"),
     }
   }
 
-  function triggerFlash(kind: "identity" | "appearance" | "clothing" | "traits" | "inventory") {
+  function triggerFlash(
+    kind: "identity" | "appearance" | "clothing" | "traits" | "background" | "activity" | "relationships" | "inventory",
+  ) {
     if (kind === "identity") {
       flashIdentity = true
       if (identityTimer) window.clearTimeout(identityTimer)
@@ -107,6 +133,24 @@
       traitsTimer = window.setTimeout(() => (flashTraits = false), 900)
       return
     }
+    if (kind === "background") {
+      flashBackground = true
+      if (backgroundTimer) window.clearTimeout(backgroundTimer)
+      backgroundTimer = window.setTimeout(() => (flashBackground = false), 900)
+      return
+    }
+    if (kind === "activity") {
+      flashActivity = true
+      if (activityTimer) window.clearTimeout(activityTimer)
+      activityTimer = window.setTimeout(() => (flashActivity = false), 900)
+      return
+    }
+    if (kind === "relationships") {
+      flashRelationships = true
+      if (relationshipsTimer) window.clearTimeout(relationshipsTimer)
+      relationshipsTimer = window.setTimeout(() => (flashRelationships = false), 900)
+      return
+    }
     flashInventory = true
     if (inventoryTimer) window.clearTimeout(inventoryTimer)
     inventoryTimer = window.setTimeout(() => (flashInventory = false), 900)
@@ -117,17 +161,56 @@
     field.onInput(target.value)
   }
 
+  function clampAffinity(value: number): number {
+    if (!Number.isFinite(value)) return 0
+    if (value < -100) return -100
+    if (value > 100) return 100
+    return Math.round(value)
+  }
+
+  function formatRelationshipScores(scores: MainCharacterState["relationship_scores"]): string {
+    if (!scores || scores.length === 0) return ""
+    return scores.map((score) => `${score.name}: ${score.affinity}`).join("\n")
+  }
+
+  function parseRelationshipScores(text: string): MainCharacterState["relationship_scores"] {
+    const lines = text
+      .split("\n")
+      .map((line) => line.trim())
+      .filter(Boolean)
+    const scores: MainCharacterState["relationship_scores"] = []
+    const seen = new Set<string>()
+    for (const line of lines) {
+      const match = /^(.*?)\s*[:|]\s*(-?\d+)/.exec(line)
+      if (!match) continue
+      const name = match[1].trim()
+      if (!name) continue
+      const key = name.toLowerCase()
+      if (seen.has(key)) continue
+      seen.add(key)
+      scores.push({ name, affinity: clampAffinity(Number(match[2])) })
+    }
+    return scores
+  }
+
   function characterFields(): EditField[] {
     return [
       { id: "cs-name", label: "Name", kind: "input", value: draft.name, onInput: (v) => (draft.name = v) },
       { id: "cs-race", label: "Race", kind: "input", value: draft.race, onInput: (v) => (draft.race = v) },
       { id: "cs-gender", label: "Gender", kind: "input", value: draft.gender, onInput: (v) => (draft.gender = v) },
       {
-        id: "cs-appearance",
-        label: "Appearance",
+        id: "cs-baseline-appearance",
+        label: "Baseline Appearance",
         kind: "textarea",
-        value: draft.appearance,
-        onInput: (v) => (draft.appearance = v),
+        value: draft.baselineAppearance,
+        onInput: (v) => (draft.baselineAppearance = v),
+      },
+      {
+        id: "cs-current-appearance",
+        label: "Current Appearance",
+        kind: "textarea",
+        value: draft.currentAppearance,
+        onInput: (v) => (draft.currentAppearance = v),
       },
       {
         id: "cs-clothing",
@@ -137,6 +220,20 @@
         onInput: (v) => (draft.clothing = v),
       },
       {
+        id: "cs-baseline-description",
+        label: "Baseline Description",
+        kind: "textarea",
+        value: draft.baselineDescription,
+        onInput: (v) => (draft.baselineDescription = v),
+      },
+      {
+        id: "cs-current-activity",
+        label: "Current Activity",
+        kind: "textarea",
+        value: draft.currentActivity,
+        onInput: (v) => (draft.currentActivity = v),
+      },
+      {
         id: "cs-personality",
         label: "Personality Traits (comma separated)",
         kind: "input",
@@ -144,11 +241,25 @@
         onInput: (v) => (draft.personalityTraits = v),
       },
       {
-        id: "cs-custom-traits",
-        label: "Custom Traits (comma separated)",
+        id: "cs-quirks",
+        label: "Quirks (comma separated)",
         kind: "input",
-        value: draft.customTraits,
-        onInput: (v) => (draft.customTraits = v),
+        value: draft.quirks,
+        onInput: (v) => (draft.quirks = v),
+      },
+      {
+        id: "cs-perks",
+        label: "Perks (comma separated)",
+        kind: "input",
+        value: draft.perks,
+        onInput: (v) => (draft.perks = v),
+      },
+      {
+        id: "cs-relationships",
+        label: "Relationship Scores (Name: affinity per line)",
+        kind: "textarea",
+        value: draft.relationshipScores,
+        onInput: (v) => (draft.relationshipScores = v),
       },
     ]
   }
@@ -159,10 +270,15 @@
       name: $character.name,
       race: $character.race,
       gender: $character.gender,
-      appearance: $character.appearance.physical_description,
+      baselineAppearance: $character.appearance.baseline_appearance,
+      currentAppearance: $character.appearance.current_appearance,
       clothing: $character.appearance.current_clothing,
+      baselineDescription: $character.baseline_description,
+      currentActivity: $character.current_activity,
       personalityTraits: $character.personality_traits.join(", "),
-      customTraits: $character.custom_traits.join(", "),
+      quirks: $character.quirks.join(", "),
+      perks: $character.perks.join(", "),
+      relationshipScores: formatRelationshipScores($character.relationship_scores),
       inventory: $character.inventory.map((item) => ({ name: item.name, description: item.description })),
     }
     editing = true
@@ -192,14 +308,23 @@
     const name = draft.name.trim()
     const race = draft.race.trim()
     const gender = draft.gender.trim()
-    const appearance = draft.appearance.trim()
+    const baselineAppearance = draft.baselineAppearance.trim()
+    const currentAppearance = draft.currentAppearance.trim()
     const clothing = draft.clothing.trim()
-    if (!name || !race || !gender || !appearance || !clothing) {
-      showError("Name, race, gender, appearance, and clothing are required.")
+    const baselineDescription = draft.baselineDescription.trim()
+    const currentActivity = draft.currentActivity.trim()
+    if (!name || !race || !gender || !baselineAppearance || !currentAppearance || !clothing) {
+      showError("Name, race, gender, baseline appearance, current appearance, and clothing are required.")
+      return
+    }
+    if (!baselineDescription || !currentActivity) {
+      showError("Baseline description and current activity are required.")
       return
     }
     const personalityTraits = splitCsv(draft.personalityTraits)
-    const customTraits = splitCsv(draft.customTraits)
+    const quirks = splitCsv(draft.quirks)
+    const perks = splitCsv(draft.perks)
+    const relationshipScores = parseRelationshipScores(draft.relationshipScores)
     const inventory = draft.inventory
       .map((item) => ({ name: item.name.trim(), description: item.description.trim() }))
       .filter((item) => item.name.length > 0 || item.description.length > 0)
@@ -213,9 +338,18 @@
       name,
       race,
       gender,
-      appearance: { physical_description: appearance, current_clothing: clothing },
+      current_location: $character?.current_location ?? "",
+      appearance: {
+        baseline_appearance: baselineAppearance,
+        current_appearance: currentAppearance,
+        current_clothing: clothing,
+      },
+      baseline_description: baselineDescription,
+      current_activity: currentActivity,
       personality_traits: personalityTraits,
-      custom_traits: customTraits,
+      quirks,
+      perks,
+      relationship_scores: relationshipScores,
       inventory,
     }
     saving = true
@@ -247,9 +381,17 @@
         const nextSigs = buildCharacterSigs($character)
         if (lastSigs) {
           if (nextSigs.identity !== lastSigs.identity) triggerFlash("identity")
-          if (nextSigs.appearance !== lastSigs.appearance) triggerFlash("appearance")
+          if (
+            nextSigs.baselineAppearance !== lastSigs.baselineAppearance ||
+            nextSigs.currentAppearance !== lastSigs.currentAppearance
+          ) {
+            triggerFlash("appearance")
+          }
           if (nextSigs.clothing !== lastSigs.clothing) triggerFlash("clothing")
           if (nextSigs.traits !== lastSigs.traits) triggerFlash("traits")
+          if (nextSigs.baselineDescription !== lastSigs.baselineDescription) triggerFlash("background")
+          if (nextSigs.currentActivity !== lastSigs.currentActivity) triggerFlash("activity")
+          if (nextSigs.relationships !== lastSigs.relationships) triggerFlash("relationships")
           if (nextSigs.inventory !== lastSigs.inventory) triggerFlash("inventory")
         }
         lastSigs = nextSigs
@@ -343,9 +485,17 @@
       <div class="cs-section" class:flash={flashAppearance}>
         <div class="cs-section-header">
           <IconFace size={14} strokeWidth={1.5} className="cs-icon" />
-          <span class="section-label">Appearance</span>
+          <span class="section-label">Baseline Appearance</span>
         </div>
-        <div class="cs-value">{$character.appearance.physical_description}</div>
+        <div class="cs-value">{$character.appearance.baseline_appearance}</div>
+      </div>
+
+      <div class="cs-section" class:flash={flashAppearance}>
+        <div class="cs-section-header">
+          <IconFace size={14} strokeWidth={1.5} className="cs-icon" />
+          <span class="section-label">Current Appearance</span>
+        </div>
+        <div class="cs-value">{$character.appearance.current_appearance}</div>
       </div>
 
       <div class="cs-section" class:flash={flashClothing}>
@@ -356,19 +506,60 @@
         <div class="cs-value">{$character.appearance.current_clothing}</div>
       </div>
 
-      {#if $character.personality_traits.length > 0 || $character.custom_traits.length > 0}
+      <div class="cs-section" class:flash={flashBackground}>
+        <div class="cs-section-header">
+          <IconDocument size={14} strokeWidth={1.5} className="cs-icon" />
+          <span class="section-label">Baseline Description</span>
+        </div>
+        <div class="cs-value">{$character.baseline_description}</div>
+      </div>
+
+      <div class="cs-section" class:flash={flashActivity}>
+        <div class="cs-section-header">
+          <IconDocument size={14} strokeWidth={1.5} className="cs-icon" />
+          <span class="section-label">Current Activity</span>
+        </div>
+        <div class="cs-value">{$character.current_activity}</div>
+      </div>
+
+      {#if $character.personality_traits.length > 0 || $character.quirks.length > 0 || $character.perks.length > 0}
         <div class="cs-section" class:flash={flashTraits}>
           <div class="cs-section-header">
             <IconStar size={14} strokeWidth={1.5} className="cs-icon" />
-            <span class="section-label">Traits</span>
+            <span class="section-label">Traits · Quirks · Perks</span>
           </div>
           <div class="chips">
-            {#each [...$character.personality_traits, ...$character.custom_traits] as t}
-              <span class="chip">{t}</span>
+            {#each $character.personality_traits as t}
+              <span class="chip">Trait · {t}</span>
+            {/each}
+            {#each $character.quirks as t}
+              <span class="chip">Quirk · {t}</span>
+            {/each}
+            {#each $character.perks as t}
+              <span class="chip">Perk · {t}</span>
             {/each}
           </div>
         </div>
       {/if}
+
+      <div class="cs-section" class:flash={flashRelationships}>
+        <div class="cs-section-header">
+          <IconDocument size={14} strokeWidth={1.5} className="cs-icon" />
+          <span class="section-label">Relationship Scores</span>
+        </div>
+        {#if $character.relationship_scores.length === 0}
+          <div class="cs-value muted">No scores yet.</div>
+        {:else}
+          <ul class="cs-relationships">
+            {#each $character.relationship_scores as score}
+              <li>
+                <span class="cs-rel-name">{score.name}</span>
+                <span class="cs-rel-affinity">{score.affinity}</span>
+              </li>
+            {/each}
+          </ul>
+        {/if}
+      </div>
 
       <div class="cs-section" class:flash={flashInventory}>
         <div class="cs-section-header">
@@ -613,5 +804,30 @@
   .cs-item-desc {
     font-size: 0.8rem;
     color: var(--text-dim);
+  }
+
+  .cs-relationships {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.3rem;
+  }
+
+  .cs-relationships li {
+    display: flex;
+    justify-content: space-between;
+    gap: 0.6rem;
+    font-size: 0.85rem;
+  }
+
+  .cs-rel-name {
+    color: var(--text);
+  }
+
+  .cs-rel-affinity {
+    color: var(--text-dim);
+    font-variant-numeric: tabular-nums;
   }
 </style>

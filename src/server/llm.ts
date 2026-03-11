@@ -212,6 +212,11 @@ function formatInventory(inventory: MainCharacterState["inventory"]): string {
   return inventory.map((i) => `${i.name} (${i.description})`).join(", ")
 }
 
+function formatRelationshipScores(scores: { name: string; affinity: number }[]): string {
+  if (!scores || scores.length === 0) return "none"
+  return scores.map((score) => `${score.name} (${score.affinity})`).join(", ")
+}
+
 function estimateTokens(text: string): number {
   return Math.max(1, Math.ceil(text.length / 4))
 }
@@ -228,12 +233,16 @@ function formatNPCs(npcs: NPCState[]): string {
         `[${npc.name}]\n` +
         `  Race: ${npc.race}\n` +
         (npc.gender ? `  Gender: ${npc.gender}\n` : "") +
-        `  Personality: ${npc.personality_traits.join(", ")}\n` +
-        `  Relationship: ${npc.relationship_to_player}\n` +
-        `  Appearance: ${npc.appearance.physical_description}\n` +
+        `  Personality traits: ${npc.personality_traits.join(", ")}\n` +
+        `  Quirks: ${npc.quirks.join(", ") || "none"}\n` +
+        `  Perks: ${npc.perks.join(", ") || "none"}\n` +
+        `  Baseline appearance: ${npc.appearance.baseline_appearance}\n` +
+        `  Current appearance: ${npc.appearance.current_appearance}\n` +
         `  Wearing: ${npc.appearance.current_clothing}\n` +
-        `  Location: ${npc.last_known_location}\n` +
-        `  Notes: ${npc.notes}`,
+        `  Baseline description: ${npc.baseline_description}\n` +
+        `  Current activity: ${npc.current_activity}\n` +
+        `  Location: ${npc.current_location}\n` +
+        `  Relationships: ${formatRelationshipScores(npc.relationship_scores)}`,
     )
     .join("\n\n")
 }
@@ -279,7 +288,7 @@ function buildHistoryBlock(
     "=== COMPRESSED EARLIER CONTEXT ===",
     "{",
     `  "current_scene": "${escapeForInlineJson(world.current_scene)}",`,
-    `  "day_of_week": "${escapeForInlineJson(world.day_of_week)}",`,
+    `  "current_date": "${escapeForInlineJson(world.current_date)}",`,
     `  "time_of_day": "${escapeForInlineJson(world.time_of_day)}",`,
     `  "recent_events_summary": "${escapeForInlineJson(world.recent_events_summary)}"`,
     "}",
@@ -345,22 +354,29 @@ export function buildTurnMessages(
   const storyContext =
     `=== STORY CONTEXT ===\n` +
     `Scene: ${world.current_scene}\n` +
-    `Day: ${world.day_of_week}\n` +
+    `Date: ${world.current_date}\n` +
     `Time: ${world.time_of_day}\n` +
     `Recent events: ${world.recent_events_summary}`
 
   const initialSection =
     `=== INITIAL CHARACTER (STORY START) ===\n` +
-    `Appearance: ${initial.appearance.physical_description}\n` +
+    `Baseline appearance: ${initial.appearance.baseline_appearance}\n` +
+    `Current appearance: ${initial.appearance.current_appearance}\n` +
     `Wearing: ${initial.appearance.current_clothing}`
   const baseSection =
     `=== PLAYER CHARACTER (BASE) ===\n` +
     `Name: ${character.name} · ${character.race} · ${character.gender}\n` +
-    `Traits: ${[...character.personality_traits, ...character.custom_traits].join(", ")}`
+    `Baseline description: ${character.baseline_description}\n` +
+    `Personality traits: ${character.personality_traits.join(", ") || "none"}\n` +
+    `Quirks: ${character.quirks.join(", ") || "none"}\n` +
+    `Perks: ${character.perks.join(", ") || "none"}\n` +
+    `Relationships: ${formatRelationshipScores(character.relationship_scores)}`
   const currentSection =
     `=== PLAYER CHARACTER STATE ===\n` +
-    `Appearance: ${character.appearance.physical_description}\n` +
+    `Current appearance: ${character.appearance.current_appearance}\n` +
     `Wearing: ${character.appearance.current_clothing}\n` +
+    `Current activity: ${character.current_activity}\n` +
+    `Location: ${character.current_location}\n` +
     `Inventory: ${formatInventory(character.inventory)}`
 
   const joinSections = (sections: Array<string | null | undefined>): string => sections.filter(Boolean).join("\n\n")
@@ -408,18 +424,24 @@ export function buildNpcCreationMessages(
   const storyContext =
     `=== STORY CONTEXT ===\n` +
     `Scene: ${world.current_scene}\n` +
-    `Day: ${world.day_of_week}\n` +
+    `Date: ${world.current_date}\n` +
     `Time: ${world.time_of_day}\n` +
     `Recent events: ${world.recent_events_summary}`
 
   const baseSection =
     `=== PLAYER CHARACTER (BASE) ===\n` +
     `Name: ${character.name} · ${character.race} · ${character.gender}\n` +
-    `Traits: ${[...character.personality_traits, ...character.custom_traits].join(", ")}`
+    `Baseline description: ${character.baseline_description}\n` +
+    `Personality traits: ${character.personality_traits.join(", ") || "none"}\n` +
+    `Quirks: ${character.quirks.join(", ") || "none"}\n` +
+    `Perks: ${character.perks.join(", ") || "none"}\n` +
+    `Relationships: ${formatRelationshipScores(character.relationship_scores)}`
   const currentSection =
     `=== PLAYER CHARACTER STATE ===\n` +
-    `Appearance: ${character.appearance.physical_description}\n` +
+    `Current appearance: ${character.appearance.current_appearance}\n` +
     `Wearing: ${character.appearance.current_clothing}\n` +
+    `Current activity: ${character.current_activity}\n` +
+    `Location: ${character.current_location}\n` +
     `Inventory: ${formatInventory(character.inventory)}`
 
   const joinSections = (sections: Array<string | null | undefined>): string => sections.filter(Boolean).join("\n\n")
@@ -470,22 +492,29 @@ export function buildImpersonateMessages(
   const storyContext =
     `=== STORY CONTEXT ===\n` +
     `Scene: ${world.current_scene}\n` +
-    `Day: ${world.day_of_week}\n` +
+    `Date: ${world.current_date}\n` +
     `Time: ${world.time_of_day}\n` +
     `Recent events: ${world.recent_events_summary}`
 
   const initialSection =
     `=== INITIAL CHARACTER (STORY START) ===\n` +
-    `Appearance: ${initial.appearance.physical_description}\n` +
+    `Baseline appearance: ${initial.appearance.baseline_appearance}\n` +
+    `Current appearance: ${initial.appearance.current_appearance}\n` +
     `Wearing: ${initial.appearance.current_clothing}`
   const baseSection =
     `=== PLAYER CHARACTER (BASE) ===\n` +
     `Name: ${character.name} · ${character.race} · ${character.gender}\n` +
-    `Traits: ${[...character.personality_traits, ...character.custom_traits].join(", ")}`
+    `Baseline description: ${character.baseline_description}\n` +
+    `Personality traits: ${character.personality_traits.join(", ") || "none"}\n` +
+    `Quirks: ${character.quirks.join(", ") || "none"}\n` +
+    `Perks: ${character.perks.join(", ") || "none"}\n` +
+    `Relationships: ${formatRelationshipScores(character.relationship_scores)}`
   const currentSection =
     `=== PLAYER CHARACTER STATE ===\n` +
-    `Appearance: ${character.appearance.physical_description}\n` +
+    `Current appearance: ${character.appearance.current_appearance}\n` +
     `Wearing: ${character.appearance.current_clothing}\n` +
+    `Current activity: ${character.current_activity}\n` +
+    `Location: ${character.current_location}\n` +
     `Inventory: ${formatInventory(character.inventory)}`
 
   const joinSections = (sections: Array<string | null | undefined>): string => sections.filter(Boolean).join("\n\n")
@@ -800,11 +829,16 @@ type CharacterGenerationContext = {
   race: string
   gender: string
   appearance: {
-    physical_description: string
+    baseline_appearance: string
+    current_appearance: string
     current_clothing: string
   }
+  baseline_description: string
+  current_activity: string
   personality_traits: string[]
-  custom_traits: string[]
+  quirks: string[]
+  perks: string[]
+  relationship_scores: { name: string; affinity: number }[]
 }
 
 function formatCharacterContext(
@@ -818,18 +852,28 @@ function formatCharacterContext(
   ]
 
   if (part === "traits") {
-    const appearance = [context.appearance.physical_description, context.appearance.current_clothing]
+    const appearance = [
+      context.appearance.baseline_appearance,
+      context.appearance.current_appearance,
+      context.appearance.current_clothing,
+    ]
       .map((v) => v.trim())
       .filter(Boolean)
       .join(" | ")
     lines.push(`Appearance: ${appearance || "Unknown"}`)
+    lines.push(`Baseline description: ${context.baseline_description || "Unknown"}`)
   } else if (part === "appearance") {
+    lines.push(`Baseline description: ${context.baseline_description || "Unknown"}`)
     lines.push(`Personality traits: ${context.personality_traits.join(", ") || "Unknown"}`)
-    lines.push(`Custom traits: ${context.custom_traits.join(", ") || "None"}`)
+    lines.push(`Quirks: ${context.quirks.join(", ") || "None"}`)
+    lines.push(`Perks: ${context.perks.join(", ") || "None"}`)
   } else {
-    lines.push(`Physical description: ${context.appearance.physical_description.trim() || "Unknown"}`)
+    lines.push(`Baseline appearance: ${context.appearance.baseline_appearance.trim() || "Unknown"}`)
+    lines.push(`Current appearance: ${context.appearance.current_appearance.trim() || "Unknown"}`)
+    lines.push(`Baseline description: ${context.baseline_description || "Unknown"}`)
     lines.push(`Personality traits: ${context.personality_traits.join(", ") || "Unknown"}`)
-    lines.push(`Custom traits: ${context.custom_traits.join(", ") || "None"}`)
+    lines.push(`Quirks: ${context.quirks.join(", ") || "None"}`)
+    lines.push(`Perks: ${context.perks.join(", ") || "None"}`)
   }
 
   return lines.join("\n")
@@ -864,9 +908,9 @@ export async function generateCharacterPart(
     "",
     "Instruction: Use the context above to regenerate ONLY the requested section.",
     part === "appearance"
-      ? "Do not reuse or paraphrase the current physical description. Keep it consistent with the identity and traits."
+      ? "Do not reuse or paraphrase the current appearance. Keep it consistent with the identity and traits."
       : part === "traits"
-        ? "Do not reuse the current personality traits or custom traits. Keep them consistent with the identity and appearance."
+        ? "Do not reuse the current personality traits, quirks, or perks. Keep them consistent with the identity and appearance."
         : "Do not reuse or paraphrase the current clothing. Keep it consistent with the identity, appearance, and traits.",
   ].join("\n")
 
@@ -898,13 +942,19 @@ export async function generateStory(
     name: string
     race: string
     gender: string
-    appearance: { physical_description: string; current_clothing: string }
+    current_location?: string
+    appearance: { baseline_appearance: string; current_appearance: string; current_clothing: string }
+    baseline_description: string
+    current_activity: string
     personality_traits: string[]
-    custom_traits: string[]
+    quirks: string[]
+    perks: string[]
   },
 ): Promise<GenerateStoryResponse> {
   const schema = zodSchemaToJsonSchema(GenerateStoryResponseSchema, "GenerateStoryResponse")
-  const traits = [...character.personality_traits, ...character.custom_traits].map((t) => t.trim()).filter(Boolean)
+  const traits = [...character.personality_traits, ...character.quirks, ...character.perks]
+    .map((t) => t.trim())
+    .filter(Boolean)
   const result = await callLLMRaw<unknown>(
     [
       { role: "system", content: getConfig().generateStoryPrompt.join("\n") },
@@ -915,8 +965,11 @@ export async function generateStory(
           `Name: ${character.name}`,
           `Race: ${character.race || "Unknown"}`,
           `Gender: ${character.gender || "Unknown"}`,
-          `Appearance: ${character.appearance.physical_description || "Unknown"}`,
+          `Baseline appearance: ${character.appearance.baseline_appearance || "Unknown"}`,
+          `Current appearance: ${character.appearance.current_appearance || "Unknown"}`,
           `Clothing: ${character.appearance.current_clothing || "Unknown"}`,
+          `Baseline description: ${character.baseline_description || "Unknown"}`,
+          `Current activity: ${character.current_activity || "Unknown"}`,
           `Traits: ${traits.length > 0 ? traits.join(", ") : "Unknown"}`,
           "",
           `Story description: "${description}"`,

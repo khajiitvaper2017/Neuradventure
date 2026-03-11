@@ -198,7 +198,9 @@
               </div>
             </div>
             <div class="char-card-traits">
-              {[...group.character.personality_traits, ...group.character.custom_traits].join(", ") || "No traits"}
+              {[...group.character.personality_traits, ...group.character.quirks, ...group.character.perks].join(
+                ", ",
+              ) || "No traits"}
             </div>
             <div class="char-card-actions">
               <button class="btn-ghost small" onclick={() => startNewWithCharacter(group)}> New Story </button>

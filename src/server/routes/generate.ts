@@ -31,16 +31,32 @@ const characterContextSchema = z.object({
   gender: z.string().default("").describe(desc("requests.generate_character_context.gender")),
   appearance: z
     .object({
-      physical_description: z.string().default("").describe(desc("state.appearance.physical_description")),
+      baseline_appearance: z.string().default("").describe(desc("state.appearance.baseline_appearance")),
+      current_appearance: z.string().default("").describe(desc("state.appearance.current_appearance")),
       current_clothing: z.string().default("").describe(desc("state.appearance.current_clothing")),
     })
-    .default({ physical_description: "", current_clothing: "" })
+    .default({ baseline_appearance: "", current_appearance: "", current_clothing: "" })
     .describe(desc("requests.generate_character_context.appearance")),
+  baseline_description: z
+    .string()
+    .default("")
+    .describe(desc("requests.generate_character_context.baseline_description")),
+  current_activity: z.string().default("").describe(desc("requests.generate_character_context.current_activity")),
   personality_traits: z
     .array(z.string())
     .default([])
     .describe(desc("requests.generate_character_context.personality_traits")),
-  custom_traits: z.array(z.string()).default([]).describe(desc("requests.generate_character_context.custom_traits")),
+  quirks: z.array(z.string()).default([]).describe(desc("requests.generate_character_context.quirks")),
+  perks: z.array(z.string()).default([]).describe(desc("requests.generate_character_context.perks")),
+  relationship_scores: z
+    .array(
+      z.object({
+        name: z.string().default(""),
+        affinity: z.number().int().default(0),
+      }),
+    )
+    .default([])
+    .describe(desc("requests.generate_character_context.relationship_scores")),
 })
 
 generate.post(

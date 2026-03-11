@@ -4,9 +4,13 @@ import {
   InventoryItemSchema,
   LocationItemSchema,
   LocationSchema,
+  MainCharacterStateStoredSchema,
+  CharacterStateSchema,
+  CharacterStateStoredSchema,
   MainCharacterStateSchema,
   NPCStateSchema,
   NPCStateStoredSchema,
+  RelationshipScoresSchema,
   WorldStateSchema,
   WorldStateStoredSchema,
 } from "./schemas/game-state.js"
@@ -50,9 +54,13 @@ export {
   LocationItemSchema,
   LocationSchema,
   CharacterAppearanceSchema,
+  CharacterStateSchema,
+  CharacterStateStoredSchema,
   MainCharacterStateSchema,
+  MainCharacterStateStoredSchema,
   NPCStateSchema,
   NPCStateStoredSchema,
+  RelationshipScoresSchema,
   WorldStateSchema,
   WorldStateStoredSchema,
   NPCStateUpdateBaseSchema,
@@ -89,6 +97,7 @@ export type InventoryItem = z.infer<typeof InventoryItemSchema>
 export type LocationItem = z.infer<typeof LocationItemSchema>
 export type Location = z.infer<typeof LocationSchema>
 export type CharacterAppearance = z.infer<typeof CharacterAppearanceSchema>
+export type CharacterState = z.infer<typeof CharacterStateSchema>
 export type MainCharacterState = z.infer<typeof MainCharacterStateSchema>
 export type NPCState = z.infer<typeof NPCStateSchema>
 export type WorldState = z.infer<typeof WorldStateSchema>

@@ -1,5 +1,5 @@
 import {
-  MainCharacterStateSchema,
+  MainCharacterStateStoredSchema,
   NPCStateStoredSchema,
   WorldStateStoredSchema,
   type MainCharacterState,
@@ -25,7 +25,7 @@ import {
 function applyPlayerUpdate(character: MainCharacterState, turnResponse: TurnResponse): MainCharacterState {
   const appearance = {
     ...character.appearance,
-    physical_description: turnResponse.appearance_change ?? character.appearance.physical_description,
+    current_appearance: turnResponse.appearance_change ?? character.appearance.current_appearance,
     current_clothing: turnResponse.clothing_change ?? character.appearance.current_clothing,
   }
 
@@ -100,7 +100,7 @@ function syncLocationCharacters(world: WorldState, character: MainCharacterState
   }
 
   for (const npc of npcs) {
-    const locationName = npc.last_known_location.trim()
+    const locationName = npc.current_location.trim()
     if (!locationName) continue
     const location = ensureLocation(locationName)
     if (!location) continue
@@ -124,17 +124,8 @@ function syncLocationCharacters(world: WorldState, character: MainCharacterState
 
 function buildNpcFromCreation(creation: NPCCreation): NPCState {
   return {
-    name: creation.name,
-    race: creation.race,
-    gender: creation.gender,
-    last_known_location: creation.set_location,
-    appearance: {
-      physical_description: creation.set_appearance,
-      current_clothing: creation.set_clothing,
-    },
-    personality_traits: creation.personality_traits,
-    relationship_to_player: creation.set_relationship,
-    notes: creation.set_notes,
+    ...creation,
+    inventory: creation.inventory ?? [],
   }
 }
 
@@ -145,13 +136,16 @@ function applyNPCUpdates(npcs: NPCState[], updates: NPCUpdateArray): NPCState[] 
 
     return {
       ...npc,
-      last_known_location: patch.set_location ?? npc.last_known_location,
+      race: patch.race ?? npc.race,
+      gender: patch.gender ?? npc.gender,
+      current_location: patch.set_current_location ?? npc.current_location,
       appearance: {
-        physical_description: patch.set_appearance ?? npc.appearance.physical_description,
-        current_clothing: patch.set_clothing ?? npc.appearance.current_clothing,
+        ...npc.appearance,
+        current_appearance: patch.set_current_appearance ?? npc.appearance.current_appearance,
+        current_clothing: patch.set_current_clothing ?? npc.appearance.current_clothing,
       },
-      relationship_to_player: patch.set_relationship ?? npc.relationship_to_player,
-      notes: patch.set_notes ?? npc.notes,
+      current_activity: patch.set_current_activity ?? npc.current_activity,
+      relationship_scores: patch.set_relationship_scores ?? npc.relationship_scores,
     }
   })
 }
@@ -163,6 +157,71 @@ function applyNPCCreations(npcs: NPCState[], creations: NPCCreation[]): NPCState
     .filter((creation) => !existingNames.has(creation.name.toLowerCase()))
     .map((creation) => buildNpcFromCreation(creation))
   return [...npcs, ...newNPCs]
+}
+
+type RelationshipScore = { name: string; affinity: number }
+
+function clampAffinity(value: number): number {
+  if (!Number.isFinite(value)) return 0
+  if (value < -100) return -100
+  if (value > 100) return 100
+  return Math.round(value)
+}
+
+function normalizeRelationshipScoresForNames(
+  scores: RelationshipScore[] | undefined,
+  selfName: string,
+  allNames: string[],
+): RelationshipScore[] {
+  const lowerSelf = selfName.trim().toLowerCase()
+  const canonicalNames = new Map(
+    allNames
+      .map((name) => name.trim())
+      .filter(Boolean)
+      .map((name) => [name.toLowerCase(), name]),
+  )
+  const normalized = new Map<string, RelationshipScore>()
+  if (Array.isArray(scores)) {
+    for (const entry of scores) {
+      if (!entry || typeof entry.name !== "string") continue
+      const key = entry.name.trim().toLowerCase()
+      if (!key || key === lowerSelf) continue
+      const canonical = canonicalNames.get(key)
+      if (!canonical) continue
+      if (normalized.has(key)) continue
+      normalized.set(key, { name: canonical, affinity: clampAffinity(entry.affinity) })
+    }
+  }
+
+  for (const [key, name] of canonicalNames) {
+    if (key === lowerSelf) continue
+    if (!normalized.has(key)) normalized.set(key, { name, affinity: 0 })
+  }
+
+  return Array.from(normalized.values())
+}
+
+function syncRelationshipScores(
+  character: MainCharacterState,
+  npcs: NPCState[],
+): { character: MainCharacterState; npcs: NPCState[] } {
+  const allNames = [character.name, ...npcs.map((npc) => npc.name)]
+  const nextCharacter = {
+    ...character,
+    relationship_scores: normalizeRelationshipScoresForNames(character.relationship_scores, character.name, allNames),
+  }
+  const nextNpcs = npcs.map((npc) => ({
+    ...npc,
+    relationship_scores: normalizeRelationshipScoresForNames(npc.relationship_scores, npc.name, allNames),
+  }))
+  return { character: nextCharacter, npcs: nextNpcs }
+}
+
+function syncCharacterLocation(character: MainCharacterState, world: WorldState): MainCharacterState {
+  if (character.current_location.trim().toLowerCase() === world.current_scene.trim().toLowerCase()) {
+    return character
+  }
+  return { ...character, current_location: world.current_scene }
 }
 
 function findNpcByUpdate(npcs: NPCState[], update: NPCStateUpdate): NPCState | undefined {
@@ -177,7 +236,7 @@ function collectLlmWarnings(world: WorldState, npcs: NPCState[], turnResponse: T
   if (
     worldUpdate.current_scene === world.current_scene &&
     worldUpdate.time_of_day === world.time_of_day &&
-    worldUpdate.day_of_week === world.day_of_week &&
+    worldUpdate.current_date === world.current_date &&
     worldUpdate.recent_events_summary === world.recent_events_summary &&
     JSON.stringify(worldUpdate.locations) === JSON.stringify(world.locations)
   ) {
@@ -192,20 +251,23 @@ function collectLlmWarnings(world: WorldState, npcs: NPCState[], turnResponse: T
       warnings.push(`npc_changes[${patch.name}] refers to unknown NPC; use npc_introductions`)
       continue
     }
-    if (patch.set_location && patch.set_location === npc.last_known_location) {
-      warnings.push(`npc_changes[${npc.name}].set_location matches existing value`)
+    if (patch.set_current_location && patch.set_current_location === npc.current_location) {
+      warnings.push(`npc_changes[${npc.name}].set_current_location matches existing value`)
     }
-    if (patch.set_appearance && patch.set_appearance === npc.appearance.physical_description) {
-      warnings.push(`npc_changes[${npc.name}].set_appearance matches existing value`)
+    if (patch.set_current_appearance && patch.set_current_appearance === npc.appearance.current_appearance) {
+      warnings.push(`npc_changes[${npc.name}].set_current_appearance matches existing value`)
     }
-    if (patch.set_clothing && patch.set_clothing === npc.appearance.current_clothing) {
-      warnings.push(`npc_changes[${npc.name}].set_clothing matches existing value`)
+    if (patch.set_current_clothing && patch.set_current_clothing === npc.appearance.current_clothing) {
+      warnings.push(`npc_changes[${npc.name}].set_current_clothing matches existing value`)
     }
-    if (patch.set_relationship && patch.set_relationship === npc.relationship_to_player) {
-      warnings.push(`npc_changes[${npc.name}].set_relationship matches existing value`)
+    if (patch.set_current_activity && patch.set_current_activity === npc.current_activity) {
+      warnings.push(`npc_changes[${npc.name}].set_current_activity matches existing value`)
     }
-    if (patch.set_notes && patch.set_notes === npc.notes) {
-      warnings.push(`npc_changes[${npc.name}].set_notes matches existing value`)
+    if (
+      patch.set_relationship_scores &&
+      JSON.stringify(patch.set_relationship_scores) === JSON.stringify(npc.relationship_scores)
+    ) {
+      warnings.push(`npc_changes[${npc.name}].set_relationship_scores matches existing value`)
     }
   }
 
@@ -245,7 +307,7 @@ export async function createNpcFromTurnPrompt(storyId: number, npcName: string):
   const trimmedName = npcName.trim()
   if (!trimmedName) throw new Error("NPC name is required")
 
-  const character = MainCharacterStateSchema.parse(JSON.parse(story.character_state_json))
+  const character = MainCharacterStateStoredSchema.parse(JSON.parse(story.character_state_json))
   const world = WorldStateStoredSchema.parse(JSON.parse(story.world_state_json))
   const npcs = (JSON.parse(story.npc_states_json) as unknown[]).map((n) => NPCStateStoredSchema.parse(n))
 
@@ -260,13 +322,15 @@ export async function createNpcFromTurnPrompt(storyId: number, npcName: string):
   const creation = await generateNpcCreation(messages, trimmedName)
   const updatedNpcs = applyNPCCreations(npcs, [creation])
   const newNpc = buildNpcFromCreation(creation)
+  const relSynced = syncRelationshipScores(character, updatedNpcs)
 
-  const syncedWorld = syncLocationCharacters(world, character, updatedNpcs)
-  db.updateStory(storyId, character, syncedWorld, updatedNpcs)
+  const syncedWorld = syncLocationCharacters(world, relSynced.character, relSynced.npcs)
+  const locationSyncedCharacter = syncCharacterLocation(relSynced.character, syncedWorld)
+  db.updateStory(storyId, locationSyncedCharacter, syncedWorld, relSynced.npcs)
 
   return {
     npc: newNpc,
-    npcs: updatedNpcs,
+    npcs: relSynced.npcs,
   }
 }
 
@@ -279,7 +343,7 @@ export async function processTurn(
   const story = db.getStory(storyId)
   if (!story) throw new Error(`Story ${storyId} not found`)
 
-  const character = MainCharacterStateSchema.parse(JSON.parse(story.character_state_json))
+  const character = MainCharacterStateStoredSchema.parse(JSON.parse(story.character_state_json))
   const world = WorldStateStoredSchema.parse(JSON.parse(story.world_state_json))
   const npcs = (JSON.parse(story.npc_states_json) as unknown[]).map((n) => NPCStateStoredSchema.parse(n))
   const initial = parseInitialStorySnapshot(story).character
@@ -297,9 +361,15 @@ export async function processTurn(
   const newNpcs = applyNPCCreations(updatedNpcs, npcCreations)
   const worldUpdate = turnResponse.world_state_update
   const mergedLocations = mergeLocations(world.locations, worldUpdate.locations)
-  const newWorld = syncLocationCharacters({ ...worldUpdate, locations: mergedLocations }, newCharacter, newNpcs)
+  const relSynced = syncRelationshipScores(newCharacter, newNpcs)
+  const newWorld = syncLocationCharacters(
+    { ...worldUpdate, locations: mergedLocations },
+    relSynced.character,
+    relSynced.npcs,
+  )
+  const locationSyncedCharacter = syncCharacterLocation(relSynced.character, newWorld)
 
-  db.updateStory(storyId, newCharacter, newWorld, newNpcs)
+  db.updateStory(storyId, locationSyncedCharacter, newWorld, relSynced.npcs)
 
   const turnNumber = db.getNextTurnNumber(storyId)
   const turnId = db.createTurn(
@@ -309,11 +379,17 @@ export async function processTurn(
     requestId ?? null,
     playerInput,
     turnResponse.narrative_text,
-    newCharacter,
+    locationSyncedCharacter,
     newWorld,
-    newNpcs,
+    relSynced.npcs,
   )
-  const variant = db.createTurnVariant(turnId, turnResponse.narrative_text, newCharacter, newWorld, newNpcs)
+  const variant = db.createTurnVariant(
+    turnId,
+    turnResponse.narrative_text,
+    locationSyncedCharacter,
+    newWorld,
+    relSynced.npcs,
+  )
   db.setActiveTurnVariant(turnId, variant.id)
 
   return {
@@ -321,9 +397,9 @@ export async function processTurn(
     story_id: storyId,
     turn_number: turnNumber,
     narrative_text: turnResponse.narrative_text,
-    character: newCharacter,
+    character: locationSyncedCharacter,
     world: newWorld,
-    npcs: newNpcs,
+    npcs: relSynced.npcs,
     llm_warnings: llmWarnings.length > 0 ? llmWarnings : undefined,
   }
 }
@@ -332,7 +408,7 @@ export async function impersonatePlayerAction(storyId: number, actionMode: strin
   const story = db.getStory(storyId)
   if (!story) throw new Error(`Story ${storyId} not found`)
 
-  const character = MainCharacterStateSchema.parse(JSON.parse(story.character_state_json))
+  const character = MainCharacterStateStoredSchema.parse(JSON.parse(story.character_state_json))
   const world = WorldStateStoredSchema.parse(JSON.parse(story.world_state_json))
   const npcs = (JSON.parse(story.npc_states_json) as unknown[]).map((n) => NPCStateStoredSchema.parse(n))
   const initial = parseInitialStorySnapshot(story).character
@@ -345,7 +421,7 @@ export async function impersonatePlayerAction(storyId: number, actionMode: strin
 }
 
 function parseTurnSnapshot(turn: db.TurnRow): { character: MainCharacterState; world: WorldState; npcs: NPCState[] } {
-  const character = MainCharacterStateSchema.parse(JSON.parse(turn.character_snapshot_json))
+  const character = MainCharacterStateStoredSchema.parse(JSON.parse(turn.character_snapshot_json))
   const world = WorldStateStoredSchema.parse(JSON.parse(turn.world_snapshot_json))
   const npcs = (JSON.parse(turn.npc_snapshot_json) as unknown[]).map((n) => NPCStateStoredSchema.parse(n))
   return { character, world, npcs }
@@ -369,7 +445,7 @@ function parseTurnVariantSnapshot(variant: db.TurnVariantRow): {
   world: WorldState
   npcs: NPCState[]
 } {
-  const character = MainCharacterStateSchema.parse(JSON.parse(variant.character_snapshot_json))
+  const character = MainCharacterStateStoredSchema.parse(JSON.parse(variant.character_snapshot_json))
   const world = WorldStateStoredSchema.parse(JSON.parse(variant.world_snapshot_json))
   const npcs = (JSON.parse(variant.npc_snapshot_json) as unknown[]).map((n) => NPCStateStoredSchema.parse(n))
   return { character, world, npcs }
@@ -383,7 +459,7 @@ function parseInitialStorySnapshot(story: db.StoryRow): {
   const characterJson = story.initial_character_state_json ?? story.character_state_json
   const worldJson = story.initial_world_state_json ?? story.world_state_json
   const npcsJson = story.initial_npc_states_json ?? story.npc_states_json
-  const character = MainCharacterStateSchema.parse(JSON.parse(characterJson))
+  const character = MainCharacterStateStoredSchema.parse(JSON.parse(characterJson))
   const world = WorldStateStoredSchema.parse(JSON.parse(worldJson))
   const npcs = (JSON.parse(npcsJson) as unknown[]).map((n) => NPCStateStoredSchema.parse(n))
   return { character, world, npcs }
@@ -638,15 +714,17 @@ export function createNewStory(
   characterId: number | null = null,
 ): number {
   const sceneName = startingScene?.trim() || "Unknown location"
+  const locationSyncedCharacter = { ...character, current_location: sceneName }
+  const relSynced = syncRelationshipScores(locationSyncedCharacter, npcs)
   const sceneCharacters = [
-    character.name,
-    ...npcs
-      .filter((npc) => npc.last_known_location.trim().toLowerCase() === sceneName.trim().toLowerCase())
+    relSynced.character.name,
+    ...relSynced.npcs
+      .filter((npc) => npc.current_location.trim().toLowerCase() === sceneName.trim().toLowerCase())
       .map((npc) => npc.name),
   ]
   const world: WorldState = {
     current_scene: sceneName,
-    day_of_week: "Monday",
+    current_date: new Date().toISOString().slice(0, 10),
     time_of_day: "day",
     recent_events_summary: opening_scenario.trim(),
     locations: [
@@ -658,5 +736,5 @@ export function createNewStory(
       },
     ],
   }
-  return db.createStory(title, opening_scenario, character, world, npcs, characterId)
+  return db.createStory(title, opening_scenario, relSynced.character, world, relSynced.npcs, characterId)
 }

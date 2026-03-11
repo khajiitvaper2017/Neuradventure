@@ -63,12 +63,16 @@
       name = result.name
       race = result.race
       gender = normalizeGender(result.gender)
-      physicalDescription = result.physical_description
+      baselineAppearance = result.baseline_appearance
+      currentAppearance = result.current_appearance
       currentClothing = result.current_clothing
+      baselineDescription = result.baseline_description
+      currentActivity = result.current_activity
       const split = splitPersonalityTraits(result.personality_traits)
       selectedTraits = split.selected
       customPersonalityTraits = split.custom
-      customTraits = result.custom_traits
+      quirks = result.quirks
+      perks = result.perks
     } catch (err) {
       showError(err instanceof Error ? err.message : "Generation failed")
     } finally {
@@ -84,13 +88,18 @@
     const normalized = normalizeGender(val, "")
     gender = normalized || "female"
   }
-  let physicalDescription = existing?.appearance.physical_description ?? ""
+  let baselineAppearance = existing?.appearance.baseline_appearance ?? ""
+  let currentAppearance = existing?.appearance.current_appearance ?? ""
   let currentClothing = existing?.appearance.current_clothing ?? ""
+  let baselineDescription = existing?.baseline_description ?? ""
+  let currentActivity = existing?.current_activity ?? ""
   let selectedTraits: string[] = initialPersonality.selected
   let customPersonalityInput = ""
   let customPersonalityTraits: string[] = initialPersonality.custom
-  let customTraitInput = ""
-  let customTraits: string[] = existing?.custom_traits ?? []
+  let quirkInput = ""
+  let perkInput = ""
+  let quirks: string[] = existing?.quirks ?? []
+  let perks: string[] = existing?.perks ?? []
   $: totalPersonalityCount = selectedTraits.length + customPersonalityTraits.length
 
   function isBlocked(trait: string): boolean {
@@ -129,23 +138,38 @@
     customPersonalityTraits = customPersonalityTraits.filter((x) => x !== t)
   }
 
-  function addCustomTrait() {
-    const t = customTraitInput.trim()
-    if (t && !customTraits.includes(t)) {
-      customTraits = [...customTraits, t]
+  function addQuirk() {
+    const t = quirkInput.trim()
+    if (t && !quirks.includes(t)) {
+      quirks = [...quirks, t]
     }
-    customTraitInput = ""
+    quirkInput = ""
   }
 
-  function removeCustomTrait(t: string) {
-    customTraits = customTraits.filter((x) => x !== t)
+  function removeQuirk(t: string) {
+    quirks = quirks.filter((x) => x !== t)
+  }
+
+  function addPerk() {
+    const t = perkInput.trim()
+    if (t && !perks.includes(t)) {
+      perks = [...perks, t]
+    }
+    perkInput = ""
+  }
+
+  function removePerk(t: string) {
+    perks = perks.filter((x) => x !== t)
   }
 
   function validate() {
     if (!name.trim()) return "Name is required"
     if (!race.trim()) return "Race is required"
-    if (!physicalDescription.trim()) return "Appearance description is required"
+    if (!baselineAppearance.trim()) return "Baseline appearance is required"
+    if (!currentAppearance.trim()) return "Current appearance is required"
     if (!currentClothing.trim()) return "Current clothing is required"
+    if (!baselineDescription.trim()) return "Baseline description is required"
+    if (!currentActivity.trim()) return "Current activity is required"
     return null
   }
 
@@ -167,12 +191,18 @@
       name: name.trim(),
       race: race.trim(),
       gender,
+      current_location: existing?.current_location ?? "Unknown location",
       appearance: {
-        physical_description: physicalDescription.trim(),
+        baseline_appearance: baselineAppearance.trim(),
+        current_appearance: currentAppearance.trim(),
         current_clothing: currentClothing.trim(),
       },
+      baseline_description: baselineDescription.trim(),
+      current_activity: currentActivity.trim(),
       personality_traits: uniquePersonality([...selectedTraits, ...customPersonalityTraits]).filter((_, i) => i < 5),
-      custom_traits: customTraits,
+      quirks,
+      perks,
+      relationship_scores: existing?.relationship_scores ?? [],
     }
   }
 
@@ -185,7 +215,8 @@
     regeneratingAppearance = true
     try {
       const result = await api.generate.characterAppearance(buildCharacterContext())
-      physicalDescription = result.physical_description
+      baselineAppearance = result.baseline_appearance
+      currentAppearance = result.current_appearance
     } catch (err) {
       showError(err instanceof Error ? err.message : "Regeneration failed")
     } finally {
@@ -201,7 +232,8 @@
       const split = splitPersonalityTraits(result.personality_traits)
       selectedTraits = split.selected
       customPersonalityTraits = split.custom
-      customTraits = result.custom_traits
+      quirks = result.quirks
+      perks = result.perks
     } catch (err) {
       showError(err instanceof Error ? err.message : "Regeneration failed")
     } finally {
@@ -261,7 +293,7 @@
 
     <div class="field">
       <label for="char-name">Name</label>
-      <input id="char-name" type="text" bind:value={name} placeholder="Your character's name" />
+      <input id="char-name" type="text" bind:value={name} placeholder="Full legal name" />
     </div>
 
     <div class="field">
@@ -290,7 +322,7 @@
 
     <div class="field">
       <div class="label-row">
-        <label for="char-appearance">Appearance</label>
+        <label for="char-baseline-appearance">Baseline Appearance</label>
         <button
           class="btn-ghost btn-mini"
           onclick={regenerateAppearance}
@@ -299,10 +331,20 @@
         >
       </div>
       <textarea
-        id="char-appearance"
-        bind:value={physicalDescription}
-        placeholder="Describe your character's physical appearance..."
-        use:autoresize={physicalDescription}
+        id="char-baseline-appearance"
+        bind:value={baselineAppearance}
+        placeholder="Permanent, surgical baseline description..."
+        use:autoresize={baselineAppearance}
+      ></textarea>
+    </div>
+
+    <div class="field">
+      <label for="char-current-appearance">Current Appearance</label>
+      <textarea
+        id="char-current-appearance"
+        bind:value={currentAppearance}
+        placeholder="Current physical state (full description)..."
+        use:autoresize={currentAppearance}
       ></textarea>
     </div>
 
@@ -318,6 +360,26 @@
         bind:value={currentClothing}
         placeholder="What are they wearing?"
         use:autoresize={currentClothing}
+      ></textarea>
+    </div>
+
+    <div class="field">
+      <label for="char-baseline-description">Baseline Description</label>
+      <textarea
+        id="char-baseline-description"
+        bind:value={baselineDescription}
+        placeholder="Where they live, relatives, friends (even off-story)..."
+        use:autoresize={baselineDescription}
+      ></textarea>
+    </div>
+
+    <div class="field">
+      <label for="char-current-activity">Current Activity</label>
+      <textarea
+        id="char-current-activity"
+        bind:value={currentActivity}
+        placeholder="What are they doing right now?"
+        use:autoresize={currentActivity}
       ></textarea>
     </div>
 
@@ -373,26 +435,52 @@
     </div>
 
     <div class="field">
-      <label for="custom-trait-input">Custom Traits <span class="hint">(optional)</span></label>
+      <label for="quirk-input">Quirks <span class="hint">(optional)</span></label>
       <div class="custom-input">
         <input
-          id="custom-trait-input"
+          id="quirk-input"
           type="text"
-          bind:value={customTraitInput}
-          placeholder="e.g. grew up in the forest"
+          bind:value={quirkInput}
+          placeholder="e.g. counts exits on entry"
           onkeydown={(e) => {
             if (e.key === "Enter") {
               e.preventDefault()
-              addCustomTrait()
+              addQuirk()
             }
           }}
         />
-        <button class="btn-ghost" onclick={addCustomTrait}>+ Add</button>
+        <button class="btn-ghost" onclick={addQuirk}>+ Add</button>
       </div>
-      {#if customTraits.length > 0}
+      {#if quirks.length > 0}
         <div class="chips">
-          {#each customTraits as t}
-            <button class="chip selected" onclick={() => removeCustomTrait(t)}>{t} ×</button>
+          {#each quirks as t}
+            <button class="chip selected" onclick={() => removeQuirk(t)}>{t} ×</button>
+          {/each}
+        </div>
+      {/if}
+    </div>
+
+    <div class="field">
+      <label for="perk-input">Perks <span class="hint">(optional)</span></label>
+      <div class="custom-input">
+        <input
+          id="perk-input"
+          type="text"
+          bind:value={perkInput}
+          placeholder="e.g. trained medic"
+          onkeydown={(e) => {
+            if (e.key === "Enter") {
+              e.preventDefault()
+              addPerk()
+            }
+          }}
+        />
+        <button class="btn-ghost" onclick={addPerk}>+ Add</button>
+      </div>
+      {#if perks.length > 0}
+        <div class="chips">
+          {#each perks as t}
+            <button class="chip selected" onclick={() => removePerk(t)}>{t} ×</button>
           {/each}
         </div>
       {/if}

@@ -1,6 +1,12 @@
 <script lang="ts">
   import { onMount } from "svelte"
-  import { api, type MainCharacterState, type NPCState, type StoryCharacterGroup } from "../api/client.js"
+  import {
+    api,
+    type MainCharacterState,
+    type NPCState,
+    type StoryCharacterGroup,
+    type StoryNpcGroup,
+  } from "../api/client.js"
   import { navigate, showError } from "../stores/ui.js"
   import { autoresize } from "./actions/autoresize.js"
   import { loadStoryById } from "./storyLoader.js"
@@ -18,9 +24,15 @@
   let generating = false
   let savedCharacters: StoryCharacterGroup[] = []
   let loadingCharacters = false
+  let loadingNpcs = false
   let showCharacterDropdown = false
+  let savedNpcs: StoryNpcGroup[] = []
+  let selectedPlayableKey: string | null = null
 
-  onMount(loadCharacters)
+  onMount(() => {
+    loadCharacters()
+    loadNpcs()
+  })
 
   async function loadCharacters() {
     loadingCharacters = true
@@ -33,22 +45,94 @@
     }
   }
 
+  async function loadNpcs() {
+    loadingNpcs = true
+    try {
+      savedNpcs = await api.stories.npcs()
+    } catch {
+      showError("Failed to load NPCs")
+    } finally {
+      loadingNpcs = false
+    }
+  }
+
+  function refreshPlayable() {
+    loadCharacters()
+    loadNpcs()
+  }
+
+  type StoryRef = { id: number; title: string; updated_at: string }
+  type PlayableOption = {
+    key: string
+    kind: "character" | "npc"
+    name: string
+    storyLabel: string
+  }
+
+  function formatStoryLabel(stories: StoryRef[]): string {
+    if (!stories || stories.length === 0) return "No story yet"
+    const sorted = [...stories].sort((a, b) => b.updated_at.localeCompare(a.updated_at))
+    const titles = sorted.map((s) => s.title).filter(Boolean)
+    const shown = titles.slice(0, 2)
+    const extra = titles.length - shown.length
+    if (shown.length === 0) return "No story yet"
+    return extra > 0 ? `${shown.join(", ")} +${extra} more` : shown.join(", ")
+  }
+
+  $: playableOptions = [
+    ...savedCharacters.map((c) => ({
+      key: `char_${c.id}`,
+      kind: "character" as const,
+      name: c.character.name,
+      storyLabel: formatStoryLabel(c.stories),
+    })),
+    ...savedNpcs.map((n) => ({
+      key: n.key,
+      kind: "npc" as const,
+      name: n.npc.name,
+      storyLabel: formatStoryLabel(n.stories),
+    })),
+  ]
+
+  $: hasPlayableOptions = playableOptions.length > 0
+
   function toggleCharacterDropdown() {
-    if (loadingCharacters || savedCharacters.length === 0) return
+    if (loadingCharacters || loadingNpcs || !hasPlayableOptions) return
     showCharacterDropdown = !showCharacterDropdown
   }
 
-  function selectCharacter(id: number) {
-    const match = savedCharacters.find((c) => c.id === id)
-    if (match) {
-      pendingCharacter.set(match.character)
-      pendingCharacterId.set(match.id)
+  function selectPlayable(key: string) {
+    const option = playableOptions.find((o) => o.key === key)
+    if (!option) return
+    if (option.kind === "character") {
+      const match = savedCharacters.find((c) => `char_${c.id}` === key)
+      if (match) {
+        pendingCharacter.set(match.character)
+        pendingCharacterId.set(match.id)
+      }
+    } else {
+      const match = savedNpcs.find((n) => n.key === key)
+      if (match) {
+        pendingCharacter.set(match.npc)
+        pendingCharacterId.set(null)
+      }
     }
+    selectedPlayableKey = key
     showCharacterDropdown = false
   }
 
-  $: selectedCharacterLabel =
-    savedCharacters.find((c) => c.id === $pendingCharacterId)?.character.name ?? "Select a character"
+  $: if ($pendingCharacterId) {
+    selectedPlayableKey = `char_${$pendingCharacterId}`
+  } else if (!$pendingCharacter && selectedPlayableKey?.startsWith("char_")) {
+    selectedPlayableKey = null
+  }
+
+  $: selectedOption = playableOptions.find((o) => o.key === selectedPlayableKey) ?? null
+  $: selectedCharacterLabel = selectedOption
+    ? `${selectedOption.name} — ${selectedOption.storyLabel}${selectedOption.kind === "npc" ? " (NPC)" : ""}`
+    : $pendingCharacter
+      ? $pendingCharacter.name
+      : "Select a character"
 
   async function generate() {
     if (!$pendingStoryGenerateDescription.trim() || !$pendingCharacter) return
@@ -182,9 +266,11 @@
             <div class="npc-card">
               <div class="npc-name">{npc.name}</div>
               <div class="npc-details">
-                {npc.race} · {npc.relationship_to_player || "Unknown"} · {npc.last_known_location || "Unknown"}
+                {npc.race} · {npc.current_location || "Unknown"}
               </div>
-              <div class="npc-traits">{npc.personality_traits.join(", ") || "No traits"}</div>
+              <div class="npc-traits">
+                {[...npc.personality_traits, ...npc.quirks, ...npc.perks].join(", ") || "No traits"}
+              </div>
             </div>
           {/each}
         </div>
@@ -200,14 +286,14 @@
             id="saved-character"
             class="saved-select-btn"
             onclick={toggleCharacterDropdown}
-            disabled={loadingCharacters || savedCharacters.length === 0}
+            disabled={loadingCharacters || loadingNpcs || !hasPlayableOptions}
             aria-haspopup="listbox"
             aria-expanded={showCharacterDropdown}
           >
             <span
-              >{loadingCharacters
+              >{loadingCharacters || loadingNpcs
                 ? "Loading characters..."
-                : savedCharacters.length === 0
+                : !hasPlayableOptions
                   ? "No characters yet"
                   : selectedCharacterLabel}</span
             >
@@ -215,21 +301,25 @@
           </button>
           {#if showCharacterDropdown}
             <div class="saved-select-menu" role="listbox">
-              {#each savedCharacters as c}
+              {#each playableOptions as option}
                 <button
                   class="saved-select-item"
                   role="option"
-                  aria-selected={$pendingCharacterId === c.id}
-                  onclick={() => selectCharacter(c.id)}
+                  aria-selected={selectedPlayableKey === option.key}
+                  onclick={() => selectPlayable(option.key)}
                 >
-                  {c.character.name}
+                  <span class="saved-select-name">
+                    {option.name}
+                    {option.kind === "npc" ? " (NPC)" : ""}
+                  </span>
+                  <span class="saved-select-meta">{option.storyLabel}</span>
                 </button>
               {/each}
             </div>
           {/if}
         </div>
         <button class="btn-ghost" onclick={() => navigate("char-create")}> New </button>
-        <button class="btn-ghost" onclick={loadCharacters} disabled={loadingCharacters}> Refresh </button>
+        <button class="btn-ghost" onclick={refreshPlayable} disabled={loadingCharacters || loadingNpcs}> Refresh </button>
       </div>
     </div>
 
@@ -239,7 +329,7 @@
         <div class="char-name">{charData.name}</div>
         <div class="char-details">
           {charData.gender} ·
-          {[...charData.personality_traits, ...charData.custom_traits].join(", ") || "No traits"}
+          {[...charData.personality_traits, ...charData.quirks, ...charData.perks].join(", ") || "No traits"}
         </div>
         <button class="btn-ghost small" onclick={() => navigate("char-create")}>Edit Character</button>
       </div>
@@ -345,9 +435,20 @@
     font-size: 0.95rem;
     padding: 0.55rem 0.75rem;
     cursor: pointer;
+    display: flex;
+    flex-direction: column;
+    gap: 0.15rem;
   }
   .saved-select-item:hover {
     background: var(--bg-action);
+  }
+  .saved-select-name {
+    font-size: 0.95rem;
+    color: var(--text);
+  }
+  .saved-select-meta {
+    font-size: 0.75rem;
+    color: var(--text-dim);
   }
   .npc-summary {
     background: var(--bg-raised);

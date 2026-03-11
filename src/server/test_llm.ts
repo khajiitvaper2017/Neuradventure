@@ -3,21 +3,28 @@ import { buildTurnMessages, callLLM, testConnection } from "./llm.js"
 import type { MainCharacterState, NPCState, WorldState } from "./models.js"
 
 const character: MainCharacterState = {
-  name: "Kira",
+  name: "Kira Solene",
   race: "Human",
   gender: "female",
+  current_location: "The Rusted Flagon tavern",
   appearance: {
-    physical_description: "tall, athletic, dark braided hair, green eyes",
+    baseline_appearance: "172 cm, athletic build, dark braided hair, green eyes, olive skin",
+    current_appearance: "172 cm, athletic build, dark braided hair, green eyes, olive skin",
     current_clothing: "worn leather armor, dark cloak",
   },
-  personality_traits: ["brave", "curious"],
-  custom_traits: ["grew up in the forest"],
+  baseline_description:
+    "Lives in Ashford's north quarter; estranged father in Graybend; two close friends in the local militia.",
+  current_activity: "Sits at the tavern bar, scanning the room.",
+  personality_traits: ["Brave", "Curious"],
+  quirks: ["Counts exits on entry"],
+  perks: ["Skilled tracker"],
+  relationship_scores: [],
   inventory: [{ name: "Dagger", description: "a small iron dagger" }],
 }
 
 const world: WorldState = {
   current_scene: "The Rusted Flagon tavern",
-  day_of_week: "Tuesday",
+  current_date: "2026-03-11",
   time_of_day: "21:00",
   recent_events_summary: "You arrived in the village of Ashford after a long journey through the rain.",
   locations: [

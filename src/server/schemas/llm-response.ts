@@ -1,7 +1,6 @@
 import { z } from "zod"
 import { NPCStateUpdateBaseSchema } from "./npc-state-update-base.js"
-import { PersonalityTraitsSchema } from "./personality-traits.js"
-import { InventoryItemSchema, WorldStateSchema } from "./game-state.js"
+import { InventoryItemSchema, WorldStateSchema, NPCStateSchema, RelationshipScoresSchema } from "./game-state.js"
 import { desc } from "./field-descriptions.js"
 
 type NPCStateUpdateBase = z.infer<typeof NPCStateUpdateBaseSchema>
@@ -10,33 +9,27 @@ export const buildNPCStateUpdateSchema = (nameSchema: z.ZodType<string>): z.ZodT
   const base = NPCStateUpdateBaseSchema.extend({ name: nameSchema })
   const withRace = base.extend({ race: z.string().min(1).describe(desc("llm.npc_update.race")) })
   const withGender = base.extend({ gender: z.string().min(1).describe(desc("llm.npc_update.gender")) })
-  const withLocation = base.extend({ set_location: z.string().min(1).describe(desc("llm.npc_update.set_location")) })
+  const withLocation = base.extend({
+    set_current_location: z.string().min(1).describe(desc("llm.npc_update.set_current_location")),
+  })
   const withAppearance = base.extend({
-    set_appearance: z.string().min(1).describe(desc("llm.npc_update.set_appearance")),
+    set_current_appearance: z.string().min(1).describe(desc("llm.npc_update.set_current_appearance")),
   })
-  const withClothing = base.extend({ set_clothing: z.string().min(1).describe(desc("llm.npc_update.set_clothing")) })
-  const withRelationship = base.extend({
-    set_relationship: z.string().min(1).describe(desc("llm.npc_update.set_relationship")),
+  const withClothing = base.extend({
+    set_current_clothing: z.string().min(1).describe(desc("llm.npc_update.set_current_clothing")),
   })
-  const withNotes = base.extend({ set_notes: z.string().min(1).describe(desc("llm.npc_update.set_notes")) })
-  return z.union([withRace, withGender, withLocation, withAppearance, withClothing, withRelationship, withNotes])
+  const withActivity = base.extend({
+    set_current_activity: z.string().min(1).describe(desc("llm.npc_update.set_current_activity")),
+  })
+  const withRelationships = base.extend({
+    set_relationship_scores: RelationshipScoresSchema.describe(desc("llm.npc_update.set_relationship_scores")),
+  })
+  return z.union([withRace, withGender, withLocation, withAppearance, withClothing, withActivity, withRelationships])
 }
 
 export const NPCStateUpdateSchema = buildNPCStateUpdateSchema(z.string().min(1).describe(desc("llm.npc_update.name")))
 
-export const NPCCreationSchema = z
-  .object({
-    name: z.string().min(1).describe(desc("llm.npc_creation.name")),
-    race: z.string().min(1).describe(desc("llm.npc_creation.race")),
-    gender: z.string().min(1).describe(desc("llm.npc_creation.gender")),
-    personality_traits: PersonalityTraitsSchema.describe(desc("llm.npc_creation.personality_traits")),
-    set_location: z.string().min(1).describe(desc("llm.npc_creation.set_location")),
-    set_appearance: z.string().min(1).describe(desc("llm.npc_creation.set_appearance")),
-    set_clothing: z.string().min(1).describe(desc("llm.npc_creation.set_clothing")),
-    set_relationship: z.string().min(1).describe(desc("llm.npc_creation.set_relationship")),
-    set_notes: z.string().min(1).describe(desc("llm.npc_creation.set_notes")),
-  })
-  .strict()
+export const NPCCreationSchema = NPCStateSchema
 
 export const AppearanceChangeSection = z.string().min(1).describe(desc("llm.turn_response.appearance_change"))
 

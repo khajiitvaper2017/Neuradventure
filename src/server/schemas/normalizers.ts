@@ -1,4 +1,4 @@
-import { DAY_NAMES, DEFAULT_RECENT_EVENTS_SUMMARY } from "./constants.js"
+import { DATE_REGEX, DEFAULT_RECENT_EVENTS_SUMMARY } from "./constants.js"
 import { npcTraitEnumValues, npcTraitLookup } from "./npc-traits.js"
 
 type NormalizedLocationItem = { name: string; description: string }
@@ -9,13 +9,31 @@ type NormalizedLocation = {
   available_items: NormalizedLocationItem[]
 }
 
-export function normalizeDayOfWeek(value: unknown): string {
+export function normalizeCurrentDate(value: unknown): string {
   if (typeof value === "string") {
-    const trimmed = value.trim().toLowerCase()
-    const match = DAY_NAMES.find((day) => day.toLowerCase() === trimmed)
-    if (match) return match
+    const trimmed = value.trim()
+    const match = DATE_REGEX.exec(trimmed)
+    if (match) {
+      const year = Number(match[1])
+      const month = Number(match[2])
+      const day = Number(match[3])
+      if (
+        Number.isInteger(year) &&
+        Number.isInteger(month) &&
+        Number.isInteger(day) &&
+        month >= 1 &&
+        month <= 12 &&
+        day >= 1 &&
+        day <= 31
+      ) {
+        const utc = new Date(Date.UTC(year, month - 1, day))
+        if (utc.getUTCFullYear() === year && utc.getUTCMonth() === month - 1 && utc.getUTCDate() === day) {
+          return trimmed
+        }
+      }
+    }
   }
-  return "Monday"
+  return new Date().toISOString().slice(0, 10)
 }
 
 export function normalizeTimeOfDay(value: unknown): string {
@@ -112,16 +130,43 @@ export function normalizePersonalityTraits(value: unknown): string[] {
   return traits.slice(0, 5)
 }
 
-export function normalizeAppearance(value: unknown): { physical_description: string; current_clothing: string } {
+export function normalizeTraitList(value: unknown, max = 6): string[] {
+  const items: string[] = []
+  if (Array.isArray(value)) {
+    for (const entry of value) {
+      if (typeof entry !== "string") continue
+      const trimmed = entry.trim()
+      if (!trimmed) continue
+      if (!items.includes(trimmed)) items.push(trimmed)
+    }
+  }
+  return items.slice(0, max)
+}
+
+export function normalizeAppearance(value: unknown): {
+  baseline_appearance: string
+  current_appearance: string
+  current_clothing: string
+} {
   if (value && typeof value === "object") {
     const obj = value as Record<string, unknown>
+    const baseline = normalizeNonEmptyString(
+      obj.baseline_appearance ?? obj.physical_description,
+      "Unknown baseline appearance",
+    )
+    const current = normalizeNonEmptyString(
+      obj.current_appearance ?? obj.physical_description ?? obj.baseline_appearance,
+      baseline || "Unknown appearance",
+    )
     return {
-      physical_description: normalizeNonEmptyString(obj.physical_description, "Unknown appearance"),
+      baseline_appearance: baseline,
+      current_appearance: current,
       current_clothing: normalizeNonEmptyString(obj.current_clothing, "Unknown clothing"),
     }
   }
   return {
-    physical_description: "Unknown appearance",
+    baseline_appearance: "Unknown baseline appearance",
+    current_appearance: "Unknown appearance",
     current_clothing: "Unknown clothing",
   }
 }
@@ -137,6 +182,34 @@ function normalizeStringList(value: unknown): string[] {
     }
   }
   return items
+}
+
+type NormalizedRelationshipScore = { name: string; affinity: number }
+
+function normalizeAffinity(value: unknown): number {
+  const n = typeof value === "number" ? value : Number(value)
+  if (!Number.isFinite(n)) return 0
+  const rounded = Math.round(n)
+  if (rounded < -100) return -100
+  if (rounded > 100) return 100
+  return rounded
+}
+
+export function normalizeRelationshipScores(value: unknown): NormalizedRelationshipScore[] {
+  const scores: NormalizedRelationshipScore[] = []
+  if (Array.isArray(value)) {
+    for (const entry of value) {
+      if (!entry || typeof entry !== "object") continue
+      const obj = entry as Record<string, unknown>
+      const name = normalizeNonEmptyString(obj.name, "")
+      if (!name) continue
+      const affinity = normalizeAffinity(obj.affinity)
+      const key = name.trim().toLowerCase()
+      if (scores.some((s) => s.name.trim().toLowerCase() === key)) continue
+      scores.push({ name, affinity })
+    }
+  }
+  return scores
 }
 
 function normalizeLocationItems(value: unknown): NormalizedLocationItem[] {

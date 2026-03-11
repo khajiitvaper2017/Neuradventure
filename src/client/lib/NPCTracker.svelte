@@ -19,21 +19,6 @@
 
   let { inline = false }: { inline?: boolean } = $props()
 
-  const RELATIONSHIP_COLORS: Record<string, string> = {
-    hostile: "#c0392b",
-    ally: "#27ae60",
-    friendly: "#2980b9",
-    neutral: "#888",
-  }
-
-  function relationshipColor(rel: string): string {
-    const key = rel.toLowerCase()
-    for (const [k, v] of Object.entries(RELATIONSHIP_COLORS)) {
-      if (key.includes(k)) return v
-    }
-    return "#888"
-  }
-
   function npcFieldId(npc: NPCState, field: string): string {
     const base = npc.name
       .toLowerCase()
@@ -54,6 +39,38 @@
   function updateField(field: EditField, event: Event) {
     const target = event.target as HTMLInputElement | HTMLTextAreaElement
     field.onInput(target.value)
+  }
+
+  function clampAffinity(value: number): number {
+    if (!Number.isFinite(value)) return 0
+    if (value < -100) return -100
+    if (value > 100) return 100
+    return Math.round(value)
+  }
+
+  function formatRelationshipScores(scores: NPCState["relationship_scores"]): string {
+    if (!scores || scores.length === 0) return ""
+    return scores.map((score) => `${score.name}: ${score.affinity}`).join("\n")
+  }
+
+  function parseRelationshipScores(text: string): NPCState["relationship_scores"] {
+    const lines = text
+      .split("\n")
+      .map((line) => line.trim())
+      .filter(Boolean)
+    const scores: NPCState["relationship_scores"] = []
+    const seen = new Set<string>()
+    for (const line of lines) {
+      const match = /^(.*?)\s*[:|]\s*(-?\d+)/.exec(line)
+      if (!match) continue
+      const name = match[1].trim()
+      if (!name) continue
+      const key = name.toLowerCase()
+      if (seen.has(key)) continue
+      seen.add(key)
+      scores.push({ name, affinity: clampAffinity(Number(match[2])) })
+    }
+    return scores
   }
 
   function npcEditFields(npc: NPCState): EditField[] {
@@ -80,46 +97,74 @@
         onInput: (v) => (draft.gender = v),
       },
       {
-        id: npcFieldId(npc, "relationship"),
-        label: "Relationship",
-        kind: "input",
-        value: draft.relationship,
-        onInput: (v) => (draft.relationship = v),
-      },
-      {
         id: npcFieldId(npc, "location"),
-        label: "Last Known Location",
+        label: "Current Location",
         kind: "input",
         value: draft.location,
         onInput: (v) => (draft.location = v),
       },
       {
-        id: npcFieldId(npc, "appearance"),
-        label: "Appearance",
+        id: npcFieldId(npc, "baseline-appearance"),
+        label: "Baseline Appearance",
         kind: "textarea",
-        value: draft.appearance,
-        onInput: (v) => (draft.appearance = v),
+        value: draft.baselineAppearance,
+        onInput: (v) => (draft.baselineAppearance = v),
+      },
+      {
+        id: npcFieldId(npc, "current-appearance"),
+        label: "Current Appearance",
+        kind: "textarea",
+        value: draft.currentAppearance,
+        onInput: (v) => (draft.currentAppearance = v),
       },
       {
         id: npcFieldId(npc, "clothing"),
-        label: "Clothing",
+        label: "Current Clothing",
         kind: "textarea",
         value: draft.clothing,
         onInput: (v) => (draft.clothing = v),
       },
       {
+        id: npcFieldId(npc, "baseline-description"),
+        label: "Baseline Description",
+        kind: "textarea",
+        value: draft.baselineDescription,
+        onInput: (v) => (draft.baselineDescription = v),
+      },
+      {
+        id: npcFieldId(npc, "current-activity"),
+        label: "Current Activity",
+        kind: "textarea",
+        value: draft.currentActivity,
+        onInput: (v) => (draft.currentActivity = v),
+      },
+      {
         id: npcFieldId(npc, "traits"),
-        label: "Traits (comma separated)",
+        label: "Personality Traits (comma separated)",
         kind: "input",
         value: draft.traits,
         onInput: (v) => (draft.traits = v),
       },
       {
-        id: npcFieldId(npc, "notes"),
-        label: "Notes",
+        id: npcFieldId(npc, "quirks"),
+        label: "Quirks (comma separated)",
+        kind: "input",
+        value: draft.quirks,
+        onInput: (v) => (draft.quirks = v),
+      },
+      {
+        id: npcFieldId(npc, "perks"),
+        label: "Perks (comma separated)",
+        kind: "input",
+        value: draft.perks,
+        onInput: (v) => (draft.perks = v),
+      },
+      {
+        id: npcFieldId(npc, "relationships"),
+        label: "Relationship Scores (Name: affinity per line)",
         kind: "textarea",
-        value: draft.notes,
-        onInput: (v) => (draft.notes = v),
+        value: draft.relationshipScores,
+        onInput: (v) => (draft.relationshipScores = v),
       },
     ]
   }
@@ -130,12 +175,16 @@
       name: npc.name,
       race: npc.race,
       gender: npc.gender,
-      relationship: npc.relationship_to_player,
-      location: npc.last_known_location,
-      appearance: npc.appearance.physical_description,
+      location: npc.current_location,
+      baselineAppearance: npc.appearance.baseline_appearance,
+      currentAppearance: npc.appearance.current_appearance,
       clothing: npc.appearance.current_clothing,
-      notes: npc.notes ?? "",
+      baselineDescription: npc.baseline_description,
+      currentActivity: npc.current_activity,
       traits: npc.personality_traits.join(", "),
+      quirks: npc.quirks.join(", "),
+      perks: npc.perks.join(", "),
+      relationshipScores: formatRelationshipScores(npc.relationship_scores),
     }
   }
 
@@ -152,25 +201,42 @@
     const name = draft.name.trim()
     const race = draft.race.trim()
     const gender = draft.gender.trim()
-    const relationship = draft.relationship.trim()
     const location = draft.location.trim()
-    const appearance = draft.appearance.trim()
+    const baselineAppearance = draft.baselineAppearance.trim()
+    const currentAppearance = draft.currentAppearance.trim()
     const clothing = draft.clothing.trim()
-    const notes = draft.notes.trim() || "None"
-    if (!name || !race || !gender || !relationship || !location || !appearance || !clothing) {
-      showError("Name, race, gender, relationship, location, appearance, and clothing are required.")
+    const baselineDescription = draft.baselineDescription.trim()
+    const currentActivity = draft.currentActivity.trim()
+    if (!name || !race || !gender || !location || !baselineAppearance || !currentAppearance || !clothing) {
+      showError("Name, race, gender, location, baseline appearance, current appearance, and clothing are required.")
+      return
+    }
+    if (!baselineDescription || !currentActivity) {
+      showError("Baseline description and current activity are required.")
       return
     }
     const traits = splitCsv(draft.traits)
+    const quirks = splitCsv(draft.quirks)
+    const perks = splitCsv(draft.perks)
+    const relationshipScores = parseRelationshipScores(draft.relationshipScores)
+    const existingNpc = $npcs.find((npc) => npc.name === editingNpcName)
     const updatedNpc: NPCState = {
       name,
       race,
       gender,
-      relationship_to_player: relationship,
-      last_known_location: location,
-      appearance: { physical_description: appearance, current_clothing: clothing },
+      current_location: location,
+      appearance: {
+        baseline_appearance: baselineAppearance,
+        current_appearance: currentAppearance,
+        current_clothing: clothing,
+      },
+      baseline_description: baselineDescription,
+      current_activity: currentActivity,
       personality_traits: traits,
-      notes,
+      quirks,
+      perks,
+      relationship_scores: relationshipScores,
+      inventory: existingNpc?.inventory ?? [],
     }
     const updatedList = $npcs.map((npc) => (npc.name === editingNpcName ? updatedNpc : npc))
     savingNpc = true
@@ -243,23 +309,31 @@
     name: string
     race: string
     gender: string
-    relationship: string
     location: string
-    appearance: string
+    baselineAppearance: string
+    currentAppearance: string
     clothing: string
-    notes: string
+    baselineDescription: string
+    currentActivity: string
     traits: string
+    quirks: string
+    perks: string
+    relationshipScores: string
   }
   let draft = $state<NpcDraft>({
     name: "",
     race: "",
     gender: "",
-    relationship: "",
     location: "",
-    appearance: "",
+    baselineAppearance: "",
+    currentAppearance: "",
     clothing: "",
-    notes: "",
+    baselineDescription: "",
+    currentActivity: "",
     traits: "",
+    quirks: "",
+    perks: "",
+    relationshipScores: "",
   })
 
   function createRequestId(): string {
@@ -309,11 +383,16 @@
       npc.name,
       npc.race,
       npc.gender,
-      npc.relationship_to_player,
-      npc.last_known_location,
-      npc.appearance.physical_description,
+      npc.current_location,
+      npc.appearance.baseline_appearance,
+      npc.appearance.current_appearance,
       npc.appearance.current_clothing,
-      npc.notes ?? "",
+      npc.baseline_description,
+      npc.current_activity,
+      npc.personality_traits.join(","),
+      npc.quirks.join(","),
+      npc.perks.join(","),
+      (npc.relationship_scores ?? []).map((s) => `${s.name}:${s.affinity}`).join(","),
     ].join("|")
   }
 
@@ -468,14 +547,6 @@
             <div class="npc-race">{npc.race}{npc.gender ? ` · ${npc.gender}` : ""}</div>
           </div>
           <div class="npc-header-actions">
-            <div
-              class="npc-rel-badge"
-              style="color: {relationshipColor(npc.relationship_to_player)}; border-color: {relationshipColor(
-                npc.relationship_to_player,
-              )}"
-            >
-              {npc.relationship_to_player}
-            </div>
             <button
               class="npc-edit-btn"
               onclick={() => startNpcEdit(npc)}
@@ -526,12 +597,17 @@
         {:else}
           <div class="npc-detail-row">
             <IconMapPin size={13} strokeWidth={1.5} className="npc-icon" />
-            <span>{npc.last_known_location}</span>
+            <span>{npc.current_location}</span>
           </div>
 
           <div class="npc-detail-row">
             <IconFace size={13} strokeWidth={1.5} className="npc-icon" />
-            <span>{npc.appearance.physical_description}</span>
+            <span>{npc.appearance.baseline_appearance}</span>
+          </div>
+
+          <div class="npc-detail-row">
+            <IconFace size={13} strokeWidth={1.5} className="npc-icon" />
+            <span>{npc.appearance.current_appearance}</span>
           </div>
 
           <div class="npc-detail-row muted">
@@ -539,21 +615,44 @@
             <span>{npc.appearance.current_clothing}</span>
           </div>
 
-          {#if npc.personality_traits.length > 0}
+          <div class="npc-detail-row">
+            <IconDocument size={13} strokeWidth={1.5} className="npc-icon" />
+            <span>{npc.baseline_description}</span>
+          </div>
+
+          <div class="npc-detail-row">
+            <IconDocument size={13} strokeWidth={1.5} className="npc-icon" />
+            <span>{npc.current_activity}</span>
+          </div>
+
+          {#if npc.personality_traits.length > 0 || npc.quirks.length > 0 || npc.perks.length > 0}
             <div class="npc-traits">
               <IconStar size={13} strokeWidth={1.5} className="npc-icon npc-traits-icon" />
               <div class="chips">
                 {#each npc.personality_traits as trait}
-                  <span class="chip">{trait}</span>
+                  <span class="chip">Trait · {trait}</span>
+                {/each}
+                {#each npc.quirks as trait}
+                  <span class="chip">Quirk · {trait}</span>
+                {/each}
+                {#each npc.perks as trait}
+                  <span class="chip">Perk · {trait}</span>
                 {/each}
               </div>
             </div>
           {/if}
 
-          {#if npc.notes}
-            <div class="npc-notes">
-              <IconDocument size={13} strokeWidth={1.5} className="npc-icon npc-notes-icon" />
-              <span>{npc.notes}</span>
+          {#if npc.relationship_scores.length > 0}
+            <div class="npc-relationships">
+              <IconUsers size={13} strokeWidth={1.5} className="npc-icon npc-rel-icon" />
+              <ul class="npc-rel-list">
+                {#each npc.relationship_scores as score}
+                  <li>
+                    <span class="npc-rel-name">{score.name}</span>
+                    <span class="npc-rel-affinity">{score.affinity}</span>
+                  </li>
+                {/each}
+              </ul>
             </div>
           {/if}
         {/if}
@@ -709,19 +808,6 @@
     font-style: italic;
   }
 
-  .npc-rel-badge {
-    font-size: 0.7rem;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-    border: 1px solid;
-    border-radius: var(--radius-pill);
-    padding: 0.15rem 0.5rem;
-    white-space: nowrap;
-    flex-shrink: 0;
-    margin-top: 0.1rem;
-  }
-
   /* ── Detail rows with icons ────────────────────────── */
   .npc-detail-row {
     display: flex;
@@ -756,18 +842,39 @@
     gap: 0.5rem;
   }
 
-  .npc-notes {
+  .npc-relationships {
     display: flex;
     align-items: flex-start;
     gap: 0.4rem;
-    font-size: 0.8rem;
-    color: var(--text-dim);
     margin-top: 0.15rem;
-    border-top: 1px solid var(--border);
-    padding-top: 0.4rem;
-    line-height: 1.4;
   }
-  :global(.npc-notes-icon) {
+
+  .npc-rel-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    font-size: 0.8rem;
+  }
+
+  .npc-rel-list li {
+    display: flex;
+    justify-content: space-between;
+    gap: 0.5rem;
+  }
+
+  .npc-rel-name {
+    color: var(--text);
+  }
+
+  .npc-rel-affinity {
+    color: var(--text-dim);
+    font-variant-numeric: tabular-nums;
+  }
+
+  :global(.npc-rel-icon) {
     margin-top: 1px;
   }
 

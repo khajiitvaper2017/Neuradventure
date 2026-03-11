@@ -1,8 +1,8 @@
 import { z } from "zod"
 import {
   CharacterAppearanceSchema,
+  RelationshipScoresSchema,
   MainCharacterStateSchema,
-  NPCStateSchema,
   NPCStateStoredSchema,
 } from "./game-state.js"
 import { desc } from "./field-descriptions.js"
@@ -11,9 +11,14 @@ export const CreateCharacterRequestSchema = z.object({
   name: z.string().min(1).describe(desc("requests.create_character.name")),
   race: z.string().min(1).describe(desc("requests.create_character.race")),
   gender: z.string().min(1).describe(desc("requests.create_character.gender")),
+  current_location: z.string().min(1).describe(desc("requests.create_character.current_location")),
   appearance: CharacterAppearanceSchema.describe(desc("requests.create_character.appearance")),
+  baseline_description: z.string().min(1).describe(desc("requests.create_character.baseline_description")),
+  current_activity: z.string().min(1).describe(desc("requests.create_character.current_activity")),
   personality_traits: z.array(z.string()).describe(desc("requests.create_character.personality_traits")),
-  custom_traits: z.array(z.string()).describe(desc("requests.create_character.custom_traits")),
+  quirks: z.array(z.string()).describe(desc("requests.create_character.quirks")),
+  perks: z.array(z.string()).describe(desc("requests.create_character.perks")),
+  relationship_scores: RelationshipScoresSchema.describe(desc("requests.create_character.relationship_scores")),
 })
 
 export const UpdateCharacterRequestSchema = CreateCharacterRequestSchema.partial()
@@ -28,13 +33,20 @@ export const CreateStoryRequestSchema = z.object({
       name: z.string().min(1).describe(desc("requests.create_story_character.name")),
       race: z.string().min(1).describe(desc("requests.create_story_character.race")),
       gender: z.string().min(1).describe(desc("requests.create_story_character.gender")),
+      current_location: z.string().min(1).describe(desc("requests.create_story_character.current_location")),
       appearance: CharacterAppearanceSchema.describe(desc("requests.create_story_character.appearance")),
+      baseline_description: z.string().min(1).describe(desc("requests.create_story_character.baseline_description")),
+      current_activity: z.string().min(1).describe(desc("requests.create_story_character.current_activity")),
       personality_traits: z.array(z.string()).describe(desc("requests.create_story_character.personality_traits")),
-      custom_traits: z.array(z.string()).describe(desc("requests.create_story_character.custom_traits")),
+      quirks: z.array(z.string()).describe(desc("requests.create_story_character.quirks")),
+      perks: z.array(z.string()).describe(desc("requests.create_story_character.perks")),
+      relationship_scores: RelationshipScoresSchema.describe(
+        desc("requests.create_story_character.relationship_scores"),
+      ),
     })
     .describe(desc("requests.create_story.character_data"))
     .optional(),
-  npcs: z.array(NPCStateSchema).optional().describe(desc("requests.create_story.npcs")),
+  npcs: z.array(NPCStateStoredSchema).optional().describe(desc("requests.create_story.npcs")),
 })
 
 export const UpdateStoryRequestSchema = z.object({
