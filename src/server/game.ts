@@ -11,7 +11,7 @@ import {
 } from "./models.js"
 type NPCUpdateArray = Extract<TurnResponse["npc_changes"], { has_updates: true }>["updates"]
 import * as db from "./db.js"
-import { buildTurnMessages, callLLM, getCtxLimitCached } from "./llm.js"
+import { buildTurnMessages, callLLM, generatePlayerAction, getCtxLimitCached } from "./llm.js"
 
 // ─── State Application ─────────────────────────────────────────────────────────
 
@@ -230,6 +230,25 @@ export async function processTurn(
     npcs: newNpcs,
     llm_warnings: llmWarnings.length > 0 ? llmWarnings : undefined,
   }
+}
+
+export async function impersonatePlayerAction(
+  storyId: number,
+  actionMode: string,
+): Promise<{ player_action: string }> {
+  const story = db.getStory(storyId)
+  if (!story) throw new Error(`Story ${storyId} not found`)
+
+  const character = MainCharacterStateSchema.parse(JSON.parse(story.character_state_json))
+  const world = WorldStateStoredSchema.parse(JSON.parse(story.world_state_json))
+  const npcs = (JSON.parse(story.npc_states_json) as unknown[]).map((n) => NPCStateStoredSchema.parse(n))
+  const initial = parseInitialStorySnapshot(story).character
+  const recentTurns = db.getTurnsForStory(storyId)
+  const ctxLimit = getCtxLimitCached()
+
+  const action = await generatePlayerAction(character, world, npcs, recentTurns, actionMode, initial, ctxLimit)
+  if (!action.trim()) throw new Error("LLM returned empty player action")
+  return { player_action: action.trim() }
 }
 
 function parseTurnSnapshot(turn: db.TurnRow): { character: MainCharacterState; world: WorldState; npcs: NPCState[] } {

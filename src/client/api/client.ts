@@ -131,6 +131,10 @@ export interface TurnResult {
   llm_warnings?: string[]
 }
 
+export interface ImpersonateResult {
+  player_action: string
+}
+
 export interface CancelLastResult {
   removed_turn_id: number
   character: MainCharacterState
@@ -301,6 +305,11 @@ export const api = {
       }),
     regenerateLast: (storyId: number, actionMode: "do" | "say" | "story") =>
       request<TurnResult>("/api/turns/regenerate-last", {
+        method: "POST",
+        body: JSON.stringify({ story_id: storyId, action_mode: actionMode }),
+      }),
+    impersonate: (storyId: number, actionMode: "do" | "say" | "story") =>
+      request<ImpersonateResult>("/api/turns/impersonate", {
         method: "POST",
         body: JSON.stringify({ story_id: storyId, action_mode: actionMode }),
       }),

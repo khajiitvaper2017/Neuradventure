@@ -5,6 +5,7 @@
   import { autoresize } from "./actions/autoresize.js"
   import IconDots from "../icons/IconDots.svelte"
   import IconDownload from "../icons/IconDownload.svelte"
+  import IconFace from "../icons/IconFace.svelte"
   import IconHome from "../icons/IconHome.svelte"
   import IconPencilSquare from "../icons/IconPencilSquare.svelte"
   import IconSend from "../icons/IconSend.svelte"
@@ -51,6 +52,7 @@
   let canUndoCancel = $state(false)
   let flashScene = $state(false)
   let flashOpening = $state(false)
+  let isImpersonating = $state(false)
   let lastSceneText = ""
   let lastOpeningText = ""
   let baselineWorldSet = false
@@ -210,6 +212,29 @@
       }
     } finally {
       isGenerating.set(false)
+    }
+  }
+
+  async function impersonatePlayer() {
+    if ($isGenerating || isImpersonating || !$currentStoryId) return
+    isImpersonating = true
+    try {
+      const result = await api.turns.impersonate($currentStoryId, actionMode)
+      const action = result.player_action?.trim()
+      if (!action) {
+        showQuietNotice("Impersonate returned an empty action.")
+        return
+      }
+      input = action
+      await tick()
+    } catch (err) {
+      if (err instanceof ApiError) {
+        showError(err.message)
+      } else {
+        showError("Impersonate failed. Is KoboldCpp running?")
+      }
+    } finally {
+      isImpersonating = false
     }
   }
 
@@ -985,6 +1010,20 @@
         ↻
       </button>
 
+      <button
+        class="mode-impersonate"
+        onclick={impersonatePlayer}
+        disabled={$isGenerating || isImpersonating}
+        title="Impersonate player action"
+        aria-label="Impersonate player action"
+      >
+        {#if isImpersonating}
+          <IconSpinner className="spin" size={14} strokeWidth={2.2} />
+        {:else}
+          <IconFace size={14} strokeWidth={2} />
+        {/if}
+      </button>
+
       <button class="send-btn" onclick={sendTurn} disabled={$isGenerating} aria-label="Send">
         {#if $isGenerating}
           <IconSpinner className="spin" size={16} strokeWidth={2.2} />
@@ -1516,7 +1555,8 @@
   }
   .mode-undo,
   .mode-undo-cancel,
-  .mode-regen {
+  .mode-regen,
+  .mode-impersonate {
     background: var(--bg-action);
     border: 1px solid var(--border);
     color: var(--text-dim);
@@ -1539,15 +1579,20 @@
   .mode-regen {
     margin-left: 0.25rem;
   }
+  .mode-impersonate {
+    margin-left: 0.25rem;
+  }
   .mode-undo:hover:not(:disabled),
   .mode-undo-cancel:hover:not(:disabled),
-  .mode-regen:hover:not(:disabled) {
+  .mode-regen:hover:not(:disabled),
+  .mode-impersonate:hover:not(:disabled) {
     color: var(--text);
     border-color: var(--border-hover);
   }
   .mode-undo:disabled,
   .mode-undo-cancel:disabled,
-  .mode-regen:disabled {
+  .mode-regen:disabled,
+  .mode-impersonate:disabled {
     cursor: not-allowed;
     opacity: 0.4;
   }

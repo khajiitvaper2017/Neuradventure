@@ -3,6 +3,7 @@ import { zValidator } from "@hono/zod-validator"
 import * as db from "../db.js"
 import {
   CancelLastRequestSchema,
+  ImpersonateRequestSchema,
   RegenerateLastRequestSchema,
   SelectTurnVariantRequestSchema,
   TakeTurnRequestSchema,
@@ -13,6 +14,7 @@ import {
 import {
   buildTurnResultFromRow,
   cancelLastTurn,
+  impersonatePlayerAction,
   processTurn,
   regenerateLastTurn,
   selectTurnVariant,
@@ -117,6 +119,22 @@ turns.post("/regenerate-last", zValidator("json", RegenerateLastRequestSchema), 
   const body = c.req.valid("json")
   try {
     const result = await regenerateLastTurn(body.story_id, body.action_mode)
+    return c.json(result)
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Unknown error"
+    if (message.includes("ECONNREFUSED") || message.includes("fetch failed")) {
+      return c.json({ error: "KoboldCpp is not running. Please start KoboldCpp first." }, 503)
+    }
+    if (message.includes("not found")) return c.json({ error: message }, 404)
+    console.error("LLM error:", err)
+    return c.json({ error: "LLM generation failed: " + message }, 500)
+  }
+})
+
+turns.post("/impersonate", zValidator("json", ImpersonateRequestSchema), async (c) => {
+  const body = c.req.valid("json")
+  try {
+    const result = await impersonatePlayerAction(body.story_id, body.action_mode)
     return c.json(result)
   } catch (err) {
     const message = err instanceof Error ? err.message : "Unknown error"

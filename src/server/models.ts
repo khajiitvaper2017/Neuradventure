@@ -429,6 +429,11 @@ export const RegenerateLastRequestSchema = z.object({
   action_mode: z.enum(["do", "say", "story"]).optional(),
 })
 
+export const ImpersonateRequestSchema = z.object({
+  story_id: z.number().int(),
+  action_mode: z.enum(["do", "say", "story"]).default("do"),
+})
+
 export const CancelLastRequestSchema = z.object({
   story_id: z.number().int(),
 })
@@ -457,6 +462,7 @@ export type CreateStoryRequest = z.infer<typeof CreateStoryRequestSchema>
 export type UpdateStoryStateRequest = z.infer<typeof UpdateStoryStateRequestSchema>
 export type TakeTurnRequest = z.infer<typeof TakeTurnRequestSchema>
 export type RegenerateLastRequest = z.infer<typeof RegenerateLastRequestSchema>
+export type ImpersonateRequest = z.infer<typeof ImpersonateRequestSchema>
 export type CancelLastRequest = z.infer<typeof CancelLastRequestSchema>
 export type UndoCancelRequest = z.infer<typeof UndoCancelRequestSchema>
 export type SelectTurnVariantRequest = z.infer<typeof SelectTurnVariantRequestSchema>

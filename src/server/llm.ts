@@ -151,11 +151,21 @@ type PromptConfig = {
   generateCharacterClothingPrompt: string[]
   generateCharacterTraitsPrompt: string[]
   generateStoryPrompt: string[]
+  impersonatePrompt?: string[]
 }
 
 const CONFIG_PATH = join(__dirname, "../../shared/config.json")
 let cachedConfig: PromptConfig | null = null
 let cachedConfigMtime = 0
+
+const DEFAULT_IMPERSONATE_PROMPT = [
+  "ROLE: You are the player controlling the protagonist in this text-based adventure.",
+  "OUTPUT: Return ONLY the player's action text. No labels, no quotes, no extra commentary.",
+  "MODE RULES:",
+  "- do: short, concrete action the player takes.",
+  "- say: return just the dialog line spoken by the player (no quotes, no 'You say').",
+  "- story: 1-2 short sentences continuing the story in second-person present tense.",
+]
 
 function getConfig(): PromptConfig {
   const stat = statSync(CONFIG_PATH)
@@ -170,6 +180,12 @@ const npcTraits: string[] = JSON.parse(readFileSync(join(__dirname, "../../share
 
 function getSystemPrompt(): string {
   return getConfig().systemPromptLines.join("\n").replace("{npcTraits}", npcTraits.join(", "))
+}
+
+function getImpersonatePrompt(): string {
+  const config = getConfig()
+  const lines = config.impersonatePrompt && config.impersonatePrompt.length > 0 ? config.impersonatePrompt : DEFAULT_IMPERSONATE_PROMPT
+  return lines.join("\n")
 }
 
 function formatInventory(inventory: MainCharacterState["inventory"]): string {
@@ -369,6 +385,63 @@ export function buildTurnMessages(
   ]
 }
 
+export function buildImpersonateMessages(
+  character: MainCharacterState,
+  world: WorldState,
+  npcs: NPCState[],
+  recentTurns: TurnRow[],
+  actionMode: string,
+  initialCharacter?: MainCharacterState,
+  ctxLimitOverride?: number,
+): OpenAI.ChatCompletionMessageParam[] {
+  const npcSection = npcs.length > 0 ? `=== KNOWN NPCs ===\n${formatNPCs(npcs)}` : ""
+  const initial = initialCharacter ?? character
+  const ctxLimit = ctxLimitOverride ?? getGenerationParams().ctx_limit
+  const actionModeHint =
+    actionMode === "say"
+      ? "Say only the exact words spoken. No quotes or 'You say'."
+      : actionMode === "story"
+        ? "Continue the story in 1-2 short sentences, second-person present tense."
+        : "Describe the action the player takes in a short, concrete clause."
+  const actionModeSection = `=== ACTION MODE ===\n${actionMode}\n${actionModeHint}`
+
+  const storyContext =
+    `=== STORY CONTEXT ===\n` +
+    `Scene: ${world.current_scene}\n` +
+    `Day: ${world.day_of_week}\n` +
+    `Time: ${world.time_of_day}\n` +
+    `Recent events: ${world.recent_events_summary}`
+
+  const initialSection =
+    `=== INITIAL CHARACTER (STORY START) ===\n` +
+    `Appearance: ${initial.appearance.physical_description}\n` +
+    `Wearing: ${initial.appearance.current_clothing}`
+  const baseSection =
+    `=== YOUR CHARACTER (BASE) ===\n` +
+    `Name: ${character.name} · ${character.race} · ${character.gender}\n` +
+    `Traits: ${[...character.personality_traits, ...character.custom_traits].join(", ")}`
+  const currentSection =
+    `=== CURRENT CHARACTER STATE ===\n` +
+    `Appearance: ${character.appearance.physical_description}\n` +
+    `Wearing: ${character.appearance.current_clothing}\n` +
+    `Inventory: ${formatInventory(character.inventory)}`
+
+  const joinSections = (sections: Array<string | null | undefined>): string => sections.filter(Boolean).join("\n\n")
+
+  const prefix = joinSections([initialSection, "=== STORY SO FAR ==="]) + "\n"
+  const afterHistory = joinSections([baseSection, currentSection, npcSection || null, storyContext, actionModeSection])
+  const baseTokens = estimateTokens(`${prefix}${afterHistory ? `\n\n${afterHistory}` : ""}`)
+  const history = buildHistoryBlock(recentTurns, world, ctxLimit, baseTokens)
+
+  const contextBlock = `${prefix}${history}${afterHistory ? `\n\n${afterHistory}` : ""}`
+  const prompt = `${contextBlock}\n\n=== PLAYER'S ACTION ===\n`
+
+  return [
+    { role: "system", content: getImpersonatePrompt() },
+    { role: "user", content: prompt },
+  ]
+}
+
 // ─── LLM calls ───────────────────────────────────────────────────────────────
 
 function buildSamplingParams(
@@ -466,6 +539,58 @@ async function callLLMRaw<T>(
   const content = res.choices[0]?.message?.content
   if (!content) throw new Error("LLM returned empty response")
   return JSON.parse(content) as T
+}
+
+async function callLLMText(
+  messages: OpenAI.ChatCompletionMessageParam[],
+  maxTokensOverride?: number,
+  options: { disableRepetition?: boolean; stop?: string[] } = {},
+): Promise<string> {
+  const gen = getGenerationParams()
+  const sampling = buildSamplingParams(gen, maxTokensOverride, options)
+  const stop = options.stop && options.stop.length > 0 ? options.stop : ["\n\n===", "\n==="]
+
+  const res = await getClient().chat.completions.create({
+    model: "local",
+    messages,
+    ...sampling,
+    stop,
+  })
+  const content = res.choices[0]?.message?.content
+  if (!content) throw new Error("LLM returned empty response")
+  return content
+}
+
+function sanitizePlayerAction(text: string): string {
+  let value = text.trim()
+  value = value.replace(/^===\s*PLAYER'S ACTION\s*===\s*/i, "")
+  value = value.replace(/^Player action:\s*/i, "")
+  const markerIndex = value.search(/\n\s*===\s+/)
+  if (markerIndex >= 0) value = value.slice(0, markerIndex)
+  return value.trim()
+}
+
+export async function generatePlayerAction(
+  character: MainCharacterState,
+  world: WorldState,
+  npcs: NPCState[],
+  recentTurns: TurnRow[],
+  actionMode: string,
+  initialCharacter?: MainCharacterState,
+  ctxLimitOverride?: number,
+): Promise<string> {
+  const messages = buildImpersonateMessages(
+    character,
+    world,
+    npcs,
+    recentTurns,
+    actionMode,
+    initialCharacter,
+    ctxLimitOverride,
+  )
+  const maxTokens = Math.min(getGenerationParams().max_tokens, 160)
+  const raw = await callLLMText(messages, maxTokens, { disableRepetition: true })
+  return sanitizePlayerAction(raw)
 }
 
 export async function generateCharacter(description: string): Promise<GenerateCharacterResponse> {
