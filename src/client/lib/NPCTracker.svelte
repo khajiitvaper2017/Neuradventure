@@ -41,15 +41,17 @@
 
   function startNpcEdit(npc: NPCState) {
     editingNpcName = npc.name
-    draftName = npc.name
-    draftRace = npc.race
-    draftGender = npc.gender
-    draftRelationship = npc.relationship_to_player
-    draftLocation = npc.last_known_location
-    draftAppearance = npc.appearance.physical_description
-    draftClothing = npc.appearance.current_clothing
-    draftNotes = npc.notes ?? ""
-    draftTraits = npc.personality_traits.join(", ")
+    draft = {
+      name: npc.name,
+      race: npc.race,
+      gender: npc.gender,
+      relationship: npc.relationship_to_player,
+      location: npc.last_known_location,
+      appearance: npc.appearance.physical_description,
+      clothing: npc.appearance.current_clothing,
+      notes: npc.notes ?? "",
+      traits: npc.personality_traits.join(", "),
+    }
   }
 
   function cancelNpcEdit() {
@@ -62,19 +64,19 @@
       return
     }
     if (!editingNpcName) return
-    const name = draftName.trim()
-    const race = draftRace.trim()
-    const gender = draftGender.trim()
-    const relationship = draftRelationship.trim()
-    const location = draftLocation.trim()
-    const appearance = draftAppearance.trim()
-    const clothing = draftClothing.trim()
-    const notes = draftNotes.trim() || "None"
+    const name = draft.name.trim()
+    const race = draft.race.trim()
+    const gender = draft.gender.trim()
+    const relationship = draft.relationship.trim()
+    const location = draft.location.trim()
+    const appearance = draft.appearance.trim()
+    const clothing = draft.clothing.trim()
+    const notes = draft.notes.trim() || "None"
     if (!name || !race || !gender || !relationship || !location || !appearance || !clothing) {
       showError("Name, race, gender, relationship, location, appearance, and clothing are required.")
       return
     }
-    const traits = splitCsv(draftTraits)
+    const traits = splitCsv(draft.traits)
     const updatedNpc: NPCState = {
       name,
       race,
@@ -114,15 +116,28 @@
   let lastSortSig = $state("")
   let editingNpcName = $state<string | null>(null)
   let savingNpc = $state(false)
-  let draftName = $state("")
-  let draftRace = $state("")
-  let draftGender = $state("")
-  let draftRelationship = $state("")
-  let draftLocation = $state("")
-  let draftAppearance = $state("")
-  let draftClothing = $state("")
-  let draftNotes = $state("")
-  let draftTraits = $state("")
+  type NpcDraft = {
+    name: string
+    race: string
+    gender: string
+    relationship: string
+    location: string
+    appearance: string
+    clothing: string
+    notes: string
+    traits: string
+  }
+  let draft = $state<NpcDraft>({
+    name: "",
+    race: "",
+    gender: "",
+    relationship: "",
+    location: "",
+    appearance: "",
+    clothing: "",
+    notes: "",
+    traits: "",
+  })
 
   function npcSignature(npc: NPCState): string {
     return [
@@ -301,41 +316,41 @@
           <div class="npc-edit">
             <div class="field">
               <label for={npcFieldId(npc, "name")}>Name</label>
-              <input id={npcFieldId(npc, "name")} type="text" bind:value={draftName} />
+              <input id={npcFieldId(npc, "name")} type="text" bind:value={draft.name} />
             </div>
             <div class="field">
               <label for={npcFieldId(npc, "race")}>Race</label>
-              <input id={npcFieldId(npc, "race")} type="text" bind:value={draftRace} />
+              <input id={npcFieldId(npc, "race")} type="text" bind:value={draft.race} />
             </div>
             <div class="field">
               <label for={npcFieldId(npc, "gender")}>Gender</label>
-              <input id={npcFieldId(npc, "gender")} type="text" bind:value={draftGender} />
+              <input id={npcFieldId(npc, "gender")} type="text" bind:value={draft.gender} />
             </div>
             <div class="field">
               <label for={npcFieldId(npc, "relationship")}>Relationship</label>
-              <input id={npcFieldId(npc, "relationship")} type="text" bind:value={draftRelationship} />
+              <input id={npcFieldId(npc, "relationship")} type="text" bind:value={draft.relationship} />
             </div>
             <div class="field">
               <label for={npcFieldId(npc, "location")}>Last Known Location</label>
-              <input id={npcFieldId(npc, "location")} type="text" bind:value={draftLocation} />
+              <input id={npcFieldId(npc, "location")} type="text" bind:value={draft.location} />
             </div>
             <div class="field">
               <label for={npcFieldId(npc, "appearance")}>Appearance</label>
-              <textarea id={npcFieldId(npc, "appearance")} bind:value={draftAppearance} use:autoresize={draftAppearance}
+              <textarea id={npcFieldId(npc, "appearance")} bind:value={draft.appearance} use:autoresize={draft.appearance}
               ></textarea>
             </div>
             <div class="field">
               <label for={npcFieldId(npc, "clothing")}>Clothing</label>
-              <textarea id={npcFieldId(npc, "clothing")} bind:value={draftClothing} use:autoresize={draftClothing}
+              <textarea id={npcFieldId(npc, "clothing")} bind:value={draft.clothing} use:autoresize={draft.clothing}
               ></textarea>
             </div>
             <div class="field">
               <label for={npcFieldId(npc, "traits")}>Traits (comma separated)</label>
-              <input id={npcFieldId(npc, "traits")} type="text" bind:value={draftTraits} />
+              <input id={npcFieldId(npc, "traits")} type="text" bind:value={draft.traits} />
             </div>
             <div class="field">
               <label for={npcFieldId(npc, "notes")}>Notes</label>
-              <textarea id={npcFieldId(npc, "notes")} bind:value={draftNotes} use:autoresize={draftNotes}></textarea>
+              <textarea id={npcFieldId(npc, "notes")} bind:value={draft.notes} use:autoresize={draft.notes}></textarea>
             </div>
             <div class="npc-edit-actions">
               <button class="btn-ghost" onclick={cancelNpcEdit} disabled={savingNpc}>Cancel</button>

@@ -39,15 +39,27 @@
   let editing = $state(false)
   let saving = $state(false)
 
-  let draftName = $state("")
-  let draftRace = $state("")
-  let draftGender = $state("")
-  let draftAppearance = $state("")
-  let draftClothing = $state("")
-  let draftPersonalityTraits = $state("")
-  let draftCustomTraits = $state("")
   type InventoryDraft = { name: string; description: string }
-  let draftInventory = $state<InventoryDraft[]>([])
+  type CharacterDraft = {
+    name: string
+    race: string
+    gender: string
+    appearance: string
+    clothing: string
+    personalityTraits: string
+    customTraits: string
+    inventory: InventoryDraft[]
+  }
+  let draft = $state<CharacterDraft>({
+    name: "",
+    race: "",
+    gender: "",
+    appearance: "",
+    clothing: "",
+    personalityTraits: "",
+    customTraits: "",
+    inventory: [],
+  })
 
   function buildCharacterSigs(c: MainCharacterState): CharacterSigs {
     return {
@@ -91,14 +103,16 @@
 
   function startEdit() {
     if (!$character) return
-    draftName = $character.name
-    draftRace = $character.race
-    draftGender = $character.gender
-    draftAppearance = $character.appearance.physical_description
-    draftClothing = $character.appearance.current_clothing
-    draftPersonalityTraits = $character.personality_traits.join(", ")
-    draftCustomTraits = $character.custom_traits.join(", ")
-    draftInventory = $character.inventory.map((item) => ({ name: item.name, description: item.description }))
+    draft = {
+      name: $character.name,
+      race: $character.race,
+      gender: $character.gender,
+      appearance: $character.appearance.physical_description,
+      clothing: $character.appearance.current_clothing,
+      personalityTraits: $character.personality_traits.join(", "),
+      customTraits: $character.custom_traits.join(", "),
+      inventory: $character.inventory.map((item) => ({ name: item.name, description: item.description })),
+    }
     editing = true
   }
 
@@ -107,15 +121,15 @@
   }
 
   function addInventoryItem() {
-    draftInventory = [...draftInventory, { name: "", description: "" }]
+    draft.inventory = [...draft.inventory, { name: "", description: "" }]
   }
 
   function updateInventoryItem(index: number, key: "name" | "description", value: string) {
-    draftInventory = draftInventory.map((item, i) => (i === index ? { ...item, [key]: value } : item))
+    draft.inventory = draft.inventory.map((item, i) => (i === index ? { ...item, [key]: value } : item))
   }
 
   function removeInventoryItem(index: number) {
-    draftInventory = draftInventory.filter((_, i) => i !== index)
+    draft.inventory = draft.inventory.filter((_, i) => i !== index)
   }
 
   async function saveCharacter() {
@@ -123,18 +137,18 @@
       showError("No active story to update.")
       return
     }
-    const name = draftName.trim()
-    const race = draftRace.trim()
-    const gender = draftGender.trim()
-    const appearance = draftAppearance.trim()
-    const clothing = draftClothing.trim()
+    const name = draft.name.trim()
+    const race = draft.race.trim()
+    const gender = draft.gender.trim()
+    const appearance = draft.appearance.trim()
+    const clothing = draft.clothing.trim()
     if (!name || !race || !gender || !appearance || !clothing) {
       showError("Name, race, gender, appearance, and clothing are required.")
       return
     }
-    const personalityTraits = splitCsv(draftPersonalityTraits)
-    const customTraits = splitCsv(draftCustomTraits)
-    const inventory = draftInventory
+    const personalityTraits = splitCsv(draft.personalityTraits)
+    const customTraits = splitCsv(draft.customTraits)
+    const inventory = draft.inventory
       .map((item) => ({ name: item.name.trim(), description: item.description.trim() }))
       .filter((item) => item.name.length > 0 || item.description.length > 0)
     for (const item of inventory) {
@@ -207,31 +221,31 @@
       <div class="cs-edit">
         <div class="field">
           <label for="cs-name">Name</label>
-          <input id="cs-name" type="text" bind:value={draftName} />
+          <input id="cs-name" type="text" bind:value={draft.name} />
         </div>
         <div class="field">
           <label for="cs-race">Race</label>
-          <input id="cs-race" type="text" bind:value={draftRace} />
+          <input id="cs-race" type="text" bind:value={draft.race} />
         </div>
         <div class="field">
           <label for="cs-gender">Gender</label>
-          <input id="cs-gender" type="text" bind:value={draftGender} />
+          <input id="cs-gender" type="text" bind:value={draft.gender} />
         </div>
         <div class="field">
           <label for="cs-appearance">Appearance</label>
-          <textarea id="cs-appearance" bind:value={draftAppearance} use:autoresize={draftAppearance}></textarea>
+          <textarea id="cs-appearance" bind:value={draft.appearance} use:autoresize={draft.appearance}></textarea>
         </div>
         <div class="field">
           <label for="cs-clothing">Wearing</label>
-          <textarea id="cs-clothing" bind:value={draftClothing} use:autoresize={draftClothing}></textarea>
+          <textarea id="cs-clothing" bind:value={draft.clothing} use:autoresize={draft.clothing}></textarea>
         </div>
         <div class="field">
           <label for="cs-personality">Personality Traits (comma separated)</label>
-          <input id="cs-personality" type="text" bind:value={draftPersonalityTraits} />
+          <input id="cs-personality" type="text" bind:value={draft.personalityTraits} />
         </div>
         <div class="field">
           <label for="cs-custom-traits">Custom Traits (comma separated)</label>
-          <input id="cs-custom-traits" type="text" bind:value={draftCustomTraits} />
+          <input id="cs-custom-traits" type="text" bind:value={draft.customTraits} />
         </div>
         <div class="field">
           <div class="label-row">
@@ -239,10 +253,10 @@
             <label>Inventory</label>
             <button class="btn-ghost btn-mini" onclick={addInventoryItem} disabled={saving}>Add Item</button>
           </div>
-          {#if draftInventory.length === 0}
+          {#if draft.inventory.length === 0}
             <div class="cs-empty-edit">No items yet.</div>
           {:else}
-            {#each draftInventory as item, index}
+            {#each draft.inventory as item, index}
               <div class="cs-inv-row">
                 <input
                   type="text"
