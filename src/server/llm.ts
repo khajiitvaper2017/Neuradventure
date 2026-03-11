@@ -612,29 +612,6 @@ export async function generateCharacter(description: string): Promise<GenerateCh
   return GenerateCharacterResponseSchema.parse(result)
 }
 
-export async function generateNamedNpc(name: string, description?: string): Promise<GenerateCharacterResponse> {
-  const trimmedName = name.trim()
-  const NamedSchema = GenerateCharacterResponseSchema.omit({ name: true }).extend({ name: z.literal(trimmedName) })
-  const schema = zodToJsonSchema(NamedSchema, { name: "GenerateNamedNpcResponse" })
-  const promptBase =
-    getConfig().generateCharacterPrompt.join("\n") + `\n\nAvailable personality traits: ${npcTraits.join(", ")}`
-  const trimmedDescription = description?.trim()
-  const descParts = [`Name: ${trimmedName}`]
-  if (trimmedDescription) descParts.push(trimmedDescription)
-  const userPrompt = `Create a character based on this description: "${descParts.join(" ")}"`
-  const result = await callLLMRaw<unknown>(
-    [
-      { role: "system", content: promptBase },
-      { role: "user", content: userPrompt },
-    ],
-    "GenerateNamedNpcResponse",
-    schema,
-    undefined,
-    { disableRepetition: true },
-  )
-  return NamedSchema.parse(result) as GenerateCharacterResponse
-}
-
 type CharacterGenerationContext = {
   name: string
   race: string

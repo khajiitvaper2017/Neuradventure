@@ -2,7 +2,7 @@ import { Hono } from "hono"
 import { zValidator } from "@hono/zod-validator"
 import { z } from "zod"
 import { CreateCharacterRequestSchema } from "../models.js"
-import { generateCharacter, generateCharacterPart, generateNamedNpc, generateStory } from "../llm.js"
+import { generateCharacter, generateCharacterPart, generateStory } from "../llm.js"
 
 const generate = new Hono()
 
@@ -14,25 +14,6 @@ generate.post("/character", zValidator("json", z.object({ description: z.string(
     return c.json({ error: err instanceof Error ? err.message : "Generation failed" }, 500)
   }
 })
-
-generate.post(
-  "/npc",
-  zValidator(
-    "json",
-    z.object({
-      name: z.string().min(1),
-      description: z.string().optional(),
-    }),
-  ),
-  async (c) => {
-    const { name, description } = c.req.valid("json")
-    try {
-      return c.json(await generateNamedNpc(name, description))
-    } catch (err) {
-      return c.json({ error: err instanceof Error ? err.message : "Generation failed" }, 500)
-    }
-  },
-)
 
 const characterContextSchema = z.object({
   name: z.string().default(""),
