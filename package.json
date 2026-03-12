@@ -14,6 +14,7 @@
     "check:config": "tsx scripts/check-configs.ts",
     "check:css": "tsx scripts/check-css-imports.ts",
     "check": "npm run check:config && npm run check:css && svelte-check --tsconfig ./tsconfig.app.json && tsc -p tsconfig.node.json",
+    "migrate:appearance-flat": "tsx scripts/migrate-appearance-flat.ts",
     "test-llm": "tsx --tsconfig tsconfig.json src/server/test_llm.ts"
   },
   "dependencies": {

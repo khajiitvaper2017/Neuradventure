@@ -187,10 +187,7 @@
             }
           : {
               ...$pendingCharacter,
-              appearance: {
-                ...$pendingCharacter.appearance,
-                current_appearance: result.current_appearance ?? $pendingCharacter.appearance.current_appearance,
-              },
+              current_appearance: result.current_appearance ?? $pendingCharacter.current_appearance,
             }
       pendingCharacter.set(updatedCharacter)
     } catch (err) {
@@ -218,7 +215,7 @@
     if (charData) {
       const missing: string[] = []
       if (($pendingStoryModules?.character_detail_mode ?? "detailed") === "detailed") {
-        if (!charData.appearance?.current_appearance?.trim()) missing.push("Current appearance")
+        if (!charData.current_appearance?.trim()) missing.push("Current appearance")
       } else if (!charData.general_description?.trim()) {
         missing.push("General description")
       }

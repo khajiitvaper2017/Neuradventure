@@ -149,33 +149,6 @@ export function normalizeTraitList(value: unknown, max = 6): string[] {
   return items.slice(0, max)
 }
 
-export function normalizeAppearance(value: unknown): {
-  baseline_appearance: string
-  current_appearance: string
-  current_clothing: string
-} {
-  if (value && typeof value === "object") {
-    const obj = value as Record<string, unknown>
-    const defaults = getServerDefaults()
-    const baseline = normalizeNonEmptyString(obj.baseline_appearance, defaults.unknown.baselineAppearance)
-    const current = normalizeNonEmptyString(
-      obj.current_appearance ?? obj.baseline_appearance,
-      baseline || defaults.unknown.appearance,
-    )
-    return {
-      baseline_appearance: baseline,
-      current_appearance: current,
-      current_clothing: normalizeNonEmptyString(obj.current_clothing, defaults.unknown.clothing),
-    }
-  }
-  const defaults = getServerDefaults()
-  return {
-    baseline_appearance: defaults.unknown.baselineAppearance,
-    current_appearance: defaults.unknown.appearance,
-    current_clothing: defaults.unknown.clothing,
-  }
-}
-
 function normalizeStringList(value: unknown): string[] {
   const items: string[] = []
   if (Array.isArray(value)) {

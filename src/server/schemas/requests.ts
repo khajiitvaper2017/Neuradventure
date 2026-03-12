@@ -1,10 +1,5 @@
 import { z } from "zod"
-import {
-  CharacterAppearanceSchema,
-  MainCharacterStateSchema,
-  NPCStateSchema,
-  NPCStateStoredSchema,
-} from "./game-state.js"
+import { MainCharacterStateSchema, NPCStateSchema, NPCStateStoredSchema } from "./game-state.js"
 import { StoryModulesSchema } from "./story-modules.js"
 import { DATE_REGEX, TIME_OF_DAY_REGEX } from "./constants.js"
 
@@ -14,7 +9,9 @@ export const CreateCharacterRequestSchema = z.object({
   gender: z.string().min(1),
   general_description: z.string().optional(),
   current_location: z.string().min(1).optional(),
-  appearance: CharacterAppearanceSchema.optional(),
+  baseline_appearance: z.string().min(1).optional(),
+  current_appearance: z.string().min(1).optional(),
+  current_clothing: z.string().min(1).optional(),
   personality_traits: z.array(z.string()).optional(),
   major_flaws: z.array(z.string()).optional(),
   quirks: z.array(z.string()).optional(),
@@ -37,7 +34,9 @@ export const CreateStoryRequestSchema = z.object({
       gender: z.string().min(1),
       general_description: z.string().optional(),
       current_location: z.string().min(1).optional(),
-      appearance: CharacterAppearanceSchema.optional(),
+      baseline_appearance: z.string().min(1).optional(),
+      current_appearance: z.string().min(1).optional(),
+      current_clothing: z.string().min(1).optional(),
       personality_traits: z.array(z.string()).optional(),
       major_flaws: z.array(z.string()).optional(),
       quirks: z.array(z.string()).optional(),

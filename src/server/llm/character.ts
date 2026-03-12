@@ -50,11 +50,9 @@ type CharacterGenerationContext = {
   name: string
   race: string
   gender: string
-  appearance: {
-    baseline_appearance: string
-    current_appearance: string
-    current_clothing: string
-  }
+  baseline_appearance: string
+  current_appearance: string
+  current_clothing: string
   personality_traits: string[]
   major_flaws: string[]
   quirks: string[]
@@ -74,11 +72,7 @@ function formatCharacterContext(context: CharacterGenerationContext, part: "appe
   ]
 
   if (part === "traits") {
-    const appearance = [
-      context.appearance.baseline_appearance,
-      context.appearance.current_appearance,
-      context.appearance.current_clothing,
-    ]
+    const appearance = [context.baseline_appearance, context.current_appearance, context.current_clothing]
       .map((v) => v.trim())
       .filter(Boolean)
       .join(" | ")
@@ -91,12 +85,10 @@ function formatCharacterContext(context: CharacterGenerationContext, part: "appe
   } else {
     lines.push(
       formatTemplate(labels.baselineAppearance, {
-        value: context.appearance.baseline_appearance.trim() || unknown,
+        value: context.baseline_appearance.trim() || unknown,
       }),
     )
-    lines.push(
-      formatTemplate(labels.currentAppearance, { value: context.appearance.current_appearance.trim() || unknown }),
-    )
+    lines.push(formatTemplate(labels.currentAppearance, { value: context.current_appearance.trim() || unknown }))
     lines.push(formatTemplate(labels.personalityTraits, { value: context.personality_traits.join(", ") || unknown }))
     lines.push(formatTemplate(labels.majorFlaws, { value: context.major_flaws.join(", ") || noneTitle }))
     lines.push(formatTemplate(labels.quirks, { value: context.quirks.join(", ") || noneTitle }))

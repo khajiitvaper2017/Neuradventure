@@ -203,9 +203,9 @@
     gender = normalized || "Female"
   }
   let generalDescription = existing?.general_description ?? ""
-  let baselineAppearance = existing?.appearance.baseline_appearance ?? ""
-  let currentAppearance = existing?.appearance.current_appearance ?? ""
-  let currentClothing = existing?.appearance.current_clothing ?? ""
+  let baselineAppearance = existing?.baseline_appearance ?? ""
+  let currentAppearance = existing?.current_appearance ?? ""
+  let currentClothing = existing?.current_clothing ?? ""
   let selectedTraits: string[] = initialPersonality.selected
   let customPersonalityInput = ""
   let customPersonalityTraits: string[] = initialPersonality.custom
@@ -342,11 +342,9 @@
       gender,
       general_description: generalDescription.trim(),
       current_location: existing?.current_location ?? "Unknown location",
-      appearance: {
-        baseline_appearance: baselineAppearance.trim(),
-        current_appearance: currentAppearance.trim() || baselineAppearance.trim(),
-        current_clothing: currentClothing.trim(),
-      },
+      baseline_appearance: baselineAppearance.trim(),
+      current_appearance: currentAppearance.trim() || baselineAppearance.trim(),
+      current_clothing: currentClothing.trim(),
       personality_traits: uniquePersonality([...selectedTraits, ...customPersonalityTraits]).filter((_, i) => i < 5),
       major_flaws: majorFlaws,
       quirks,

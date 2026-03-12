@@ -173,9 +173,9 @@
       gender: npc.gender,
       generalDescription: npc.general_description ?? "",
       location: npc.current_location,
-      baselineAppearance: npc.appearance.baseline_appearance,
-      currentAppearance: npc.appearance.current_appearance,
-      clothing: npc.appearance.current_clothing,
+      baselineAppearance: npc.baseline_appearance,
+      currentAppearance: npc.current_appearance,
+      clothing: npc.current_clothing,
       currentActivity: npc.current_activity,
       traits: npc.personality_traits.join(", "),
       majorFlaws: npc.major_flaws.join(", "),
@@ -216,17 +216,15 @@
     const quirks = useNpcQuirks ? splitCsv(draft.quirks) : []
     const perks = useNpcPerks ? splitCsv(draft.perks) : []
     const existingNpc = $npcs.find((npc) => npc.name === editingNpcName)
-    const appearance = useNpcAppearance
-      ? {
-          baseline_appearance: baselineAppearance || existingNpc?.appearance.baseline_appearance || "",
-          current_appearance: currentAppearance || existingNpc?.appearance.current_appearance || "",
-          current_clothing: clothing || existingNpc?.appearance.current_clothing || "",
-        }
-      : {
-          baseline_appearance: existingNpc?.appearance.baseline_appearance || "",
-          current_appearance: existingNpc?.appearance.current_appearance || "",
-          current_clothing: existingNpc?.appearance.current_clothing || "",
-        }
+    const nextBaselineAppearance = useNpcAppearance
+      ? baselineAppearance || existingNpc?.baseline_appearance || ""
+      : existingNpc?.baseline_appearance || ""
+    const nextCurrentAppearance = useNpcAppearance
+      ? currentAppearance || existingNpc?.current_appearance || ""
+      : existingNpc?.current_appearance || ""
+    const nextClothing = useNpcAppearance
+      ? clothing || existingNpc?.current_clothing || ""
+      : existingNpc?.current_clothing || ""
     const updatedNpc: NPCState = {
       name,
       race,
@@ -237,7 +235,9 @@
       current_location: useNpcLocation
         ? location || existingNpc?.current_location || ""
         : (existingNpc?.current_location ?? ""),
-      appearance,
+      baseline_appearance: nextBaselineAppearance,
+      current_appearance: nextCurrentAppearance || nextBaselineAppearance,
+      current_clothing: nextClothing,
       current_activity: useNpcActivity
         ? currentActivity || existingNpc?.current_activity || ""
         : (existingNpc?.current_activity ?? ""),
@@ -395,7 +395,7 @@
       npc.gender,
       useNpcLocation ? npc.current_location : "",
       ...(useNpcAppearance
-        ? [npc.appearance.baseline_appearance, npc.appearance.current_appearance, npc.appearance.current_clothing]
+        ? [npc.baseline_appearance, npc.current_appearance, npc.current_clothing]
         : [npc.general_description ?? ""]),
       useNpcActivity ? npc.current_activity : "",
       useNpcPersonalityTraits ? npc.personality_traits.join(",") : "",
@@ -607,14 +607,14 @@
             {#if showBaselineDetails}
               <div class="npc-detail-row">
                 <IconFace size={13} strokeWidth={1.5} className="npc-icon" />
-                <span>{npc.appearance.baseline_appearance}</span>
+                <span>{npc.baseline_appearance}</span>
               </div>
             {/if}
 
             <div class="npc-detail-row">
               <IconFace size={13} strokeWidth={1.5} className="npc-icon" />
               <span class="npc-diff">
-                {#each getDiffSegments(npc.appearance.baseline_appearance, npc.appearance.current_appearance) as segment}
+                {#each getDiffSegments(npc.baseline_appearance, npc.current_appearance) as segment}
                   <span class:diff-added={segment.added}>{segment.text}</span>
                 {/each}
               </span>
@@ -622,7 +622,7 @@
 
             <div class="npc-detail-row muted">
               <IconShirt size={13} strokeWidth={1.5} className="npc-icon" />
-              <span>{npc.appearance.current_clothing}</span>
+              <span>{npc.current_clothing}</span>
             </div>
           {:else}
             <div class="npc-detail-row">

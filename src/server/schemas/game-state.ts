@@ -2,7 +2,6 @@ import { z } from "zod"
 import { PersonalityTraitSchema } from "./personality-traits.js"
 import { DATE_REGEX, TIME_OF_DAY_REGEX } from "./constants.js"
 import {
-  normalizeAppearance,
   normalizeCurrentScene,
   normalizeCurrentDate,
   normalizeLocations,
@@ -63,14 +62,6 @@ const LocationsSchema = z
 
 const defaults = getServerDefaults()
 
-export const CharacterAppearanceSchema = z
-  .object({
-    baseline_appearance: z.string().min(1),
-    current_clothing: z.string().min(1),
-    current_appearance: z.string().min(1),
-  })
-  .strict()
-
 const MajorFlawSchema = z.string().min(1)
 const QuirkSchema = z.string().min(1)
 const PerkSchema = z.string().min(1)
@@ -88,11 +79,9 @@ const CharacterStateBaseSchema = z
     gender: z.string().min(1),
     general_description: z.string().optional(),
     current_location: z.string().min(1).optional().default(defaults.unknown.location),
-    appearance: CharacterAppearanceSchema.optional().default({
-      baseline_appearance: defaults.unknown.baselineAppearance,
-      current_clothing: defaults.unknown.clothing,
-      current_appearance: defaults.unknown.appearance,
-    }),
+    baseline_appearance: z.string().min(1).optional().default(defaults.unknown.baselineAppearance),
+    current_appearance: z.string().min(1).optional().default(defaults.unknown.appearance),
+    current_clothing: z.string().min(1).optional().default(defaults.unknown.clothing),
     personality_traits: PersonalityTraitsOptionalSchema.optional().default([]),
     major_flaws: MajorFlawsSchema.optional().default([]),
     quirks: QuirksSchema.optional().default([]),
@@ -130,7 +119,9 @@ const CharacterStateStoredBaseSchema = z
     gender: z.string().optional(),
     general_description: z.string().optional(),
     current_location: z.string().optional(),
-    appearance: z.unknown().optional(),
+    baseline_appearance: z.string().optional(),
+    current_appearance: z.string().optional(),
+    current_clothing: z.string().optional(),
     personality_traits: z.unknown().optional(),
     major_flaws: z.unknown().optional(),
     quirks: z.unknown().optional(),
@@ -148,7 +139,16 @@ const normalizeCharacterStoredBase = (value: z.input<typeof CharacterStateStored
     getServerDefaults().unknown.generalDescription,
   ),
   current_location: normalizeNonEmptyString(value.current_location, getServerDefaults().unknown.location),
-  appearance: normalizeAppearance(value.appearance),
+  baseline_appearance: normalizeNonEmptyString(
+    value.baseline_appearance,
+    getServerDefaults().unknown.baselineAppearance,
+  ),
+  current_appearance: normalizeNonEmptyString(
+    value.current_appearance ?? value.baseline_appearance,
+    normalizeNonEmptyString(value.baseline_appearance, getServerDefaults().unknown.baselineAppearance) ||
+      getServerDefaults().unknown.appearance,
+  ),
+  current_clothing: normalizeNonEmptyString(value.current_clothing, getServerDefaults().unknown.clothing),
   personality_traits: normalizePersonalityTraits(value.personality_traits),
   major_flaws: normalizeTraitList(value.major_flaws, 3),
   quirks: normalizeTraitList(value.quirks, 6),

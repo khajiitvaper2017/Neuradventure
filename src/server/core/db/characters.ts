@@ -12,19 +12,17 @@ export interface CharacterRow {
 }
 
 export function normalizeCharacterBase(input: Partial<CharacterBase>): CharacterBase {
-  const baselineAppearance = input.appearance?.baseline_appearance ?? ""
-  const currentAppearance = input.appearance?.current_appearance ?? baselineAppearance ?? ""
+  const baselineAppearance = input.baseline_appearance ?? ""
+  const currentAppearance = input.current_appearance ?? baselineAppearance ?? ""
   return {
     name: input.name ?? "",
     race: input.race ?? "",
     gender: normalizeGender(input.gender, ""),
     general_description: input.general_description ?? "",
     current_location: input.current_location ?? getServerDefaults().unknown.location,
-    appearance: {
-      baseline_appearance: baselineAppearance,
-      current_appearance: currentAppearance,
-      current_clothing: input.appearance?.current_clothing ?? "",
-    },
+    baseline_appearance: baselineAppearance,
+    current_appearance: currentAppearance,
+    current_clothing: input.current_clothing ?? "",
     personality_traits: Array.isArray(input.personality_traits) ? input.personality_traits : [],
     major_flaws: Array.isArray(input.major_flaws) ? input.major_flaws : [],
     quirks: Array.isArray(input.quirks) ? input.quirks : [],

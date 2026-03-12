@@ -32,13 +32,9 @@ const characterContextSchema = z.object({
   name: z.string().default(""),
   race: z.string().default(""),
   gender: z.string().default(""),
-  appearance: z
-    .object({
-      baseline_appearance: z.string().default(""),
-      current_clothing: z.string().default(""),
-      current_appearance: z.string().default(""),
-    })
-    .default({ baseline_appearance: "", current_clothing: "", current_appearance: "" }),
+  baseline_appearance: z.string().default(""),
+  current_clothing: z.string().default(""),
+  current_appearance: z.string().default(""),
   personality_traits: z.array(z.string()).default([]),
   major_flaws: z.array(z.string()).default([]),
   quirks: z.array(z.string()).default([]),

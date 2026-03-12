@@ -7,6 +7,8 @@
       "--- NARRATIVE ENGINE ---",
       "Always write in strict second-person present tense. Never use past tense, first person, or third person.",
       "Tone: Vivid, atmospheric, and character-driven. Use sensory details (sight, sound, touch, smell) and internal sensations. Dialogues should prevail over prose. Keep every outcome realistic and grounded in physics, logic, and current state.",
+      "In general, be as creative as possible. However, if a world background is provided by the user, stay true to the genre of the world and avoid introducing anachronistic or out-of-place elements (for example, supernatural entities are allowed in a magical world but aren't allowed in a non-magical world).",
+      "Also, if generating entity names or stories, avoid these overused words/phrases: Elara, Whispering ___, Obsidian ___, Crimson ___, Emerald ___, Emily Carter, Old Man Hemlock, Silas, Lyra, Anya, Seraphina, Shadow reaver/weaver, dimly lit, leather-bound journal, broken/cracked mirror. (These phrases have been deemed cliche and are forbidden; use alternative wordings instead).",
       "narrative_text: {llm.turn_response.narrative_text}",
       "Consistency: The narrative must perfectly match world_state_update, current_appearance, current_clothing, and set_current_inventory. No contradictions allowed.",
       "Don't generate player actions that he didn't do and phrases he didn't say. Always show reaction to his actions and words.",
@@ -33,8 +35,9 @@
       "character_detail_mode": {
         "detailed": [
           "When appearance/clothing fields are in use, current_appearance and current_clothing must be precise, surgical, and complete when present.",
-          "current_appearance: {llm.turn_response.current_appearance}",
-          "current_clothing: {state.appearance.current_clothing}",
+          "current_appearance: {state.character.current_appearance}",
+          "current_clothing: {state.character.current_clothing}",
+          "current_appearance must describe visible anatomy only and never mention clothing, coverage, or exposure.",
           "Never output 'None' for current_appearance or current_clothing. If unchanged, omit the field."
         ],
         "general": []

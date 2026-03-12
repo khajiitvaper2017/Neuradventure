@@ -20,15 +20,19 @@ export function applyPlayerUpdate(
 ): MainCharacterState {
   const appearance = flags.useCharAppearance
     ? {
-        ...character.appearance,
-        current_appearance: turnResponse.current_appearance ?? character.appearance.current_appearance,
-        current_clothing: turnResponse.current_clothing ?? character.appearance.current_clothing,
+        baseline_appearance: character.baseline_appearance,
+        current_appearance: turnResponse.current_appearance ?? character.current_appearance,
+        current_clothing: turnResponse.current_clothing ?? character.current_clothing,
       }
-    : character.appearance
+    : {
+        baseline_appearance: character.baseline_appearance,
+        current_appearance: character.current_appearance,
+        current_clothing: character.current_clothing,
+      }
 
   return {
     ...character,
-    appearance,
+    ...appearance,
     inventory: flags.useCharInventory
       ? (turnResponse.set_current_inventory ?? character.inventory)
       : character.inventory,
@@ -141,15 +145,12 @@ export function applyNPCUpdates(npcs: NPCState[], updates: NPCStateUpdate[], fla
       race: patch.race ?? npc.race,
       gender: patch.gender ? normalizeGender(patch.gender, npc.gender) : npc.gender,
       current_location: flags.useNpcLocation ? (patch.current_location ?? npc.current_location) : npc.current_location,
-      appearance: {
-        ...npc.appearance,
-        current_appearance: flags.useNpcAppearance
-          ? (patch.current_appearance ?? npc.appearance.current_appearance)
-          : npc.appearance.current_appearance,
-        current_clothing: flags.useNpcAppearance
-          ? (patch.current_clothing ?? npc.appearance.current_clothing)
-          : npc.appearance.current_clothing,
-      },
+      current_appearance: flags.useNpcAppearance
+        ? (patch.current_appearance ?? npc.current_appearance)
+        : npc.current_appearance,
+      current_clothing: flags.useNpcAppearance
+        ? (patch.current_clothing ?? npc.current_clothing)
+        : npc.current_clothing,
       current_activity: flags.useNpcActivity
         ? (patch.set_current_activity ?? npc.current_activity)
         : npc.current_activity,
@@ -215,10 +216,10 @@ export function collectLlmWarnings(world: WorldState, npcs: NPCState[], turnResp
     if (patch.current_location && patch.current_location === npc.current_location) {
       warnings.push(`npc_changes[${npc.name}].current_location matches existing value`)
     }
-    if (patch.current_appearance && patch.current_appearance === npc.appearance.current_appearance) {
+    if (patch.current_appearance && patch.current_appearance === npc.current_appearance) {
       warnings.push(`npc_changes[${npc.name}].current_appearance matches existing value`)
     }
-    if (patch.current_clothing && patch.current_clothing === npc.appearance.current_clothing) {
+    if (patch.current_clothing && patch.current_clothing === npc.current_clothing) {
       warnings.push(`npc_changes[${npc.name}].current_clothing matches existing value`)
     }
     if (patch.set_current_activity && patch.set_current_activity === npc.current_activity) {

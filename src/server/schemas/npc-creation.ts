@@ -1,5 +1,4 @@
 import { z } from "zod"
-import { CharacterAppearanceSchema } from "./game-state.js"
 import { PersonalityTraitsSchema } from "./personality-traits.js"
 
 export type NpcCreationFlags = {
@@ -26,12 +25,6 @@ export function buildNpcCreationSchema(flags: NpcCreationFlags) {
     gender: z.string().min(1),
   }
 
-  if (flags.useNpcAppearance) {
-    shape.appearance = CharacterAppearanceSchema
-  } else {
-    shape.general_description = z.string().min(1)
-  }
-
   if (flags.useNpcPersonalityTraits) {
     shape.personality_traits = PersonalityTraitsSchema
   }
@@ -50,6 +43,12 @@ export function buildNpcCreationSchema(flags: NpcCreationFlags) {
   if (flags.useNpcActivity) {
     shape.current_activity = z.string().min(1)
   }
-
+  if (flags.useNpcAppearance) {
+    shape.baseline_appearance = z.string().min(1)
+    shape.current_clothing = z.string().min(1)
+    shape.current_appearance = z.string().min(1)
+  } else {
+    shape.general_description = z.string().min(1)
+  }
   return z.object(shape).strict()
 }

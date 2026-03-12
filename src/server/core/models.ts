@@ -1,6 +1,5 @@
 import { z } from "zod"
 import {
-  CharacterAppearanceSchema,
   InventoryItemSchema,
   LocationItemSchema,
   LocationSchema,
@@ -63,7 +62,6 @@ export {
   InventoryItemSchema,
   LocationItemSchema,
   LocationSchema,
-  CharacterAppearanceSchema,
   CharacterStateSchema,
   CharacterStateStoredSchema,
   MainCharacterStateSchema,
@@ -116,7 +114,6 @@ export {
 export type InventoryItem = z.infer<typeof InventoryItemSchema>
 export type LocationItem = z.infer<typeof LocationItemSchema>
 export type Location = z.infer<typeof LocationSchema>
-export type CharacterAppearance = z.infer<typeof CharacterAppearanceSchema>
 export type CharacterState = z.infer<typeof CharacterStateSchema>
 export type MainCharacterState = z.infer<typeof MainCharacterStateSchema>
 export type NPCState = z.infer<typeof NPCStateSchema>

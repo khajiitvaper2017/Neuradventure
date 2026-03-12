@@ -29,7 +29,7 @@ function formatMemberSummary(member: ChatMemberState): string {
   const gender = member.gender || defaults.unknown.value
   const description =
     member.general_description?.trim() ||
-    member.appearance?.baseline_appearance ||
+    member.baseline_appearance ||
     defaults.unknown.generalDescription ||
     defaults.unknown.appearance
   const traits = member.personality_traits?.join(", ") || defaults.unknown.value

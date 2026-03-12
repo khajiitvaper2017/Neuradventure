@@ -3,7 +3,6 @@
     "turn_response": {
       "narrative_text": "1-3 short paragraphs in second-person present tense. Separate paragraphs with a literal \\n\\n.",
       "world_state_update": "Full world state update object.",
-      "current_appearance": "Precise, surgical description of current physical state. All body parts except those covered by clothing should be mentioned. 1 to 3 sentences of objective, anatomical detailing. Use the metric system exclusively. Provide numerical measurements for height (cm), weight (kg), and bodily proportions. IF male genitalia is visible: Note the erect length OR flaccid length (cm), whether circumcised or uncircumcised, and testicle presence. IF female genitalia is visible: Note the general appearance of the labia (e.g., 'neat,' 'full,' 'prominent inner lips'), and pubic hair style (e.g., 'natural,' 'trimmed,' 'shaved'). NEVER MENTION BODY PARTS THAT ARE COVERED BY CLOTHING. Clothing should not be mentioned. Don't set if nothing changed in appearance this turn.",
       "set_current_inventory": "Complete, updated inventory list (not a diff). Omit the field if inventory did not change.",
       "npc_changes": "List of updates for existing NPCs whose state changed this turn.",
       "npc_introductions": "List of newly introduced NPCs with full details. Omit the field if there are no new NPCs."
@@ -17,8 +16,7 @@
     },
     "npc_update": {
       "name": "NPC name to update.",
-      "current_location": "Current unique location name. Describes concrete room. Update only when changed. Should be precise. Avoid `her house`, instead do `{name}'s bathroom`",
-      "current_appearance": "Precise, surgical description of current physical state. All body parts except those covered by clothing should be mentioned. 1 to 3 sentences of objective, anatomical detailing. Use the metric system exclusively. Provide numerical measurements for height (cm), weight (kg), and bodily proportions. IF male genitalia is visible: Note the erect length OR flaccid length (cm), whether circumcised or uncircumcised, and testicle presence. IF female genitalia is visible: Note the general appearance of the labia (e.g., 'neat,' 'full,' 'prominent inner lips'), and pubic hair style (e.g., 'natural,' 'trimmed,' 'shaved'). NEVER MENTION BODY PARTS THAT ARE COVERED BY CLOTHING. Clothing should not be mentioned. Don't set if nothing changed in appearance this turn."
+      "current_location": "Current unique location name. Describes concrete room. Update only when changed. Should be precise. Avoid `her house`, instead do `{name}'s bathroom`"
     }
   },
   "state": {
@@ -36,18 +34,15 @@
       "available_item": "Item entry available at this location.",
       "entry": "Location entry."
     },
-    "appearance": {
-      "baseline_appearance": "Precise, surgical description of baseline physical state (full, not partial). All body parts should be mentioned. Don't mention temporary appearance. 1 to 3 sentences of objective, anatomical detailing. Use the metric system exclusively. Provide numerical measurements for height (cm), weight (kg), and bodily proportions. For male genitalia: Note the erect length and flaccid length (cm), whether circumcised or uncircumcised, and testicle presence. For female genitalia: Note the general appearance of the labia (e.g., 'neat,' 'full,' 'prominent inner lips'), and pubic hair style (e.g., 'natural,' 'trimmed,' 'shaved').",
-      "current_clothing": "Precise, surgical full current clothing description in the same style as baseline, including all layers and accessories (do not omit unchanged layers). Catalog exhaustively. Detail every layer, including outerwear, underwear, accessories, and medical dressings/bandages. If garments are sheer, mesh, or transparent, objectively detail the specific underlying anatomical structures visible through the fabric (e.g., 'areolae visible through unlined silk'). Never output 'None'; omit the field if unchanged.",
-      "current_appearance": "Precise, surgical description of current physical state. All body parts except those covered by clothing should be mentioned. 1 to 3 sentences of objective, anatomical detailing. Use the metric system exclusively. Provide numerical measurements for height (cm), weight (kg), and bodily proportions. IF male genitalia is visible: Note the erect length OR flaccid length (cm), whether circumcised or uncircumcised, and testicle presence. IF female genitalia is visible: Note the general appearance of the labia (e.g., 'neat,' 'full,' 'prominent inner lips'), and pubic hair style (e.g., 'natural,' 'trimmed,' 'shaved'). NEVER MENTION BODY PARTS THAT ARE COVERED BY CLOTHING. Clothing should not be mentioned. Don't set if nothing changed in appearance this turn."
-    },
     "character": {
       "name": "Full legal name.",
       "race": "Character race.",
       "gender": "Character gender (male, female, futanari, intersex and so on).",
       "general_description": "General description for the character when detailed appearance/clothing is disabled.",
       "current_location": "Current unique location name. Describes concrete room. Update only when changed. Should be precise. Avoid `her house`, instead do `{name}'s bathroom`",
-      "appearance": "Character appearance object.",
+      "baseline_appearance": "Precise objective surgical-style anatomical description of baseline physical state (full body only). Every body part mentioned once; exclude all temporary features. Max 1–3 sentences. Metric system exclusively. Always include height (cm), weight (kg), key bodily proportions. Male genitalia: erect length (cm), flaccid length (cm), circumcision status, testicle presence. Female genitalia: labia (e.g. neat/full/prominent inner lips), pubic hair (e.g. natural/trimmed/shaved).",
+      "current_clothing": "Precise objective surgical-style exhaustive catalog of all current clothing layers (outerwear/underwear/accessories/medical dressings/bandages). Omit field entirely if unchanged; never output 'None'.",
+      "current_appearance": "Using baseline_appearance as a baseline, formulate current_appearance in same style, but take account for current_clothing. Do not describe body parts that shouldn't be visible. Keep same style and arrangement for correct DIFF work.",
       "current_activity": "Concise, factual description of what the character is doing right now.",
       "inventory": "Complete inventory list."
     }
@@ -77,7 +72,7 @@
     },
     "story": {
       "title": "3-5 word title tied to the opening scenario.",
-      "opening_scenario": "1-3 paragraphs separated by a blank line.",
+      "opening_scenario": "1-3 short paragraphs in second-person present tense. Separate paragraphs with a literal `\\n\\n`.",
       "starting_location": "1-3 word unique starting location name.",
       "starting_date": "Starting date in YYYY-MM-DD format. It should be appropriate for time setting of the story.",
       "starting_time": "Starting time in 24h HH:MM format. It should be in line with opening of the story.",
@@ -146,9 +141,9 @@
     }
   },
   "traits": {
-    "personality_traits": "List of 2-5 personality traits describing stable temperament and behavior. Each entry is a concise temperament or behavior descriptor of 1-8 words.",
-    "major_flaws": "List of 0-3 major flaws describing significant, enduring weaknesses or liabilities. Each entry is a significant, enduring weakness or liability of 1-8 words.",
-    "quirks": "List of 0-5 quirks describing small, idiosyncratic habits or mannerisms. Each entry is a small, specific habit or mannerism of 1-8 words.",
-    "perks": "List of 0-5 perks describing practical advantages, talents, or resources. Each entry is a concrete advantage, talent, or resource of 1-8 words."
+    "personality_traits": "List of personality traits describing stable temperament and behavior. Each entry is a concise temperament or behavior descriptor of 1-8 words.",
+    "major_flaws": "List of major flaws describing significant, enduring weaknesses or liabilities. Each entry is a significant, enduring weakness or liability of 1-8 words.",
+    "quirks": "List of quirks describing small, idiosyncratic habits or mannerisms. Each entry is a small, specific habit or mannerism of 1-8 words.",
+    "perks": "List of perks describing practical advantages, talents, or resources. Each entry is a concrete advantage, talent, or resource of 1-8 words."
   }
 }

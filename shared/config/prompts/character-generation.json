@@ -21,8 +21,9 @@
       },
       "character_detail_mode": {
         "detailed": [
-          "- baseline_appearance: {state.appearance.baseline_appearance}",
-          "- current_clothing: {state.appearance.current_clothing}"
+          "- baseline_appearance: {state.character.baseline_appearance}",
+          "- current_clothing: {state.character.current_clothing}",
+          "- current_appearance: {state.character.current_appearance}"
         ],
         "general": [
           "- general_description: {state.character.general_description}"

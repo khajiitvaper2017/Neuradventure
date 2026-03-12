@@ -40,7 +40,7 @@ export function characterToTavernCard(
   const defaults = getServerDefaults()
   const race = character.race?.trim() || defaults.unknown.value
   const gender = character.gender?.trim() || defaults.unknown.value
-  const baselineAppearance = character.appearance.baseline_appearance?.trim() || defaults.unknown.appearance
+  const baselineAppearance = character.baseline_appearance?.trim() || defaults.unknown.appearance
 
   descriptionLines.push(`Race: ${race}. Gender: ${gender}.`)
 
@@ -86,9 +86,26 @@ export function tavernCardToCharacter(card: TavernCardV2): TavernImportResult {
     const raw = card.data.extensions.neuradventure as Record<string, unknown>
     const { inventory: _inventory, ...base } = raw as Record<string, unknown>
     void _inventory
-    const character = { ...base } as Omit<MainCharacterState, "inventory">
+    const appearance = (base as { appearance?: Record<string, unknown> }).appearance
+    const character = { ...base } as Omit<MainCharacterState, "inventory"> & { appearance?: Record<string, unknown> }
+    if (appearance && typeof appearance === "object") {
+      if (!character.baseline_appearance) {
+        character.baseline_appearance = String(appearance.baseline_appearance ?? "")
+      }
+      if (!character.current_appearance) {
+        character.current_appearance = String(appearance.current_appearance ?? character.baseline_appearance ?? "")
+      }
+      if (!character.current_clothing) {
+        character.current_clothing = String(appearance.current_clothing ?? "")
+      }
+      delete character.appearance
+    }
     if (!Array.isArray(character.major_flaws)) character.major_flaws = []
-    return { character, needs_review: false, source: "neuradventure" }
+    return {
+      character: character as Omit<MainCharacterState, "inventory">,
+      needs_review: false,
+      source: "neuradventure",
+    }
   }
 
   // Parse from ST card fields
@@ -141,11 +158,9 @@ export function tavernCardToCharacter(card: TavernCardV2): TavernImportResult {
       race: parseRaceFromDescription(description),
       gender: parseGenderFromDescription(description),
       current_location: getServerDefaults().unknown.location,
-      appearance: {
-        baseline_appearance: baselineAppearance,
-        current_appearance: baselineAppearance,
-        current_clothing: getServerDefaults().unknown.clothing,
-      },
+      baseline_appearance: baselineAppearance,
+      current_appearance: baselineAppearance,
+      current_clothing: getServerDefaults().unknown.clothing,
       personality_traits: traits.length >= 2 ? traits : getServerDefaults().fallbackTraits,
       major_flaws: [],
       quirks: card.data.tags?.slice(0, 6) ?? [],

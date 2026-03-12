@@ -50,7 +50,7 @@ export function formatNPCBaselines(npcs: NPCState[], flags: ModuleFlags): string
           ? `  ${formatTemplate(labels.generalDescription, {
               value: npc.general_description?.trim() || defaults.unknown.generalDescription,
             })}`
-          : `  ${formatTemplate(labels.baselineAppearance, { value: npc.appearance.baseline_appearance })}`) +
+          : `  ${formatTemplate(labels.baselineAppearance, { value: npc.baseline_appearance })}`) +
         (flags.useNpcPersonalityTraits
           ? `\n  ${formatTemplate(labels.personalityTraits, { value: npc.personality_traits.join(", ") || none })}`
           : "") +
@@ -78,8 +78,8 @@ export function formatNPCCurrentStates(npcs: NPCState[], flags: ModuleFlags): st
           ? `  ${formatTemplate(labels.generalDescription, {
               value: npc.general_description?.trim() || defaults.unknown.generalDescription,
             })}\n`
-          : `  ${formatTemplate(labels.currentAppearance, { value: npc.appearance.current_appearance })}\n` +
-            `  ${formatTemplate(contextLabels.wearing, { value: npc.appearance.current_clothing })}\n`) +
+          : `  ${formatTemplate(labels.currentAppearance, { value: npc.current_appearance })}\n` +
+            `  ${formatTemplate(contextLabels.wearing, { value: npc.current_clothing })}\n`) +
         (flags.useNpcActivity ? `  ${formatTemplate(labels.currentActivity, { value: npc.current_activity })}\n` : "") +
         (flags.useNpcLocation ? `  ${formatTemplate(labels.location, { value: npc.current_location })}` : ""),
     )

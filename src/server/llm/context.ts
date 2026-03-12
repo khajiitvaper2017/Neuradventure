@@ -49,9 +49,9 @@ function buildContextBlock(opts: ContextBlockOpts): string {
     sections.initialCharacter,
     useGeneral
       ? formatTemplate(labels.generalDescription, { value: initialGeneralDescription })
-      : `${formatTemplate(labels.baselineAppearance, { value: initial.appearance.baseline_appearance })}\n` +
-          `${formatTemplate(labels.currentAppearance, { value: initial.appearance.current_appearance })}\n` +
-          `${formatTemplate(labels.wearing, { value: initial.appearance.current_clothing })}`,
+      : `${formatTemplate(labels.baselineAppearance, { value: initial.baseline_appearance })}\n` +
+          `${formatTemplate(labels.currentAppearance, { value: initial.current_appearance })}\n` +
+          `${formatTemplate(labels.wearing, { value: initial.current_clothing })}`,
   )
 
   const baseLines = [
@@ -94,9 +94,9 @@ function buildContextBlock(opts: ContextBlockOpts): string {
     sections.playerCharacterState,
     [
       flags.useCharAppearance
-        ? formatTemplate(labels.currentAppearance, { value: character.appearance.current_appearance })
+        ? formatTemplate(labels.currentAppearance, { value: character.current_appearance })
         : null,
-      flags.useCharAppearance ? formatTemplate(labels.wearing, { value: character.appearance.current_clothing }) : null,
+      flags.useCharAppearance ? formatTemplate(labels.wearing, { value: character.current_clothing }) : null,
       formatTemplate(labels.location, { value: character.current_location }),
       flags.useCharInventory ? formatTemplate(labels.inventory, { value: formatInventory(character.inventory) }) : null,
     ]

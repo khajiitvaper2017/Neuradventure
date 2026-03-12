@@ -85,9 +85,9 @@
     return {
       identity: `${c.name}|${c.race}|${c.gender}`,
       generalDescription: c.general_description?.trim() ?? "",
-      baselineAppearance: c.appearance?.baseline_appearance ?? "",
-      currentAppearance: c.appearance?.current_appearance ?? "",
-      clothing: c.appearance?.current_clothing ?? "",
+      baselineAppearance: c.baseline_appearance ?? "",
+      currentAppearance: c.current_appearance ?? "",
+      clothing: c.current_clothing ?? "",
       inventory: c.inventory.map((item) => `${item.name}:${item.description}`).join("|"),
     }
   }
@@ -201,9 +201,9 @@
       race: $character.race,
       gender: $character.gender,
       generalDescription: $character.general_description ?? "",
-      baselineAppearance: $character.appearance.baseline_appearance,
-      currentAppearance: $character.appearance.current_appearance,
-      clothing: $character.appearance.current_clothing,
+      baselineAppearance: $character.baseline_appearance,
+      currentAppearance: $character.current_appearance,
+      clothing: $character.current_clothing,
       personalityTraits: $character.personality_traits.join(", "),
       majorFlaws: $character.major_flaws.join(", "),
       quirks: $character.quirks.join(", "),
@@ -275,18 +275,20 @@
       gender,
       general_description: generalDescription || existing?.general_description,
       current_location: existing?.current_location ?? "",
-      appearance:
+      baseline_appearance:
         detailMode === "general"
-          ? (existing?.appearance ?? {
-              baseline_appearance: "",
-              current_appearance: "",
-              current_clothing: "",
-            })
-          : {
-              baseline_appearance: baselineAppearance || existing?.appearance.baseline_appearance || "",
-              current_appearance: currentAppearance || existing?.appearance.current_appearance || "",
-              current_clothing: clothing || existing?.appearance.current_clothing || "",
-            },
+          ? (existing?.baseline_appearance ?? "")
+          : baselineAppearance || existing?.baseline_appearance || "",
+      current_appearance:
+        detailMode === "general"
+          ? (existing?.current_appearance ?? "")
+          : currentAppearance ||
+            existing?.current_appearance ||
+            baselineAppearance ||
+            existing?.baseline_appearance ||
+            "",
+      current_clothing:
+        detailMode === "general" ? (existing?.current_clothing ?? "") : clothing || existing?.current_clothing || "",
       personality_traits: personalityTraits.length > 0 ? personalityTraits : (existing?.personality_traits ?? []),
       major_flaws: majorFlaws.length > 0 ? majorFlaws : (existing?.major_flaws ?? []),
       quirks: quirks.length > 0 ? quirks : (existing?.quirks ?? []),
@@ -461,7 +463,7 @@
               <IconFace size={14} strokeWidth={1.5} className="cs-icon" />
               <span class="section-label">Baseline Appearance</span>
             </div>
-            <div class="cs-value">{$character.appearance.baseline_appearance}</div>
+            <div class="cs-value">{$character.baseline_appearance}</div>
           </div>
         {/if}
 
@@ -470,7 +472,7 @@
             <IconFace size={14} strokeWidth={1.5} className="cs-icon" />
             <span class="section-label">Current Appearance</span>
           </div>
-          <div class="cs-value">{$character.appearance.current_appearance}</div>
+          <div class="cs-value">{$character.current_appearance}</div>
         </div>
 
         <div class="cs-section" class:flash={flashClothing}>
@@ -478,7 +480,7 @@
             <IconShirt size={14} strokeWidth={1.5} className="cs-icon" />
             <span class="section-label">Wearing</span>
           </div>
-          <div class="cs-value">{$character.appearance.current_clothing}</div>
+          <div class="cs-value">{$character.current_clothing}</div>
         </div>
 
         {#if showTraitSection && ((usePersonalityTraits && $character.personality_traits.length > 0) || (useMajorFlaws && $character.major_flaws.length > 0) || (useQuirks && $character.quirks.length > 0) || (usePerks && $character.perks.length > 0))}

@@ -15,19 +15,15 @@ export interface Location {
   available_items: LocationItem[]
 }
 
-export interface CharacterAppearance {
-  baseline_appearance: string
-  current_appearance: string
-  current_clothing: string
-}
-
 export interface CharacterState {
   name: string
   race: string
   gender: string
   general_description?: string
   current_location: string
-  appearance: CharacterAppearance
+  baseline_appearance: string
+  current_appearance: string
+  current_clothing: string
   personality_traits: string[]
   major_flaws: string[]
   quirks: string[]

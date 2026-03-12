@@ -13,7 +13,9 @@ export async function generateStory(
     gender: string
     general_description?: string
     current_location?: string
-    appearance?: { baseline_appearance: string; current_appearance: string; current_clothing: string }
+    baseline_appearance?: string
+    current_appearance?: string
+    current_clothing?: string
     personality_traits?: string[]
     major_flaws?: string[]
     quirks?: string[]
@@ -36,8 +38,8 @@ export async function generateStory(
   ]
     .map((t) => t.trim())
     .filter(Boolean)
-  const baselineAppearance = character.appearance?.baseline_appearance || unknown
-  const currentAppearance = character.appearance?.current_appearance || baselineAppearance
+  const baselineAppearance = character.baseline_appearance || unknown
+  const currentAppearance = character.current_appearance || baselineAppearance
   const majorFlaws = flags.useCharMajorFlaws ? (character.major_flaws?.map((t) => t.trim()).filter(Boolean) ?? []) : []
   const generalDescription = character.general_description?.trim() || defaults.unknown.generalDescription
   const useGeneral = modules.character_detail_mode === "general"
@@ -58,7 +60,7 @@ export async function generateStory(
                 formatTemplate(llmStrings.characterContextLabels.baselineAppearance, { value: baselineAppearance }),
                 formatTemplate(llmStrings.characterContextLabels.currentAppearance, { value: currentAppearance }),
                 formatTemplate(llmStrings.characterContextLabels.clothing, {
-                  value: character.appearance?.current_clothing || unknown,
+                  value: character.current_clothing || unknown,
                 }),
               ]),
           ...(flags.useCharMajorFlaws

@@ -29,9 +29,9 @@
       "npc_appearance_clothing": {
         "on": [
           "When NPC appearance/clothing is enabled:",
-          "appearance.baseline_appearance: {state.appearance.baseline_appearance}",
-          "appearance.current_clothing: {state.appearance.current_clothing}",
-          "appearance.current_appearance: {state.appearance.current_appearance}. Accent the difference. DON'T MENTION BODY PARTS THAT ARE NOT VISIBLE BECAUSE OF CLOTHING."
+          "baseline_appearance: {state.character.baseline_appearance}",
+          "current_clothing: {state.character.current_clothing}",
+          "current_appearance: {state.character.current_appearance}"
         ],
         "off": []
       },
