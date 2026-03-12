@@ -6,17 +6,19 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const SETTINGS_FIELDS_PATH = path.resolve(__dirname, "../../../shared/config/settings-fields.json")
 const SCHEMA_FIELDS_PATH = path.resolve(__dirname, "../../../shared/config/schema-fields.json")
 
-const rawSettings = fs.readFileSync(SETTINGS_FIELDS_PATH, "utf-8")
-const rawSchema = fs.readFileSync(SCHEMA_FIELDS_PATH, "utf-8")
-export const SETTINGS_FIELDS = JSON.parse(rawSettings) as Record<string, unknown>
-export const SCHEMA_FIELDS = JSON.parse(rawSchema) as Record<string, unknown>
+export let SETTINGS_FIELDS: Record<string, unknown> = {}
+export let SCHEMA_FIELDS: Record<string, unknown> = {}
 
 type LeafLookup = {
   byKey: Map<string, string>
   ambiguous: Set<string>
 }
 
-const leafLookup: LeafLookup = buildLeafLookup()
+const WATCH_DEBOUNCE_MS = 50
+let leafLookup: LeafLookup = { byKey: new Map(), ambiguous: new Set() }
+let reloadTimer: NodeJS.Timeout | null = null
+let watchersStarted = false
+const activeWatchers: fs.FSWatcher[] = []
 
 function getFieldByPath(pathKey: string, root: Record<string, unknown>): string | null {
   const parts = pathKey.split(".")
@@ -28,7 +30,7 @@ function getFieldByPath(pathKey: string, root: Record<string, unknown>): string 
   return typeof current === "string" ? current : null
 }
 
-function buildLeafLookup(): LeafLookup {
+function buildLeafLookup(schemaFields: Record<string, unknown>, settingsFields: Record<string, unknown>): LeafLookup {
   const byKey = new Map<string, string>()
   const ambiguous = new Set<string>()
 
@@ -50,10 +52,58 @@ function buildLeafLookup(): LeafLookup {
     }
   }
 
-  walk(SCHEMA_FIELDS)
-  walk(SETTINGS_FIELDS)
+  walk(schemaFields)
+  walk(settingsFields)
   return { byKey, ambiguous }
 }
+
+function readJsonFile(pathKey: string): Record<string, unknown> {
+  return JSON.parse(fs.readFileSync(pathKey, "utf-8")) as Record<string, unknown>
+}
+
+function loadFields(): void {
+  const nextSettings = readJsonFile(SETTINGS_FIELDS_PATH)
+  const nextSchema = readJsonFile(SCHEMA_FIELDS_PATH)
+  SETTINGS_FIELDS = nextSettings
+  SCHEMA_FIELDS = nextSchema
+  leafLookup = buildLeafLookup(nextSchema, nextSettings)
+}
+
+function tryReloadFields(): void {
+  try {
+    loadFields()
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error)
+    console.warn(`[field-descriptions] Failed to reload field files: ${message}`)
+  }
+}
+
+function scheduleReload(): void {
+  if (reloadTimer) clearTimeout(reloadTimer)
+  reloadTimer = setTimeout(() => {
+    reloadTimer = null
+    tryReloadFields()
+  }, WATCH_DEBOUNCE_MS)
+}
+
+function startWatchers(): void {
+  if (watchersStarted) return
+  watchersStarted = true
+  const watch = (pathKey: string) => {
+    try {
+      const watcher = fs.watch(pathKey, { persistent: false }, scheduleReload)
+      activeWatchers.push(watcher)
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error)
+      console.warn(`[field-descriptions] Failed to watch ${pathKey}: ${message}`)
+    }
+  }
+  watch(SETTINGS_FIELDS_PATH)
+  watch(SCHEMA_FIELDS_PATH)
+}
+
+loadFields()
+startWatchers()
 
 export function resolveFieldShortcut(key: string): string | null {
   if (!key) return null
