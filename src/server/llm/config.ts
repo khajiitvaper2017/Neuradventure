@@ -1,9 +1,7 @@
 import { readFileSync, statSync } from "fs"
 import { fileURLToPath } from "url"
 import { dirname, join } from "path"
-import { getLlmStrings } from "../strings.js"
-
-// ─── Prompt config (hot-reloaded from shared/config.json) ────────────────────
+// ─── Prompt config (hot-reloaded from shared/config/prompts/*.json) ──────────
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 export type SectionFormat = "xml" | "markdown" | "equals"
@@ -20,17 +18,38 @@ type PromptConfig = {
   sectionFormat?: SectionFormat
 }
 
-const CONFIG_PATH = join(__dirname, "../../../shared/config.json")
+const PROMPT_FILES = [
+  join(__dirname, "../../../shared/config/prompts/system.json"),
+  join(__dirname, "../../../shared/config/prompts/character.json"),
+  join(__dirname, "../../../shared/config/prompts/story.json"),
+  join(__dirname, "../../../shared/config/prompts/npc.json"),
+  join(__dirname, "../../../shared/config/prompts/impersonate.json"),
+]
 let cachedConfig: PromptConfig | null = null
 let cachedConfigMtime = 0
 
-export const npcTraits: string[] = JSON.parse(readFileSync(join(__dirname, "../../../shared/traits.json"), "utf-8"))
+export const npcTraits: string[] = JSON.parse(
+  readFileSync(join(__dirname, "../../../shared/config/traits.json"), "utf-8"),
+)
+
+function readPromptConfig(): PromptConfig {
+  const merged: Partial<PromptConfig> = {}
+  for (const file of PROMPT_FILES) {
+    const payload = JSON.parse(readFileSync(file, "utf-8")) as Partial<PromptConfig>
+    Object.assign(merged, payload)
+  }
+  return merged as PromptConfig
+}
 
 export function getConfig(): PromptConfig {
-  const stat = statSync(CONFIG_PATH)
-  if (!cachedConfig || stat.mtimeMs !== cachedConfigMtime) {
-    cachedConfig = JSON.parse(readFileSync(CONFIG_PATH, "utf-8")) as PromptConfig
-    cachedConfigMtime = stat.mtimeMs
+  let latestMtime = 0
+  for (const file of PROMPT_FILES) {
+    const stat = statSync(file)
+    if (stat.mtimeMs > latestMtime) latestMtime = stat.mtimeMs
+  }
+  if (!cachedConfig || latestMtime !== cachedConfigMtime) {
+    cachedConfig = readPromptConfig()
+    cachedConfigMtime = latestMtime
   }
   return cachedConfig
 }
@@ -50,11 +69,7 @@ export function getNpcCreationPrompt(): string {
 
 export function getImpersonatePrompt(): string {
   const config = getConfig()
-  const lines =
-    config.impersonatePrompt && config.impersonatePrompt.length > 0
-      ? config.impersonatePrompt
-      : getLlmStrings().impersonateFallbackPrompt
-  return lines.join("\n")
+  return (config.impersonatePrompt ?? config.systemPromptLines).join("\n")
 }
 
 export function getSectionFormat(): SectionFormat {

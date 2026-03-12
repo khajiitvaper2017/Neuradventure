@@ -319,7 +319,16 @@ stories.post("/import", async (c) => {
         parsed.characterName && parsed.characterName !== "Narrator"
           ? `Imported Chat with ${parsed.characterName}`
           : "Imported Chat"
-      const storyId = createNewStory(title, parsed.openingScenario, character, [], undefined, undefined, undefined, characterId)
+      const storyId = createNewStory(
+        title,
+        parsed.openingScenario,
+        character,
+        [],
+        undefined,
+        undefined,
+        undefined,
+        characterId,
+      )
       const storyRow = db.getStory(storyId)
       if (storyRow) {
         const snapshot = parseStoryState(storyRow)

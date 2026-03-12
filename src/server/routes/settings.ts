@@ -9,7 +9,7 @@ import { getCtxLimitCached } from "../llm.js"
 import { desc } from "../schemas/field-descriptions.js"
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
-const PRESETS_DIR = join(__dirname, "../../../shared/presets")
+const PRESETS_DIR = join(__dirname, "../../../shared/config/presets")
 
 const GenerationParamsSchema = z.object({
   max_tokens: z.number().int().describe(desc("settings.generation.max_tokens")),

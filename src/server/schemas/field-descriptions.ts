@@ -3,7 +3,7 @@ import path from "node:path"
 import { fileURLToPath } from "node:url"
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
-const FIELDS_PATH = path.resolve(__dirname, "../../../shared/fields.json")
+const FIELDS_PATH = path.resolve(__dirname, "../../../shared/config/fields.json")
 
 const raw = fs.readFileSync(FIELDS_PATH, "utf-8")
 export const FIELDS = JSON.parse(raw) as Record<string, unknown>

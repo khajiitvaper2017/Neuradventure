@@ -596,7 +596,6 @@
               </div>
             </div>
           {/if}
-
         {/if}
       </div>
     {/each}
@@ -608,7 +607,11 @@
     <div class="sidebar-header">
       <IconUsers size={16} strokeWidth={1.5} className="npc-header-icon" />
       <span>Known NPCs ({$npcs.length})</span>
-      <button class="npc-toggle-btn" onclick={() => (showBaselineDetails = !showBaselineDetails)} disabled={$npcs.length === 0}>
+      <button
+        class="npc-toggle-btn"
+        onclick={() => (showBaselineDetails = !showBaselineDetails)}
+        disabled={$npcs.length === 0}
+      >
         {showBaselineDetails ? "Hide Baseline" : "Show Baseline"}
       </button>
     </div>
@@ -624,7 +627,11 @@
     <div class="panel-header">
       <IconUsers size={16} strokeWidth={1.5} className="npc-header-icon" />
       <span>Known NPCs ({$npcs.length})</span>
-      <button class="npc-toggle-btn" onclick={() => (showBaselineDetails = !showBaselineDetails)} disabled={$npcs.length === 0}>
+      <button
+        class="npc-toggle-btn"
+        onclick={() => (showBaselineDetails = !showBaselineDetails)}
+        disabled={$npcs.length === 0}
+      >
         {showBaselineDetails ? "Hide Baseline" : "Show Baseline"}
       </button>
       <button onclick={() => showNPCTracker.set(false)}>×</button>

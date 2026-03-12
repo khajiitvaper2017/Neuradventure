@@ -461,7 +461,11 @@
         <span>Character Sheet</span>
       </div>
       <div class="cs-header-actions">
-        <button class="cs-toggle-btn" onclick={() => (showBaselineDetails = !showBaselineDetails)} disabled={!$character}>
+        <button
+          class="cs-toggle-btn"
+          onclick={() => (showBaselineDetails = !showBaselineDetails)}
+          disabled={!$character}
+        >
           {showBaselineDetails ? "Hide Baseline" : "Show Baseline"}
         </button>
         <button class="cs-edit-btn" onclick={startEdit} disabled={editing || !$character || !$currentStoryId || saving}>
@@ -484,7 +488,11 @@
         <span>Character Sheet</span>
       </div>
       <div class="cs-header-actions">
-        <button class="cs-toggle-btn" onclick={() => (showBaselineDetails = !showBaselineDetails)} disabled={!$character}>
+        <button
+          class="cs-toggle-btn"
+          onclick={() => (showBaselineDetails = !showBaselineDetails)}
+          disabled={!$character}
+        >
           {showBaselineDetails ? "Hide Baseline" : "Show Baseline"}
         </button>
         <button class="cs-edit-btn" onclick={startEdit} disabled={editing || !$character || !$currentStoryId || saving}>
@@ -697,5 +705,4 @@
     font-size: 0.8rem;
     color: var(--text-dim);
   }
-
 </style>

@@ -8,7 +8,11 @@ import {
 } from "../models.js"
 import type { StoryRow, TurnRow, TurnVariantRow } from "../db.js"
 
-export function parseTurnSnapshot(turn: TurnRow): { character: MainCharacterState; world: WorldState; npcs: NPCState[] } {
+export function parseTurnSnapshot(turn: TurnRow): {
+  character: MainCharacterState
+  world: WorldState
+  npcs: NPCState[]
+} {
   const character = MainCharacterStateStoredSchema.parse(JSON.parse(turn.character_snapshot_json))
   const world = WorldStateStoredSchema.parse(JSON.parse(turn.world_snapshot_json))
   const npcs = (JSON.parse(turn.npc_snapshot_json) as unknown[]).map((n) => NPCStateStoredSchema.parse(n))

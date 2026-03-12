@@ -6,7 +6,7 @@
   import { autoresize } from "./actions/autoresize.js"
   import { pendingCharacter, pendingCharacterId, pendingCharacterImportText } from "../stores/game.js"
   import { pendingCharacterGenerateDescription } from "../stores/game.js"
-  import personalityOptions from "../../../shared/traits.json"
+  import personalityOptions from "../../../shared/config/traits.json"
   import { loadPromptHistory, savePromptHistory, removePromptHistory } from "./utils/promptHistory.js"
   import IconTrash from "../icons/IconTrash.svelte"
 

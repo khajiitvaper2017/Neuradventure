@@ -101,6 +101,8 @@ export interface TurnSummary {
   created_at: string
 }
 
+export type GenerateCharacterContext = Omit<MainCharacterState, "inventory">
+
 export interface GenerateCharacterResponse {
   name: string
   race: string

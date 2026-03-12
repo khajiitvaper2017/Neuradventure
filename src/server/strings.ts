@@ -3,8 +3,8 @@ import { fileURLToPath } from "url"
 import { dirname, join } from "path"
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
-const DEFAULTS_PATH = join(__dirname, "../../shared/server-defaults.json")
-const LLM_STRINGS_PATH = join(__dirname, "../../shared/llm-strings.json")
+const DEFAULTS_PATH = join(__dirname, "../../shared/config/server-defaults.json")
+const LLM_STRINGS_PATH = join(__dirname, "../../shared/config/llm-strings.json")
 
 type ServerDefaults = {
   format: {
@@ -30,7 +30,6 @@ type ServerDefaults = {
 }
 
 type LlmStrings = {
-  impersonateFallbackPrompt: string[]
   generateCharacter: {
     availableTraitsLine: string
     userPrompt: string

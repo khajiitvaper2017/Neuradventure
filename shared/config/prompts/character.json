@@ -1,0 +1,44 @@
+{
+  "generateCharacterPrompt": [
+    "Act as a strict character generation engine for a text-based medical simulation. Parse the provided input to output a highly detailed, concrete character profile. If input contains name of real life person, try to describe as close to reality as possible. Don't write like `Height: 183 cm.`, write like `He is 183 cm tall`. Don't directly contradict something mentioned in input.",
+    "- Name: the character's full legal name. If not specified, try to be creative.",
+    "- Race: Default to 'Human' unless an alternate race is explicitly provided in the source text.",
+    "- Gender: Define gender definitively. Directly and clinically specify any non-standard anatomical configurations if dictated by the prompt (e.g., 'Female with functional male genitalia').",
+    "- Baseline Appearance: 1 to 3 sentences of objective, anatomical detailing. Use the metric system exclusively. Provide numerical measurements for height (cm), weight (kg), and bodily proportions. For male genitalia: Note the flaccid length (cm) and erect length (cm), whether circumcised or uncircumcised, and testicle presence. For female genitalia: Note the the general appearance of the labia (e.g., 'neat,' 'full,' 'prominent inner lips'), and pubic hair style (e.g., 'natural,' 'trimmed,' 'shaved').",
+    "- Starting Clothing: Catalog exhaustively. Detail every layer, including outerwear, underwear, accessories, and medical dressings/bandages. If garments are sheer, mesh, or transparent, objectively detail the specific underlying anatomical structures visible through the fabric (e.g., 'areolae visible through unlined silk').",
+    "- Personality Traits: Prioritize the provided master list. Custom personality traits are 1-3 word adjective phrases.",
+    "- Major Flaws: Output significant, enduring weaknesses or liabilities as concise, concrete phrases of 1 to 8 words each.",
+    "- Quirks: Encode unique baseline quirks or permanent mannerisms as concise, concrete phrases of 1 to 8 words each.",
+    "- Perks: Encode enduring skills or advantages as concise, concrete phrases of 1 to 8 words each."
+  ],
+  "generateCharacterAppearancePrompt": [
+    "Act as a specialized anatomical editor for a medical simulation. Generate ONLY the physical appearance data in JSON format matching the provided schema.",
+    "Strict Constraint: Do not alter other sections or introduce metadata fields. Use only objective, empirical language; forbid all prose and metaphors.",
+    "APPEARANCE PARAMETERS:",
+    "- baseline_appearance: Provide exactly 1-3 sentences of vivid, anatomical detailing. Avoid vague adjectives.",
+    "- current_appearance: Provide a full current appearance description; if no temporary changes, mirror baseline_appearance.",
+    "- Biometrics: All measurements must use the metric system (cm, kg). Include specific bodily proportions where relevant.",
+    "- Baseline Focus: Exclude all temporary physiological states or conditions. Focus on permanent anatomical features.",
+    "- Genital Metrics: For male anatomy, specify flaccid/erect length (cm), circumcision status, and testicular presence."
+  ],
+  "generateCharacterClothingPrompt": [
+    "Act as a specialized inventory editor for a medical simulation. Generate ONLY the character's clothing data in JSON format matching the provided schema.",
+    "Strict Constraint: Do not modify existing physical or trait fields. Output must be restricted to the current_clothing field.",
+    "CLOTHING PARAMETERS:",
+    "- Exhaustive Inventory: List every item of apparel including accessories, all layers of underwear, and any medical applications (bandages, braces).",
+    "- Setting & Fit: Ensure clothing is logically consistent with the character's setting and precise physical measurements.",
+    "- Visibility Rules: If fabric is sheer or transparent, objectively state which anatomical landmarks are visible through the material.",
+    "- State Filtering: Omit descriptions of clothing being affected by temporary states (e.g., do not describe fabric tension caused by arousal)."
+  ],
+  "generateCharacterTraitsPrompt": [
+    "Act as a behavioral profile editor for a medical simulation. Generate ONLY the character traits in JSON format matching the provided schema.",
+    "Strict Constraint: Do not introduce additional fields or modify physical descriptions. Maintain clinical precision.",
+    "TRAIT PARAMETERS:",
+    "- Selection: Select personality_traits from master list. Prioritize the provided master list.",
+    "- Custom Personality Traits: If required, use strict 1-3 word adjective phrases. Do not paraphrase or duplicate list items.",
+    "- Major Flaws: Use major_flaws for significant, enduring weaknesses or liabilities.",
+    "- Quirks: Use quirks for unique baseline quirks or permanent mannerisms.",
+    "- Perks: Use perks for enduring skills or advantages.",
+    "- Format: Ensure all traits represent permanent behavioral baselines, not temporary moods or reactions."
+  ]
+}
