@@ -151,7 +151,6 @@ const CharacterStateStoredBaseSchema = z
     gender: z.string().optional().describe(desc("state.character.gender")),
     general_description: z.string().optional().describe(desc("state.character.general_description")),
     current_location: z.string().optional().describe(desc("state.character.current_location")),
-    last_known_location: z.string().optional().describe(desc("state.character.current_location")),
     appearance: z.unknown().optional().describe(desc("state.character.appearance")),
     personality_traits: z.unknown().optional().describe(desc("traits.personality_traits")),
     major_flaws: z.unknown().optional().describe(desc("traits.major_flaws")),
@@ -159,7 +158,6 @@ const CharacterStateStoredBaseSchema = z
     perks: z.unknown().optional().describe(desc("traits.perks")),
     current_activity: z.string().optional().describe(desc("state.character.current_activity")),
     inventory: z.unknown().optional().describe(desc("state.character.inventory")),
-    notes: z.string().optional().describe(desc("state.character.current_activity")),
   })
   .passthrough()
 const normalizeCharacterStoredBase = (value: z.input<typeof CharacterStateStoredBaseSchema>) => ({
@@ -170,10 +168,7 @@ const normalizeCharacterStoredBase = (value: z.input<typeof CharacterStateStored
     value.general_description ?? (value as Record<string, unknown>).baseline_description,
     getServerDefaults().unknown.generalDescription,
   ),
-  current_location: normalizeNonEmptyString(
-    value.current_location ?? value.last_known_location,
-    getServerDefaults().unknown.location,
-  ),
+  current_location: normalizeNonEmptyString(value.current_location, getServerDefaults().unknown.location),
   appearance: normalizeAppearance(value.appearance),
   personality_traits: normalizePersonalityTraits(value.personality_traits),
   major_flaws: normalizeTraitList(value.major_flaws, 3),
@@ -190,10 +185,7 @@ export const MainCharacterStateStoredSchema = CharacterStateStoredSchema
 
 export const NPCStateStoredSchema = CharacterStateStoredBaseSchema.transform((value) => ({
   ...normalizeCharacterStoredBase(value),
-  current_activity: normalizeNonEmptyString(
-    value.current_activity ?? value.notes,
-    getServerDefaults().unknown.activity,
-  ),
+  current_activity: normalizeNonEmptyString(value.current_activity, getServerDefaults().unknown.activity),
 })).pipe(NPCStateSchema)
 
 export const WorldStateUpdateSchema = z

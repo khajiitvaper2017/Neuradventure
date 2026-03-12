@@ -59,7 +59,7 @@ async function main() {
   console.log("Narrative:", response.narrative_text)
   console.log("\nWorld update:", response.world_state_update)
   console.log("Appearance change:", response.appearance_change)
-  console.log("Clothing change:", response.clothing_change)
+  console.log("Current clothing:", response.current_clothing)
   console.log("Inventory change:", response.inventory_change)
   console.log("NPC changes:", response.npc_changes)
   console.log("NPC introductions:", response.npc_introductions)

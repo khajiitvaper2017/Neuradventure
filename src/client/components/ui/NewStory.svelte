@@ -186,8 +186,7 @@
               ...$pendingCharacter,
               appearance: {
                 ...$pendingCharacter.appearance,
-                current_appearance:
-                  result.character_current_appearance ?? $pendingCharacter.appearance.current_appearance,
+                current_appearance: result.current_appearance ?? $pendingCharacter.appearance.current_appearance,
               },
             }
       pendingCharacter.set(updatedCharacter)

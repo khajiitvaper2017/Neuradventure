@@ -22,7 +22,7 @@ export function applyPlayerUpdate(
     ? {
         ...character.appearance,
         current_appearance: turnResponse.appearance_change ?? character.appearance.current_appearance,
-        current_clothing: turnResponse.clothing_change ?? character.appearance.current_clothing,
+        current_clothing: turnResponse.current_clothing ?? character.appearance.current_clothing,
       }
     : character.appearance
 
@@ -147,7 +147,7 @@ export function applyNPCUpdates(npcs: NPCState[], updates: NPCStateUpdate[], fla
           ? (patch.set_current_appearance ?? npc.appearance.current_appearance)
           : npc.appearance.current_appearance,
         current_clothing: flags.useNpcAppearance
-          ? (patch.set_current_clothing ?? npc.appearance.current_clothing)
+          ? (patch.current_clothing ?? npc.appearance.current_clothing)
           : npc.appearance.current_clothing,
       },
       current_activity: flags.useNpcActivity
@@ -218,8 +218,8 @@ export function collectLlmWarnings(world: WorldState, npcs: NPCState[], turnResp
     if (patch.set_current_appearance && patch.set_current_appearance === npc.appearance.current_appearance) {
       warnings.push(`npc_changes[${npc.name}].set_current_appearance matches existing value`)
     }
-    if (patch.set_current_clothing && patch.set_current_clothing === npc.appearance.current_clothing) {
-      warnings.push(`npc_changes[${npc.name}].set_current_clothing matches existing value`)
+    if (patch.current_clothing && patch.current_clothing === npc.appearance.current_clothing) {
+      warnings.push(`npc_changes[${npc.name}].current_clothing matches existing value`)
     }
     if (patch.set_current_activity && patch.set_current_activity === npc.current_activity) {
       warnings.push(`npc_changes[${npc.name}].set_current_activity matches existing value`)

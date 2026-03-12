@@ -234,7 +234,7 @@ export interface GenerateStoryResponse {
   starting_location: string
   starting_date: string
   starting_time: string
-  character_current_appearance?: string
+  current_appearance?: string
   character_general_description?: string
   pregen_npcs?: NPCState[]
 }

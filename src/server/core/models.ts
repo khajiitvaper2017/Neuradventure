@@ -18,7 +18,7 @@ import { StoryModulesSchema } from "../schemas/story-modules.js"
 import { NPCStateUpdateBaseSchema } from "../schemas/npc-state-update-base.js"
 import {
   AppearanceChangeSection,
-  ClothingChangeSection,
+  CurrentClothingSection,
   InventoryChangeSection,
   NPCChangesSection,
   NPCIntroductionsSection,
@@ -79,7 +79,7 @@ export {
   NPCStateUpdateSchema,
   NPCCreationSchema,
   AppearanceChangeSection,
-  ClothingChangeSection,
+  CurrentClothingSection,
   InventoryChangeSection,
   buildNPCChangesSection,
   NPCChangesSection,

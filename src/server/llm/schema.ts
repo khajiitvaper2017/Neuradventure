@@ -86,7 +86,7 @@ export function buildTurnResponseSchema(
   }
 
   if (!flags.useCharAppearance) {
-    schema = schema.omit({ appearance_change: true, clothing_change: true })
+    schema = schema.omit({ appearance_change: true, current_clothing: true })
   }
 
   if (!flags.useCharInventory) {

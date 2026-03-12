@@ -40,8 +40,8 @@
       "entry": "Location entry."
     },
     "appearance": {
-      "baseline_appearance": "Immutable, surgical baseline appearance (permanent features only).",
-      "current_appearance": "Precise, surgical description of current physical state (full, not partial). Represent current appearance if changed from previous current_appearance.",
+      "baseline_appearance": "Precise, surgical description of baseline physical state (full, not partial). All body parts should be mentioned. Don't mention temporary appearance.",
+      "current_appearance": "Precise, surgical description of current physical state (full, not partial).  All visible body parts should be mentioned. Represent current appearance if changed from previous current_appearance. Do not describe clothing.",
       "current_clothing": "Precise, surgical full current clothing description in the same style as baseline, including all layers and accessories (do not omit unchanged layers). Never output 'None'; omit the field if unchanged."
     },
     "character": {

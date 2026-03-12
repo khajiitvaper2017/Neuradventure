@@ -95,7 +95,7 @@ export const GenerateStoryResponseSchema = z
       .string()
       .regex(TIME_OF_DAY_REGEX, "starting_time must be 24h HH:MM")
       .describe(desc("generation.story.starting_time")),
-    character_current_appearance: z.string().min(1).optional().describe(desc("state.appearance.current_appearance")),
+    current_appearance: z.string().min(1).optional().describe(desc("state.appearance.current_appearance")),
     character_general_description: z
       .string()
       .min(1)
@@ -137,7 +137,7 @@ export function buildGenerateStoryResponseSchema(modules: StoryModules): z.ZodTy
       .min(1)
       .describe(desc("generation.story.character_general_description"))
   } else {
-    baseShape.character_current_appearance = z.string().min(1).describe(desc("state.appearance.current_appearance"))
+    baseShape.current_appearance = z.string().min(1).describe(desc("state.appearance.current_appearance"))
   }
 
   let schema: z.AnyZodObject = z.object(baseShape).strict()
