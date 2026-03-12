@@ -41,9 +41,9 @@
       "general_description": "General description for the character when detailed appearance/clothing is disabled.",
       "current_location": "Current unique location name. Describes concrete room. Update only when changed. Should be precise. Avoid `her house`, instead do `{name}'s bathroom`",
       "baseline_appearance": "Precise objective surgical-style anatomical description of baseline physical state (full body only). Every body part mentioned once; exclude all temporary features. Max 1–3 sentences. Metric system exclusively. Always include height (cm), weight (kg), key bodily proportions. Male genitalia: erect length (cm), flaccid length (cm), circumcision status, testicle presence. Female genitalia: labia (e.g. neat/full/prominent inner lips), pubic hair (e.g. natural/trimmed/shaved).",
-      "current_clothing": "Precise objective surgical-style exhaustive catalog of all current clothing layers (outerwear/underwear/accessories/medical dressings/bandages). Omit field entirely if unchanged; never output 'None'.",
-      "current_appearance": "Using baseline_appearance as a baseline, formulate current_appearance in same style, but take account for current_clothing. Do not describe body parts that shouldn't be visible. Keep same style and arrangement for correct DIFF work.",
-      "current_activity": "Concise, factual description of what the character is doing right now.",
+      "current_clothing": "Precise objective surgical-style exhaustive catalog of all current clothing layers (outerwear/underwear/accessories/medical dressings/bandages). Should contains only clothing description. Omit field entirely if unchanged; never output 'None'.",
+      "current_appearance": "Precise objective surgical-style anatomical description of currently visible body parts only, excluding any areas covered by current_clothing. Update to reflect scene-specific temporary features (e.g., sweat, wounds, dirt, flush). Use metric system exclusively. It is very important to have same structure as baseline_appearance, only with covered parts omitted for correct work of diff.",
+      "current_activity": "Concise, factual description of what the character is doing right now. Make sure to update even for background characters.",
       "inventory": "Complete inventory list."
     }
   },
@@ -73,11 +73,11 @@
     "story": {
       "title": "3-5 word title tied to the opening scenario.",
       "opening_scenario": "1-3 short paragraphs in second-person present tense. Separate paragraphs with a literal `\\n\\n`.",
-      "starting_location": "1-3 word unique starting location name.",
+      "starting_location": "1–5 word unique location name: specific named place, not generic. Use possessive/numbers if needed (\"Kai's 1st Bathroom\"). No vague terms (unknown, adjacent, nearby).",
       "starting_date": "Starting date in YYYY-MM-DD format. It should be appropriate for time setting of the story.",
       "starting_time": "Starting time in 24h HH:MM format. It should be in line with opening of the story.",
       "character_general_description": "General description for the player character at story start.",
-      "pregen_npcs": "List of pre-generated NPCs with full details."
+      "pregen_npcs": "List of pre-generated NPCs with full details. All named/identified characters appear with full names, no player/placeholders, add only if strongly implied, not at player's start unless stated."
     }
   },
   "requests": {
