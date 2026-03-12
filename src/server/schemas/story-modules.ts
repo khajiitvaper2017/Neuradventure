@@ -1,24 +1,23 @@
 import { z } from "zod"
-import { desc } from "./field-descriptions.js"
 
 export const StoryModulesSchema = z
   .object({
-    track_npcs: z.boolean().describe(desc("story_modules.track_npcs")),
-    track_locations: z.boolean().describe(desc("story_modules.track_locations")),
-    character_detail_mode: z.enum(["detailed", "general"]).describe(desc("story_modules.character_detail_mode")),
-    character_appearance_clothing: z.boolean().describe(desc("story_modules.character_appearance_clothing")),
-    character_personality_traits: z.boolean().describe(desc("story_modules.character_personality_traits")),
-    character_major_flaws: z.boolean().describe(desc("story_modules.character_major_flaws")),
-    character_quirks: z.boolean().describe(desc("story_modules.character_quirks")),
-    character_perks: z.boolean().describe(desc("story_modules.character_perks")),
-    character_inventory: z.boolean().describe(desc("story_modules.character_inventory")),
-    npc_appearance_clothing: z.boolean().describe(desc("story_modules.npc_appearance_clothing")),
-    npc_personality_traits: z.boolean().describe(desc("story_modules.npc_personality_traits")),
-    npc_major_flaws: z.boolean().describe(desc("story_modules.npc_major_flaws")),
-    npc_quirks: z.boolean().describe(desc("story_modules.npc_quirks")),
-    npc_perks: z.boolean().describe(desc("story_modules.npc_perks")),
-    npc_location: z.boolean().describe(desc("story_modules.npc_location")),
-    npc_activity: z.boolean().describe(desc("story_modules.npc_activity")),
+    track_npcs: z.boolean(),
+    track_locations: z.boolean(),
+    character_detail_mode: z.enum(["detailed", "general"]),
+    character_appearance_clothing: z.boolean(),
+    character_personality_traits: z.boolean(),
+    character_major_flaws: z.boolean(),
+    character_quirks: z.boolean(),
+    character_perks: z.boolean(),
+    character_inventory: z.boolean(),
+    npc_appearance_clothing: z.boolean(),
+    npc_personality_traits: z.boolean(),
+    npc_major_flaws: z.boolean(),
+    npc_quirks: z.boolean(),
+    npc_perks: z.boolean(),
+    npc_location: z.boolean(),
+    npc_activity: z.boolean(),
   })
   .strict()
 

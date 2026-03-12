@@ -6,56 +6,55 @@ import { fileURLToPath } from "node:url"
 import { dirname, join } from "node:path"
 import * as db from "../core/db.js"
 import { getCtxLimitCached } from "../llm/index.js"
-import { desc } from "../schemas/field-descriptions.js"
 import { StoryModulesSchema } from "../schemas/story-modules.js"
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const PRESETS_DIR = join(__dirname, "../../../shared/config/presets")
 
 const GenerationParamsSchema = z.object({
-  max_tokens: z.number().int().describe(desc("settings.generation.max_tokens")),
-  ctx_limit: z.number().int().describe(desc("settings.generation.ctx_limit")),
-  temperature: z.number().describe(desc("settings.generation.temperature")),
-  top_k: z.number().int().describe(desc("settings.generation.top_k")),
-  top_p: z.number().describe(desc("settings.generation.top_p")),
-  min_p: z.number().describe(desc("settings.generation.min_p")),
-  typical_p: z.number().describe(desc("settings.generation.typical_p")),
-  top_n_sigma: z.number().describe(desc("settings.generation.top_n_sigma")),
-  repeat_penalty: z.number().describe(desc("settings.generation.repeat_penalty")),
-  repeat_last_n: z.number().int().describe(desc("settings.generation.repeat_last_n")),
-  presence_penalty: z.number().describe(desc("settings.generation.presence_penalty")),
-  frequency_penalty: z.number().describe(desc("settings.generation.frequency_penalty")),
-  mirostat: z.number().int().min(0).max(2).describe(desc("settings.generation.mirostat")),
-  mirostat_tau: z.number().describe(desc("settings.generation.mirostat_tau")),
-  mirostat_eta: z.number().describe(desc("settings.generation.mirostat_eta")),
-  dynatemp_range: z.number().describe(desc("settings.generation.dynatemp_range")),
-  dynatemp_exponent: z.number().describe(desc("settings.generation.dynatemp_exponent")),
-  dry_multiplier: z.number().describe(desc("settings.generation.dry_multiplier")),
-  dry_base: z.number().describe(desc("settings.generation.dry_base")),
-  dry_allowed_length: z.number().int().describe(desc("settings.generation.dry_allowed_length")),
-  dry_penalty_last_n: z.number().int().describe(desc("settings.generation.dry_penalty_last_n")),
-  xtc_probability: z.number().describe(desc("settings.generation.xtc_probability")),
-  xtc_threshold: z.number().describe(desc("settings.generation.xtc_threshold")),
-  seed: z.number().int().describe(desc("settings.generation.seed")),
+  max_tokens: z.number().int(),
+  ctx_limit: z.number().int(),
+  temperature: z.number(),
+  top_k: z.number().int(),
+  top_p: z.number(),
+  min_p: z.number(),
+  typical_p: z.number(),
+  top_n_sigma: z.number(),
+  repeat_penalty: z.number(),
+  repeat_last_n: z.number().int(),
+  presence_penalty: z.number(),
+  frequency_penalty: z.number(),
+  mirostat: z.number().int().min(0).max(2),
+  mirostat_tau: z.number(),
+  mirostat_eta: z.number(),
+  dynatemp_range: z.number(),
+  dynatemp_exponent: z.number(),
+  dry_multiplier: z.number(),
+  dry_base: z.number(),
+  dry_allowed_length: z.number().int(),
+  dry_penalty_last_n: z.number().int(),
+  xtc_probability: z.number(),
+  xtc_threshold: z.number(),
+  seed: z.number().int(),
 })
 
 const ConnectorSchema = z.object({
-  type: z.enum(["koboldcpp"]).describe(desc("settings.connector.type")),
-  url: z.string().min(1).describe(desc("settings.connector.url")),
-  api_key: z.string().describe(desc("settings.connector.api_key")),
+  type: z.enum(["koboldcpp"]),
+  url: z.string().min(1),
+  api_key: z.string(),
 })
 
 const SettingsUpdateSchema = z
   .object({
-    theme: z.enum(["default", "amoled"]).describe(desc("settings.update.theme")),
-    design: z.enum(["classic", "roboto"]).describe(desc("settings.update.design")),
-    textJustify: z.boolean().describe(desc("settings.update.textJustify")),
-    colorScheme: z.enum(["gold", "emerald", "sapphire", "crimson"]).describe(desc("settings.update.colorScheme")),
-    defaultAuthorNote: z.string().describe(desc("settings.update.defaultAuthorNote")),
-    defaultAuthorNoteDepth: z.number().int().min(0).max(100).describe(desc("settings.update.defaultAuthorNoteDepth")),
-    storyDefaults: StoryModulesSchema.partial().describe(desc("settings.update.storyDefaults")),
-    connector: ConnectorSchema.partial().describe(desc("settings.update.connector")),
-    generation: GenerationParamsSchema.partial().describe(desc("settings.update.generation")),
+    theme: z.enum(["default", "amoled"]),
+    design: z.enum(["classic", "roboto"]),
+    textJustify: z.boolean(),
+    colorScheme: z.enum(["gold", "emerald", "sapphire", "crimson"]),
+    defaultAuthorNote: z.string(),
+    defaultAuthorNoteDepth: z.number().int().min(0).max(100),
+    storyDefaults: StoryModulesSchema.partial(),
+    connector: ConnectorSchema.partial(),
+    generation: GenerationParamsSchema.partial(),
   })
   .partial()
   .refine((v) => Object.keys(v).length > 0, { message: "At least one setting is required" })

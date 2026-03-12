@@ -40,15 +40,15 @@
         "off": []
       },
       "npc_major_flaws": {
-        "on": ["5. major_flaws: {traits.major_flaws} Should be significant, enduring weaknesses or liabilities as concise, concrete phrases."],
+        "on": ["5. major_flaws: {traits.major_flaws}"],
         "off": []
       },
       "npc_quirks": {
-        "on": ["11. quirks: {traits.quirks} Must be concrete, objective phrases."],
+        "on": ["11. quirks: {traits.quirks}"],
         "off": []
       },
       "npc_perks": {
-        "on": ["11. perks: {traits.perks} Must be concrete, objective phrases."],
+        "on": ["11. perks: {traits.perks}"],
         "off": []
       },
       "npc_location": {

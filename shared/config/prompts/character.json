@@ -32,25 +32,25 @@
       },
       "character_personality_traits": {
         "on": [
-          "- personality_traits: {traits.personality_traits} Prioritize the provided master list. Custom personality traits are 1-3 word adjective phrases."
+          "- personality_traits: {traits.personality_traits} Prioritize the provided master list."
         ],
         "off": []
       },
       "character_major_flaws": {
         "on": [
-          "- major_flaws: {traits.major_flaws} Output significant, enduring weaknesses or liabilities as concise, concrete phrases of 1 to 8 words each."
+          "- major_flaws: {traits.major_flaws}"
         ],
         "off": []
       },
       "character_quirks": {
         "on": [
-          "- quirks: {traits.quirks} Encode unique baseline quirks or permanent mannerisms as concise, concrete phrases of 1 to 8 words each."
+          "- quirks: {traits.quirks}"
         ],
         "off": []
       },
       "character_perks": {
         "on": [
-          "- perks: {traits.perks} Encode enduring skills or advantages as concise, concrete phrases of 1 to 8 words each."
+          "- perks: {traits.perks}"
         ],
         "off": []
       }

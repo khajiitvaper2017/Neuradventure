@@ -17,11 +17,8 @@
     },
     "npc_update": {
       "name": "NPC name to update.",
-      "race": "Updated race.",
-      "gender": "Updated gender (male, female, futanari, intersex and so on).",
       "set_current_location": "Updated current unique location name. Update only when changed.",
-      "set_current_appearance": "Precise, surgical description of current physical state based on baseline features plus current changes. Avoid temporal qualifiers (e.g., \"still\") and comparative phrases (e.g., \"otherwise unchanged\"). Never output 'None'; omit the field if unchanged.",
-      "set_current_activity": "Concise, factual description of what the NPC is doing right now."
+      "set_current_appearance": "Precise, surgical description of current physical state based on baseline features plus current changes. Avoid temporal qualifiers (e.g., \"still\") and comparative phrases (e.g., \"otherwise unchanged\"). Never output 'None'; omit the field if unchanged."
     }
   },
   "state": {
@@ -149,13 +146,9 @@
     }
   },
   "traits": {
-    "personality_traits": "List of 2-5 personality traits describing stable temperament and behavior.",
-    "personality_trait": "Single personality trait: a concise temperament or behavior descriptor of 1-8 words.",
-    "major_flaws": "List of 0-3 major flaws describing significant, enduring weaknesses or liabilities.",
-    "major_flaw": "Single major flaw: a significant, enduring weakness or liability of 1-8 words.",
-    "quirks": "List of 0-5 quirks describing small, idiosyncratic habits or mannerisms.",
-    "quirk": "Single quirk: a small, specific habit or mannerisms of 1-8 words.",
-    "perks": "List of 0-5 perks describing practical advantages, talents, or resources.",
-    "perk": "Single perk: a concrete advantage, talent, or resource of 1-8 words."
+    "personality_traits": "List of 2-5 personality traits describing stable temperament and behavior. Each entry is a concise temperament or behavior descriptor of 1-8 words.",
+    "major_flaws": "List of 0-3 major flaws describing significant, enduring weaknesses or liabilities. Each entry is a significant, enduring weakness or liability of 1-8 words.",
+    "quirks": "List of 0-5 quirks describing small, idiosyncratic habits or mannerisms. Each entry is a small, specific habit or mannerism of 1-8 words.",
+    "perks": "List of 0-5 perks describing practical advantages, talents, or resources. Each entry is a concrete advantage, talent, or resource of 1-8 words."
   }
 }

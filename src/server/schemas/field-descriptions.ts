@@ -3,12 +3,12 @@ import path from "node:path"
 import { fileURLToPath } from "node:url"
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
-const FIELDS_PATH = path.resolve(__dirname, "../../../shared/config/fields.json")
+const SETTINGS_FIELDS_PATH = path.resolve(__dirname, "../../../shared/config/settings-fields.json")
 const SCHEMA_FIELDS_PATH = path.resolve(__dirname, "../../../shared/config/schema-fields.json")
 
-const raw = fs.readFileSync(FIELDS_PATH, "utf-8")
+const rawSettings = fs.readFileSync(SETTINGS_FIELDS_PATH, "utf-8")
 const rawSchema = fs.readFileSync(SCHEMA_FIELDS_PATH, "utf-8")
-export const FIELDS = JSON.parse(raw) as Record<string, unknown>
+export const SETTINGS_FIELDS = JSON.parse(rawSettings) as Record<string, unknown>
 export const SCHEMA_FIELDS = JSON.parse(rawSchema) as Record<string, unknown>
 
 type LeafLookup = {
@@ -51,22 +51,15 @@ function buildLeafLookup(): LeafLookup {
   }
 
   walk(SCHEMA_FIELDS)
-  walk(FIELDS)
+  walk(SETTINGS_FIELDS)
   return { byKey, ambiguous }
-}
-
-export function desc(pathKey: string): string {
-  const resolved = getFieldByPath(pathKey, SCHEMA_FIELDS)
-  if (resolved) return resolved
-  const fallback = getFieldByPath(pathKey, FIELDS)
-  if (fallback) return fallback
-  console.warn(`[schema] Missing description for ${pathKey}`)
-  return pathKey
 }
 
 export function resolveFieldShortcut(key: string): string | null {
   if (!key) return null
-  if (key.includes(".")) return getFieldByPath(key, SCHEMA_FIELDS) ?? getFieldByPath(key, FIELDS)
+  if (key.includes(".")) {
+    return getFieldByPath(key, SCHEMA_FIELDS) ?? getFieldByPath(key, SETTINGS_FIELDS)
+  }
   return leafLookup.byKey.get(key) ?? null
 }
 

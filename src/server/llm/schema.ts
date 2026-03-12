@@ -9,7 +9,6 @@ import {
   type NPCState,
   type TurnResponse,
 } from "../core/models.js"
-import { desc } from "../schemas/field-descriptions.js"
 import { buildNpcCreationSchema } from "../schemas/npc-creation.js"
 import { DEFAULT_STORY_MODULES, resolveModuleFlags } from "../schemas/story-modules.js"
 
@@ -42,11 +41,11 @@ export function buildTurnResponseSchema(
   worldUpdateSchema = worldUpdateSchema.required() as z.AnyZodObject
 
   schema = schema.extend({
-    world_state_update: worldUpdateSchema.describe(desc("llm.turn_response.world_state_update")),
+    world_state_update: worldUpdateSchema,
   })
 
   if (!modules.track_npcs) {
-    const emptyUpdates = buildNPCStateUpdateSchema(z.string().min(1).describe(desc("llm.npc_update.name")), {
+    const emptyUpdates = buildNPCStateUpdateSchema(z.string().min(1), {
       allowLocation: flags.useNpcLocation,
       allowAppearance: flags.useNpcAppearance,
       allowClothing: flags.useNpcAppearance,
@@ -57,7 +56,7 @@ export function buildTurnResponseSchema(
       npc_introductions: z.array(npcCreationSchema).max(0).optional(),
     })
   } else if (uniqueNames.length === 0) {
-    const emptyUpdates = buildNPCStateUpdateSchema(z.string().min(1).describe(desc("llm.npc_update.name")), {
+    const emptyUpdates = buildNPCStateUpdateSchema(z.string().min(1), {
       allowLocation: flags.useNpcLocation,
       allowAppearance: flags.useNpcAppearance,
       allowClothing: flags.useNpcAppearance,
@@ -68,7 +67,7 @@ export function buildTurnResponseSchema(
     })
   } else {
     const enumValues = uniqueNames as [string, ...string[]]
-    const npcChangesSchema = buildNPCChangesSection(z.enum(enumValues).describe(desc("llm.npc_update.name")), {
+    const npcChangesSchema = buildNPCChangesSection(z.enum(enumValues), {
       allowLocation: flags.useNpcLocation,
       allowAppearance: flags.useNpcAppearance,
       allowClothing: flags.useNpcAppearance,

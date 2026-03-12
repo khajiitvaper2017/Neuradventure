@@ -1,7 +1,6 @@
 import { z } from "zod"
 import { CharacterAppearanceSchema } from "./game-state.js"
 import { PersonalityTraitsSchema } from "./personality-traits.js"
-import { desc } from "./field-descriptions.js"
 
 export type NpcCreationFlags = {
   useNpcAppearance: boolean
@@ -13,43 +12,43 @@ export type NpcCreationFlags = {
   useNpcActivity: boolean
 }
 
-const MajorFlawSchema = z.string().min(1).describe(desc("traits.major_flaw"))
-const QuirkSchema = z.string().min(1).describe(desc("traits.quirk"))
-const PerkSchema = z.string().min(1).describe(desc("traits.perk"))
-const MajorFlawsSchema = z.array(MajorFlawSchema).max(3).describe(desc("traits.major_flaws"))
-const QuirksSchema = z.array(QuirkSchema).max(6).describe(desc("traits.quirks"))
-const PerksSchema = z.array(PerkSchema).max(6).describe(desc("traits.perks"))
+const MajorFlawSchema = z.string().min(1)
+const QuirkSchema = z.string().min(1)
+const PerkSchema = z.string().min(1)
+const MajorFlawsSchema = z.array(MajorFlawSchema).max(3)
+const QuirksSchema = z.array(QuirkSchema).max(6)
+const PerksSchema = z.array(PerkSchema).max(6)
 
 export function buildNpcCreationSchema(flags: NpcCreationFlags) {
   const shape: Record<string, z.ZodTypeAny> = {
-    name: z.string().min(1).describe(desc("state.character.name")),
-    race: z.string().min(1).describe(desc("state.character.race")),
-    gender: z.string().min(1).describe(desc("state.character.gender")),
+    name: z.string().min(1),
+    race: z.string().min(1),
+    gender: z.string().min(1),
   }
 
   if (flags.useNpcAppearance) {
-    shape.appearance = CharacterAppearanceSchema.describe(desc("state.character.appearance"))
+    shape.appearance = CharacterAppearanceSchema
   } else {
-    shape.general_description = z.string().min(1).describe(desc("state.character.general_description"))
+    shape.general_description = z.string().min(1)
   }
 
   if (flags.useNpcPersonalityTraits) {
-    shape.personality_traits = PersonalityTraitsSchema.describe(desc("traits.personality_traits"))
+    shape.personality_traits = PersonalityTraitsSchema
   }
   if (flags.useNpcMajorFlaws) {
-    shape.major_flaws = MajorFlawsSchema.describe(desc("traits.major_flaws"))
+    shape.major_flaws = MajorFlawsSchema
   }
   if (flags.useNpcQuirks) {
-    shape.quirks = QuirksSchema.describe(desc("traits.quirks"))
+    shape.quirks = QuirksSchema
   }
   if (flags.useNpcPerks) {
-    shape.perks = PerksSchema.describe(desc("traits.perks"))
+    shape.perks = PerksSchema
   }
   if (flags.useNpcLocation) {
-    shape.current_location = z.string().min(1).describe(desc("state.character.current_location"))
+    shape.current_location = z.string().min(1)
   }
   if (flags.useNpcActivity) {
-    shape.current_activity = z.string().min(1).describe(desc("state.character.current_activity"))
+    shape.current_activity = z.string().min(1)
   }
 
   return z.object(shape).strict()

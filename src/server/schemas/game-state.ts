@@ -14,36 +14,32 @@ import {
   normalizeTraitList,
   stripSummaryLeak,
 } from "./normalizers.js"
-import { desc } from "./field-descriptions.js"
 import { getServerDefaults } from "../core/strings.js"
 
 export const InventoryItemSchema = z
   .object({
-    name: z.string().min(1).describe(desc("state.inventory_item.name")),
-    description: z.string().min(1).describe(desc("state.inventory_item.description")),
+    name: z.string().min(1),
+    description: z.string().min(1),
   })
   .strict()
-  .describe(desc("state.inventory_item.entry"))
 
 export const LocationItemSchema = z
   .object({
-    name: z.string().min(1).describe(desc("state.inventory_item.name")),
-    description: z.string().min(1).describe(desc("state.inventory_item.description")),
+    name: z.string().min(1),
+    description: z.string().min(1),
   })
   .strict()
-  .describe(desc("state.location.available_item"))
 
-const LocationCharacterSchema = z.string().min(1).describe(desc("state.location.character"))
+const LocationCharacterSchema = z.string().min(1)
 
 export const LocationSchema = z
   .object({
-    name: z.string().min(1).describe(desc("state.location.name")),
-    description: z.string().min(1).describe(desc("state.location.description")),
-    characters: z.array(LocationCharacterSchema).describe(desc("state.location.characters")),
-    available_items: z.array(LocationItemSchema).describe(desc("state.location.available_items")),
+    name: z.string().min(1),
+    description: z.string().min(1),
+    characters: z.array(LocationCharacterSchema),
+    available_items: z.array(LocationItemSchema),
   })
   .strict()
-  .describe(desc("state.location.entry"))
 
 const LocationsSchema = z
   .array(LocationSchema)
@@ -69,51 +65,39 @@ const defaults = getServerDefaults()
 
 export const CharacterAppearanceSchema = z
   .object({
-    baseline_appearance: z.string().min(1).describe(desc("state.appearance.baseline_appearance")),
-    current_appearance: z.string().min(1).describe(desc("state.appearance.current_appearance")),
-    current_clothing: z.string().min(1).describe(desc("state.appearance.current_clothing")),
+    baseline_appearance: z.string().min(1),
+    current_appearance: z.string().min(1),
+    current_clothing: z.string().min(1),
   })
   .strict()
 
-const MajorFlawSchema = z.string().min(1).describe(desc("traits.major_flaw"))
-const QuirkSchema = z.string().min(1).describe(desc("traits.quirk"))
-const PerkSchema = z.string().min(1).describe(desc("traits.perk"))
+const MajorFlawSchema = z.string().min(1)
+const QuirkSchema = z.string().min(1)
+const PerkSchema = z.string().min(1)
 
-export const MajorFlawsSchema = z.array(MajorFlawSchema).max(3).describe(desc("traits.major_flaws"))
-export const QuirksSchema = z.array(QuirkSchema).max(6).describe(desc("traits.quirks"))
-export const PerksSchema = z.array(PerkSchema).max(6).describe(desc("traits.perks"))
+export const MajorFlawsSchema = z.array(MajorFlawSchema).max(3)
+export const QuirksSchema = z.array(QuirkSchema).max(6)
+export const PerksSchema = z.array(PerkSchema).max(6)
 
-const PersonalityTraitsOptionalSchema = z
-  .array(PersonalityTraitSchema)
-  .max(5)
-  .describe(desc("traits.personality_traits"))
+const PersonalityTraitsOptionalSchema = z.array(PersonalityTraitSchema).max(5)
 
 const CharacterStateBaseSchema = z
   .object({
-    name: z.string().min(1).describe(desc("state.character.name")),
-    race: z.string().min(1).describe(desc("state.character.race")),
-    gender: z.string().min(1).describe(desc("state.character.gender")),
-    general_description: z.string().optional().describe(desc("state.character.general_description")),
-    current_location: z
-      .string()
-      .min(1)
-      .optional()
-      .default(defaults.unknown.location)
-      .describe(desc("state.character.current_location")),
-    appearance: CharacterAppearanceSchema.optional()
-      .default({
-        baseline_appearance: defaults.unknown.baselineAppearance,
-        current_appearance: defaults.unknown.appearance,
-        current_clothing: defaults.unknown.clothing,
-      })
-      .describe(desc("state.character.appearance")),
-    personality_traits: PersonalityTraitsOptionalSchema.optional()
-      .default([])
-      .describe(desc("traits.personality_traits")),
-    major_flaws: MajorFlawsSchema.optional().default([]).describe(desc("traits.major_flaws")),
-    quirks: QuirksSchema.optional().default([]).describe(desc("traits.quirks")),
-    perks: PerksSchema.optional().default([]).describe(desc("traits.perks")),
-    inventory: z.array(InventoryItemSchema).optional().default([]).describe(desc("state.character.inventory")),
+    name: z.string().min(1),
+    race: z.string().min(1),
+    gender: z.string().min(1),
+    general_description: z.string().optional(),
+    current_location: z.string().min(1).optional().default(defaults.unknown.location),
+    appearance: CharacterAppearanceSchema.optional().default({
+      baseline_appearance: defaults.unknown.baselineAppearance,
+      current_appearance: defaults.unknown.appearance,
+      current_clothing: defaults.unknown.clothing,
+    }),
+    personality_traits: PersonalityTraitsOptionalSchema.optional().default([]),
+    major_flaws: MajorFlawsSchema.optional().default([]),
+    quirks: QuirksSchema.optional().default([]),
+    perks: PerksSchema.optional().default([]),
+    inventory: z.array(InventoryItemSchema).optional().default([]),
   })
   .strict()
 
@@ -122,12 +106,7 @@ export const CharacterStateSchema = CharacterStateBaseSchema
 export const MainCharacterStateSchema = CharacterStateBaseSchema
 
 export const NPCStateSchema = CharacterStateBaseSchema.extend({
-  current_activity: z
-    .string()
-    .min(1)
-    .optional()
-    .default(defaults.unknown.activity)
-    .describe(desc("state.character.current_activity")),
+  current_activity: z.string().min(1).optional().default(defaults.unknown.activity),
 }).strict()
 
 function normalizeInventoryItems(value: unknown): { name: string; description: string }[] {
@@ -146,18 +125,18 @@ function normalizeInventoryItems(value: unknown): { name: string; description: s
 
 const CharacterStateStoredBaseSchema = z
   .object({
-    name: z.string().optional().describe(desc("state.character.name")),
-    race: z.string().optional().describe(desc("state.character.race")),
-    gender: z.string().optional().describe(desc("state.character.gender")),
-    general_description: z.string().optional().describe(desc("state.character.general_description")),
-    current_location: z.string().optional().describe(desc("state.character.current_location")),
-    appearance: z.unknown().optional().describe(desc("state.character.appearance")),
-    personality_traits: z.unknown().optional().describe(desc("traits.personality_traits")),
-    major_flaws: z.unknown().optional().describe(desc("traits.major_flaws")),
-    quirks: z.unknown().optional().describe(desc("traits.quirks")),
-    perks: z.unknown().optional().describe(desc("traits.perks")),
-    current_activity: z.string().optional().describe(desc("state.character.current_activity")),
-    inventory: z.unknown().optional().describe(desc("state.character.inventory")),
+    name: z.string().optional(),
+    race: z.string().optional(),
+    gender: z.string().optional(),
+    general_description: z.string().optional(),
+    current_location: z.string().optional(),
+    appearance: z.unknown().optional(),
+    personality_traits: z.unknown().optional(),
+    major_flaws: z.unknown().optional(),
+    quirks: z.unknown().optional(),
+    perks: z.unknown().optional(),
+    current_activity: z.string().optional(),
+    inventory: z.unknown().optional(),
   })
   .passthrough()
 const normalizeCharacterStoredBase = (value: z.input<typeof CharacterStateStoredBaseSchema>) => ({
@@ -190,49 +169,33 @@ export const NPCStateStoredSchema = CharacterStateStoredBaseSchema.transform((va
 
 export const WorldStateUpdateSchema = z
   .object({
-    current_scene: z.string().min(1).optional().describe(desc("llm.world_state_update.current_scene")),
-    current_date: z
-      .string()
-      .regex(DATE_REGEX, "current_date must be YYYY-MM-DD")
-      .optional()
-      .describe(desc("llm.world_state_update.current_date")),
-    time_of_day: z
-      .string()
-      .regex(TIME_OF_DAY_REGEX, "time_of_day must be 24h HH:MM")
-      .optional()
-      .describe(desc("llm.world_state_update.time_of_day")),
-    locations: LocationsSchema.optional().describe(desc("llm.world_state_update.locations")),
+    current_scene: z.string().min(1).optional(),
+    current_date: z.string().regex(DATE_REGEX, "current_date must be YYYY-MM-DD").optional(),
+    time_of_day: z.string().regex(TIME_OF_DAY_REGEX, "time_of_day must be 24h HH:MM").optional(),
+    locations: LocationsSchema.optional(),
   })
-  .describe(desc("llm.turn_response.world_state_update"))
+
   .strict()
 
 export const WorldStateSchema = z
   .object({
-    current_scene: z.string().min(1).describe(desc("llm.world_state_update.current_scene")),
-    current_date: z
-      .string()
-      .regex(DATE_REGEX, "current_date must be YYYY-MM-DD")
-      .describe(desc("llm.world_state_update.current_date")),
-    time_of_day: z
-      .string()
-      .regex(TIME_OF_DAY_REGEX, "time_of_day must be 24h HH:MM")
-      .describe(desc("llm.world_state_update.time_of_day")),
-    memory: z
-      .preprocess((value) => (typeof value === "string" ? stripSummaryLeak(value) : value), z.string().min(1))
-      .describe(desc("llm.world_state_update.memory")),
-    locations: LocationsSchema.describe(desc("llm.world_state_update.locations")),
+    current_scene: z.string().min(1),
+    current_date: z.string().regex(DATE_REGEX, "current_date must be YYYY-MM-DD"),
+    time_of_day: z.string().regex(TIME_OF_DAY_REGEX, "time_of_day must be 24h HH:MM"),
+    memory: z.preprocess((value) => (typeof value === "string" ? stripSummaryLeak(value) : value), z.string().min(1)),
+    locations: LocationsSchema,
   })
-  .describe(desc("llm.turn_response.world_state_update"))
+
   .strict()
 
 export const WorldStateStoredSchema = z
   .object({
-    current_scene: z.string().optional().describe(desc("llm.world_state_update.current_scene")),
-    current_date: z.string().optional().describe(desc("llm.world_state_update.current_date")),
-    time_of_day: z.string().optional().describe(desc("llm.world_state_update.time_of_day")),
-    memory: z.string().optional().describe(desc("llm.world_state_update.memory")),
+    current_scene: z.string().optional(),
+    current_date: z.string().optional(),
+    time_of_day: z.string().optional(),
+    memory: z.string().optional(),
     recent_events_summary: z.string().optional(),
-    locations: z.unknown().optional().describe(desc("llm.world_state_update.locations")),
+    locations: z.unknown().optional(),
   })
   .passthrough()
   .transform((value) => {

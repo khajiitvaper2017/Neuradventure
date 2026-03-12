@@ -4,7 +4,6 @@ import { z } from "zod"
 import * as db from "../core/db.js"
 import { CreateCharacterRequestSchema } from "../core/models.js"
 import { generateCharacter, generateCharacterPart, generateChat, generateStory } from "../llm/index.js"
-import { desc } from "../schemas/field-descriptions.js"
 import { StoryModulesSchema } from "../schemas/story-modules.js"
 
 const generate = new Hono()
@@ -14,8 +13,8 @@ generate.post(
   zValidator(
     "json",
     z.object({
-      description: z.string().min(1).describe(desc("requests.generate_character.description")),
-      story_modules: StoryModulesSchema.optional().describe(desc("requests.generate_character.story_modules")),
+      description: z.string().min(1),
+      story_modules: StoryModulesSchema.optional(),
     }),
   ),
   async (c) => {
@@ -30,21 +29,20 @@ generate.post(
 )
 
 const characterContextSchema = z.object({
-  name: z.string().default("").describe(desc("state.character.name")),
-  race: z.string().default("").describe(desc("state.character.race")),
-  gender: z.string().default("").describe(desc("state.character.gender")),
+  name: z.string().default(""),
+  race: z.string().default(""),
+  gender: z.string().default(""),
   appearance: z
     .object({
-      baseline_appearance: z.string().default("").describe(desc("state.appearance.baseline_appearance")),
-      current_appearance: z.string().default("").describe(desc("state.appearance.current_appearance")),
-      current_clothing: z.string().default("").describe(desc("state.appearance.current_clothing")),
+      baseline_appearance: z.string().default(""),
+      current_appearance: z.string().default(""),
+      current_clothing: z.string().default(""),
     })
-    .default({ baseline_appearance: "", current_appearance: "", current_clothing: "" })
-    .describe(desc("state.character.appearance")),
-  personality_traits: z.array(z.string()).default([]).describe(desc("traits.personality_traits")),
-  major_flaws: z.array(z.string()).default([]).describe(desc("traits.major_flaws")),
-  quirks: z.array(z.string()).default([]).describe(desc("traits.quirks")),
-  perks: z.array(z.string()).default([]).describe(desc("traits.perks")),
+    .default({ baseline_appearance: "", current_appearance: "", current_clothing: "" }),
+  personality_traits: z.array(z.string()).default([]),
+  major_flaws: z.array(z.string()).default([]),
+  quirks: z.array(z.string()).default([]),
+  perks: z.array(z.string()).default([]),
 })
 
 const generateStoryCharacterSchema = CreateCharacterRequestSchema
@@ -54,9 +52,9 @@ generate.post(
   zValidator(
     "json",
     z.object({
-      part: z.enum(["appearance", "traits", "clothing"]).describe(desc("requests.generate_character_part.part")),
-      context: characterContextSchema.describe(desc("requests.generate_character_part.context")),
-      story_modules: StoryModulesSchema.optional().describe(desc("requests.generate_character_part.story_modules")),
+      part: z.enum(["appearance", "traits", "clothing"]),
+      context: characterContextSchema,
+      story_modules: StoryModulesSchema.optional(),
     }),
   ),
   async (c) => {
@@ -88,9 +86,9 @@ generate.post(
   zValidator(
     "json",
     z.object({
-      description: z.string().min(1).describe(desc("requests.generate_story.description")),
-      character: generateStoryCharacterSchema.describe(desc("requests.generate_story.character")),
-      story_modules: StoryModulesSchema.optional().describe(desc("requests.generate_story.story_modules")),
+      description: z.string().min(1),
+      character: generateStoryCharacterSchema,
+      story_modules: StoryModulesSchema.optional(),
     }),
   ),
   async (c) => {
@@ -109,7 +107,7 @@ generate.post(
   zValidator(
     "json",
     z.object({
-      description: z.string().min(1).describe(desc("requests.generate_chat.description")),
+      description: z.string().min(1),
     }),
   ),
   async (c) => {

@@ -42,29 +42,5 @@
       "url": "Connector base URL.",
       "api_key": "Connector API key."
     }
-  },
-  "requests": {
-    "generate_character": {
-      "description": "Character description prompt.",
-      "story_modules": "Optional story module overrides for generation."
-    },
-    "generate_character_part": {
-      "part": "Which section to generate: appearance, traits, or clothing.",
-      "context": "Current character context used as generation input.",
-      "story_modules": "Optional story module overrides for generation."
-    },
-    "generate_story": {
-      "description": "Story description prompt.",
-      "character": "Character data for story generation.",
-      "story_modules": "Optional story module overrides for generation."
-    },
-    "generate_chat": {
-      "description": "Chat description prompt."
-    },
-    "import_story": {
-      "character": "Full character state.",
-      "world": "World state (stored format accepted).",
-      "npcs": "NPC state list (stored format accepted)."
-    }
   }
 }

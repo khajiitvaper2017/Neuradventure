@@ -12,7 +12,6 @@ import {
   WorldStateStoredSchema,
 } from "../core/models.js"
 import { createNewStory } from "../game/index.js"
-import { desc } from "../schemas/field-descriptions.js"
 import {
   characterToTavernCard,
   tavernCardToCharacter,
@@ -63,12 +62,12 @@ const ImportTurnSchema = z.object({
 })
 
 const ImportStorySchema = z.object({
-  title: z.string().describe(desc("requests.story_title")),
-  opening_scenario: z.string().describe(desc("requests.opening_scenario")),
-  character: MainCharacterStateStoredSchema.describe(desc("requests.import_story.character")),
-  world: WorldStateStoredSchema.describe(desc("requests.import_story.world")),
-  npcs: z.array(NPCStateStoredSchema).describe(desc("requests.import_story.npcs")).default([]),
-  story_modules: StoryModulesSchema.optional().describe(desc("requests.create_story.story_modules")),
+  title: z.string(),
+  opening_scenario: z.string(),
+  character: MainCharacterStateStoredSchema,
+  world: WorldStateStoredSchema,
+  npcs: z.array(NPCStateStoredSchema).default([]),
+  story_modules: StoryModulesSchema.optional(),
   author_note: z.string().optional(),
   author_note_depth: z.number().int().min(0).max(100).optional(),
   turns: z.array(ImportTurnSchema).optional(),
