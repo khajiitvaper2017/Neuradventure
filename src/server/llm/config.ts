@@ -1,6 +1,7 @@
 import { readFileSync, statSync } from "fs"
 import { fileURLToPath } from "url"
 import { dirname, join } from "path"
+import { getLlmStrings } from "../strings.js"
 
 // ─── Prompt config (hot-reloaded from shared/config.json) ────────────────────
 
@@ -23,18 +24,7 @@ const CONFIG_PATH = join(__dirname, "../../../shared/config.json")
 let cachedConfig: PromptConfig | null = null
 let cachedConfigMtime = 0
 
-const DEFAULT_IMPERSONATE_PROMPT = [
-  "ROLE: You are the player controlling the protagonist in this text-based adventure.",
-  "OUTPUT: Return ONLY the player's action text. No labels, no quotes, no extra commentary.",
-  "MODE RULES:",
-  "- do: short, concrete action the player takes.",
-  "- say: return just the dialog line spoken by the player (no quotes, no 'You say').",
-  "- story: 1-2 short sentences continuing the story in second-person present tense.",
-]
-
-export const npcTraits: string[] = JSON.parse(
-  readFileSync(join(__dirname, "../../../shared/traits.json"), "utf-8"),
-)
+export const npcTraits: string[] = JSON.parse(readFileSync(join(__dirname, "../../../shared/traits.json"), "utf-8"))
 
 export function getConfig(): PromptConfig {
   const stat = statSync(CONFIG_PATH)
@@ -63,7 +53,7 @@ export function getImpersonatePrompt(): string {
   const lines =
     config.impersonatePrompt && config.impersonatePrompt.length > 0
       ? config.impersonatePrompt
-      : DEFAULT_IMPERSONATE_PROMPT
+      : getLlmStrings().impersonateFallbackPrompt
   return lines.join("\n")
 }
 

@@ -30,6 +30,7 @@ import {
   syncLocationCharacters,
 } from "./game/state.js"
 import { parseInitialStorySnapshot, parseTurnSnapshot, parseTurnVariantSnapshot } from "./game/snapshots.js"
+import { getServerDefaults } from "./strings.js"
 
 // ─── Core Game Operations ──────────────────────────────────────────────────────
 
@@ -143,13 +144,7 @@ export async function processTurn(
     newWorld,
     newNpcs,
   )
-  const variant = db.createTurnVariant(
-    turnId,
-    turnResponse.narrative_text,
-    locationSyncedCharacter,
-    newWorld,
-    newNpcs,
-  )
+  const variant = db.createTurnVariant(turnId, turnResponse.narrative_text, locationSyncedCharacter, newWorld, newNpcs)
   db.setActiveTurnVariant(turnId, variant.id)
 
   return {
@@ -460,7 +455,7 @@ export function createNewStory(
   const fallbackTime = `${now.getHours().toString().padStart(2, "0")}:${now.getMinutes().toString().padStart(2, "0")}`
   const dateCandidate = startingDate?.trim()
   const timeCandidate = startingTime?.trim()
-  const sceneName = startingScene?.trim() || "Unknown location"
+  const sceneName = startingScene?.trim() || getServerDefaults().unknown.location
   const locationSyncedCharacter = { ...character, current_location: sceneName }
   const sceneCharacters = [
     locationSyncedCharacter.name,
@@ -476,7 +471,7 @@ export function createNewStory(
     locations: [
       {
         name: sceneName,
-        description: "Unknown location details",
+        description: getServerDefaults().unknown.locationDetails,
         characters: sceneCharacters,
         available_items: [],
       },

@@ -1,5 +1,6 @@
 import { DATE_REGEX, DEFAULT_RECENT_EVENTS_SUMMARY } from "./constants.js"
 import { npcTraitEnumValues, npcTraitLookup } from "./npc-traits.js"
+import { getServerDefaults } from "../strings.js"
 
 type NormalizedLocationItem = { name: string; description: string }
 type NormalizedLocation = {
@@ -55,7 +56,7 @@ export function normalizeTimeOfDay(value: unknown): string {
       }
     }
   }
-  return "00:00"
+  return getServerDefaults().defaultTimeOfDay
 }
 
 export function normalizeCurrentScene(value: unknown): string {
@@ -66,7 +67,7 @@ export function normalizeCurrentScene(value: unknown): string {
       return words.join(" ")
     }
   }
-  return "Unknown location"
+  return getServerDefaults().unknown.location
 }
 
 export function stripSummaryLeak(value: string): string {
@@ -85,7 +86,7 @@ export function normalizeRecentEventsSummary(value: unknown): string {
       let sentences = matches.map((sentence) => sentence.trim()).filter(Boolean)
       if (sentences.length === 0) sentences = [trimmed]
       sentences = sentences.map((sentence) => (/[.!?]$/.test(sentence) ? sentence : `${sentence}.`))
-      if (sentences.length === 1) sentences.push("Further details are unknown.")
+      if (sentences.length === 1) sentences.push(getServerDefaults().furtherDetailsUnknown)
       if (sentences.length > 3) sentences = sentences.slice(0, 3)
       const summary = sentences.join(" ").trim()
       return summary
@@ -124,7 +125,7 @@ export function normalizePersonalityTraits(value: unknown): string[] {
         ? [npcTraitEnumValues[0], npcTraitEnumValues[1]]
         : npcTraitEnumValues.length === 1
           ? [npcTraitEnumValues[0], npcTraitEnumValues[0]]
-          : ["Curious", "Honest"]
+          : getServerDefaults().fallbackTraits
     for (const fallback of fallbacks) {
       if (traits.length >= 2) break
       if (!traits.includes(fallback)) traits.push(fallback)
@@ -154,24 +155,26 @@ export function normalizeAppearance(value: unknown): {
 } {
   if (value && typeof value === "object") {
     const obj = value as Record<string, unknown>
+    const defaults = getServerDefaults()
     const baseline = normalizeNonEmptyString(
       obj.baseline_appearance ?? obj.physical_description,
-      "Unknown baseline appearance",
+      defaults.unknown.baselineAppearance,
     )
     const current = normalizeNonEmptyString(
       obj.current_appearance ?? obj.physical_description ?? obj.baseline_appearance,
-      baseline || "Unknown appearance",
+      baseline || defaults.unknown.appearance,
     )
     return {
       baseline_appearance: baseline,
       current_appearance: current,
-      current_clothing: normalizeNonEmptyString(obj.current_clothing, "Unknown clothing"),
+      current_clothing: normalizeNonEmptyString(obj.current_clothing, defaults.unknown.clothing),
     }
   }
+  const defaults = getServerDefaults()
   return {
-    baseline_appearance: "Unknown baseline appearance",
-    current_appearance: "Unknown appearance",
-    current_clothing: "Unknown clothing",
+    baseline_appearance: defaults.unknown.baselineAppearance,
+    current_appearance: defaults.unknown.appearance,
+    current_clothing: defaults.unknown.clothing,
   }
 }
 
@@ -196,7 +199,7 @@ function normalizeLocationItems(value: unknown): NormalizedLocationItem[] {
       const obj = entry as Record<string, unknown>
       const name = normalizeNonEmptyString(obj.name, "")
       if (!name) continue
-      const description = normalizeNonEmptyString(obj.description, "Unknown item")
+      const description = normalizeNonEmptyString(obj.description, getServerDefaults().unknown.item)
       items.push({ name, description })
     }
   }
@@ -211,7 +214,7 @@ export function normalizeLocations(value: unknown, fallbackScene: string): Norma
       const obj = entry as Record<string, unknown>
       const name = normalizeNonEmptyString(obj.name, "")
       if (!name) continue
-      const description = normalizeNonEmptyString(obj.description, "Unknown location details")
+      const description = normalizeNonEmptyString(obj.description, getServerDefaults().unknown.locationDetails)
       const characters = normalizeStringList(obj.characters)
       const available_items = normalizeLocationItems(obj.available_items)
       locations.push({ name, description, characters, available_items })
@@ -219,10 +222,10 @@ export function normalizeLocations(value: unknown, fallbackScene: string): Norma
   }
 
   if (locations.length === 0) {
-    const fallback = normalizeNonEmptyString(fallbackScene, "Unknown location")
+    const fallback = normalizeNonEmptyString(fallbackScene, getServerDefaults().unknown.location)
     locations.push({
       name: fallback,
-      description: "Unknown location details",
+      description: getServerDefaults().unknown.locationDetails,
       characters: [],
       available_items: [],
     })
@@ -235,7 +238,7 @@ export function normalizeLocations(value: unknown, fallbackScene: string): Norma
     if (!hasScene) {
       locations.push({
         name: fallbackName,
-        description: "Unknown location details",
+        description: getServerDefaults().unknown.locationDetails,
         characters: [],
         available_items: [],
       })

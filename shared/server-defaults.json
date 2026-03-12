@@ -1,0 +1,22 @@
+{
+  "format": {
+    "noneLower": "none",
+    "noneTitle": "None",
+    "nothing": "nothing"
+  },
+  "unknown": {
+    "value": "Unknown",
+    "location": "Unknown location",
+    "locationDetails": "Unknown location details",
+    "appearance": "Unknown appearance",
+    "baselineAppearance": "Unknown baseline appearance",
+    "clothing": "Unknown clothing",
+    "activity": "Unknown activity",
+    "item": "Unknown item",
+    "npc": "Unknown NPC"
+  },
+  "recentEventsSummary": "Nothing significant has happened yet. The situation remains stable.",
+  "furtherDetailsUnknown": "Further details are unknown.",
+  "defaultTimeOfDay": "00:00",
+  "fallbackTraits": ["Curious", "Honest"]
+}

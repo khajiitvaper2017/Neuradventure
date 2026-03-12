@@ -1,6 +1,7 @@
 import type { MainCharacterState, NPCState, WorldState } from "../models.js"
 import type { TurnRow } from "../db.js"
 import { getSectionFormat } from "./config.js"
+import { formatTemplate, getLlmStrings, getServerDefaults } from "../strings.js"
 
 function toTitleCase(tag: string): string {
   return tag.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase())
@@ -19,7 +20,7 @@ export function wrapSection(tag: string, content: string): string {
 }
 
 export function formatInventory(inventory: MainCharacterState["inventory"]): string {
-  if (inventory.length === 0) return "nothing"
+  if (inventory.length === 0) return getServerDefaults().format.nothing
   return inventory.map((i) => `${i.name} (${i.description})`).join(", ")
 }
 
@@ -33,49 +34,58 @@ export function escapeForInlineJson(value: string): string {
 
 export function formatNPCBaselines(npcs: NPCState[]): string {
   if (npcs.length === 0) return ""
+  const llmStrings = getLlmStrings()
+  const defaults = getServerDefaults()
+  const labels = llmStrings.contextLabels
+  const none = defaults.format.noneLower
   return npcs
     .map(
       (npc) =>
         `[${npc.name}]\n` +
-        `  Race: ${npc.race}\n` +
-        (npc.gender ? `  Gender: ${npc.gender}\n` : "") +
-        `  Baseline appearance: ${npc.appearance.baseline_appearance}\n` +
-        `  Personality traits: ${npc.personality_traits.join(", ")}\n` +
-        `  Major flaws: ${npc.major_flaws.join(", ") || "none"}\n` +
-        `  Quirks: ${npc.quirks.join(", ") || "none"}\n` +
-        `  Perks: ${npc.perks.join(", ") || "none"}`,
+        `  ${formatTemplate(labels.race, { value: npc.race })}\n` +
+        (npc.gender ? `  ${formatTemplate(labels.gender, { value: npc.gender })}\n` : "") +
+        `  ${formatTemplate(labels.baselineAppearance, { value: npc.appearance.baseline_appearance })}\n` +
+        `  ${formatTemplate(labels.personalityTraits, { value: npc.personality_traits.join(", ") })}\n` +
+        `  ${formatTemplate(labels.majorFlaws, { value: npc.major_flaws.join(", ") || none })}\n` +
+        `  ${formatTemplate(labels.quirks, { value: npc.quirks.join(", ") || none })}\n` +
+        `  ${formatTemplate(labels.perks, { value: npc.perks.join(", ") || none })}`,
     )
     .join("\n\n")
 }
 
 export function formatNPCCurrentStates(npcs: NPCState[]): string {
   if (npcs.length === 0) return ""
+  const llmStrings = getLlmStrings()
+  const labels = llmStrings.characterContextLabels
+  const contextLabels = llmStrings.contextLabels
   return npcs
     .map(
       (npc) =>
         `[${npc.name}]\n` +
-        `  Current appearance: ${npc.appearance.current_appearance}\n` +
-        `  Wearing: ${npc.appearance.current_clothing}\n` +
-        `  Current activity: ${npc.current_activity}\n` +
-        `  Location: ${npc.current_location}`,
+        `  ${formatTemplate(labels.currentAppearance, { value: npc.appearance.current_appearance })}\n` +
+        `  ${formatTemplate(contextLabels.wearing, { value: npc.appearance.current_clothing })}\n` +
+        `  ${formatTemplate(labels.currentActivity, { value: npc.current_activity })}\n` +
+        `  ${formatTemplate(labels.location, { value: npc.current_location })}`,
     )
     .join("\n\n")
 }
 
 export function formatLocations(locations: WorldState["locations"]): string {
   if (!locations || locations.length === 0) return ""
+  const labels = getLlmStrings().contextLabels
+  const none = getServerDefaults().format.noneLower
   return locations
     .map((location) => {
-      const characters = location.characters.length > 0 ? location.characters.join(", ") : "none"
+      const characters = location.characters.length > 0 ? location.characters.join(", ") : none
       const items =
         location.available_items.length > 0
           ? location.available_items.map((item) => `${item.name} (${item.description})`).join(", ")
-          : "none"
+          : none
       return (
         `[${location.name}]\n` +
-        `  Description: ${location.description}\n` +
-        `  Characters: ${characters}\n` +
-        `  Items: ${items}`
+        `  ${formatTemplate(labels.description, { value: location.description })}\n` +
+        `  ${formatTemplate(labels.characters, { value: characters })}\n` +
+        `  ${formatTemplate(labels.items, { value: items })}`
       )
     })
     .join("\n\n")
@@ -91,7 +101,8 @@ export function injectAuthorNote(
   authorNote: { text: string; depth: number } | null | undefined,
 ): string[] {
   if (!authorNote || !authorNote.text.trim()) return entries
-  const note = `[Author's Note: ${authorNote.text.trim()}]`
+  const llmStrings = getLlmStrings()
+  const note = formatTemplate(llmStrings.authorNote.wrapper, { note: authorNote.text.trim() })
   const depth = Math.max(0, authorNote.depth)
   const insertIndex = Math.max(0, entries.length - depth)
   const result = [...entries]
@@ -122,7 +133,7 @@ export function buildHistoryBlock(
     `  "memory": "${escapeForInlineJson(world.memory)}"`,
     "}",
   ].join("\n")
-  const summary = wrapSection("compressed_earlier_context", summaryContent)
+  const summary = wrapSection(getLlmStrings().sections.compressedEarlierContext, summaryContent)
 
   const targetRemove = Math.floor(ctxLimit * 0.6)
   let removedTokens = 0

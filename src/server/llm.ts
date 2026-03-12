@@ -24,7 +24,8 @@ import { buildSamplingParams } from "./llm/sampling.js"
 import { parseJsonFromContent } from "./llm/parse.js"
 import { getClient, getGenerationParams, getConnector } from "./llm/client.js"
 import { getConfig, npcTraits } from "./llm/config.js"
-import { buildTurnMessages, buildNpcCreationMessages, buildImpersonateMessages } from "./llm/context.js"
+import { buildImpersonateMessages } from "./llm/context.js"
+import { formatTemplate, getLlmStrings, getServerDefaults } from "./strings.js"
 
 export { buildTurnMessages, buildNpcCreationMessages, buildImpersonateMessages } from "./llm/context.js"
 export { getCtxLimit, getCtxLimitCached, initCtxLimit } from "./llm/client.js"
@@ -136,13 +137,20 @@ export async function generatePlayerAction(
 
 export async function generateCharacter(description: string): Promise<GenerateCharacterResponse> {
   const schema = zodSchemaToJsonSchema(GenerateCharacterResponseSchema, "GenerateCharacterResponse")
+  const llmStrings = getLlmStrings()
+  const availableTraitsLine = formatTemplate(llmStrings.generateCharacter.availableTraitsLine, {
+    npcTraits: npcTraits.join(", "),
+  })
   const result = await callLLMRaw<unknown>(
     [
       {
         role: "system",
-        content: getConfig().generateCharacterPrompt.join("\n") + `\n\nAvailable personality traits: ${npcTraits.join(", ")}`,
+        content: `${getConfig().generateCharacterPrompt.join("\n")}\n\n${availableTraitsLine}`,
       },
-      { role: "user", content: `Create a character based on this description: "${description}"` },
+      {
+        role: "user",
+        content: formatTemplate(llmStrings.generateCharacter.userPrompt, { description }),
+      },
     ],
     "GenerateCharacterResponse",
     schema,
@@ -171,10 +179,15 @@ function formatCharacterContext(
   context: CharacterGenerationContext,
   part: "appearance" | "traits" | "clothing",
 ): string {
+  const llmStrings = getLlmStrings()
+  const defaults = getServerDefaults()
+  const labels = llmStrings.characterContextLabels
+  const unknown = defaults.unknown.value
+  const noneTitle = defaults.format.noneTitle
   const lines = [
-    `Name: ${context.name || "Unknown"}`,
-    `Race: ${context.race || "Unknown"}`,
-    `Gender: ${context.gender || "Unknown"}`,
+    formatTemplate(labels.name, { value: context.name || unknown }),
+    formatTemplate(labels.race, { value: context.race || unknown }),
+    formatTemplate(labels.gender, { value: context.gender || unknown }),
   ]
 
   if (part === "traits") {
@@ -186,19 +199,25 @@ function formatCharacterContext(
       .map((v) => v.trim())
       .filter(Boolean)
       .join(" | ")
-    lines.push(`Appearance: ${appearance || "Unknown"}`)
+    lines.push(formatTemplate(labels.appearance, { value: appearance || unknown }))
   } else if (part === "appearance") {
-    lines.push(`Personality traits: ${context.personality_traits.join(", ") || "Unknown"}`)
-    lines.push(`Major flaws: ${context.major_flaws.join(", ") || "None"}`)
-    lines.push(`Quirks: ${context.quirks.join(", ") || "None"}`)
-    lines.push(`Perks: ${context.perks.join(", ") || "None"}`)
+    lines.push(formatTemplate(labels.personalityTraits, { value: context.personality_traits.join(", ") || unknown }))
+    lines.push(formatTemplate(labels.majorFlaws, { value: context.major_flaws.join(", ") || noneTitle }))
+    lines.push(formatTemplate(labels.quirks, { value: context.quirks.join(", ") || noneTitle }))
+    lines.push(formatTemplate(labels.perks, { value: context.perks.join(", ") || noneTitle }))
   } else {
-    lines.push(`Baseline appearance: ${context.appearance.baseline_appearance.trim() || "Unknown"}`)
-    lines.push(`Current appearance: ${context.appearance.current_appearance.trim() || "Unknown"}`)
-    lines.push(`Personality traits: ${context.personality_traits.join(", ") || "Unknown"}`)
-    lines.push(`Major flaws: ${context.major_flaws.join(", ") || "None"}`)
-    lines.push(`Quirks: ${context.quirks.join(", ") || "None"}`)
-    lines.push(`Perks: ${context.perks.join(", ") || "None"}`)
+    lines.push(
+      formatTemplate(labels.baselineAppearance, {
+        value: context.appearance.baseline_appearance.trim() || unknown,
+      }),
+    )
+    lines.push(
+      formatTemplate(labels.currentAppearance, { value: context.appearance.current_appearance.trim() || unknown }),
+    )
+    lines.push(formatTemplate(labels.personalityTraits, { value: context.personality_traits.join(", ") || unknown }))
+    lines.push(formatTemplate(labels.majorFlaws, { value: context.major_flaws.join(", ") || noneTitle }))
+    lines.push(formatTemplate(labels.quirks, { value: context.quirks.join(", ") || noneTitle }))
+    lines.push(formatTemplate(labels.perks, { value: context.perks.join(", ") || noneTitle }))
   }
 
   return lines.join("\n")
@@ -216,25 +235,27 @@ export async function generateCharacterPart(
         : zodSchemaToJsonSchema(GenerateCharacterClothingResponseSchema, "GenerateCharacterClothingResponse")
 
   const config = getConfig()
+  const llmStrings = getLlmStrings()
+  const availableTraitsLine = formatTemplate(llmStrings.generateCharacter.availableTraitsLine, {
+    npcTraits: npcTraits.join(", "),
+  })
   const partPrompt =
     part === "appearance"
       ? config.generateCharacterAppearancePrompt
       : part === "traits"
         ? config.generateCharacterTraitsPrompt
         : config.generateCharacterClothingPrompt
-  const prompt = [partPrompt.join("\n"), `Available personality traits: ${npcTraits.join(", ")}`]
-    .filter(Boolean)
-    .join("\n\n")
+  const prompt = [partPrompt.join("\n"), availableTraitsLine].filter(Boolean).join("\n\n")
   const userContent = [
-    `Regenerate: ${part}`,
-    "Character context:",
+    formatTemplate(llmStrings.generateCharacterPart.regenerate, { part }),
+    llmStrings.generateCharacterPart.contextHeader,
     formatCharacterContext(context, part),
-    "Instruction: Use the context above to regenerate ONLY the requested section.",
+    llmStrings.generateCharacterPart.instruction,
     part === "appearance"
-      ? "Do not reuse or paraphrase the current appearance. Keep it consistent with the identity and traits."
+      ? llmStrings.generateCharacterPart.avoid.appearance
       : part === "traits"
-        ? "Do not reuse the current personality traits, major flaws, quirks, or perks. Keep them consistent with the identity and appearance."
-        : "Do not reuse or paraphrase the current clothing. Keep it consistent with the identity, appearance, and traits.",
+        ? llmStrings.generateCharacterPart.avoid.traits
+        : llmStrings.generateCharacterPart.avoid.clothing,
   ].join("\n")
 
   const result = await callLLMRaw<unknown>(
@@ -274,10 +295,14 @@ export async function generateStory(
   },
 ): Promise<GenerateStoryResponse> {
   const schema = zodSchemaToJsonSchema(GenerateStoryResponseSchema, "GenerateStoryResponse")
+  const llmStrings = getLlmStrings()
+  const defaults = getServerDefaults()
+  const unknown = defaults.unknown.value
+  const noneTitle = defaults.format.noneTitle
   const traits = [...character.personality_traits, ...character.quirks, ...character.perks]
     .map((t) => t.trim())
     .filter(Boolean)
-  const baselineAppearance = character.appearance.baseline_appearance || "Unknown"
+  const baselineAppearance = character.appearance.baseline_appearance || unknown
   const currentAppearance = character.appearance.current_appearance || baselineAppearance
   const majorFlaws = character.major_flaws?.map((t) => t.trim()).filter(Boolean) ?? []
   const result = await callLLMRaw<unknown>(
@@ -286,16 +311,22 @@ export async function generateStory(
       {
         role: "user",
         content: [
-          "Character:",
-          `Name: ${character.name}`,
-          `Race: ${character.race || "Unknown"}`,
-          `Gender: ${character.gender || "Unknown"}`,
-          `Baseline appearance: ${baselineAppearance}`,
-          `Current appearance: ${currentAppearance}`,
-          `Clothing: ${character.appearance.current_clothing || "Unknown"}`,
-          `Major flaws: ${majorFlaws.length > 0 ? majorFlaws.join(", ") : "None"}`,
-          `Traits: ${traits.length > 0 ? traits.join(", ") : "Unknown"}`,
-          `Story description: "${description}"`,
+          llmStrings.generateStory.characterHeader,
+          formatTemplate(llmStrings.characterContextLabels.name, { value: character.name }),
+          formatTemplate(llmStrings.characterContextLabels.race, { value: character.race || unknown }),
+          formatTemplate(llmStrings.characterContextLabels.gender, { value: character.gender || unknown }),
+          formatTemplate(llmStrings.characterContextLabels.baselineAppearance, { value: baselineAppearance }),
+          formatTemplate(llmStrings.characterContextLabels.currentAppearance, { value: currentAppearance }),
+          formatTemplate(llmStrings.characterContextLabels.clothing, {
+            value: character.appearance.current_clothing || unknown,
+          }),
+          formatTemplate(llmStrings.characterContextLabels.majorFlaws, {
+            value: majorFlaws.length > 0 ? majorFlaws.join(", ") : noneTitle,
+          }),
+          formatTemplate(llmStrings.characterContextLabels.traits, {
+            value: traits.length > 0 ? traits.join(", ") : unknown,
+          }),
+          formatTemplate(llmStrings.generateStory.storyDescription, { description }),
         ].join("\n"),
       },
     ],

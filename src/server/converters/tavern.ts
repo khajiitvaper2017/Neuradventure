@@ -1,6 +1,7 @@
 import type { MainCharacterState } from "../models.js"
 import type { TurnRow } from "../db.js"
 import { npcTraitLookup } from "../schemas/npc-traits.js"
+import { getServerDefaults } from "../strings.js"
 
 // ─── TavernCardV2 types ───────────────────────────────────────────────────────
 
@@ -33,9 +34,10 @@ export function characterToTavernCard(
   character: MainCharacterState | Omit<MainCharacterState, "inventory">,
 ): TavernCardV2 {
   const descriptionLines: string[] = []
-  const race = character.race?.trim() || "Unknown"
-  const gender = character.gender?.trim() || "Unknown"
-  const baselineAppearance = character.appearance.baseline_appearance?.trim() || "Unknown appearance"
+  const defaults = getServerDefaults()
+  const race = character.race?.trim() || defaults.unknown.value
+  const gender = character.gender?.trim() || defaults.unknown.value
+  const baselineAppearance = character.appearance.baseline_appearance?.trim() || defaults.unknown.appearance
 
   descriptionLines.push(`Race: ${race}. Gender: ${gender}.`)
 
@@ -78,14 +80,18 @@ function parseRaceFromDescription(description: string): string {
 
 function parseGenderFromDescription(description: string): string {
   const genderMatch = description.match(/\bGender:\s*([^.]+)\./i)
-  return genderMatch ? genderMatch[1].trim() : "Unknown"
+  return genderMatch ? genderMatch[1].trim() : getServerDefaults().unknown.value
 }
 
 export function tavernCardToCharacter(card: TavernCardV2): TavernImportResult {
   // Lossless round-trip if neuradventure extension exists
   if (card.data.extensions?.neuradventure) {
     const raw = card.data.extensions.neuradventure as Record<string, unknown>
-    const { inventory: _inventory, baseline_description: _baselineDescription, ...base } = raw as Record<string, unknown>
+    const {
+      inventory: _inventory,
+      baseline_description: _baselineDescription,
+      ...base
+    } = raw as Record<string, unknown>
     void _baselineDescription
     void _inventory
     const character = { ...base } as Omit<MainCharacterState, "inventory">
@@ -119,7 +125,7 @@ export function tavernCardToCharacter(card: TavernCardV2): TavernImportResult {
     .map((l) => l.trim())
     .filter(Boolean)
   const contentLines = descLines.filter((l) => !l.match(/^(Race|Gender):/i))
-  let baselineAppearance = "Unknown appearance"
+  let baselineAppearance = getServerDefaults().unknown.appearance
   for (const line of contentLines) {
     const appearanceMatch = line.match(/^Appearance:\s*(.+)$/i)
     if (appearanceMatch) {
@@ -128,7 +134,7 @@ export function tavernCardToCharacter(card: TavernCardV2): TavernImportResult {
   }
 
   const sourceText = [
-    `Name: ${card.data.name || "Unknown"}`,
+    `Name: ${card.data.name || getServerDefaults().unknown.value}`,
     description ? `Description: ${description}` : null,
     personality ? `Personality: ${personality}` : null,
     card.data.scenario ? `Scenario: ${card.data.scenario}` : null,
@@ -139,16 +145,16 @@ export function tavernCardToCharacter(card: TavernCardV2): TavernImportResult {
 
   return {
     character: {
-      name: card.data.name || "Unknown",
+      name: card.data.name || getServerDefaults().unknown.value,
       race: parseRaceFromDescription(description),
       gender: parseGenderFromDescription(description),
-      current_location: "Unknown location",
+      current_location: getServerDefaults().unknown.location,
       appearance: {
         baseline_appearance: baselineAppearance,
         current_appearance: baselineAppearance,
-        current_clothing: "Unknown clothing",
+        current_clothing: getServerDefaults().unknown.clothing,
       },
-      personality_traits: traits.length >= 2 ? traits : ["Curious", "Honest"],
+      personality_traits: traits.length >= 2 ? traits : getServerDefaults().fallbackTraits,
       major_flaws: [],
       quirks: card.data.tags?.slice(0, 6) ?? [],
       perks: [],

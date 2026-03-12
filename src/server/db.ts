@@ -3,6 +3,7 @@ import fs from "node:fs"
 import path from "path"
 import { fileURLToPath } from "url"
 import type { MainCharacterState, NPCState, WorldState } from "./models.js"
+import { getServerDefaults } from "./strings.js"
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const DB_PATH = path.resolve(__dirname, "../../data/neuradventure.db")
@@ -20,7 +21,7 @@ function normalizeCharacterBase(input: Partial<CharacterBase>): CharacterBase {
     name: input.name ?? "",
     race: input.race ?? "",
     gender: input.gender ?? "",
-    current_location: input.current_location ?? "Unknown location",
+    current_location: input.current_location ?? getServerDefaults().unknown.location,
     appearance: {
       baseline_appearance: baselineAppearance,
       current_appearance: currentAppearance,

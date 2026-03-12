@@ -14,6 +14,7 @@ import {
   stripSummaryLeak,
 } from "./normalizers.js"
 import { desc } from "./field-descriptions.js"
+import { getServerDefaults } from "../strings.js"
 
 export const InventoryItemSchema = z
   .object({
@@ -98,11 +99,9 @@ export const CharacterStateSchema = CharacterStateBaseSchema
 
 export const MainCharacterStateSchema = CharacterStateBaseSchema
 
-export const NPCStateSchema = CharacterStateBaseSchema
-  .extend({
-    current_activity: z.string().min(1).describe(desc("state.character.current_activity")),
-  })
-  .strict()
+export const NPCStateSchema = CharacterStateBaseSchema.extend({
+  current_activity: z.string().min(1).describe(desc("state.character.current_activity")),
+}).strict()
 
 function normalizeInventoryItems(value: unknown): { name: string; description: string }[] {
   if (!Array.isArray(value)) return []
@@ -112,7 +111,7 @@ function normalizeInventoryItems(value: unknown): { name: string; description: s
     const obj = entry as Record<string, unknown>
     const name = normalizeNonEmptyString(obj.name, "")
     if (!name) continue
-    const description = normalizeNonEmptyString(obj.description, "Unknown item")
+    const description = normalizeNonEmptyString(obj.description, getServerDefaults().unknown.item)
     items.push({ name, description })
   }
   return items
@@ -136,10 +135,13 @@ const CharacterStateStoredBaseSchema = z
   })
   .passthrough()
 const normalizeCharacterStoredBase = (value: z.input<typeof CharacterStateStoredBaseSchema>) => ({
-  name: normalizeNonEmptyString(value.name, "Unknown NPC"),
-  race: normalizeNonEmptyString(value.race, "Unknown"),
-  gender: normalizeNonEmptyString(value.gender, "Unknown"),
-  current_location: normalizeNonEmptyString(value.current_location ?? value.last_known_location, "Unknown location"),
+  name: normalizeNonEmptyString(value.name, getServerDefaults().unknown.npc),
+  race: normalizeNonEmptyString(value.race, getServerDefaults().unknown.value),
+  gender: normalizeNonEmptyString(value.gender, getServerDefaults().unknown.value),
+  current_location: normalizeNonEmptyString(
+    value.current_location ?? value.last_known_location,
+    getServerDefaults().unknown.location,
+  ),
   appearance: normalizeAppearance(value.appearance),
   personality_traits: normalizePersonalityTraits(value.personality_traits),
   major_flaws: normalizeTraitList(value.major_flaws, 3),
@@ -148,18 +150,19 @@ const normalizeCharacterStoredBase = (value: z.input<typeof CharacterStateStored
   inventory: normalizeInventoryItems(value.inventory),
 })
 
-export const CharacterStateStoredSchema = CharacterStateStoredBaseSchema
-  .transform((value) => normalizeCharacterStoredBase(value))
-  .pipe(CharacterStateSchema)
+export const CharacterStateStoredSchema = CharacterStateStoredBaseSchema.transform((value) =>
+  normalizeCharacterStoredBase(value),
+).pipe(CharacterStateSchema)
 
 export const MainCharacterStateStoredSchema = CharacterStateStoredSchema
 
-export const NPCStateStoredSchema = CharacterStateStoredBaseSchema
-  .transform((value) => ({
-    ...normalizeCharacterStoredBase(value),
-    current_activity: normalizeNonEmptyString(value.current_activity ?? value.notes, "Unknown activity"),
-  }))
-  .pipe(NPCStateSchema)
+export const NPCStateStoredSchema = CharacterStateStoredBaseSchema.transform((value) => ({
+  ...normalizeCharacterStoredBase(value),
+  current_activity: normalizeNonEmptyString(
+    value.current_activity ?? value.notes,
+    getServerDefaults().unknown.activity,
+  ),
+})).pipe(NPCStateSchema)
 
 export const WorldStateSchema = z
   .object({

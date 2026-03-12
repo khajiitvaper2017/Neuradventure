@@ -12,6 +12,7 @@ import {
   wrapSection,
   estimateTokens,
 } from "./format.js"
+import { formatTemplate, getLlmStrings, getServerDefaults } from "../strings.js"
 
 // ─── Shared context block builder ─────────────────────────────────────────────
 
@@ -30,54 +31,70 @@ export interface ContextBlockOpts {
 function buildContextBlock(opts: ContextBlockOpts): string {
   const { character, world, npcs, recentTurns, ctxLimit, initialCharacter, actionBlock, authorNote } = opts
   const initial = initialCharacter ?? character
+  const llmStrings = getLlmStrings()
+  const defaults = getServerDefaults()
+  const labels = llmStrings.contextLabels
+  const sections = llmStrings.sections
+  const none = defaults.format.noneLower
 
   // ── STABLE (cached across turns) ──
   const initialSection = wrapSection(
-    "initial_character",
-    `Baseline appearance: ${initial.appearance.baseline_appearance}\n` +
-      `Current appearance: ${initial.appearance.current_appearance}\n` +
-      `Wearing: ${initial.appearance.current_clothing}`,
+    sections.initialCharacter,
+    `${formatTemplate(labels.baselineAppearance, { value: initial.appearance.baseline_appearance })}\n` +
+      `${formatTemplate(labels.currentAppearance, { value: initial.appearance.current_appearance })}\n` +
+      `${formatTemplate(labels.wearing, { value: initial.appearance.current_clothing })}`,
   )
 
   const baseSection = wrapSection(
-    "player_character_base",
-    `Name: ${character.name} · ${character.race} · ${character.gender}\n` +
-      `Personality traits: ${character.personality_traits.join(", ") || "none"}\n` +
-      `Major flaws: ${character.major_flaws.join(", ") || "none"}\n` +
-      `Quirks: ${character.quirks.join(", ") || "none"}\n` +
-      `Perks: ${character.perks.join(", ") || "none"}`,
+    sections.playerCharacterBase,
+    `${formatTemplate(labels.nameRaceGender, {
+      name: character.name,
+      race: character.race,
+      gender: character.gender,
+    })}\n` +
+      `${formatTemplate(labels.personalityTraits, {
+        value: character.personality_traits.join(", ") || none,
+      })}\n` +
+      `${formatTemplate(labels.majorFlaws, { value: character.major_flaws.join(", ") || none })}\n` +
+      `${formatTemplate(labels.quirks, { value: character.quirks.join(", ") || none })}\n` +
+      `${formatTemplate(labels.perks, { value: character.perks.join(", ") || none })}`,
   )
 
-  const npcBaselineSection = npcs.length > 0 ? wrapSection("npc_baselines", formatNPCBaselines(npcs)) : null
+  const npcBaselineSection = npcs.length > 0 ? wrapSection(sections.npcBaselines, formatNPCBaselines(npcs)) : null
 
   const locationSection =
-    world.locations && world.locations.length > 0 ? wrapSection("locations", formatLocations(world.locations)) : null
+    world.locations && world.locations.length > 0
+      ? wrapSection(sections.locations, formatLocations(world.locations))
+      : null
 
   // ── SEMI-STABLE ──
-  const memorySection = world.memory ? wrapSection("memory", world.memory) : null
+  const memorySection = world.memory ? wrapSection(sections.memory, world.memory) : null
 
   const authorNoteSection =
-    authorNote && authorNote.text.trim() ? wrapSection("author_note", authorNote.text.trim()) : null
+    authorNote && authorNote.text.trim() ? wrapSection(sections.authorNote, authorNote.text.trim()) : null
 
   // ── VOLATILE ──
   const currentSection = wrapSection(
-    "player_character_state",
-    `Current appearance: ${character.appearance.current_appearance}\n` +
-      `Wearing: ${character.appearance.current_clothing}\n` +
-      `Location: ${character.current_location}\n` +
-      `Inventory: ${formatInventory(character.inventory)}`,
+    sections.playerCharacterState,
+    `${formatTemplate(labels.currentAppearance, { value: character.appearance.current_appearance })}\n` +
+      `${formatTemplate(labels.wearing, { value: character.appearance.current_clothing })}\n` +
+      `${formatTemplate(labels.location, { value: character.current_location })}\n` +
+      `${formatTemplate(labels.inventory, { value: formatInventory(character.inventory) })}`,
   )
 
-  const npcCurrentSection = npcs.length > 0 ? wrapSection("npc_current_states", formatNPCCurrentStates(npcs)) : null
+  const npcCurrentSection =
+    npcs.length > 0 ? wrapSection(sections.npcCurrentStates, formatNPCCurrentStates(npcs)) : null
 
   const storyContextSection = wrapSection(
-    "story_context",
-    `Scene: ${world.current_scene}\n` + `Date: ${world.current_date}\n` + `Time: ${world.time_of_day}`,
+    sections.storyContext,
+    `${formatTemplate(labels.scene, { value: world.current_scene })}\n` +
+      `${formatTemplate(labels.date, { value: world.current_date })}\n` +
+      `${formatTemplate(labels.time, { value: world.time_of_day })}`,
   )
 
   const joinSections = (sections: Array<string | null | undefined>): string => sections.filter(Boolean).join("\n\n")
 
-  const storyHeader = wrapSection("story_so_far", "").replace(/\n$/, "")
+  const storyHeader = wrapSection(sections.storySoFar, "").replace(/\n$/, "")
   const afterHistory = joinSections([currentSection, npcCurrentSection, storyContextSection, actionBlock])
 
   const stableBlock = joinSections([
@@ -111,13 +128,18 @@ export function buildTurnMessages(
 ): OpenAI.ChatCompletionMessageParam[] {
   const ctxLimit = ctxLimitOverride ?? getGenerationParams().ctx_limit
   const hasPlayerInput = playerInput.trim().length > 0
+  const llmStrings = getLlmStrings()
+  const sections = llmStrings.sections
   const actionSection =
     actionMode === "story"
       ? hasPlayerInput
-        ? wrapSection("story_continuation", playerInput)
-        : wrapSection("story_continuation", "")
+        ? wrapSection(sections.storyContinuation, playerInput)
+        : wrapSection(sections.storyContinuation, "")
       : hasPlayerInput
-        ? wrapSection("players_action", actionMode === "say" ? `You say: ${playerInput}` : playerInput)
+        ? wrapSection(
+            sections.playersAction,
+            actionMode === "say" ? `${llmStrings.playerSayPrefix}${playerInput}` : playerInput,
+          )
         : null
 
   const contextBlock = buildContextBlock({
@@ -147,8 +169,11 @@ export function buildNpcCreationMessages(
   authorNote?: { text: string; depth: number } | null,
 ): OpenAI.ChatCompletionMessageParam[] {
   const ctxLimit = ctxLimitOverride ?? getGenerationParams().ctx_limit
+  const sections = getLlmStrings().sections
   const actionBlock =
-    npcName.trim().length > 0 ? wrapSection("introduce_new_npc", npcName) : wrapSection("introduce_new_npc", "")
+    npcName.trim().length > 0
+      ? wrapSection(sections.introduceNewNpc, npcName)
+      : wrapSection(sections.introduceNewNpc, "")
 
   const contextBlock = buildContextBlock({
     character,
@@ -177,13 +202,11 @@ export function buildImpersonateMessages(
   authorNote?: { text: string; depth: number } | null,
 ): OpenAI.ChatCompletionMessageParam[] {
   const ctxLimit = ctxLimitOverride ?? getGenerationParams().ctx_limit
-  const actionModeHint =
-    actionMode === "say"
-      ? "Say only the exact words spoken. No quotes or 'You say'."
-      : actionMode === "story"
-        ? "Continue the story in 1-2 short sentences, second-person present tense."
-        : "Describe the action the player takes in a short, concrete clause."
-  const actionModeSection = wrapSection("action_mode", `${actionMode}\n${actionModeHint}`)
+  const llmStrings = getLlmStrings()
+  const sections = llmStrings.sections
+  const hints = llmStrings.actionModeHints
+  const actionModeHint = actionMode === "say" ? hints.say : actionMode === "story" ? hints.story : hints.do
+  const actionModeSection = wrapSection(sections.actionMode, `${actionMode}\n${actionModeHint}`)
 
   const contextBlock = buildContextBlock({
     character,
@@ -195,7 +218,7 @@ export function buildImpersonateMessages(
     actionBlock: actionModeSection,
     authorNote,
   })
-  const prompt = `${contextBlock}\n\n${wrapSection("players_action", "")}`
+  const prompt = `${contextBlock}\n\n${wrapSection(sections.playersAction, "")}`
 
   return [
     { role: "system", content: getImpersonatePrompt() },

@@ -1,11 +1,5 @@
-import type {
-  MainCharacterState,
-  NPCCreation,
-  NPCState,
-  NPCStateUpdate,
-  TurnResponse,
-  WorldState,
-} from "../models.js"
+import type { MainCharacterState, NPCCreation, NPCState, NPCStateUpdate, TurnResponse, WorldState } from "../models.js"
+import { getServerDefaults } from "../strings.js"
 
 // ─── State Application ─────────────────────────────────────────────────────────
 
@@ -75,7 +69,7 @@ export function syncLocationCharacters(world: WorldState, character: MainCharact
     if (existing) return existing
     const created = {
       name: locationName.trim(),
-      description: "Unknown location details",
+      description: getServerDefaults().unknown.locationDetails,
       characters: [],
       available_items: [],
     }
