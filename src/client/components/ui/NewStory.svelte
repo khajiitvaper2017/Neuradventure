@@ -13,6 +13,8 @@
   import { loadStoryById } from "../../utils/storyLoader.js"
   import { loadPromptHistory, savePromptHistory, removePromptHistory } from "../../utils/promptHistory.js"
   import IconTrash from "../icons/IconTrash.svelte"
+  import IconPencilSquare from "../icons/IconPencilSquare.svelte"
+  import StoryModulesPanel from "./StoryModulesPanel.svelte"
   import {
     pendingCharacter,
     pendingStoryTitle,
@@ -82,8 +84,8 @@
     storyPromptHistory = removePromptHistory(STORY_PROMPT_HISTORY_KEY, value)
   }
 
-  function updateModules<K extends keyof StoryModules>(key: K, value: StoryModules[K]) {
-    pendingStoryModules.set({ ...activeModules, [key]: value })
+  function setModules(next: StoryModules) {
+    pendingStoryModules.set(next)
   }
 
   type StoryRef = { id: number; title: string; updated_at: string }
@@ -351,171 +353,7 @@
     <div class="field">
       <!-- svelte-ignore a11y_label_has_associated_control -->
       <label>Story Modules</label>
-      <div class="field-row module-row">
-        <label class="check-row">
-          <input
-            type="checkbox"
-            checked={activeModules.track_npcs}
-            onchange={(e) => updateModules("track_npcs", (e.target as HTMLInputElement).checked)}
-          />
-          <span>Track NPCs</span>
-        </label>
-        <label class="check-row">
-          <input
-            type="checkbox"
-            checked={activeModules.track_locations}
-            onchange={(e) => updateModules("track_locations", (e.target as HTMLInputElement).checked)}
-          />
-          <span>Track Locations</span>
-        </label>
-      </div>
-      <div class="field-row module-row">
-        <label class="check-row" for="story-modules-detail-mode">
-          <span>Character detail mode</span>
-        </label>
-        <select
-          id="story-modules-detail-mode"
-          class="select-input"
-          value={activeModules.character_detail_mode}
-          onchange={(e) => {
-            const next = (e.target as HTMLSelectElement).value as StoryModules["character_detail_mode"]
-            const nextModules: StoryModules = {
-              ...activeModules,
-              character_detail_mode: next,
-              ...(next === "detailed" ? { character_appearance_clothing: true } : {}),
-            }
-            pendingStoryModules.set(nextModules)
-          }}
-        >
-          <option value="detailed">Detailed</option>
-          <option value="general">General description</option>
-        </select>
-      </div>
-      {#if activeModules.character_detail_mode === "detailed"}
-        <div class="field-row module-row">
-          <label class="check-row">
-            <input type="checkbox" checked={true} disabled />
-            <span>Player appearance + clothing</span>
-          </label>
-        </div>
-      {/if}
-      <div class="field-row module-row">
-        <label class="check-row">
-          <input
-            type="checkbox"
-            checked={activeModules.character_personality_traits}
-            onchange={(e) => updateModules("character_personality_traits", (e.target as HTMLInputElement).checked)}
-          />
-          <span>Player personality traits</span>
-        </label>
-        <label class="check-row">
-          <input
-            type="checkbox"
-            checked={activeModules.character_major_flaws}
-            onchange={(e) => updateModules("character_major_flaws", (e.target as HTMLInputElement).checked)}
-          />
-          <span>Player major flaws</span>
-        </label>
-      </div>
-      <div class="field-row module-row">
-        <label class="check-row">
-          <input
-            type="checkbox"
-            checked={activeModules.character_quirks}
-            onchange={(e) => updateModules("character_quirks", (e.target as HTMLInputElement).checked)}
-          />
-          <span>Player quirks</span>
-        </label>
-        <label class="check-row">
-          <input
-            type="checkbox"
-            checked={activeModules.character_perks}
-            onchange={(e) => updateModules("character_perks", (e.target as HTMLInputElement).checked)}
-          />
-          <span>Player perks</span>
-        </label>
-      </div>
-      <div class="field-row module-row">
-        <label class="check-row">
-          <input
-            type="checkbox"
-            checked={activeModules.character_inventory}
-            onchange={(e) => updateModules("character_inventory", (e.target as HTMLInputElement).checked)}
-          />
-          <span>Player inventory</span>
-        </label>
-      </div>
-      <div class="field-row module-row">
-        <label class="check-row">
-          <input
-            type="checkbox"
-            checked={activeModules.npc_appearance_clothing}
-            disabled={!activeModules.track_npcs}
-            onchange={(e) => updateModules("npc_appearance_clothing", (e.target as HTMLInputElement).checked)}
-          />
-          <span>NPC appearance + clothing</span>
-        </label>
-        <label class="check-row">
-          <input
-            type="checkbox"
-            checked={activeModules.npc_personality_traits}
-            disabled={!activeModules.track_npcs}
-            onchange={(e) => updateModules("npc_personality_traits", (e.target as HTMLInputElement).checked)}
-          />
-          <span>NPC personality traits</span>
-        </label>
-      </div>
-      <div class="field-row module-row">
-        <label class="check-row">
-          <input
-            type="checkbox"
-            checked={activeModules.npc_major_flaws}
-            disabled={!activeModules.track_npcs}
-            onchange={(e) => updateModules("npc_major_flaws", (e.target as HTMLInputElement).checked)}
-          />
-          <span>NPC major flaws</span>
-        </label>
-        <label class="check-row">
-          <input
-            type="checkbox"
-            checked={activeModules.npc_quirks}
-            disabled={!activeModules.track_npcs}
-            onchange={(e) => updateModules("npc_quirks", (e.target as HTMLInputElement).checked)}
-          />
-          <span>NPC quirks</span>
-        </label>
-      </div>
-      <div class="field-row module-row">
-        <label class="check-row">
-          <input
-            type="checkbox"
-            checked={activeModules.npc_perks}
-            disabled={!activeModules.track_npcs}
-            onchange={(e) => updateModules("npc_perks", (e.target as HTMLInputElement).checked)}
-          />
-          <span>NPC perks</span>
-        </label>
-      </div>
-      <div class="field-row module-row">
-        <label class="check-row">
-          <input
-            type="checkbox"
-            checked={activeModules.npc_location}
-            disabled={!activeModules.track_npcs}
-            onchange={(e) => updateModules("npc_location", (e.target as HTMLInputElement).checked)}
-          />
-          <span>NPC location</span>
-        </label>
-        <label class="check-row">
-          <input
-            type="checkbox"
-            checked={activeModules.npc_activity}
-            disabled={!activeModules.track_npcs}
-            onchange={(e) => updateModules("npc_activity", (e.target as HTMLInputElement).checked)}
-          />
-          <span>NPC activity</span>
-        </label>
-      </div>
+      <StoryModulesPanel modules={activeModules} setModules={setModules} />
     </div>
 
     {#if $pendingStoryNPCs.length > 0}
@@ -593,7 +431,15 @@
           {charData.gender} ·
           {[...charData.personality_traits, ...charData.quirks, ...charData.perks].join(", ") || "No traits"}
         </div>
-        <button class="btn-ghost small" onclick={() => navigate("char-create")}>Edit Character</button>
+        <button
+          class="btn-ghost small edit-character-btn"
+          onclick={() => navigate("char-create")}
+          title="Edit character"
+          aria-label="Edit character"
+        >
+          <IconPencilSquare size={12} strokeWidth={2} />
+          <span>Character</span>
+        </button>
       </div>
     {:else}
       <div class="char-summary is-empty">
@@ -632,6 +478,11 @@
   .char-summary .small {
     align-self: flex-start;
     margin-top: 0.5rem;
+  }
+  .edit-character-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
   }
   .saved-row {
     display: flex;
@@ -720,8 +571,7 @@
   }
   .prompt-history-label {
     font-size: 0.7rem;
-    text-transform: uppercase;
-    letter-spacing: 0.08em;
+        letter-spacing: 0.08em;
     color: var(--text-dim);
   }
   .prompt-history-list {
@@ -781,8 +631,7 @@
   }
   .npc-summary-header {
     font-size: 0.75rem;
-    text-transform: uppercase;
-    letter-spacing: 0.08em;
+        letter-spacing: 0.08em;
     color: var(--text-dim);
   }
   .npc-list {
@@ -810,8 +659,7 @@
   }
   .char-summary-header {
     font-size: 0.75rem;
-    text-transform: uppercase;
-    letter-spacing: 0.08em;
+        letter-spacing: 0.08em;
     color: var(--text-dim);
   }
   .char-name {
@@ -822,15 +670,5 @@
   .char-details {
     font-size: 0.85rem;
     color: var(--text-dim);
-  }
-  .module-row {
-    align-items: center;
-  }
-  .check-row {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.5rem;
-    font-size: 0.9rem;
-    color: var(--text);
   }
 </style>

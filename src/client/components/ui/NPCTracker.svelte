@@ -21,6 +21,7 @@
   import IconDocument from "../icons/IconDocument.svelte"
   import IconMapPin from "../icons/IconMapPin.svelte"
   import IconStar from "../icons/IconStar.svelte"
+  import IconPencilSquare from "../icons/IconPencilSquare.svelte"
   import IconTrash from "../icons/IconTrash.svelte"
   import IconUsers from "../icons/IconUsers.svelte"
 
@@ -628,15 +629,17 @@
           </div>
           <div class="npc-header-actions">
             <button
-              class="npc-edit-btn"
+              class="npc-edit-btn icon"
               onclick={() => startNpcEdit(npc)}
               disabled={savingNpc ||
                 editingNpcName === npc.name ||
                 (editingNpcName && editingNpcName !== npc.name) ||
                 deletingNpcName === npc.name ||
                 !$currentStoryId}
+              title={editingNpcName === npc.name ? "Editing NPC" : "Edit NPC"}
+              aria-label={editingNpcName === npc.name ? "Editing NPC" : "Edit NPC"}
             >
-              {editingNpcName === npc.name ? "Editing" : "Edit"}
+              <IconPencilSquare size={12} strokeWidth={2} />
             </button>
             <button
               class="npc-edit-btn danger icon"
@@ -816,8 +819,7 @@
     padding: 0.2rem 0.6rem;
     font-size: 0.62rem;
     letter-spacing: 0.08em;
-    text-transform: uppercase;
-    min-width: auto;
+        min-width: auto;
     min-height: auto;
   }
   .npc-toggle-btn:hover:not(:disabled) {
@@ -882,8 +884,7 @@
     padding: 0.2rem 0.55rem;
     font-size: 0.65rem;
     letter-spacing: 0.08em;
-    text-transform: uppercase;
-  }
+      }
   .npc-edit-btn:disabled {
     opacity: 0.5;
     cursor: not-allowed;

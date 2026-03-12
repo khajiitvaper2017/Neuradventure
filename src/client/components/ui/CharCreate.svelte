@@ -1,16 +1,22 @@
 <script lang="ts">
   import { get } from "svelte/store"
   import { onMount } from "svelte"
-  import { api } from "../../api/client.js"
+  import { api, type StoryModules } from "../../api/client.js"
   import { goBack, navigate, showError, showQuietNotice } from "../../stores/ui.js"
   import { autoresize } from "../../utils/actions/autoresize.js"
-  import { pendingCharacter, pendingCharacterId, pendingCharacterImportText } from "../../stores/game.js"
+  import {
+    pendingCharacter,
+    pendingCharacterId,
+    pendingCharacterImportText,
+    pendingStoryModules,
+  } from "../../stores/game.js"
   import { pendingCharacterGenerateDescription } from "../../stores/game.js"
   import { storyDefaults } from "../../stores/settings.js"
   import personalityOptions from "../../../../shared/config/traits.json"
   import { loadPromptHistory, savePromptHistory, removePromptHistory } from "../../utils/promptHistory.js"
   import { normalizeGender } from "../../utils/text.js"
   import IconTrash from "../icons/IconTrash.svelte"
+  import StoryModulesPanel from "./StoryModulesPanel.svelte"
 
   const CHARACTER_PROMPT_HISTORY_KEY = "na:prompt_history:character"
 
@@ -59,6 +65,7 @@
 
   onMount(() => {
     promptHistory = loadPromptHistory(CHARACTER_PROMPT_HISTORY_KEY)
+    if (!$pendingStoryModules) pendingStoryModules.set($storyDefaults)
   })
 
   async function generate() {
@@ -72,7 +79,7 @@
       name = result.name
       race = result.race
       gender = normalizeGender(result.gender)
-      if (detailMode === "general") {
+      if (activeModules.character_detail_mode === "general") {
         generalDescription = result.general_description ?? generalDescription
         if (traitsEnabled && result.personality_traits) {
           const split = splitPersonalityTraits(result.personality_traits)
@@ -143,7 +150,7 @@
       if (isMissingText(gender) || gender.toLowerCase() === "unknown") {
         gender = normalizeGender(result.gender, gender)
       }
-      if (detailMode === "general") {
+      if (activeModules.character_detail_mode === "general") {
         if (isMissingText(generalDescription) && result.general_description) {
           generalDescription = result.general_description
         }
@@ -188,7 +195,6 @@
     const normalized = normalizeGender(val, "")
     gender = normalized || "Female"
   }
-  let detailMode: "detailed" | "general" = $storyDefaults.character_detail_mode
   let generalDescription = existing?.general_description ?? ""
   let baselineAppearance = existing?.appearance.baseline_appearance ?? ""
   let currentAppearance = existing?.appearance.current_appearance ?? ""
@@ -203,17 +209,22 @@
   let quirks: string[] = existing?.quirks ?? []
   let perks: string[] = existing?.perks ?? []
   $: totalPersonalityCount = selectedTraits.length + customPersonalityTraits.length
-  $: activeModules = {
-    ...$storyDefaults,
-    character_detail_mode: detailMode,
-    ...(detailMode === "detailed" ? { character_appearance_clothing: true } : {}),
-  }
+  let activeModules: StoryModules = $pendingStoryModules ?? $storyDefaults
+  $: activeModules = $pendingStoryModules ?? $storyDefaults
   $: traitsEnabled = activeModules.character_personality_traits
   $: majorFlawsEnabled = activeModules.character_major_flaws
   $: quirksEnabled = activeModules.character_quirks
   $: perksEnabled = activeModules.character_perks
   $: canRegenerateTraits =
-    detailMode === "detailed" && traitsEnabled && majorFlawsEnabled && quirksEnabled && perksEnabled
+    activeModules.character_detail_mode === "detailed" &&
+    traitsEnabled &&
+    majorFlawsEnabled &&
+    quirksEnabled &&
+    perksEnabled
+
+  function setModules(next: StoryModules) {
+    pendingStoryModules.set(next)
+  }
 
   function isBlocked(trait: string): boolean {
     const opp = OPPOSITES[trait]
@@ -299,7 +310,8 @@
     if (!name.trim()) return "Name is required"
     if (!race.trim()) return "Race is required"
     if (!gender.trim()) return "Gender is required"
-    if (detailMode === "general" && !generalDescription.trim()) return "General description is required"
+    if (activeModules.character_detail_mode === "general" && !generalDescription.trim())
+      return "General description is required"
     return null
   }
 
@@ -341,7 +353,7 @@
 
   async function regenerateAppearance() {
     if (regeneratingAppearance) return
-    if (detailMode === "general") {
+    if (activeModules.character_detail_mode === "general") {
       showError("Appearance regeneration is disabled in general mode")
       return
     }
@@ -361,7 +373,7 @@
     if (regeneratingTraits) return
     if (!canRegenerateTraits) {
       showError(
-        detailMode === "general"
+        activeModules.character_detail_mode === "general"
           ? "Trait regeneration is disabled in general mode"
           : "Trait regeneration is disabled by story modules",
       )
@@ -385,7 +397,7 @@
 
   async function regenerateClothing() {
     if (regeneratingClothing) return
-    if (detailMode === "general") {
+    if (activeModules.character_detail_mode === "general") {
       showError("Clothing regeneration is disabled in general mode")
       return
     }
@@ -521,18 +533,11 @@
 
     <div class="field">
       <!-- svelte-ignore a11y_label_has_associated_control -->
-      <label>Character Detail Mode</label>
-      <div class="toggle-row">
-        <button class="toggle {detailMode === 'detailed' ? 'active' : ''}" onclick={() => (detailMode = "detailed")}>
-          Detailed
-        </button>
-        <button class="toggle {detailMode === 'general' ? 'active' : ''}" onclick={() => (detailMode = "general")}>
-          General Description
-        </button>
-      </div>
+      <label>Story Modules</label>
+      <StoryModulesPanel modules={activeModules} setModules={setModules} />
     </div>
 
-    {#if detailMode === "general"}
+    {#if activeModules.character_detail_mode === "general"}
       <div class="field">
         <label for="char-general-description">General Description</label>
         <textarea
@@ -544,7 +549,7 @@
       </div>
     {/if}
 
-    {#if detailMode === "detailed"}
+    {#if activeModules.character_detail_mode === "detailed"}
       <div class="field">
         <div class="label-row">
           <label for="char-baseline-appearance">Baseline Appearance</label>
@@ -851,7 +856,6 @@
   }
   .prompt-history-label {
     font-size: 0.7rem;
-    text-transform: uppercase;
     letter-spacing: 0.08em;
     color: var(--text-dim);
   }

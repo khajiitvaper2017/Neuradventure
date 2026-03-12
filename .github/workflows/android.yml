@@ -24,7 +24,7 @@ jobs:
         run: chmod +x ./android/gradlew
 
       - name: Build with Gradle
-        # -p android points to your subfolder, :app:assembleDebug targets the app specifically
+      
         run: ./android/gradlew -p android :app:assembleDebug
 
       - name: Publish APK (upload artifact)

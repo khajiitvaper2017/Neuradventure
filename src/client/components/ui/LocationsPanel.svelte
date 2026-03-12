@@ -167,8 +167,7 @@
   .location-badge {
     font-size: 0.6rem;
     font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.08em;
+        letter-spacing: 0.08em;
     border: 1px solid var(--border);
     border-radius: var(--radius-pill);
     padding: 0.1rem 0.45rem;

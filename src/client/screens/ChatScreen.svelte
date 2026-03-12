@@ -16,6 +16,7 @@
   import ConversationInput from "../components/ui/ConversationInput.svelte"
   import InlineTokens from "../components/ui/InlineTokens.svelte"
   import ThinkingDots from "../components/ui/ThinkingDots.svelte"
+  import IconPencilSquare from "../components/icons/IconPencilSquare.svelte"
   import IconTrash from "../components/icons/IconTrash.svelte"
 
   type ActionMode = "do" | "say"
@@ -358,7 +359,15 @@
       <div class="opening-block">
         <div class="opening-header">
           <span>Scenario</span>
-          <button class="edit-btn" onclick={startEditScenario} disabled={$isChatGenerating}>Edit</button>
+          <button
+            class="edit-btn"
+            onclick={startEditScenario}
+            disabled={$isChatGenerating}
+            title="Edit scenario"
+            aria-label="Edit scenario"
+          >
+            <IconPencilSquare size={12} strokeWidth={2} />
+          </button>
         </div>
         {#if $currentChatScenario.trim()}
           <p class="opening-text">
@@ -379,8 +388,14 @@
           <div class="chat-speaker">
             <span>{message.speaker_name}</span>
             <span class="message-actions">
-              <button class="edit-btn inline" onclick={() => startEditMessage(message)} disabled={$isChatGenerating}>
-                Edit
+              <button
+                class="edit-btn inline"
+                onclick={() => startEditMessage(message)}
+                disabled={$isChatGenerating}
+                title="Edit message"
+                aria-label="Edit message"
+              >
+                <IconPencilSquare size={12} strokeWidth={2} />
               </button>
               <button
                 class="delete-btn inline"
@@ -531,8 +546,7 @@
     font-family: var(--font-ui);
     font-size: 0.65rem;
     color: var(--text-scene);
-    text-transform: uppercase;
-    letter-spacing: 0.06em;
+        letter-spacing: 0.06em;
     white-space: normal;
     overflow-wrap: anywhere;
     line-height: 1.2;
@@ -602,8 +616,7 @@
     justify-content: space-between;
     align-items: center;
     font-size: 0.72rem;
-    text-transform: uppercase;
-    letter-spacing: 0.1em;
+        letter-spacing: 0.1em;
     color: var(--text-dim);
   }
   .opening-text {
@@ -618,8 +631,7 @@
   .chat-participants {
     font-size: 0.7rem;
     color: var(--text-dim);
-    text-transform: uppercase;
-    letter-spacing: 0.08em;
+        letter-spacing: 0.08em;
   }
 
   .chat-message {
@@ -642,8 +654,7 @@
     gap: 0.5rem;
     font-size: 0.7rem;
     color: var(--text-dim);
-    text-transform: uppercase;
-    letter-spacing: 0.06em;
+        letter-spacing: 0.06em;
   }
   .message-actions {
     display: inline-flex;
@@ -685,8 +696,7 @@
   }
   .edit-label {
     font-size: 0.72rem;
-    text-transform: uppercase;
-    letter-spacing: 0.1em;
+        letter-spacing: 0.1em;
     color: var(--text-dim);
   }
   .edit-actions {
@@ -703,6 +713,9 @@
     cursor: pointer;
     font-size: 0.75rem;
     min-height: 28px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
   }
   .edit-btn:hover {
     color: var(--text);
@@ -766,8 +779,7 @@
     font-size: 0.9rem;
     font-weight: 600;
     color: var(--text);
-    text-transform: uppercase;
-    letter-spacing: 0.06em;
+        letter-spacing: 0.06em;
   }
   .editor-hint {
     font-size: 0.75rem;

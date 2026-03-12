@@ -15,6 +15,7 @@
   import IconCube from "../icons/IconCube.svelte"
   import IconDotSmall from "../icons/IconDotSmall.svelte"
   import IconDocument from "../icons/IconDocument.svelte"
+  import IconPencilSquare from "../icons/IconPencilSquare.svelte"
 
   let { inline = false }: { inline?: boolean } = $props()
 
@@ -577,8 +578,14 @@
             {showBaselineDetails ? "Hide Baseline" : "Show Baseline"}
           </button>
         {/if}
-        <button class="cs-edit-btn" onclick={startEdit} disabled={editing || !$character || !$currentStoryId || saving}>
-          Edit
+        <button
+          class="cs-edit-btn"
+          onclick={startEdit}
+          disabled={editing || !$character || !$currentStoryId || saving}
+          title="Edit character sheet"
+          aria-label="Edit character sheet"
+        >
+          <IconPencilSquare size={12} strokeWidth={2} />
         </button>
       </div>
     </div>
@@ -606,8 +613,14 @@
             {showBaselineDetails ? "Hide Baseline" : "Show Baseline"}
           </button>
         {/if}
-        <button class="cs-edit-btn" onclick={startEdit} disabled={editing || !$character || !$currentStoryId || saving}>
-          Edit
+        <button
+          class="cs-edit-btn"
+          onclick={startEdit}
+          disabled={editing || !$character || !$currentStoryId || saving}
+          title="Edit character sheet"
+          aria-label="Edit character sheet"
+        >
+          <IconPencilSquare size={12} strokeWidth={2} />
         </button>
         <button class="cs-close-btn" onclick={() => showCharSheet.set(false)}>×</button>
       </div>
@@ -649,8 +662,7 @@
     padding: 0.2rem 0.6rem;
     font-size: 0.62rem;
     letter-spacing: 0.08em;
-    text-transform: uppercase;
-    min-width: auto;
+        min-width: auto;
     min-height: auto;
   }
   .cs-toggle-btn:hover:not(:disabled) {
@@ -668,9 +680,11 @@
     padding: 0.2rem 0.6rem;
     font-size: 0.65rem;
     letter-spacing: 0.08em;
-    text-transform: uppercase;
     min-width: auto;
     min-height: auto;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
   }
   .cs-edit-btn:disabled {
     opacity: 0.5;

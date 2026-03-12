@@ -1152,7 +1152,15 @@
       <div class="opening-header">
         <span>Opening</span>
         {#if !editingOpening}
-          <button class="edit-btn" onclick={startEditOpening} disabled={$isGenerating}>Edit</button>
+          <button
+            class="edit-btn"
+            onclick={startEditOpening}
+            disabled={$isGenerating}
+            title="Edit opening"
+            aria-label="Edit opening"
+          >
+            <IconPencilSquare size={12} strokeWidth={2} />
+          </button>
         {/if}
       </div>
       {#if $currentStoryInitialWorld}
@@ -1214,7 +1222,15 @@
           <span class="action-text">
             <InlineTokens text={turn.player_input} />
           </span>
-          <button class="edit-btn inline" onclick={() => startEditTurn(turn)} disabled={$isGenerating}>Edit</button>
+          <button
+            class="edit-btn inline"
+            onclick={() => startEditTurn(turn)}
+            disabled={$isGenerating}
+            title="Edit turn"
+            aria-label="Edit turn"
+          >
+            <IconPencilSquare size={12} strokeWidth={2} />
+          </button>
           <button
             class="delete-btn inline"
             onclick={() => deleteTurn(turn.id)}
@@ -1412,8 +1428,7 @@
     font-family: var(--font-ui);
     font-size: 0.65rem;
     color: var(--text-scene);
-    text-transform: uppercase;
-    letter-spacing: 0.06em;
+        letter-spacing: 0.06em;
     white-space: normal;
     overflow-wrap: anywhere;
     line-height: 1.2;
@@ -1507,31 +1522,27 @@
     justify-content: space-between;
     align-items: center;
     font-size: 0.72rem;
-    text-transform: uppercase;
-    letter-spacing: 0.1em;
+        letter-spacing: 0.1em;
     color: var(--text-dim);
   }
   .opening-scene {
     font-family: var(--font-ui);
     font-size: 0.65rem;
     color: var(--text-scene);
-    text-transform: uppercase;
-    letter-spacing: 0.08em;
+        letter-spacing: 0.08em;
   }
   .scene-crumb {
     font-family: var(--font-ui);
     font-size: 0.72rem;
     color: var(--text-scene);
-    text-transform: uppercase;
-    letter-spacing: 0.1em;
+        letter-spacing: 0.1em;
     margin-bottom: 1.25rem;
   }
   .turn-scene {
     font-family: var(--font-ui);
     font-size: 0.65rem;
     color: var(--text-scene);
-    text-transform: uppercase;
-    letter-spacing: 0.08em;
+        letter-spacing: 0.08em;
     margin-bottom: 0.4rem;
   }
   .opening-text {
@@ -1556,8 +1567,7 @@
   }
   .edit-label {
     font-size: 0.72rem;
-    text-transform: uppercase;
-    letter-spacing: 0.1em;
+        letter-spacing: 0.1em;
     color: var(--text-dim);
   }
   .edit-textarea {
@@ -1591,6 +1601,9 @@
     cursor: pointer;
     font-size: 0.75rem;
     min-height: 28px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
   }
   .edit-btn:hover {
     color: var(--text);
@@ -1667,8 +1680,7 @@
   .variant-label {
     font-size: 0.65rem;
     letter-spacing: 0.08em;
-    text-transform: uppercase;
-    color: var(--text-dim);
+        color: var(--text-dim);
     font-family: var(--font-ui);
   }
   .variant-pill {
@@ -1758,8 +1770,7 @@
     font-size: 0.9rem;
     font-weight: 600;
     color: var(--text);
-    text-transform: uppercase;
-    letter-spacing: 0.06em;
+        letter-spacing: 0.06em;
   }
   .editor-hint {
     font-size: 0.75rem;

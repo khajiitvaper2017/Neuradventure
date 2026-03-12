@@ -461,7 +461,6 @@
   }
   .prompt-history-label {
     font-size: 0.7rem;
-    text-transform: uppercase;
     letter-spacing: 0.08em;
     color: var(--text-dim);
   }
@@ -610,7 +609,6 @@
   }
   .char-summary-header {
     font-size: 0.75rem;
-    text-transform: uppercase;
     letter-spacing: 0.08em;
     color: var(--text-dim);
   }
@@ -674,7 +672,6 @@
   }
   .npc-summary-header {
     font-size: 0.75rem;
-    text-transform: uppercase;
     letter-spacing: 0.08em;
     color: var(--text-dim);
   }

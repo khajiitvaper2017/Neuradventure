@@ -958,8 +958,7 @@
     background: var(--accent-dim);
     padding: 0.25rem 0.6rem;
     letter-spacing: 0.03em;
-    text-transform: uppercase;
-  }
+      }
 
   /* ── Presets ──────────────────────────────────────── */
   .preset-row {
