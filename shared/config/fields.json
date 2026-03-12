@@ -1,10 +1,5 @@
 {
   "settings": {
-    "story_defaults": {
-      "track_npcs": "Default NPC tracking for new stories.",
-      "track_locations": "Default location tracking for new stories.",
-      "character_detail_mode": "Default character detail mode for new stories."
-    },
     "update": {
       "theme": "Updated theme.",
       "design": "Updated typography style.",
