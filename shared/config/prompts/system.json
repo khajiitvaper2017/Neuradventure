@@ -19,7 +19,8 @@
       "track_npcs": {
         "on": [
           "If npc_changes or npc_introductions are present, the narrative must match them exactly.",
-          "NPC knowledge: NPCs can only act on information they have personally observed or been directly told in previous turns. They never have meta-knowledge."
+          "NPC knowledge: NPCs can only act on information they have personally observed or been directly told in previous turns. They never have meta-knowledge.",
+          "Use npc_changes for existing NPCs. Use npc_introductions only for brand-new NPCs not in the known list."
         ],
         "off": []
       },
@@ -31,9 +32,44 @@
       },
       "character_detail_mode": {
         "detailed": [
-          "When appearance/clothing fields are in use, appearance_change and clothing_change must be precise, surgical, and complete when present."
+          "When appearance/clothing fields are in use, appearance_change and clothing_change must be precise, surgical, and complete when present.",
+          "appearance_change must be a full current description in the same style as baseline, integrating baseline features plus any current changes (do not omit baseline details).",
+          "clothing_change must be a full current clothing description in the same style as baseline, integrating any changes (do not omit unchanged layers).",
+          "Never output 'None' for appearance_change or clothing_change. If unchanged, omit the field."
         ],
         "general": []
+      },
+      "character_inventory": {
+        "on": [],
+        "off": []
+      },
+      "npc_appearance_clothing": {
+        "on": [],
+        "off": []
+      },
+      "npc_personality_traits": {
+        "on": [],
+        "off": []
+      },
+      "npc_major_flaws": {
+        "on": [],
+        "off": []
+      },
+      "npc_quirks": {
+        "on": [],
+        "off": []
+      },
+      "npc_perks": {
+        "on": [],
+        "off": []
+      },
+      "npc_location": {
+        "on": [],
+        "off": []
+      },
+      "npc_activity": {
+        "on": [],
+        "off": []
       }
     }
   }

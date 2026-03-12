@@ -13,6 +13,7 @@ import {
   estimateTokens,
 } from "./format.js"
 import { formatTemplate, getLlmStrings, getServerDefaults } from "../core/strings.js"
+import { DEFAULT_STORY_MODULES, resolveModuleFlags } from "../schemas/story-modules.js"
 
 // ─── Shared context block builder ─────────────────────────────────────────────
 
@@ -37,11 +38,8 @@ function buildContextBlock(opts: ContextBlockOpts): string {
   const labels = llmStrings.contextLabels
   const sections = llmStrings.sections
   const none = defaults.format.noneLower
-  const modules: StoryModules = opts.modules ?? {
-    track_npcs: true,
-    track_locations: true,
-    character_detail_mode: "detailed",
-  }
+  const modules: StoryModules = opts.modules ?? DEFAULT_STORY_MODULES
+  const flags = resolveModuleFlags(modules)
   const useGeneral = modules.character_detail_mode === "general"
   const generalDescription = character.general_description?.trim() || defaults.unknown.generalDescription
   const initialGeneralDescription = initial.general_description?.trim() || defaults.unknown.generalDescription
@@ -56,31 +54,29 @@ function buildContextBlock(opts: ContextBlockOpts): string {
           `${formatTemplate(labels.wearing, { value: initial.appearance.current_clothing })}`,
   )
 
-  const baseSection = wrapSection(
-    sections.playerCharacterBase,
-    useGeneral
-      ? `${formatTemplate(labels.nameRaceGender, {
-          name: character.name,
-          race: character.race,
-          gender: character.gender,
-        })}\n${formatTemplate(labels.generalDescription, { value: generalDescription })}`
-      : `${formatTemplate(labels.nameRaceGender, {
-          name: character.name,
-          race: character.race,
-          gender: character.gender,
-        })}\n` +
-          `${formatTemplate(labels.personalityTraits, {
-            value: character.personality_traits.join(", ") || none,
-          })}\n` +
-          `${formatTemplate(labels.majorFlaws, { value: character.major_flaws.join(", ") || none })}\n` +
-          `${formatTemplate(labels.quirks, { value: character.quirks.join(", ") || none })}\n` +
-          `${formatTemplate(labels.perks, { value: character.perks.join(", ") || none })}`,
-  )
+  const baseLines = [
+    formatTemplate(labels.nameRaceGender, {
+      name: character.name,
+      race: character.race,
+      gender: character.gender,
+    }),
+    useGeneral ? formatTemplate(labels.generalDescription, { value: generalDescription }) : null,
+    flags.useCharPersonalityTraits
+      ? formatTemplate(labels.personalityTraits, { value: character.personality_traits.join(", ") || none })
+      : null,
+    flags.useCharMajorFlaws
+      ? formatTemplate(labels.majorFlaws, { value: character.major_flaws.join(", ") || none })
+      : null,
+    flags.useCharQuirks ? formatTemplate(labels.quirks, { value: character.quirks.join(", ") || none }) : null,
+    flags.useCharPerks ? formatTemplate(labels.perks, { value: character.perks.join(", ") || none }) : null,
+  ]
+    .filter(Boolean)
+    .join("\n")
+
+  const baseSection = wrapSection(sections.playerCharacterBase, baseLines)
 
   const npcBaselineSection =
-    modules.track_npcs && npcs.length > 0
-      ? wrapSection(sections.npcBaselines, formatNPCBaselines(npcs, modules.character_detail_mode))
-      : null
+    modules.track_npcs && npcs.length > 0 ? wrapSection(sections.npcBaselines, formatNPCBaselines(npcs, flags)) : null
 
   const locationSection =
     modules.track_locations && world.locations && world.locations.length > 0
@@ -97,10 +93,12 @@ function buildContextBlock(opts: ContextBlockOpts): string {
   const currentSection = wrapSection(
     sections.playerCharacterState,
     [
-      !useGeneral ? formatTemplate(labels.currentAppearance, { value: character.appearance.current_appearance }) : null,
-      !useGeneral ? formatTemplate(labels.wearing, { value: character.appearance.current_clothing }) : null,
+      flags.useCharAppearance
+        ? formatTemplate(labels.currentAppearance, { value: character.appearance.current_appearance })
+        : null,
+      flags.useCharAppearance ? formatTemplate(labels.wearing, { value: character.appearance.current_clothing }) : null,
       formatTemplate(labels.location, { value: character.current_location }),
-      formatTemplate(labels.inventory, { value: formatInventory(character.inventory) }),
+      flags.useCharInventory ? formatTemplate(labels.inventory, { value: formatInventory(character.inventory) }) : null,
     ]
       .filter(Boolean)
       .join("\n"),
@@ -108,7 +106,7 @@ function buildContextBlock(opts: ContextBlockOpts): string {
 
   const npcCurrentSection =
     modules.track_npcs && npcs.length > 0
-      ? wrapSection(sections.npcCurrentStates, formatNPCCurrentStates(npcs, modules.character_detail_mode))
+      ? wrapSection(sections.npcCurrentStates, formatNPCCurrentStates(npcs, flags))
       : null
 
   const storyContextSection = wrapSection(

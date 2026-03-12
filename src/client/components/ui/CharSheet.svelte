@@ -41,6 +41,12 @@
   let saving = $state(false)
   let showBaselineDetails = $state(false)
   const detailMode = $derived($currentStoryModules?.character_detail_mode ?? "detailed")
+  const usePersonalityTraits = $derived($currentStoryModules?.character_personality_traits ?? true)
+  const useMajorFlaws = $derived($currentStoryModules?.character_major_flaws ?? true)
+  const useQuirks = $derived($currentStoryModules?.character_quirks ?? true)
+  const usePerks = $derived($currentStoryModules?.character_perks ?? true)
+  const useInventory = $derived($currentStoryModules?.character_inventory ?? true)
+  const showTraitSection = $derived(usePersonalityTraits || useMajorFlaws || useQuirks || usePerks)
 
   type InventoryDraft = { name: string; description: string }
   type CharacterDraft = {
@@ -135,59 +141,67 @@
         value: draft.generalDescription,
         onInput: (v) => (draft.generalDescription = v),
       })
-      return fields
+    } else {
+      fields.push(
+        {
+          id: "cs-baseline-appearance",
+          label: "Baseline Appearance",
+          kind: "textarea",
+          value: draft.baselineAppearance,
+          onInput: (v) => (draft.baselineAppearance = v),
+        },
+        {
+          id: "cs-current-appearance",
+          label: "Current Appearance",
+          kind: "textarea",
+          value: draft.currentAppearance,
+          onInput: (v) => (draft.currentAppearance = v),
+        },
+        {
+          id: "cs-clothing",
+          label: "Wearing",
+          kind: "textarea",
+          value: draft.clothing,
+          onInput: (v) => (draft.clothing = v),
+        },
+      )
     }
-    fields.push(
-      {
-        id: "cs-baseline-appearance",
-        label: "Baseline Appearance",
-        kind: "textarea",
-        value: draft.baselineAppearance,
-        onInput: (v) => (draft.baselineAppearance = v),
-      },
-      {
-        id: "cs-current-appearance",
-        label: "Current Appearance",
-        kind: "textarea",
-        value: draft.currentAppearance,
-        onInput: (v) => (draft.currentAppearance = v),
-      },
-      {
-        id: "cs-clothing",
-        label: "Wearing",
-        kind: "textarea",
-        value: draft.clothing,
-        onInput: (v) => (draft.clothing = v),
-      },
-      {
+    if (usePersonalityTraits) {
+      fields.push({
         id: "cs-personality",
         label: "Personality Traits (comma separated)",
         kind: "input",
         value: draft.personalityTraits,
         onInput: (v) => (draft.personalityTraits = v),
-      },
-      {
+      })
+    }
+    if (useMajorFlaws) {
+      fields.push({
         id: "cs-major-flaws",
         label: "Major Flaws (comma separated)",
         kind: "input",
         value: draft.majorFlaws,
         onInput: (v) => (draft.majorFlaws = v),
-      },
-      {
+      })
+    }
+    if (useQuirks) {
+      fields.push({
         id: "cs-quirks",
         label: "Quirks (comma separated)",
         kind: "input",
         value: draft.quirks,
         onInput: (v) => (draft.quirks = v),
-      },
-      {
+      })
+    }
+    if (usePerks) {
+      fields.push({
         id: "cs-perks",
         label: "Perks (comma separated)",
         kind: "input",
         value: draft.perks,
         onInput: (v) => (draft.perks = v),
-      },
-    )
+      })
+    }
     return fields
   }
 
@@ -246,31 +260,44 @@
       showError("General description is required.")
       return
     }
-    const personalityTraits = splitCsv(draft.personalityTraits)
-    const majorFlaws = splitCsv(draft.majorFlaws)
-    const quirks = splitCsv(draft.quirks)
-    const perks = splitCsv(draft.perks)
-    const inventory = draft.inventory
-      .map((item) => ({ name: item.name.trim(), description: item.description.trim() }))
-      .filter((item) => item.name.length > 0 || item.description.length > 0)
-    for (const item of inventory) {
-      if (!item.name || !item.description) {
-        showError("Inventory items need both a name and description.")
-        return
+    const existing = $character
+    const personalityTraits = usePersonalityTraits
+      ? splitCsv(draft.personalityTraits)
+      : (existing?.personality_traits ?? [])
+    const majorFlaws = useMajorFlaws ? splitCsv(draft.majorFlaws) : (existing?.major_flaws ?? [])
+    const quirks = useQuirks ? splitCsv(draft.quirks) : (existing?.quirks ?? [])
+    const perks = usePerks ? splitCsv(draft.perks) : (existing?.perks ?? [])
+    const inventory = useInventory
+      ? draft.inventory
+          .map((item) => ({ name: item.name.trim(), description: item.description.trim() }))
+          .filter((item) => item.name.length > 0 || item.description.length > 0)
+      : (existing?.inventory ?? [])
+    if (useInventory) {
+      for (const item of inventory) {
+        if (!item.name || !item.description) {
+          showError("Inventory items need both a name and description.")
+          return
+        }
       }
     }
-    const existing = $character
     const nextCharacter: MainCharacterState = {
       name,
       race,
       gender,
       general_description: generalDescription || existing?.general_description,
       current_location: existing?.current_location ?? "",
-      appearance: {
-        baseline_appearance: baselineAppearance || existing?.appearance.baseline_appearance || "",
-        current_appearance: currentAppearance || existing?.appearance.current_appearance || "",
-        current_clothing: clothing || existing?.appearance.current_clothing || "",
-      },
+      appearance:
+        detailMode === "general"
+          ? (existing?.appearance ?? {
+              baseline_appearance: "",
+              current_appearance: "",
+              current_clothing: "",
+            })
+          : {
+              baseline_appearance: baselineAppearance || existing?.appearance.baseline_appearance || "",
+              current_appearance: currentAppearance || existing?.appearance.current_appearance || "",
+              current_clothing: clothing || existing?.appearance.current_clothing || "",
+            },
       personality_traits: personalityTraits.length > 0 ? personalityTraits : (existing?.personality_traits ?? []),
       major_flaws: majorFlaws.length > 0 ? majorFlaws : (existing?.major_flaws ?? []),
       quirks: quirks.length > 0 ? quirks : (existing?.quirks ?? []),
@@ -315,7 +342,7 @@
             triggerFlash("appearance")
           }
           if (detailMode === "detailed" && nextSigs.clothing !== lastSigs.clothing) triggerFlash("clothing")
-          if (nextSigs.inventory !== lastSigs.inventory) triggerFlash("inventory")
+          if (useInventory && nextSigs.inventory !== lastSigs.inventory) triggerFlash("inventory")
         }
         lastSigs = nextSigs
       } else {
@@ -351,36 +378,38 @@
             {/if}
           </div>
         {/each}
-        <div class="field">
-          <div class="label-row">
-            <!-- svelte-ignore a11y_label_has_associated_control -->
-            <label>Inventory</label>
-            <button class="btn-ghost btn-mini" onclick={addInventoryItem} disabled={saving}>Add Item</button>
+        {#if useInventory}
+          <div class="field">
+            <div class="label-row">
+              <!-- svelte-ignore a11y_label_has_associated_control -->
+              <label>Inventory</label>
+              <button class="btn-ghost btn-mini" onclick={addInventoryItem} disabled={saving}>Add Item</button>
+            </div>
+            {#if draft.inventory.length === 0}
+              <div class="cs-empty-edit">No items yet.</div>
+            {:else}
+              {#each draft.inventory as item, index}
+                <div class="cs-inv-row">
+                  <input
+                    type="text"
+                    value={item.name}
+                    placeholder="Item name"
+                    oninput={(e) => updateInventoryItem(index, "name", (e.target as HTMLInputElement).value)}
+                  />
+                  <input
+                    type="text"
+                    value={item.description}
+                    placeholder="Description"
+                    oninput={(e) => updateInventoryItem(index, "description", (e.target as HTMLInputElement).value)}
+                  />
+                  <button class="cs-inv-remove" onclick={() => removeInventoryItem(index)} aria-label="Remove item">
+                    ×
+                  </button>
+                </div>
+              {/each}
+            {/if}
           </div>
-          {#if draft.inventory.length === 0}
-            <div class="cs-empty-edit">No items yet.</div>
-          {:else}
-            {#each draft.inventory as item, index}
-              <div class="cs-inv-row">
-                <input
-                  type="text"
-                  value={item.name}
-                  placeholder="Item name"
-                  oninput={(e) => updateInventoryItem(index, "name", (e.target as HTMLInputElement).value)}
-                />
-                <input
-                  type="text"
-                  value={item.description}
-                  placeholder="Description"
-                  oninput={(e) => updateInventoryItem(index, "description", (e.target as HTMLInputElement).value)}
-                />
-                <button class="cs-inv-remove" onclick={() => removeInventoryItem(index)} aria-label="Remove item">
-                  ×
-                </button>
-              </div>
-            {/each}
-          {/if}
-        </div>
+        {/if}
         <div class="cs-edit-actions">
           <button class="btn-ghost" onclick={cancelEdit} disabled={saving}>Cancel</button>
           <button class="btn-primary" onclick={saveCharacter} disabled={saving || !$currentStoryId}>
@@ -413,6 +442,36 @@
           </div>
           <div class="cs-value">{$character.general_description || "Unknown description"}</div>
         </div>
+        {#if showTraitSection && ((usePersonalityTraits && $character.personality_traits.length > 0) || (useMajorFlaws && $character.major_flaws.length > 0) || (useQuirks && $character.quirks.length > 0) || (usePerks && $character.perks.length > 0))}
+          <div class="cs-section">
+            <div class="cs-section-header">
+              <IconStar size={14} strokeWidth={1.5} className="cs-icon" />
+              <span class="section-label">Traits · Flaws · Quirks · Perks</span>
+            </div>
+            <div class="chips">
+              {#if usePersonalityTraits}
+                {#each $character.personality_traits as t}
+                  <span class="chip">{t}</span>
+                {/each}
+              {/if}
+              {#if useMajorFlaws}
+                {#each $character.major_flaws as t}
+                  <span class="chip">{t}</span>
+                {/each}
+              {/if}
+              {#if useQuirks}
+                {#each $character.quirks as t}
+                  <span class="chip">{t}</span>
+                {/each}
+              {/if}
+              {#if usePerks}
+                {#each $character.perks as t}
+                  <span class="chip">{t}</span>
+                {/each}
+              {/if}
+            </div>
+          </div>
+        {/if}
       {:else}
         {#if showBaselineDetails}
           <div class="cs-section" class:flash={flashAppearance}>
@@ -440,51 +499,61 @@
           <div class="cs-value">{$character.appearance.current_clothing}</div>
         </div>
 
-        {#if $character.personality_traits.length > 0 || $character.major_flaws.length > 0 || $character.quirks.length > 0 || $character.perks.length > 0}
+        {#if showTraitSection && ((usePersonalityTraits && $character.personality_traits.length > 0) || (useMajorFlaws && $character.major_flaws.length > 0) || (useQuirks && $character.quirks.length > 0) || (usePerks && $character.perks.length > 0))}
           <div class="cs-section">
             <div class="cs-section-header">
               <IconStar size={14} strokeWidth={1.5} className="cs-icon" />
               <span class="section-label">Traits · Flaws · Quirks · Perks</span>
             </div>
             <div class="chips">
-              {#each $character.personality_traits as t}
-                <span class="chip">{t}</span>
-              {/each}
-              {#each $character.major_flaws as t}
-                <span class="chip">{t}</span>
-              {/each}
-              {#each $character.quirks as t}
-                <span class="chip">{t}</span>
-              {/each}
-              {#each $character.perks as t}
-                <span class="chip">{t}</span>
-              {/each}
+              {#if usePersonalityTraits}
+                {#each $character.personality_traits as t}
+                  <span class="chip">{t}</span>
+                {/each}
+              {/if}
+              {#if useMajorFlaws}
+                {#each $character.major_flaws as t}
+                  <span class="chip">{t}</span>
+                {/each}
+              {/if}
+              {#if useQuirks}
+                {#each $character.quirks as t}
+                  <span class="chip">{t}</span>
+                {/each}
+              {/if}
+              {#if usePerks}
+                {#each $character.perks as t}
+                  <span class="chip">{t}</span>
+                {/each}
+              {/if}
             </div>
           </div>
         {/if}
       {/if}
 
-      <div class="cs-section" class:flash={flashInventory}>
-        <div class="cs-section-header">
-          <IconCube size={14} strokeWidth={1.5} className="cs-icon" />
-          <span class="section-label">Inventory ({$character.inventory.length})</span>
+      {#if useInventory}
+        <div class="cs-section" class:flash={flashInventory}>
+          <div class="cs-section-header">
+            <IconCube size={14} strokeWidth={1.5} className="cs-icon" />
+            <span class="section-label">Inventory ({$character.inventory.length})</span>
+          </div>
+          {#if $character.inventory.length === 0}
+            <div class="cs-value muted">Nothing</div>
+          {:else}
+            <ul class="cs-inventory">
+              {#each $character.inventory as item}
+                <li>
+                  <IconDotSmall size={12} strokeWidth={1.5} className="cs-item-icon" />
+                  <div class="cs-item-text">
+                    <span class="cs-item-name">{item.name}</span>
+                    <span class="cs-item-desc">{item.description}</span>
+                  </div>
+                </li>
+              {/each}
+            </ul>
+          {/if}
         </div>
-        {#if $character.inventory.length === 0}
-          <div class="cs-value muted">Nothing</div>
-        {:else}
-          <ul class="cs-inventory">
-            {#each $character.inventory as item}
-              <li>
-                <IconDotSmall size={12} strokeWidth={1.5} className="cs-item-icon" />
-                <div class="cs-item-text">
-                  <span class="cs-item-name">{item.name}</span>
-                  <span class="cs-item-desc">{item.description}</span>
-                </div>
-              </li>
-            {/each}
-          </ul>
-        {/if}
-      </div>
+      {/if}
     {/if}
   {:else}
     <div class="empty">No active character</div>

@@ -44,11 +44,39 @@
       },
       "character_detail_mode": {
         "detailed": [
-          "- character_current_appearance: Use this field when appearance/clothing/trait fields are in use. Provide a precise, surgical current appearance at story start, including baseline features and any immediate changes."
+          "- character_current_appearance: Use this field when appearance/clothing fields are in use. Provide a precise, surgical current appearance at story start, including baseline features and any immediate changes."
         ],
         "general": [
-          "- character_general_description: Use this field when appearance/clothing/trait fields are not in use. Provide 2-4 sentences summarizing appearance, clothing, personality, and overall vibe."
+          "- character_general_description: Use this field when character_detail_mode is general. Provide 2-4 sentences summarizing appearance, clothing, personality, and overall vibe."
         ]
+      },
+      "npc_appearance_clothing": {
+        "on": ["- NPC appearance: include appearance.baseline_appearance, appearance.current_appearance, and appearance.current_clothing."],
+        "off": []
+      },
+      "npc_personality_traits": {
+        "on": ["- Include personality_traits for each NPC."],
+        "off": []
+      },
+      "npc_major_flaws": {
+        "on": ["- Include major_flaws for each NPC."],
+        "off": []
+      },
+      "npc_quirks": {
+        "on": ["- Include quirks for each NPC."],
+        "off": []
+      },
+      "npc_perks": {
+        "on": ["- Include perks for each NPC."],
+        "off": []
+      },
+      "npc_location": {
+        "on": ["- Include current_location for each NPC."],
+        "off": []
+      },
+      "npc_activity": {
+        "on": ["- Include current_activity for each NPC."],
+        "off": []
       }
     }
   }

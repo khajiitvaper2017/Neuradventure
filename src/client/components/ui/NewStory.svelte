@@ -378,15 +378,144 @@
           id="story-modules-detail-mode"
           class="select-input"
           value={activeModules.character_detail_mode}
-          onchange={(e) =>
-            updateModules(
-              "character_detail_mode",
-              (e.target as HTMLSelectElement).value as StoryModules["character_detail_mode"],
-            )}
+          onchange={(e) => {
+            const next = (e.target as HTMLSelectElement).value as StoryModules["character_detail_mode"]
+            const nextModules: StoryModules = {
+              ...activeModules,
+              character_detail_mode: next,
+              ...(next === "detailed" ? { character_appearance_clothing: true } : {}),
+            }
+            pendingStoryModules.set(nextModules)
+          }}
         >
           <option value="detailed">Detailed</option>
           <option value="general">General description</option>
         </select>
+      </div>
+      {#if activeModules.character_detail_mode === "detailed"}
+        <div class="field-row module-row">
+          <label class="check-row">
+            <input type="checkbox" checked={true} disabled />
+            <span>Player appearance + clothing</span>
+          </label>
+        </div>
+      {/if}
+      <div class="field-row module-row">
+        <label class="check-row">
+          <input
+            type="checkbox"
+            checked={activeModules.character_personality_traits}
+            onchange={(e) => updateModules("character_personality_traits", (e.target as HTMLInputElement).checked)}
+          />
+          <span>Player personality traits</span>
+        </label>
+        <label class="check-row">
+          <input
+            type="checkbox"
+            checked={activeModules.character_major_flaws}
+            onchange={(e) => updateModules("character_major_flaws", (e.target as HTMLInputElement).checked)}
+          />
+          <span>Player major flaws</span>
+        </label>
+      </div>
+      <div class="field-row module-row">
+        <label class="check-row">
+          <input
+            type="checkbox"
+            checked={activeModules.character_quirks}
+            onchange={(e) => updateModules("character_quirks", (e.target as HTMLInputElement).checked)}
+          />
+          <span>Player quirks</span>
+        </label>
+        <label class="check-row">
+          <input
+            type="checkbox"
+            checked={activeModules.character_perks}
+            onchange={(e) => updateModules("character_perks", (e.target as HTMLInputElement).checked)}
+          />
+          <span>Player perks</span>
+        </label>
+      </div>
+      <div class="field-row module-row">
+        <label class="check-row">
+          <input
+            type="checkbox"
+            checked={activeModules.character_inventory}
+            onchange={(e) => updateModules("character_inventory", (e.target as HTMLInputElement).checked)}
+          />
+          <span>Player inventory</span>
+        </label>
+      </div>
+      <div class="field-row module-row">
+        <label class="check-row">
+          <input
+            type="checkbox"
+            checked={activeModules.npc_appearance_clothing}
+            disabled={!activeModules.track_npcs}
+            onchange={(e) => updateModules("npc_appearance_clothing", (e.target as HTMLInputElement).checked)}
+          />
+          <span>NPC appearance + clothing</span>
+        </label>
+        <label class="check-row">
+          <input
+            type="checkbox"
+            checked={activeModules.npc_personality_traits}
+            disabled={!activeModules.track_npcs}
+            onchange={(e) => updateModules("npc_personality_traits", (e.target as HTMLInputElement).checked)}
+          />
+          <span>NPC personality traits</span>
+        </label>
+      </div>
+      <div class="field-row module-row">
+        <label class="check-row">
+          <input
+            type="checkbox"
+            checked={activeModules.npc_major_flaws}
+            disabled={!activeModules.track_npcs}
+            onchange={(e) => updateModules("npc_major_flaws", (e.target as HTMLInputElement).checked)}
+          />
+          <span>NPC major flaws</span>
+        </label>
+        <label class="check-row">
+          <input
+            type="checkbox"
+            checked={activeModules.npc_quirks}
+            disabled={!activeModules.track_npcs}
+            onchange={(e) => updateModules("npc_quirks", (e.target as HTMLInputElement).checked)}
+          />
+          <span>NPC quirks</span>
+        </label>
+      </div>
+      <div class="field-row module-row">
+        <label class="check-row">
+          <input
+            type="checkbox"
+            checked={activeModules.npc_perks}
+            disabled={!activeModules.track_npcs}
+            onchange={(e) => updateModules("npc_perks", (e.target as HTMLInputElement).checked)}
+          />
+          <span>NPC perks</span>
+        </label>
+      </div>
+      <div class="field-row module-row">
+        <label class="check-row">
+          <input
+            type="checkbox"
+            checked={activeModules.npc_location}
+            disabled={!activeModules.track_npcs}
+            onchange={(e) => updateModules("npc_location", (e.target as HTMLInputElement).checked)}
+          />
+          <span>NPC location</span>
+        </label>
+        <label class="check-row">
+          <input
+            type="checkbox"
+            checked={activeModules.npc_activity}
+            disabled={!activeModules.track_npcs}
+            onchange={(e) => updateModules("npc_activity", (e.target as HTMLInputElement).checked)}
+          />
+          <span>NPC activity</span>
+        </label>
       </div>
     </div>
 

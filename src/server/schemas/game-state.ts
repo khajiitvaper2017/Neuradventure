@@ -209,10 +209,6 @@ export const WorldStateUpdateSchema = z
       .regex(TIME_OF_DAY_REGEX, "time_of_day must be 24h HH:MM")
       .optional()
       .describe(desc("llm.world_state_update.time_of_day")),
-    memory: z
-      .preprocess((value) => (typeof value === "string" ? stripSummaryLeak(value) : value), z.string().min(1))
-      .optional()
-      .describe(desc("llm.world_state_update.memory")),
     locations: LocationsSchema.optional().describe(desc("llm.world_state_update.locations")),
   })
   .describe(desc("llm.turn_response.world_state_update"))

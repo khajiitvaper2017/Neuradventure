@@ -508,15 +508,164 @@
         <select
           class="select-input"
           value={$storyDefaults.character_detail_mode}
-          onchange={(e) =>
-            updateStoryDefaults(
-              "character_detail_mode",
-              (e.target as HTMLSelectElement).value as StoryModules["character_detail_mode"],
-            )}
+          onchange={(e) => {
+            const next = (e.target as HTMLSelectElement).value as StoryModules["character_detail_mode"]
+            updateStoryDefaults("character_detail_mode", next)
+            if (next === "detailed") updateStoryDefaults("character_appearance_clothing", true)
+          }}
         >
           <option value="detailed">Detailed (appearance + traits)</option>
           <option value="general">General description only</option>
         </select>
+      </label>
+
+      {#if $storyDefaults.character_detail_mode === "detailed"}
+        <label class="row">
+          <span class="row-text">
+            <span class="row-title">Player appearance + clothing</span>
+            <span class="row-sub">Always enabled in detailed mode</span>
+          </span>
+          <input type="checkbox" checked={true} disabled />
+        </label>
+      {/if}
+
+      <label class="row">
+        <span class="row-text">
+          <span class="row-title">Player personality traits</span>
+        </span>
+        <input
+          type="checkbox"
+          checked={$storyDefaults.character_personality_traits}
+          onchange={(e) => updateStoryDefaults("character_personality_traits", (e.target as HTMLInputElement).checked)}
+        />
+      </label>
+
+      <label class="row">
+        <span class="row-text">
+          <span class="row-title">Player major flaws</span>
+        </span>
+        <input
+          type="checkbox"
+          checked={$storyDefaults.character_major_flaws}
+          onchange={(e) => updateStoryDefaults("character_major_flaws", (e.target as HTMLInputElement).checked)}
+        />
+      </label>
+
+      <label class="row">
+        <span class="row-text">
+          <span class="row-title">Player quirks</span>
+        </span>
+        <input
+          type="checkbox"
+          checked={$storyDefaults.character_quirks}
+          onchange={(e) => updateStoryDefaults("character_quirks", (e.target as HTMLInputElement).checked)}
+        />
+      </label>
+
+      <label class="row">
+        <span class="row-text">
+          <span class="row-title">Player perks</span>
+        </span>
+        <input
+          type="checkbox"
+          checked={$storyDefaults.character_perks}
+          onchange={(e) => updateStoryDefaults("character_perks", (e.target as HTMLInputElement).checked)}
+        />
+      </label>
+
+      <label class="row">
+        <span class="row-text">
+          <span class="row-title">Player inventory</span>
+        </span>
+        <input
+          type="checkbox"
+          checked={$storyDefaults.character_inventory}
+          onchange={(e) => updateStoryDefaults("character_inventory", (e.target as HTMLInputElement).checked)}
+        />
+      </label>
+
+      <label class="row">
+        <span class="row-text">
+          <span class="row-title">NPC appearance + clothing</span>
+        </span>
+        <input
+          type="checkbox"
+          checked={$storyDefaults.npc_appearance_clothing}
+          disabled={!$storyDefaults.track_npcs}
+          onchange={(e) => updateStoryDefaults("npc_appearance_clothing", (e.target as HTMLInputElement).checked)}
+        />
+      </label>
+
+      <label class="row">
+        <span class="row-text">
+          <span class="row-title">NPC personality traits</span>
+        </span>
+        <input
+          type="checkbox"
+          checked={$storyDefaults.npc_personality_traits}
+          disabled={!$storyDefaults.track_npcs}
+          onchange={(e) => updateStoryDefaults("npc_personality_traits", (e.target as HTMLInputElement).checked)}
+        />
+      </label>
+
+      <label class="row">
+        <span class="row-text">
+          <span class="row-title">NPC major flaws</span>
+        </span>
+        <input
+          type="checkbox"
+          checked={$storyDefaults.npc_major_flaws}
+          disabled={!$storyDefaults.track_npcs}
+          onchange={(e) => updateStoryDefaults("npc_major_flaws", (e.target as HTMLInputElement).checked)}
+        />
+      </label>
+
+      <label class="row">
+        <span class="row-text">
+          <span class="row-title">NPC quirks</span>
+        </span>
+        <input
+          type="checkbox"
+          checked={$storyDefaults.npc_quirks}
+          disabled={!$storyDefaults.track_npcs}
+          onchange={(e) => updateStoryDefaults("npc_quirks", (e.target as HTMLInputElement).checked)}
+        />
+      </label>
+
+      <label class="row">
+        <span class="row-text">
+          <span class="row-title">NPC perks</span>
+        </span>
+        <input
+          type="checkbox"
+          checked={$storyDefaults.npc_perks}
+          disabled={!$storyDefaults.track_npcs}
+          onchange={(e) => updateStoryDefaults("npc_perks", (e.target as HTMLInputElement).checked)}
+        />
+      </label>
+
+      <label class="row">
+        <span class="row-text">
+          <span class="row-title">NPC location</span>
+        </span>
+        <input
+          type="checkbox"
+          checked={$storyDefaults.npc_location}
+          disabled={!$storyDefaults.track_npcs}
+          onchange={(e) => updateStoryDefaults("npc_location", (e.target as HTMLInputElement).checked)}
+        />
+      </label>
+
+      <label class="row">
+        <span class="row-text">
+          <span class="row-title">NPC activity</span>
+        </span>
+        <input
+          type="checkbox"
+          checked={$storyDefaults.npc_activity}
+          disabled={!$storyDefaults.track_npcs}
+          onchange={(e) => updateStoryDefaults("npc_activity", (e.target as HTMLInputElement).checked)}
+        />
       </label>
 
       <div class="divider"></div>

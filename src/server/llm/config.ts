@@ -2,6 +2,7 @@ import { readFileSync, statSync } from "fs"
 import { fileURLToPath } from "url"
 import { dirname, join } from "path"
 import type { StoryModules } from "../core/models.js"
+import { DEFAULT_STORY_MODULES } from "../schemas/story-modules.js"
 // ─── Prompt config (hot-reloaded from shared/config/prompts/*.json) ──────────
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
@@ -21,6 +22,18 @@ type PromptModules = {
   track_npcs?: PromptModuleBlock
   track_locations?: PromptModuleBlock
   character_detail_mode?: PromptDetailBlock
+  character_personality_traits?: PromptModuleBlock
+  character_major_flaws?: PromptModuleBlock
+  character_quirks?: PromptModuleBlock
+  character_perks?: PromptModuleBlock
+  character_inventory?: PromptModuleBlock
+  npc_appearance_clothing?: PromptModuleBlock
+  npc_personality_traits?: PromptModuleBlock
+  npc_major_flaws?: PromptModuleBlock
+  npc_quirks?: PromptModuleBlock
+  npc_perks?: PromptModuleBlock
+  npc_location?: PromptModuleBlock
+  npc_activity?: PromptModuleBlock
 }
 
 type ModularPrompt = {
@@ -54,11 +67,7 @@ export const npcTraits: string[] = JSON.parse(
   readFileSync(join(__dirname, "../../../shared/config/traits.json"), "utf-8"),
 )
 
-const DEFAULT_MODULES: StoryModules = {
-  track_npcs: true,
-  track_locations: true,
-  character_detail_mode: "detailed",
-}
+const DEFAULT_MODULES: StoryModules = { ...DEFAULT_STORY_MODULES }
 
 function readPromptConfig(): PromptConfig {
   const merged: Partial<PromptConfig> = {}
@@ -99,6 +108,60 @@ function resolvePrompt(prompt: ModularPrompt | undefined, modules?: StoryModules
         ? (blocks.character_detail_mode.general ?? [])
         : (blocks.character_detail_mode.detailed ?? [])),
     )
+  }
+  if (blocks?.character_personality_traits) {
+    lines.push(
+      ...(active.character_personality_traits
+        ? (blocks.character_personality_traits.on ?? [])
+        : (blocks.character_personality_traits.off ?? [])),
+    )
+  }
+  if (blocks?.character_major_flaws) {
+    lines.push(
+      ...(active.character_major_flaws
+        ? (blocks.character_major_flaws.on ?? [])
+        : (blocks.character_major_flaws.off ?? [])),
+    )
+  }
+  if (blocks?.character_quirks) {
+    lines.push(...(active.character_quirks ? (blocks.character_quirks.on ?? []) : (blocks.character_quirks.off ?? [])))
+  }
+  if (blocks?.character_perks) {
+    lines.push(...(active.character_perks ? (blocks.character_perks.on ?? []) : (blocks.character_perks.off ?? [])))
+  }
+  if (blocks?.character_inventory) {
+    lines.push(
+      ...(active.character_inventory ? (blocks.character_inventory.on ?? []) : (blocks.character_inventory.off ?? [])),
+    )
+  }
+  if (blocks?.npc_appearance_clothing) {
+    lines.push(
+      ...(active.npc_appearance_clothing
+        ? (blocks.npc_appearance_clothing.on ?? [])
+        : (blocks.npc_appearance_clothing.off ?? [])),
+    )
+  }
+  if (blocks?.npc_personality_traits) {
+    lines.push(
+      ...(active.npc_personality_traits
+        ? (blocks.npc_personality_traits.on ?? [])
+        : (blocks.npc_personality_traits.off ?? [])),
+    )
+  }
+  if (blocks?.npc_major_flaws) {
+    lines.push(...(active.npc_major_flaws ? (blocks.npc_major_flaws.on ?? []) : (blocks.npc_major_flaws.off ?? [])))
+  }
+  if (blocks?.npc_quirks) {
+    lines.push(...(active.npc_quirks ? (blocks.npc_quirks.on ?? []) : (blocks.npc_quirks.off ?? [])))
+  }
+  if (blocks?.npc_perks) {
+    lines.push(...(active.npc_perks ? (blocks.npc_perks.on ?? []) : (blocks.npc_perks.off ?? [])))
+  }
+  if (blocks?.npc_location) {
+    lines.push(...(active.npc_location ? (blocks.npc_location.on ?? []) : (blocks.npc_location.off ?? [])))
+  }
+  if (blocks?.npc_activity) {
+    lines.push(...(active.npc_activity ? (blocks.npc_activity.on ?? []) : (blocks.npc_activity.off ?? [])))
   }
   return lines
 }

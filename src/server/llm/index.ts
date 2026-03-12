@@ -7,7 +7,6 @@ import {
   GenerateChatResponseSchema,
   buildGenerateCharacterResponseSchema,
   buildGenerateStoryResponseSchema,
-  NPCCreationSchema,
   type MainCharacterState,
   type NPCState,
   type NPCCreation,
@@ -25,10 +24,13 @@ import { type TurnRow } from "../core/db.js"
 import { buildTurnResponseSchema } from "./schema.js"
 import { buildSamplingParams } from "./sampling.js"
 import { parseJsonFromContent } from "./parse.js"
+import { createLlmLogBase, logLlmEntry } from "./logging.js"
 import { getClient, getGenerationParams, getConnector } from "./client.js"
 import { getGenerateCharacterPrompt, getGenerateChatPrompt, getGenerateStoryPrompt, npcTraits } from "./config.js"
 import { buildImpersonateMessages } from "./context.js"
 import { formatTemplate, getLlmStrings, getServerDefaults } from "../core/strings.js"
+import { buildNpcCreationSchema } from "../schemas/npc-creation.js"
+import { DEFAULT_STORY_MODULES, resolveModuleFlags } from "../schemas/story-modules.js"
 
 export { buildTurnMessages, buildNpcCreationMessages, buildImpersonateMessages } from "./context.js"
 export { getCtxLimit, getCtxLimitCached, initCtxLimit } from "./client.js"
@@ -47,8 +49,19 @@ export async function callLLM(
 export async function generateNpcCreation(
   messages: OpenAI.ChatCompletionMessageParam[],
   forcedName?: string,
+  storyModules?: StoryModules,
 ): Promise<NPCCreation> {
-  const creationSchema = NPCCreationSchema
+  const modules = storyModules ?? DEFAULT_STORY_MODULES
+  const flags = resolveModuleFlags(modules)
+  const creationSchema = buildNpcCreationSchema({
+    useNpcAppearance: flags.useNpcAppearance,
+    useNpcPersonalityTraits: flags.useNpcPersonalityTraits,
+    useNpcMajorFlaws: flags.useNpcMajorFlaws,
+    useNpcQuirks: flags.useNpcQuirks,
+    useNpcPerks: flags.useNpcPerks,
+    useNpcLocation: flags.useNpcLocation,
+    useNpcActivity: flags.useNpcActivity,
+  })
   const schema = zodSchemaToJsonSchema(creationSchema, "NPCCreation")
   const result = await callLLMRaw<unknown>(messages, "NPCCreation", schema)
   const parsed = creationSchema.parse(result)
@@ -65,24 +78,48 @@ async function callLLMRaw<T>(
   const gen = getGenerationParams()
   const sampling = buildSamplingParams(gen, maxTokensOverride, options)
   const jsonSchema = derefJsonSchema(schema)
+  const logBase = createLlmLogBase("json", messages, sampling, schemaName)
+  let responseContent: string | undefined
 
-  const res = await getClient().chat.completions.create({
-    model: "local",
-    messages,
-    ...sampling,
-    stream: false,
-    response_format: buildJsonSchemaResponseFormat(schemaName, jsonSchema) as OpenAI.ResponseFormatJSONSchema,
-    // Ensure KoboldCpp applies schema-derived grammar even if response_format is ignored.
-    json_schema: jsonSchema,
-    grammar_lazy: false,
-    grammar_triggers: [],
-  } as OpenAI.ChatCompletionCreateParams & { json_schema: object; grammar_lazy: boolean; grammar_triggers: unknown[] })
-  if (!("choices" in res)) {
-    throw new Error("LLM returned a streamed response unexpectedly")
+  try {
+    const res = await getClient().chat.completions.create({
+      model: "local",
+      messages,
+      ...sampling,
+      stream: false,
+      response_format: buildJsonSchemaResponseFormat(schemaName, jsonSchema) as OpenAI.ResponseFormatJSONSchema,
+      // Ensure KoboldCpp applies schema-derived grammar even if response_format is ignored.
+      json_schema: jsonSchema,
+      grammar_lazy: false,
+      grammar_triggers: [],
+    } as OpenAI.ChatCompletionCreateParams & {
+      json_schema: object
+      grammar_lazy: boolean
+      grammar_triggers: unknown[]
+    })
+    if (!("choices" in res)) {
+      throw new Error("LLM returned a streamed response unexpectedly")
+    }
+    responseContent = res.choices[0]?.message?.content ?? undefined
+    if (!responseContent) throw new Error("LLM returned empty response")
+    const parsed = parseJsonFromContent(responseContent, schemaName) as T
+    logLlmEntry({
+      ...logBase,
+      response: {
+        content: responseContent,
+        parsed,
+      },
+    })
+    return parsed
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Unknown error"
+    logLlmEntry({
+      ...logBase,
+      response: responseContent ? { content: responseContent } : undefined,
+      error: err instanceof Error ? { message, stack: err.stack } : { message },
+    })
+    throw err
   }
-  const content = res.choices[0]?.message?.content
-  if (!content) throw new Error("LLM returned empty response")
-  return parseJsonFromContent(content, schemaName) as T
 }
 
 async function callLLMText(
@@ -93,16 +130,32 @@ async function callLLMText(
   const gen = getGenerationParams()
   const sampling = buildSamplingParams(gen, maxTokensOverride, options)
   const stop = options.stop && options.stop.length > 0 ? options.stop : ["\n\n===", "\n==="]
+  const logBase = createLlmLogBase("text", messages, sampling, undefined, stop)
+  let responseContent: string | undefined
 
-  const res = await getClient().chat.completions.create({
-    model: "local",
-    messages,
-    ...sampling,
-    stop,
-  })
-  const content = res.choices[0]?.message?.content
-  if (!content) throw new Error("LLM returned empty response")
-  return content
+  try {
+    const res = await getClient().chat.completions.create({
+      model: "local",
+      messages,
+      ...sampling,
+      stop,
+    })
+    responseContent = res.choices[0]?.message?.content ?? undefined
+    if (!responseContent) throw new Error("LLM returned empty response")
+    logLlmEntry({
+      ...logBase,
+      response: { content: responseContent },
+    })
+    return responseContent
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Unknown error"
+    logLlmEntry({
+      ...logBase,
+      response: responseContent ? { content: responseContent } : undefined,
+      error: err instanceof Error ? { message, stack: err.stack } : { message },
+    })
+    throw err
+  }
 }
 
 function sanitizePlayerAction(text: string): string {
@@ -153,7 +206,7 @@ export async function generateCharacter(
   description: string,
   storyModules?: StoryModules,
 ): Promise<GenerateCharacterResponse> {
-  const modules = storyModules ?? { track_npcs: true, track_locations: true, character_detail_mode: "detailed" }
+  const modules = storyModules ?? DEFAULT_STORY_MODULES
   const responseSchema = buildGenerateCharacterResponseSchema(modules)
   const schema = zodSchemaToJsonSchema(responseSchema, "GenerateCharacterResponse")
   const llmStrings = getLlmStrings()
@@ -255,7 +308,7 @@ export async function generateCharacterPart(
         ? zodSchemaToJsonSchema(GenerateCharacterTraitsResponseSchema, "GenerateCharacterTraitsResponse")
         : zodSchemaToJsonSchema(GenerateCharacterClothingResponseSchema, "GenerateCharacterClothingResponse")
 
-  const modules = storyModules ?? { track_npcs: true, track_locations: true, character_detail_mode: "detailed" }
+  const modules = storyModules ?? DEFAULT_STORY_MODULES
   const llmStrings = getLlmStrings()
   const availableTraitsLine = formatTemplate(llmStrings.generateCharacter.availableTraitsLine, {
     npcTraits: npcTraits.join(", "),
@@ -311,19 +364,24 @@ export async function generateStory(
   },
   storyModules?: StoryModules,
 ): Promise<GenerateStoryResponse> {
-  const modules = storyModules ?? { track_npcs: true, track_locations: true, character_detail_mode: "detailed" }
+  const modules = storyModules ?? DEFAULT_STORY_MODULES
+  const flags = resolveModuleFlags(modules)
   const responseSchema = buildGenerateStoryResponseSchema(modules)
   const schema = zodSchemaToJsonSchema(responseSchema, "GenerateStoryResponse")
   const llmStrings = getLlmStrings()
   const defaults = getServerDefaults()
   const unknown = defaults.unknown.value
   const noneTitle = defaults.format.noneTitle
-  const traits = [...(character.personality_traits ?? []), ...(character.quirks ?? []), ...(character.perks ?? [])]
+  const traits = [
+    ...(flags.useCharPersonalityTraits ? (character.personality_traits ?? []) : []),
+    ...(flags.useCharQuirks ? (character.quirks ?? []) : []),
+    ...(flags.useCharPerks ? (character.perks ?? []) : []),
+  ]
     .map((t) => t.trim())
     .filter(Boolean)
   const baselineAppearance = character.appearance?.baseline_appearance || unknown
   const currentAppearance = character.appearance?.current_appearance || baselineAppearance
-  const majorFlaws = character.major_flaws?.map((t) => t.trim()).filter(Boolean) ?? []
+  const majorFlaws = flags.useCharMajorFlaws ? (character.major_flaws?.map((t) => t.trim()).filter(Boolean) ?? []) : []
   const generalDescription = character.general_description?.trim() || defaults.unknown.generalDescription
   const useGeneral = modules.character_detail_mode === "general"
   const promptLines = getGenerateStoryPrompt(modules).split("\n")
@@ -345,13 +403,21 @@ export async function generateStory(
                 formatTemplate(llmStrings.characterContextLabels.clothing, {
                   value: character.appearance?.current_clothing || unknown,
                 }),
+              ]),
+          ...(flags.useCharMajorFlaws
+            ? [
                 formatTemplate(llmStrings.characterContextLabels.majorFlaws, {
                   value: majorFlaws.length > 0 ? majorFlaws.join(", ") : noneTitle,
                 }),
+              ]
+            : []),
+          ...(flags.useCharPersonalityTraits || flags.useCharQuirks || flags.useCharPerks
+            ? [
                 formatTemplate(llmStrings.characterContextLabels.traits, {
                   value: traits.length > 0 ? traits.join(", ") : unknown,
                 }),
-              ]),
+              ]
+            : []),
           formatTemplate(llmStrings.generateStory.storyDescription, { description }),
         ].join("\n"),
       },

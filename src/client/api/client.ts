@@ -46,6 +46,19 @@ export interface StoryModules {
   track_npcs: boolean
   track_locations: boolean
   character_detail_mode: "detailed" | "general"
+  character_appearance_clothing: boolean
+  character_personality_traits: boolean
+  character_major_flaws: boolean
+  character_quirks: boolean
+  character_perks: boolean
+  character_inventory: boolean
+  npc_appearance_clothing: boolean
+  npc_personality_traits: boolean
+  npc_major_flaws: boolean
+  npc_quirks: boolean
+  npc_perks: boolean
+  npc_location: boolean
+  npc_activity: boolean
 }
 
 export interface WorldState {

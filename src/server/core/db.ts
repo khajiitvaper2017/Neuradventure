@@ -5,7 +5,7 @@ import { fileURLToPath } from "url"
 import type { MainCharacterState, NPCState, StoryModules, WorldState } from "./models.js"
 import { getServerDefaults } from "./strings.js"
 import { normalizeGender } from "../schemas/normalizers.js"
-import { normalizeStoryModules } from "../schemas/story-modules.js"
+import { DEFAULT_STORY_MODULES, normalizeStoryModules } from "../schemas/story-modules.js"
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 export const DB_PATH = path.resolve(__dirname, "../../../data/neuradventure.db")
@@ -124,11 +124,7 @@ const DEFAULT_SETTINGS: SettingsState = {
   colorScheme: "gold",
   defaultAuthorNote: "Remember the instructions you were given at the beginning of this chat.",
   defaultAuthorNoteDepth: 4,
-  storyDefaults: {
-    track_npcs: true,
-    track_locations: true,
-    character_detail_mode: "detailed",
-  },
+  storyDefaults: { ...DEFAULT_STORY_MODULES },
   connector: {
     type: "koboldcpp",
     url: "http://localhost:5001/v1",

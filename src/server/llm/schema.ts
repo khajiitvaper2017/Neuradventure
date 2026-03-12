@@ -5,52 +5,92 @@ import {
   TurnResponseSchema,
   WorldStateUpdateSchema,
   LocationSchema,
-  NPCCreationSchema,
   type StoryModules,
   type NPCState,
   type TurnResponse,
 } from "../core/models.js"
 import { desc } from "../schemas/field-descriptions.js"
+import { buildNpcCreationSchema } from "../schemas/npc-creation.js"
+import { DEFAULT_STORY_MODULES, resolveModuleFlags } from "../schemas/story-modules.js"
 
-const DEFAULT_MODULES: StoryModules = {
-  track_npcs: true,
-  track_locations: true,
-  character_detail_mode: "detailed",
-}
+const DEFAULT_MODULES: StoryModules = { ...DEFAULT_STORY_MODULES }
 
 export function buildTurnResponseSchema(
   knownNpcs: NPCState[],
   modules: StoryModules = DEFAULT_MODULES,
 ): z.ZodType<TurnResponse, z.ZodTypeDef, unknown> {
   const uniqueNames = Array.from(new Set(knownNpcs.map((npc) => npc.name.trim()).filter((name) => name.length > 0)))
+  const flags = resolveModuleFlags(modules)
+  const npcCreationSchema = buildNpcCreationSchema({
+    useNpcAppearance: flags.useNpcAppearance,
+    useNpcPersonalityTraits: flags.useNpcPersonalityTraits,
+    useNpcMajorFlaws: flags.useNpcMajorFlaws,
+    useNpcQuirks: flags.useNpcQuirks,
+    useNpcPerks: flags.useNpcPerks,
+    useNpcLocation: flags.useNpcLocation,
+    useNpcActivity: flags.useNpcActivity,
+  })
 
   let schema: z.AnyZodObject = TurnResponseSchema
 
+  let worldUpdateSchema: z.AnyZodObject = WorldStateUpdateSchema as z.AnyZodObject
+  if (!modules.track_locations) {
+    worldUpdateSchema = worldUpdateSchema.extend({
+      locations: z.array(LocationSchema).max(0).optional(),
+    })
+  }
+  worldUpdateSchema = worldUpdateSchema.required() as z.AnyZodObject
+
+  schema = schema.extend({
+    world_state_update: worldUpdateSchema.describe(desc("llm.turn_response.world_state_update")),
+  })
+
   if (!modules.track_npcs) {
-    const emptyUpdates = buildNPCStateUpdateSchema(z.string().min(1).describe(desc("llm.npc_update.name")))
+    const emptyUpdates = buildNPCStateUpdateSchema(z.string().min(1).describe(desc("llm.npc_update.name")), {
+      allowLocation: flags.useNpcLocation,
+      allowAppearance: flags.useNpcAppearance,
+      allowClothing: flags.useNpcAppearance,
+      allowActivity: flags.useNpcActivity,
+    })
     schema = schema.extend({
       npc_changes: z.array(emptyUpdates).max(0).optional(),
-      npc_introductions: z.array(NPCCreationSchema).max(0).optional(),
+      npc_introductions: z.array(npcCreationSchema).max(0).optional(),
     })
   } else if (uniqueNames.length === 0) {
-    const emptyUpdates = buildNPCStateUpdateSchema(z.string().min(1).describe(desc("llm.npc_update.name")))
+    const emptyUpdates = buildNPCStateUpdateSchema(z.string().min(1).describe(desc("llm.npc_update.name")), {
+      allowLocation: flags.useNpcLocation,
+      allowAppearance: flags.useNpcAppearance,
+      allowClothing: flags.useNpcAppearance,
+      allowActivity: flags.useNpcActivity,
+    })
     schema = schema.extend({
       npc_changes: z.array(emptyUpdates).max(0).optional(),
     })
   } else {
     const enumValues = uniqueNames as [string, ...string[]]
-    const npcChangesSchema = buildNPCChangesSection(z.enum(enumValues).describe(desc("llm.npc_update.name")))
+    const npcChangesSchema = buildNPCChangesSection(z.enum(enumValues).describe(desc("llm.npc_update.name")), {
+      allowLocation: flags.useNpcLocation,
+      allowAppearance: flags.useNpcAppearance,
+      allowClothing: flags.useNpcAppearance,
+      allowActivity: flags.useNpcActivity,
+    })
     schema = schema.extend({
       npc_changes: npcChangesSchema.optional(),
     })
   }
 
-  if (!modules.track_locations) {
+  if (modules.track_npcs) {
     schema = schema.extend({
-      world_state_update: WorldStateUpdateSchema.extend({
-        locations: z.array(LocationSchema).max(0).optional(),
-      }).describe(desc("llm.turn_response.world_state_update")),
+      npc_introductions: z.array(npcCreationSchema).optional(),
     })
+  }
+
+  if (!flags.useCharAppearance) {
+    schema = schema.omit({ appearance_change: true, clothing_change: true })
+  }
+
+  if (!flags.useCharInventory) {
+    schema = schema.omit({ inventory_change: true })
   }
 
   return schema as unknown as z.ZodType<TurnResponse, z.ZodTypeDef, unknown>

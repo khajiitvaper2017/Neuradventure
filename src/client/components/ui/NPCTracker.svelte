@@ -26,8 +26,13 @@
 
   let { inline = false }: { inline?: boolean } = $props()
   let showBaselineDetails = $state(false)
-  const detailMode = $derived($currentStoryModules?.character_detail_mode ?? "detailed")
-  const trackLocations = $derived($currentStoryModules?.track_locations ?? true)
+  const useNpcAppearance = $derived($currentStoryModules?.npc_appearance_clothing ?? true)
+  const useNpcPersonalityTraits = $derived($currentStoryModules?.npc_personality_traits ?? true)
+  const useNpcMajorFlaws = $derived($currentStoryModules?.npc_major_flaws ?? true)
+  const useNpcQuirks = $derived($currentStoryModules?.npc_quirks ?? true)
+  const useNpcPerks = $derived($currentStoryModules?.npc_perks ?? true)
+  const useNpcLocation = $derived($currentStoryModules?.npc_location ?? true)
+  const useNpcActivity = $derived($currentStoryModules?.npc_activity ?? true)
 
   function npcFieldId(npc: NPCState, field: string): string {
     const base = npc.name
@@ -49,6 +54,61 @@
   function updateField(field: EditField, event: Event) {
     const target = event.target as HTMLInputElement | HTMLTextAreaElement
     field.onInput(target.value)
+  }
+
+  type DiffSegment = { text: string; added: boolean }
+
+  function splitWords(text: string): string[] {
+    return text.trim().length > 0 ? text.trim().split(/\s+/) : []
+  }
+
+  function normalizeWord(word: string): string {
+    return word.toLowerCase().replace(/[^\p{L}\p{N}]+/gu, "")
+  }
+
+  function buildLcsTable(a: string[], b: string[]): number[][] {
+    const table: number[][] = Array.from({ length: a.length + 1 }, () => Array(b.length + 1).fill(0))
+    for (let i = 1; i <= a.length; i += 1) {
+      for (let j = 1; j <= b.length; j += 1) {
+        if (a[i - 1] === b[j - 1]) {
+          table[i][j] = table[i - 1][j - 1] + 1
+        } else {
+          table[i][j] = Math.max(table[i - 1][j], table[i][j - 1])
+        }
+      }
+    }
+    return table
+  }
+
+  function getDiffSegments(baseline: string, current: string): DiffSegment[] {
+    const baseWords = splitWords(baseline).map(normalizeWord)
+    const currWordsRaw = splitWords(current)
+    const currWords = currWordsRaw.map(normalizeWord)
+    if (baseWords.length === 0) {
+      return currWordsRaw.map((word, idx) => ({
+        text: idx === currWordsRaw.length - 1 ? word : `${word} `,
+        added: false,
+      }))
+    }
+    const table = buildLcsTable(baseWords, currWords)
+    const inLcs = new Set<number>()
+    let i = baseWords.length
+    let j = currWords.length
+    while (i > 0 && j > 0) {
+      if (baseWords[i - 1] === currWords[j - 1]) {
+        inLcs.add(j - 1)
+        i -= 1
+        j -= 1
+      } else if (table[i - 1][j] >= table[i][j - 1]) {
+        i -= 1
+      } else {
+        j -= 1
+      }
+    }
+    return currWordsRaw.map((word, idx) => ({
+      text: idx === currWordsRaw.length - 1 ? word : `${word} `,
+      added: !inLcs.has(idx) && currWords[idx].length > 0,
+    }))
   }
 
   function npcEditFields(npc: NPCState): EditField[] {
@@ -76,7 +136,7 @@
       },
     ]
 
-    if (trackLocations) {
+    if (useNpcLocation) {
       fields.push({
         id: npcFieldId(npc, "location"),
         label: "Current Location",
@@ -86,7 +146,7 @@
       })
     }
 
-    if (detailMode === "general") {
+    if (!useNpcAppearance) {
       fields.push({
         id: npcFieldId(npc, "general-description"),
         label: "General Description",
@@ -117,44 +177,54 @@
           value: draft.clothing,
           onInput: (v) => (draft.clothing = v),
         },
-        {
-          id: npcFieldId(npc, "traits"),
-          label: "Personality Traits (comma separated)",
-          kind: "input",
-          value: draft.traits,
-          onInput: (v) => (draft.traits = v),
-        },
-        {
-          id: npcFieldId(npc, "major-flaws"),
-          label: "Major Flaws (comma separated)",
-          kind: "input",
-          value: draft.majorFlaws,
-          onInput: (v) => (draft.majorFlaws = v),
-        },
-        {
-          id: npcFieldId(npc, "quirks"),
-          label: "Quirks (comma separated)",
-          kind: "input",
-          value: draft.quirks,
-          onInput: (v) => (draft.quirks = v),
-        },
-        {
-          id: npcFieldId(npc, "perks"),
-          label: "Perks (comma separated)",
-          kind: "input",
-          value: draft.perks,
-          onInput: (v) => (draft.perks = v),
-        },
       )
     }
 
-    fields.push({
-      id: npcFieldId(npc, "current-activity"),
-      label: "Current Activity",
-      kind: "textarea",
-      value: draft.currentActivity,
-      onInput: (v) => (draft.currentActivity = v),
-    })
+    if (useNpcPersonalityTraits) {
+      fields.push({
+        id: npcFieldId(npc, "traits"),
+        label: "Personality Traits (comma separated)",
+        kind: "input",
+        value: draft.traits,
+        onInput: (v) => (draft.traits = v),
+      })
+    }
+    if (useNpcMajorFlaws) {
+      fields.push({
+        id: npcFieldId(npc, "major-flaws"),
+        label: "Major Flaws (comma separated)",
+        kind: "input",
+        value: draft.majorFlaws,
+        onInput: (v) => (draft.majorFlaws = v),
+      })
+    }
+    if (useNpcQuirks) {
+      fields.push({
+        id: npcFieldId(npc, "quirks"),
+        label: "Quirks (comma separated)",
+        kind: "input",
+        value: draft.quirks,
+        onInput: (v) => (draft.quirks = v),
+      })
+    }
+    if (useNpcPerks) {
+      fields.push({
+        id: npcFieldId(npc, "perks"),
+        label: "Perks (comma separated)",
+        kind: "input",
+        value: draft.perks,
+        onInput: (v) => (draft.perks = v),
+      })
+    }
+    if (useNpcActivity) {
+      fields.push({
+        id: npcFieldId(npc, "current-activity"),
+        label: "Current Activity",
+        kind: "textarea",
+        value: draft.currentActivity,
+        onInput: (v) => (draft.currentActivity = v),
+      })
+    }
 
     return fields
   }
@@ -201,53 +271,52 @@
       showError("Name, race, and gender are required.")
       return
     }
-    if (detailMode === "general" && !generalDescription) {
+    if (!useNpcAppearance && !generalDescription) {
       showError("General description is required.")
       return
     }
-    const traits = splitCsv(draft.traits)
-    const majorFlaws = splitCsv(draft.majorFlaws)
-    const quirks = splitCsv(draft.quirks)
-    const perks = splitCsv(draft.perks)
+    const traits = useNpcPersonalityTraits ? splitCsv(draft.traits) : []
+    const majorFlaws = useNpcMajorFlaws ? splitCsv(draft.majorFlaws) : []
+    const quirks = useNpcQuirks ? splitCsv(draft.quirks) : []
+    const perks = useNpcPerks ? splitCsv(draft.perks) : []
     const existingNpc = $npcs.find((npc) => npc.name === editingNpcName)
+    const appearance = useNpcAppearance
+      ? {
+          baseline_appearance: baselineAppearance || existingNpc?.appearance.baseline_appearance || "",
+          current_appearance: currentAppearance || existingNpc?.appearance.current_appearance || "",
+          current_clothing: clothing || existingNpc?.appearance.current_clothing || "",
+        }
+      : {
+          baseline_appearance: existingNpc?.appearance.baseline_appearance || "",
+          current_appearance: existingNpc?.appearance.current_appearance || "",
+          current_clothing: existingNpc?.appearance.current_clothing || "",
+        }
     const updatedNpc: NPCState = {
       name,
       race,
       gender,
-      general_description: generalDescription || existingNpc?.general_description,
-      current_location: trackLocations
+      general_description: useNpcAppearance
+        ? (existingNpc?.general_description ?? generalDescription)
+        : generalDescription || existingNpc?.general_description,
+      current_location: useNpcLocation
         ? location || existingNpc?.current_location || ""
         : (existingNpc?.current_location ?? ""),
-      appearance: {
-        baseline_appearance: baselineAppearance || existingNpc?.appearance.baseline_appearance || "",
-        current_appearance: currentAppearance || existingNpc?.appearance.current_appearance || "",
-        current_clothing: clothing || existingNpc?.appearance.current_clothing || "",
-      },
-      current_activity: currentActivity || existingNpc?.current_activity || "",
-      personality_traits:
-        detailMode === "detailed"
-          ? traits.length > 0
-            ? traits
-            : (existingNpc?.personality_traits ?? [])
-          : (existingNpc?.personality_traits ?? []),
-      major_flaws:
-        detailMode === "detailed"
-          ? majorFlaws.length > 0
-            ? majorFlaws
-            : (existingNpc?.major_flaws ?? [])
-          : (existingNpc?.major_flaws ?? []),
-      quirks:
-        detailMode === "detailed"
-          ? quirks.length > 0
-            ? quirks
-            : (existingNpc?.quirks ?? [])
-          : (existingNpc?.quirks ?? []),
-      perks:
-        detailMode === "detailed"
-          ? perks.length > 0
-            ? perks
-            : (existingNpc?.perks ?? [])
-          : (existingNpc?.perks ?? []),
+      appearance,
+      current_activity: useNpcActivity
+        ? currentActivity || existingNpc?.current_activity || ""
+        : (existingNpc?.current_activity ?? ""),
+      personality_traits: useNpcPersonalityTraits
+        ? traits.length > 0
+          ? traits
+          : (existingNpc?.personality_traits ?? [])
+        : (existingNpc?.personality_traits ?? []),
+      major_flaws: useNpcMajorFlaws
+        ? majorFlaws.length > 0
+          ? majorFlaws
+          : (existingNpc?.major_flaws ?? [])
+        : (existingNpc?.major_flaws ?? []),
+      quirks: useNpcQuirks ? (quirks.length > 0 ? quirks : (existingNpc?.quirks ?? [])) : (existingNpc?.quirks ?? []),
+      perks: useNpcPerks ? (perks.length > 0 ? perks : (existingNpc?.perks ?? [])) : (existingNpc?.perks ?? []),
       inventory: existingNpc?.inventory ?? [],
     }
     const updatedList = $npcs.map((npc) => (npc.name === editingNpcName ? updatedNpc : npc))
@@ -395,14 +464,15 @@
       npc.name,
       npc.race,
       npc.gender,
-      npc.current_location,
-      npc.appearance.baseline_appearance,
-      npc.appearance.current_appearance,
-      npc.appearance.current_clothing,
-      npc.current_activity,
-      npc.personality_traits.join(","),
-      npc.quirks.join(","),
-      npc.perks.join(","),
+      useNpcLocation ? npc.current_location : "",
+      ...(useNpcAppearance
+        ? [npc.appearance.baseline_appearance, npc.appearance.current_appearance, npc.appearance.current_clothing]
+        : [npc.general_description ?? ""]),
+      useNpcActivity ? npc.current_activity : "",
+      useNpcPersonalityTraits ? npc.personality_traits.join(",") : "",
+      useNpcMajorFlaws ? npc.major_flaws.join(",") : "",
+      useNpcQuirks ? npc.quirks.join(",") : "",
+      useNpcPerks ? npc.perks.join(",") : "",
     ].join("|")
   }
 
@@ -605,19 +675,14 @@
             </div>
           </div>
         {:else}
-          {#if trackLocations}
+          {#if useNpcLocation}
             <div class="npc-detail-row">
               <IconMapPin size={13} strokeWidth={1.5} className="npc-icon" />
               <span>{npc.current_location}</span>
             </div>
           {/if}
 
-          {#if detailMode === "general"}
-            <div class="npc-detail-row">
-              <IconDocument size={13} strokeWidth={1.5} className="npc-icon" />
-              <span>{npc.general_description || "Unknown description"}</span>
-            </div>
-          {:else}
+          {#if useNpcAppearance}
             {#if showBaselineDetails}
               <div class="npc-detail-row">
                 <IconFace size={13} strokeWidth={1.5} className="npc-icon" />
@@ -627,36 +692,55 @@
 
             <div class="npc-detail-row">
               <IconFace size={13} strokeWidth={1.5} className="npc-icon" />
-              <span>{npc.appearance.current_appearance}</span>
+              <span class="npc-diff">
+                {#each getDiffSegments(npc.appearance.baseline_appearance, npc.appearance.current_appearance) as segment}
+                  <span class:diff-added={segment.added}>{segment.text}</span>
+                {/each}
+              </span>
             </div>
 
             <div class="npc-detail-row muted">
               <IconShirt size={13} strokeWidth={1.5} className="npc-icon" />
               <span>{npc.appearance.current_clothing}</span>
             </div>
+          {:else}
+            <div class="npc-detail-row">
+              <IconDocument size={13} strokeWidth={1.5} className="npc-icon" />
+              <span>{npc.general_description || "Unknown description"}</span>
+            </div>
           {/if}
 
-          <div class="npc-detail-row">
-            <IconDocument size={13} strokeWidth={1.5} className="npc-icon" />
-            <span>{npc.current_activity}</span>
-          </div>
+          {#if useNpcActivity}
+            <div class="npc-detail-row">
+              <IconDocument size={13} strokeWidth={1.5} className="npc-icon" />
+              <span>{npc.current_activity}</span>
+            </div>
+          {/if}
 
-          {#if detailMode === "detailed" && (npc.personality_traits.length > 0 || npc.major_flaws.length > 0 || npc.quirks.length > 0 || npc.perks.length > 0)}
+          {#if (useNpcPersonalityTraits && npc.personality_traits.length > 0) || (useNpcMajorFlaws && npc.major_flaws.length > 0) || (useNpcQuirks && npc.quirks.length > 0) || (useNpcPerks && npc.perks.length > 0)}
             <div class="npc-traits">
               <IconStar size={13} strokeWidth={1.5} className="npc-icon npc-traits-icon" />
               <div class="chips">
-                {#each npc.personality_traits as trait}
-                  <span class="chip">{trait}</span>
-                {/each}
-                {#each npc.major_flaws as trait}
-                  <span class="chip">{trait}</span>
-                {/each}
-                {#each npc.quirks as trait}
-                  <span class="chip">{trait}</span>
-                {/each}
-                {#each npc.perks as trait}
-                  <span class="chip">{trait}</span>
-                {/each}
+                {#if useNpcPersonalityTraits}
+                  {#each npc.personality_traits as trait}
+                    <span class="chip">{trait}</span>
+                  {/each}
+                {/if}
+                {#if useNpcMajorFlaws}
+                  {#each npc.major_flaws as trait}
+                    <span class="chip">{trait}</span>
+                  {/each}
+                {/if}
+                {#if useNpcQuirks}
+                  {#each npc.quirks as trait}
+                    <span class="chip">{trait}</span>
+                  {/each}
+                {/if}
+                {#if useNpcPerks}
+                  {#each npc.perks as trait}
+                    <span class="chip">{trait}</span>
+                  {/each}
+                {/if}
               </div>
             </div>
           {/if}
@@ -671,7 +755,7 @@
     <div class="sidebar-header">
       <IconUsers size={16} strokeWidth={1.5} className="npc-header-icon" />
       <span>Known NPCs ({$npcs.length})</span>
-      {#if detailMode === "detailed"}
+      {#if useNpcAppearance}
         <button
           class="npc-toggle-btn"
           onclick={() => (showBaselineDetails = !showBaselineDetails)}
@@ -693,7 +777,7 @@
     <div class="panel-header">
       <IconUsers size={16} strokeWidth={1.5} className="npc-header-icon" />
       <span>Known NPCs ({$npcs.length})</span>
-      {#if detailMode === "detailed"}
+      {#if useNpcAppearance}
         <button
           class="npc-toggle-btn"
           onclick={() => (showBaselineDetails = !showBaselineDetails)}
@@ -863,6 +947,15 @@
   .npc-detail-row.muted {
     color: var(--text-dim);
     font-style: italic;
+  }
+
+  .npc-diff {
+    display: inline;
+  }
+
+  .npc-diff .diff-added {
+    color: var(--accent, var(--text));
+    font-weight: 700;
   }
 
   :global(.npc-icon) {

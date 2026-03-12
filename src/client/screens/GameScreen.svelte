@@ -77,6 +77,19 @@
     track_npcs: true,
     track_locations: true,
     character_detail_mode: "detailed",
+    character_appearance_clothing: true,
+    character_personality_traits: true,
+    character_major_flaws: true,
+    character_quirks: true,
+    character_perks: true,
+    character_inventory: true,
+    npc_appearance_clothing: true,
+    npc_personality_traits: true,
+    npc_major_flaws: true,
+    npc_quirks: true,
+    npc_perks: true,
+    npc_location: true,
+    npc_activity: true,
   })
   let flashScene = $state(false)
   let flashOpening = $state(false)
@@ -512,6 +525,19 @@
       track_npcs: true,
       track_locations: true,
       character_detail_mode: "detailed",
+      character_appearance_clothing: true,
+      character_personality_traits: true,
+      character_major_flaws: true,
+      character_quirks: true,
+      character_perks: true,
+      character_inventory: true,
+      npc_appearance_clothing: true,
+      npc_personality_traits: true,
+      npc_major_flaws: true,
+      npc_quirks: true,
+      npc_perks: true,
+      npc_location: true,
+      npc_activity: true,
     }
     showModulesEditor = true
     showMenu = false
@@ -953,13 +979,151 @@
             <select
               class="select-input"
               value={modulesDraft.character_detail_mode}
-              onchange={(e) =>
-                (modulesDraft.character_detail_mode = (e.target as HTMLSelectElement)
-                  .value as StoryModules["character_detail_mode"])}
+              onchange={(e) => {
+                const next = (e.target as HTMLSelectElement).value as StoryModules["character_detail_mode"]
+                modulesDraft.character_detail_mode = next
+                if (next === "detailed") modulesDraft.character_appearance_clothing = true
+              }}
             >
               <option value="detailed">Detailed</option>
               <option value="general">General description</option>
             </select>
+          </label>
+          {#if modulesDraft.character_detail_mode === "detailed"}
+            <label class="row">
+              <span class="row-text">
+                <span class="row-title">Player appearance + clothing</span>
+                <span class="row-sub">Always enabled in detailed mode</span>
+              </span>
+              <input type="checkbox" checked={true} disabled />
+            </label>
+          {/if}
+          <label class="row">
+            <span class="row-text">
+              <span class="row-title">Player personality traits</span>
+            </span>
+            <input
+              type="checkbox"
+              checked={modulesDraft.character_personality_traits}
+              onchange={(e) => (modulesDraft.character_personality_traits = (e.target as HTMLInputElement).checked)}
+            />
+          </label>
+          <label class="row">
+            <span class="row-text">
+              <span class="row-title">Player major flaws</span>
+            </span>
+            <input
+              type="checkbox"
+              checked={modulesDraft.character_major_flaws}
+              onchange={(e) => (modulesDraft.character_major_flaws = (e.target as HTMLInputElement).checked)}
+            />
+          </label>
+          <label class="row">
+            <span class="row-text">
+              <span class="row-title">Player quirks</span>
+            </span>
+            <input
+              type="checkbox"
+              checked={modulesDraft.character_quirks}
+              onchange={(e) => (modulesDraft.character_quirks = (e.target as HTMLInputElement).checked)}
+            />
+          </label>
+          <label class="row">
+            <span class="row-text">
+              <span class="row-title">Player perks</span>
+            </span>
+            <input
+              type="checkbox"
+              checked={modulesDraft.character_perks}
+              onchange={(e) => (modulesDraft.character_perks = (e.target as HTMLInputElement).checked)}
+            />
+          </label>
+          <label class="row">
+            <span class="row-text">
+              <span class="row-title">Player inventory</span>
+            </span>
+            <input
+              type="checkbox"
+              checked={modulesDraft.character_inventory}
+              onchange={(e) => (modulesDraft.character_inventory = (e.target as HTMLInputElement).checked)}
+            />
+          </label>
+          <label class="row">
+            <span class="row-text">
+              <span class="row-title">NPC appearance + clothing</span>
+            </span>
+            <input
+              type="checkbox"
+              checked={modulesDraft.npc_appearance_clothing}
+              disabled={!modulesDraft.track_npcs}
+              onchange={(e) => (modulesDraft.npc_appearance_clothing = (e.target as HTMLInputElement).checked)}
+            />
+          </label>
+          <label class="row">
+            <span class="row-text">
+              <span class="row-title">NPC personality traits</span>
+            </span>
+            <input
+              type="checkbox"
+              checked={modulesDraft.npc_personality_traits}
+              disabled={!modulesDraft.track_npcs}
+              onchange={(e) => (modulesDraft.npc_personality_traits = (e.target as HTMLInputElement).checked)}
+            />
+          </label>
+          <label class="row">
+            <span class="row-text">
+              <span class="row-title">NPC major flaws</span>
+            </span>
+            <input
+              type="checkbox"
+              checked={modulesDraft.npc_major_flaws}
+              disabled={!modulesDraft.track_npcs}
+              onchange={(e) => (modulesDraft.npc_major_flaws = (e.target as HTMLInputElement).checked)}
+            />
+          </label>
+          <label class="row">
+            <span class="row-text">
+              <span class="row-title">NPC quirks</span>
+            </span>
+            <input
+              type="checkbox"
+              checked={modulesDraft.npc_quirks}
+              disabled={!modulesDraft.track_npcs}
+              onchange={(e) => (modulesDraft.npc_quirks = (e.target as HTMLInputElement).checked)}
+            />
+          </label>
+          <label class="row">
+            <span class="row-text">
+              <span class="row-title">NPC perks</span>
+            </span>
+            <input
+              type="checkbox"
+              checked={modulesDraft.npc_perks}
+              disabled={!modulesDraft.track_npcs}
+              onchange={(e) => (modulesDraft.npc_perks = (e.target as HTMLInputElement).checked)}
+            />
+          </label>
+          <label class="row">
+            <span class="row-text">
+              <span class="row-title">NPC location</span>
+            </span>
+            <input
+              type="checkbox"
+              checked={modulesDraft.npc_location}
+              disabled={!modulesDraft.track_npcs}
+              onchange={(e) => (modulesDraft.npc_location = (e.target as HTMLInputElement).checked)}
+            />
+          </label>
+          <label class="row">
+            <span class="row-text">
+              <span class="row-title">NPC activity</span>
+            </span>
+            <input
+              type="checkbox"
+              checked={modulesDraft.npc_activity}
+              disabled={!modulesDraft.track_npcs}
+              onchange={(e) => (modulesDraft.npc_activity = (e.target as HTMLInputElement).checked)}
+            />
           </label>
         </div>
         <div class="edit-actions">

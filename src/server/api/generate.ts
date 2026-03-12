@@ -67,6 +67,15 @@ generate.post(
       if (modules.character_detail_mode === "general") {
         return c.json({ error: "Character part generation is disabled in general mode." }, 400)
       }
+      if (
+        part === "traits" &&
+        (!modules.character_personality_traits ||
+          !modules.character_major_flaws ||
+          !modules.character_quirks ||
+          !modules.character_perks)
+      ) {
+        return c.json({ error: "Character trait generation is disabled by story modules." }, 400)
+      }
       return c.json(await generateCharacterPart(part, context, modules))
     } catch (err) {
       return c.json({ error: err instanceof Error ? err.message : "Generation failed" }, 500)

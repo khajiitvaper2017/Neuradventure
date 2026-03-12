@@ -74,29 +74,28 @@
       gender = normalizeGender(result.gender)
       if (detailMode === "general") {
         generalDescription = result.general_description ?? generalDescription
-        if (result.baseline_appearance) baselineAppearance = result.baseline_appearance
-        if (result.baseline_appearance) currentAppearance = result.baseline_appearance
-        if (result.current_clothing) currentClothing = result.current_clothing
-        if (result.personality_traits) {
+        if (traitsEnabled && result.personality_traits) {
           const split = splitPersonalityTraits(result.personality_traits)
           selectedTraits = split.selected
           customPersonalityTraits = split.custom
         }
-        if (result.major_flaws) majorFlaws = result.major_flaws
-        if (result.quirks) quirks = result.quirks
-        if (result.perks) perks = result.perks
+        if (majorFlawsEnabled && result.major_flaws) majorFlaws = result.major_flaws
+        if (quirksEnabled && result.quirks) quirks = result.quirks
+        if (perksEnabled && result.perks) perks = result.perks
       } else {
         if (result.baseline_appearance) {
           baselineAppearance = result.baseline_appearance
           currentAppearance = result.baseline_appearance
         }
         if (result.current_clothing) currentClothing = result.current_clothing
-        const split = splitPersonalityTraits(result.personality_traits ?? [])
-        selectedTraits = split.selected
-        customPersonalityTraits = split.custom
-        if (result.major_flaws) majorFlaws = result.major_flaws
-        if (result.quirks) quirks = result.quirks
-        if (result.perks) perks = result.perks
+        if (traitsEnabled) {
+          const split = splitPersonalityTraits(result.personality_traits ?? [])
+          selectedTraits = split.selected
+          customPersonalityTraits = split.custom
+        }
+        if (majorFlawsEnabled && result.major_flaws) majorFlaws = result.major_flaws
+        if (quirksEnabled && result.quirks) quirks = result.quirks
+        if (perksEnabled && result.perks) perks = result.perks
       }
     } catch (err) {
       showError(err instanceof Error ? err.message : "Generation failed")
@@ -156,22 +155,24 @@
         if (isMissingText(currentClothing) && result.current_clothing) currentClothing = result.current_clothing
       }
 
-      const existingTraits = [...selectedTraits, ...customPersonalityTraits]
-      const generatedTraits = result.personality_traits ?? []
-      if (existingTraits.length < 2) {
-        const split = splitPersonalityTraits(generatedTraits)
-        selectedTraits = split.selected
-        customPersonalityTraits = split.custom
-      } else if (existingTraits.length < 5) {
-        const merged = mergeTraits(existingTraits, generatedTraits, 5)
-        const split = splitPersonalityTraits(merged)
-        selectedTraits = split.selected
-        customPersonalityTraits = split.custom
+      if (traitsEnabled) {
+        const existingTraits = [...selectedTraits, ...customPersonalityTraits]
+        const generatedTraits = result.personality_traits ?? []
+        if (existingTraits.length < 2) {
+          const split = splitPersonalityTraits(generatedTraits)
+          selectedTraits = split.selected
+          customPersonalityTraits = split.custom
+        } else if (existingTraits.length < 5) {
+          const merged = mergeTraits(existingTraits, generatedTraits, 5)
+          const split = splitPersonalityTraits(merged)
+          selectedTraits = split.selected
+          customPersonalityTraits = split.custom
+        }
       }
 
-      if (quirks.length === 0 && result.quirks) quirks = result.quirks
-      if (majorFlaws.length === 0 && result.major_flaws) majorFlaws = result.major_flaws
-      if (perks.length === 0 && result.perks) perks = result.perks
+      if (quirksEnabled && quirks.length === 0 && result.quirks) quirks = result.quirks
+      if (majorFlawsEnabled && majorFlaws.length === 0 && result.major_flaws) majorFlaws = result.major_flaws
+      if (perksEnabled && perks.length === 0 && result.perks) perks = result.perks
     } catch (err) {
       showError(err instanceof Error ? err.message : "Autofill failed")
     } finally {
@@ -202,7 +203,17 @@
   let quirks: string[] = existing?.quirks ?? []
   let perks: string[] = existing?.perks ?? []
   $: totalPersonalityCount = selectedTraits.length + customPersonalityTraits.length
-  $: activeModules = { ...$storyDefaults, character_detail_mode: detailMode }
+  $: activeModules = {
+    ...$storyDefaults,
+    character_detail_mode: detailMode,
+    ...(detailMode === "detailed" ? { character_appearance_clothing: true } : {}),
+  }
+  $: traitsEnabled = activeModules.character_personality_traits
+  $: majorFlawsEnabled = activeModules.character_major_flaws
+  $: quirksEnabled = activeModules.character_quirks
+  $: perksEnabled = activeModules.character_perks
+  $: canRegenerateTraits =
+    detailMode === "detailed" && traitsEnabled && majorFlawsEnabled && quirksEnabled && perksEnabled
 
   function isBlocked(trait: string): boolean {
     const opp = OPPOSITES[trait]
@@ -348,8 +359,12 @@
 
   async function regenerateTraits() {
     if (regeneratingTraits) return
-    if (detailMode === "general") {
-      showError("Trait regeneration is disabled in general mode")
+    if (!canRegenerateTraits) {
+      showError(
+        detailMode === "general"
+          ? "Trait regeneration is disabled in general mode"
+          : "Trait regeneration is disabled by story modules",
+      )
       return
     }
     regeneratingTraits = true
@@ -562,14 +577,20 @@
           use:autoresize={currentClothing}
         ></textarea>
       </div>
+    {/if}
 
+    {#if traitsEnabled}
       <div class="field">
         <div class="label-row">
           <!-- svelte-ignore a11y_label_has_associated_control -->
           <label id="traits-label">Personality Traits <span class="hint">(pick up to 5)</span></label>
-          <button class="btn-ghost btn-mini" onclick={regenerateTraits} disabled={generating || regeneratingTraits}
-            >{regeneratingTraits ? "Regenerating..." : "Regenerate"}</button
+          <button
+            class="btn-ghost btn-mini"
+            onclick={regenerateTraits}
+            disabled={generating || regeneratingTraits || !canRegenerateTraits}
           >
+            {regeneratingTraits ? "Regenerating..." : "Regenerate"}
+          </button>
         </div>
         <div class="chips">
           {#each PERSONALITY_OPTIONS as trait}
@@ -582,9 +603,7 @@
           {/each}
         </div>
       </div>
-    {/if}
 
-    {#if detailMode === "detailed"}
       <div class="field">
         <label for="custom-personality-input"
           >Custom Personality Traits <span class="hint">(optional, counts toward 5)</span></label
@@ -615,7 +634,9 @@
           </div>
         {/if}
       </div>
+    {/if}
 
+    {#if majorFlawsEnabled}
       <div class="field">
         <label for="major-flaw-input">Major Flaws <span class="hint">(optional)</span></label>
         <div class="custom-input">
@@ -641,7 +662,9 @@
           </div>
         {/if}
       </div>
+    {/if}
 
+    {#if quirksEnabled}
       <div class="field">
         <label for="quirk-input">Quirks <span class="hint">(optional)</span></label>
         <div class="custom-input">
@@ -667,7 +690,9 @@
           </div>
         {/if}
       </div>
+    {/if}
 
+    {#if perksEnabled}
       <div class="field">
         <label for="perk-input">Perks <span class="hint">(optional)</span></label>
         <div class="custom-input">

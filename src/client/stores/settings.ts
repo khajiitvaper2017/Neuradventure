@@ -41,6 +41,19 @@ const DEFAULT_STORY_MODULES: StoryModules = {
   track_npcs: true,
   track_locations: true,
   character_detail_mode: "detailed",
+  character_appearance_clothing: true,
+  character_personality_traits: true,
+  character_major_flaws: true,
+  character_quirks: true,
+  character_perks: true,
+  character_inventory: true,
+  npc_appearance_clothing: true,
+  npc_personality_traits: true,
+  npc_major_flaws: true,
+  npc_quirks: true,
+  npc_perks: true,
+  npc_location: true,
+  npc_activity: true,
 }
 
 const themeStore = writable<Theme>("default")

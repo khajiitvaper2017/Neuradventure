@@ -10,12 +10,14 @@ import { fileURLToPath } from "node:url"
 import { dirname, resolve } from "node:path"
 import { initDb } from "./core/db.js"
 import { initCtxLimit } from "./llm/index.js"
+import { initFileLogger } from "./utils/file-logger.js"
 import stories from "./api/stories.js"
 import turns from "./api/turns.js"
 import generate from "./api/generate.js"
 import settings from "./api/settings.js"
 import chats from "./api/chats.js"
 
+initFileLogger()
 initDb()
 console.log("Database initialized")
 initCtxLimit().catch((err) => {

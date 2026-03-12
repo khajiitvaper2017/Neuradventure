@@ -125,7 +125,9 @@ input[type="checkbox"] {
 .app.text-justify textarea,
 .app.text-justify .value,
 .app.text-justify .chat-text,
-.app.text-justify .opening-text {
+.app.text-justify .opening-text,
+.app.text-justify .sidebar-body,
+.app.text-justify .panel-body {
   text-align: justify;
 }
 

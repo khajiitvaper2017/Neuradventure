@@ -8,20 +8,28 @@ import type {
 } from "../core/models.js"
 import { getServerDefaults } from "../core/strings.js"
 import { normalizeGender } from "../schemas/normalizers.js"
+import { NPCStateStoredSchema } from "../core/models.js"
+import type { ModuleFlags } from "../schemas/story-modules.js"
 
 // ─── State Application ─────────────────────────────────────────────────────────
 
-export function applyPlayerUpdate(character: MainCharacterState, turnResponse: TurnResponse): MainCharacterState {
-  const appearance = {
-    ...character.appearance,
-    current_appearance: turnResponse.appearance_change ?? character.appearance.current_appearance,
-    current_clothing: turnResponse.clothing_change ?? character.appearance.current_clothing,
-  }
+export function applyPlayerUpdate(
+  character: MainCharacterState,
+  turnResponse: TurnResponse,
+  flags: ModuleFlags,
+): MainCharacterState {
+  const appearance = flags.useCharAppearance
+    ? {
+        ...character.appearance,
+        current_appearance: turnResponse.appearance_change ?? character.appearance.current_appearance,
+        current_clothing: turnResponse.clothing_change ?? character.appearance.current_clothing,
+      }
+    : character.appearance
 
   return {
     ...character,
     appearance,
-    inventory: turnResponse.inventory_change ?? character.inventory,
+    inventory: flags.useCharInventory ? (turnResponse.inventory_change ?? character.inventory) : character.inventory,
   }
 }
 
@@ -115,14 +123,13 @@ export function syncLocationCharacters(world: WorldState, character: MainCharact
 }
 
 export function buildNpcFromCreation(creation: NPCCreation): NPCState {
-  return {
+  return NPCStateStoredSchema.parse({
     ...creation,
     gender: normalizeGender(creation.gender, getServerDefaults().unknown.value),
-    inventory: creation.inventory ?? [],
-  }
+  })
 }
 
-export function applyNPCUpdates(npcs: NPCState[], updates: NPCStateUpdate[]): NPCState[] {
+export function applyNPCUpdates(npcs: NPCState[], updates: NPCStateUpdate[], flags: ModuleFlags): NPCState[] {
   return npcs.map((npc) => {
     const patch = updates.find((u) => u.name.toLowerCase() === npc.name.toLowerCase())
     if (!patch) return npc
@@ -131,13 +138,21 @@ export function applyNPCUpdates(npcs: NPCState[], updates: NPCStateUpdate[]): NP
       ...npc,
       race: patch.race ?? npc.race,
       gender: patch.gender ? normalizeGender(patch.gender, npc.gender) : npc.gender,
-      current_location: patch.set_current_location ?? npc.current_location,
+      current_location: flags.useNpcLocation
+        ? (patch.set_current_location ?? npc.current_location)
+        : npc.current_location,
       appearance: {
         ...npc.appearance,
-        current_appearance: patch.set_current_appearance ?? npc.appearance.current_appearance,
-        current_clothing: patch.set_current_clothing ?? npc.appearance.current_clothing,
+        current_appearance: flags.useNpcAppearance
+          ? (patch.set_current_appearance ?? npc.appearance.current_appearance)
+          : npc.appearance.current_appearance,
+        current_clothing: flags.useNpcAppearance
+          ? (patch.set_current_clothing ?? npc.appearance.current_clothing)
+          : npc.appearance.current_clothing,
       },
-      current_activity: patch.set_current_activity ?? npc.current_activity,
+      current_activity: flags.useNpcActivity
+        ? (patch.set_current_activity ?? npc.current_activity)
+        : npc.current_activity,
     }
   })
 }
@@ -180,10 +195,6 @@ export function collectLlmWarnings(world: WorldState, npcs: NPCState[], turnResp
   if (worldUpdate.current_date !== undefined) {
     provided += 1
     if (worldUpdate.current_date === world.current_date) unchanged += 1
-  }
-  if (worldUpdate.memory !== undefined) {
-    provided += 1
-    if (worldUpdate.memory === world.memory) unchanged += 1
   }
   if (worldUpdate.locations !== undefined) {
     provided += 1
