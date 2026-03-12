@@ -245,116 +245,119 @@
     </button>
   </div>
 
-  {#if showCharacters}
-    <div class="character-panel">
-      {#if loadingCharacters}
-        <div class="empty">Loading characters...</div>
-      {:else if storyCharacters.length === 0}
+  <div class="home-scroll" data-scroll-root="screen">
+    {#if showCharacters}
+      <div class="character-panel">
+        {#if loadingCharacters}
+          <div class="empty">Loading characters...</div>
+        {:else if storyCharacters.length === 0}
+          <div class="empty">
+            <p>No characters from stories yet.</p>
+            <p class="empty-hint">Finish a story to reuse its character here.</p>
+          </div>
+        {:else}
+          {#each storyCharacters as group}
+            <div class="char-card">
+              <div class="char-card-header">
+                <div class="char-card-name">{group.character.name}</div>
+                <div class="char-card-meta">
+                  {group.character.gender} · {group.character.race}
+                </div>
+              </div>
+              <div class="char-card-traits">
+                {[...group.character.personality_traits, ...group.character.quirks, ...group.character.perks].join(
+                  ", ",
+                ) || "No traits"}
+              </div>
+              <div class="char-card-actions">
+                <button class="btn-ghost small" onclick={() => startNewWithCharacter(group)}>New Story</button>
+                <button class="btn-ghost small" onclick={() => exportCharacter(group, "tavern-card")}>Export ST</button>
+                <button class="btn-ghost small" onclick={() => exportCharacter(group, "neuradventure")}>Export</button>
+              </div>
+              <div class="char-card-stories">
+                <div class="char-card-label">Stories</div>
+                <div class="char-card-links">
+                  {#each group.stories as s}
+                    <button class="story-link" onclick={() => openStoryById(s.id)}>
+                      {s.title}
+                    </button>
+                  {/each}
+                </div>
+              </div>
+            </div>
+          {/each}
+        {/if}
+      </div>
+    {/if}
+
+    <!-- Story list -->
+    <div class="story-list">
+      <div class="list-header">Chats</div>
+      {#if loadingChats}
+        <div class="empty">Loading chats...</div>
+      {:else if chats.length === 0}
         <div class="empty">
-          <p>No characters from stories yet.</p>
-          <p class="empty-hint">Finish a story to reuse its character here.</p>
+          <p>No chats yet.</p>
+          <p class="empty-hint">Start a new group chat above.</p>
         </div>
       {:else}
-        {#each storyCharacters as group}
-          <div class="char-card">
-            <div class="char-card-header">
-              <div class="char-card-name">{group.character.name}</div>
-              <div class="char-card-meta">
-                {group.character.gender} · {group.character.race}
-              </div>
-            </div>
-            <div class="char-card-traits">
-              {[...group.character.personality_traits, ...group.character.quirks, ...group.character.perks].join(
-                ", ",
-              ) || "No traits"}
-            </div>
-            <div class="char-card-actions">
-              <button class="btn-ghost small" onclick={() => startNewWithCharacter(group)}>New Story</button>
-              <button class="btn-ghost small" onclick={() => exportCharacter(group, "tavern-card")}>Export ST</button>
-              <button class="btn-ghost small" onclick={() => exportCharacter(group, "neuradventure")}>Export</button>
-            </div>
-            <div class="char-card-stories">
-              <div class="char-card-label">Stories</div>
-              <div class="char-card-links">
-                {#each group.stories as s}
-                  <button class="story-link" onclick={() => openStoryById(s.id)}>
-                    {s.title}
-                  </button>
-                {/each}
-              </div>
+        {#each chats as chat (chat.id)}
+          <div class="story-row">
+            <button class="story-btn" onclick={() => openChat(chat)}>
+              <span class="story-title">{chat.title || chat.player_name || "Chat"}</span>
+              <span class="story-meta">
+                {chat.participants.join(" · ")} &middot; {chat.message_count} messages &middot;
+                {relativeTime(chat.updated_at)}
+              </span>
+            </button>
+          </div>
+        {/each}
+      {/if}
+
+      <div class="list-header">Stories</div>
+      {#if loading}
+        <div class="empty">Loading...</div>
+      {:else if stories.length === 0}
+        <div class="empty">
+          <p>No stories yet.</p>
+          <p class="empty-hint">Begin a new adventure above.</p>
+        </div>
+      {:else}
+        {#each stories as story (story.id)}
+          <div class="story-row">
+            <button class="story-btn" onclick={() => openStory(story)}>
+              <span class="story-title">{story.title}</span>
+              <span class="story-meta">
+                {story.character_name} &middot; {story.turn_count} turns &middot; {relativeTime(story.updated_at)}
+              </span>
+            </button>
+
+            <div class="story-menu-wrap">
+              <button
+                class="menu-btn"
+                aria-label="Story options"
+                onclick={(e) => {
+                  e.stopPropagation()
+                  openMenuId = openMenuId === story.id ? null : story.id
+                }}
+              >
+                <IconDots size={14} strokeWidth={2} />
+              </button>
+              {#if openMenuId === story.id}
+                <div class="dropdown">
+                  <a href={api.stories.exportUrl(story.id, "neuradventure")} download class="dropdown-link">
+                    Export JSON
+                  </a>
+                  <a href={api.stories.exportUrl(story.id, "tavern")} download class="dropdown-link">Export ST Chat</a>
+                  <a href={api.stories.exportUrl(story.id, "plaintext")} download class="dropdown-link">Export Text</a>
+                  <button class="danger-item" onclick={() => deleteStory(story.id)}>Delete</button>
+                </div>
+              {/if}
             </div>
           </div>
         {/each}
       {/if}
     </div>
-  {/if}
-
-  <!-- Story list -->
-  <div class="story-list" data-scroll-root="screen">
-    <div class="list-header">Chats</div>
-    {#if loadingChats}
-      <div class="empty">Loading chats...</div>
-    {:else if chats.length === 0}
-      <div class="empty">
-        <p>No chats yet.</p>
-        <p class="empty-hint">Start a new group chat above.</p>
-      </div>
-    {:else}
-      {#each chats as chat (chat.id)}
-        <div class="story-row">
-          <button class="story-btn" onclick={() => openChat(chat)}>
-            <span class="story-title">{chat.title || chat.player_name || "Chat"}</span>
-            <span class="story-meta">
-              {chat.participants.join(" · ")} &middot; {chat.message_count} messages &middot;
-              {relativeTime(chat.updated_at)}
-            </span>
-          </button>
-        </div>
-      {/each}
-    {/if}
-
-    <div class="list-header">Stories</div>
-    {#if loading}
-      <div class="empty">Loading...</div>
-    {:else if stories.length === 0}
-      <div class="empty">
-        <p>No stories yet.</p>
-        <p class="empty-hint">Begin a new adventure above.</p>
-      </div>
-    {:else}
-      {#each stories as story (story.id)}
-        <div class="story-row">
-          <button class="story-btn" onclick={() => openStory(story)}>
-            <span class="story-title">{story.title}</span>
-            <span class="story-meta">
-              {story.character_name} &middot; {story.turn_count} turns &middot; {relativeTime(story.updated_at)}
-            </span>
-          </button>
-
-          <div class="story-menu-wrap">
-            <button
-              class="menu-btn"
-              aria-label="Story options"
-              onclick={(e) => {
-                e.stopPropagation()
-                openMenuId = openMenuId === story.id ? null : story.id
-              }}
-            >
-              <IconDots size={14} strokeWidth={2} />
-            </button>
-            {#if openMenuId === story.id}
-              <div class="dropdown">
-                <a href={api.stories.exportUrl(story.id, "neuradventure")} download class="dropdown-link">Export JSON</a
-                >
-                <a href={api.stories.exportUrl(story.id, "tavern")} download class="dropdown-link">Export ST Chat</a>
-                <a href={api.stories.exportUrl(story.id, "plaintext")} download class="dropdown-link">Export Text</a>
-                <button class="danger-item" onclick={() => deleteStory(story.id)}>Delete</button>
-              </div>
-            {/if}
-          </div>
-        </div>
-      {/each}
-    {/if}
   </div>
 
   <footer>
@@ -465,6 +468,12 @@
     flex-direction: column;
     gap: 0.75rem;
   }
+
+  .home-scroll {
+    flex: 1;
+    overflow-y: auto;
+    min-height: 0;
+  }
   .char-card {
     background: var(--bg-raised);
     border: 1px solid var(--border);
@@ -529,8 +538,8 @@
 
   /* Story list */
   .story-list {
-    flex: 1;
-    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
   }
   .list-header {
     padding: 0.85rem 1rem 0.4rem;
@@ -620,7 +629,6 @@
   footer {
     padding: 0.85rem 1rem;
     border-top: 1px solid var(--border);
-    margin-top: auto;
   }
   footer button {
     width: 100%;
