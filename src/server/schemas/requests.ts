@@ -71,7 +71,7 @@ export const UpdateStoryStateRequestSchema = z
   })
 
 export const UpdateTurnRequestSchema = z.object({
-  player_input: z.string().min(1).optional(),
+  player_input: z.string().optional(),
   narrative_text: z.string().min(1).optional(),
 })
 

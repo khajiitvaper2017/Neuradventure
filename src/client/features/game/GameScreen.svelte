@@ -471,10 +471,11 @@
 
   async function saveTurnEdit(turnId: number) {
     const turnMode = $turns.find((turn) => turn.id === turnId)?.action_mode
-    const playerInput = normalizePlayerInput(editPlayerInput, turnMode)
     const narrative = editNarrative.trim()
-    if (!playerInput || !narrative) {
-      showError("Player input and narrative text are required")
+    const playerInputRaw = editPlayerInput.trim()
+    const playerInput = playerInputRaw ? normalizePlayerInput(playerInputRaw, turnMode) : ""
+    if (!narrative) {
+      showError("Narrative text is required")
       return
     }
     try {
