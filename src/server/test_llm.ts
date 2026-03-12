@@ -58,7 +58,7 @@ async function main() {
   console.log("\n=== LLM Response ===")
   console.log("Narrative:", response.narrative_text)
   console.log("\nWorld update:", response.world_state_update)
-  console.log("Set current appearance:", response.set_current_appearance)
+  console.log("Set current appearance:", response.current_appearance)
   console.log("Current clothing:", response.current_clothing)
   console.log("Set current inventory:", response.set_current_inventory)
   console.log("NPC changes:", response.npc_changes)

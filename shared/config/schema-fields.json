@@ -3,7 +3,7 @@
     "turn_response": {
       "narrative_text": "1-3 short paragraphs in second-person present tense. Separate paragraphs with a literal \\n\\n.",
       "world_state_update": "Full world state update object.",
-      "set_current_appearance": "Precise, surgical full current description in the same style as baseline, integrating baseline features plus current changes (do not omit baseline details). Never output 'None'; omit the field if unchanged.",
+      "current_appearance": "Precise, surgical full current description in the same style as baseline, integrating baseline features plus current changes (do not omit baseline details). Never output 'None'; omit the field if unchanged.",
       "set_current_inventory": "Complete, updated inventory list (not a diff). Omit the field if inventory did not change.",
       "npc_changes": "List of updates for existing NPCs whose state changed this turn.",
       "npc_introductions": "List of newly introduced NPCs with full details. Omit the field if there are no new NPCs."
@@ -17,8 +17,8 @@
     },
     "npc_update": {
       "name": "NPC name to update.",
-      "set_current_location": "Updated current unique location name. Update only when changed.",
-      "set_current_appearance": "Precise, surgical description of current physical state based on baseline features plus current changes. Avoid temporal qualifiers (e.g., \"still\") and comparative phrases (e.g., \"otherwise unchanged\"). Never output 'None'; omit the field if unchanged."
+      "current_location": "Updated current unique location name. Update only when changed.",
+      "current_appearance": "Precise, surgical description of current physical state based on baseline features plus current changes. Avoid temporal qualifiers (e.g., \"still\") and comparative phrases (e.g., \"otherwise unchanged\"). Never output 'None'; omit the field if unchanged."
     }
   },
   "state": {

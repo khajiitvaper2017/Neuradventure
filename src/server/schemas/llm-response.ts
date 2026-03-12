@@ -28,14 +28,14 @@ export const buildNPCStateUpdateSchema = (
   if (flags.allowLocation) {
     variants.push(
       base.extend({
-        set_current_location: z.string().min(1),
+        current_location: z.string().min(1),
       }),
     )
   }
   if (flags.allowAppearance) {
     variants.push(
       base.extend({
-        set_current_appearance: z.string().min(1),
+        current_appearance: z.string().min(1),
       }),
     )
   }
@@ -88,7 +88,7 @@ export const TurnResponseSchema = z
   .object({
     narrative_text: z.string().min(1),
     world_state_update: WorldStateUpdateSchema,
-    set_current_appearance: SetCurrentAppearanceSection.optional(),
+    current_appearance: SetCurrentAppearanceSection.optional(),
     current_clothing: CurrentClothingSection.optional(),
     set_current_inventory: SetCurrentInventorySection.optional(),
     npc_changes: NPCChangesSection.optional(),

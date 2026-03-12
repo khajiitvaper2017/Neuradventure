@@ -21,7 +21,7 @@ export function applyPlayerUpdate(
   const appearance = flags.useCharAppearance
     ? {
         ...character.appearance,
-        current_appearance: turnResponse.set_current_appearance ?? character.appearance.current_appearance,
+        current_appearance: turnResponse.current_appearance ?? character.appearance.current_appearance,
         current_clothing: turnResponse.current_clothing ?? character.appearance.current_clothing,
       }
     : character.appearance
@@ -140,13 +140,11 @@ export function applyNPCUpdates(npcs: NPCState[], updates: NPCStateUpdate[], fla
       ...npc,
       race: patch.race ?? npc.race,
       gender: patch.gender ? normalizeGender(patch.gender, npc.gender) : npc.gender,
-      current_location: flags.useNpcLocation
-        ? (patch.set_current_location ?? npc.current_location)
-        : npc.current_location,
+      current_location: flags.useNpcLocation ? (patch.current_location ?? npc.current_location) : npc.current_location,
       appearance: {
         ...npc.appearance,
         current_appearance: flags.useNpcAppearance
-          ? (patch.set_current_appearance ?? npc.appearance.current_appearance)
+          ? (patch.current_appearance ?? npc.appearance.current_appearance)
           : npc.appearance.current_appearance,
         current_clothing: flags.useNpcAppearance
           ? (patch.current_clothing ?? npc.appearance.current_clothing)
@@ -214,11 +212,11 @@ export function collectLlmWarnings(world: WorldState, npcs: NPCState[], turnResp
       warnings.push(`npc_changes[${patch.name}] refers to unknown NPC; use npc_introductions`)
       continue
     }
-    if (patch.set_current_location && patch.set_current_location === npc.current_location) {
-      warnings.push(`npc_changes[${npc.name}].set_current_location matches existing value`)
+    if (patch.current_location && patch.current_location === npc.current_location) {
+      warnings.push(`npc_changes[${npc.name}].current_location matches existing value`)
     }
-    if (patch.set_current_appearance && patch.set_current_appearance === npc.appearance.current_appearance) {
-      warnings.push(`npc_changes[${npc.name}].set_current_appearance matches existing value`)
+    if (patch.current_appearance && patch.current_appearance === npc.appearance.current_appearance) {
+      warnings.push(`npc_changes[${npc.name}].current_appearance matches existing value`)
     }
     if (patch.current_clothing && patch.current_clothing === npc.appearance.current_clothing) {
       warnings.push(`npc_changes[${npc.name}].current_clothing matches existing value`)
