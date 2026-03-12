@@ -1,5 +1,12 @@
-import type { MainCharacterState, NPCCreation, NPCState, NPCStateUpdate, TurnResponse, WorldState } from "../models.js"
-import { getServerDefaults } from "../strings.js"
+import type {
+  MainCharacterState,
+  NPCCreation,
+  NPCState,
+  NPCStateUpdate,
+  TurnResponse,
+  WorldState,
+} from "../core/models.js"
+import { getServerDefaults } from "../core/strings.js"
 
 // ─── State Application ─────────────────────────────────────────────────────────
 

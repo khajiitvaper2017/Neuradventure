@@ -1,8 +1,8 @@
 import { Hono } from "hono"
 import { zValidator } from "@hono/zod-validator"
 import { z } from "zod"
-import { CreateCharacterRequestSchema } from "../models.js"
-import { generateCharacter, generateCharacterPart, generateStory } from "../llm.js"
+import { CreateCharacterRequestSchema } from "../core/models.js"
+import { generateCharacter, generateCharacterPart, generateStory } from "../llm/index.js"
 import { desc } from "../schemas/field-descriptions.js"
 
 const generate = new Hono()

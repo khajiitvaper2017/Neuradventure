@@ -8,12 +8,12 @@ import { createServer as createHttpServer } from "node:http"
 import { readFile } from "node:fs/promises"
 import { fileURLToPath } from "node:url"
 import { dirname, resolve } from "node:path"
-import { initDb } from "./db.js"
-import { initCtxLimit } from "./llm.js"
-import stories from "./routes/stories.js"
-import turns from "./routes/turns.js"
-import generate from "./routes/generate.js"
-import settings from "./routes/settings.js"
+import { initDb } from "./core/db.js"
+import { initCtxLimit } from "./llm/index.js"
+import stories from "./api/stories.js"
+import turns from "./api/turns.js"
+import generate from "./api/generate.js"
+import settings from "./api/settings.js"
 
 initDb()
 console.log("Database initialized")

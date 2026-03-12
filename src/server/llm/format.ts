@@ -1,7 +1,7 @@
-import type { MainCharacterState, NPCState, WorldState } from "../models.js"
-import type { TurnRow } from "../db.js"
+import type { MainCharacterState, NPCState, WorldState } from "../core/models.js"
+import type { TurnRow } from "../core/db.js"
 import { getSectionFormat } from "./config.js"
-import { formatTemplate, getLlmStrings, getServerDefaults } from "../strings.js"
+import { formatTemplate, getLlmStrings, getServerDefaults } from "../core/strings.js"
 
 function toTitleCase(tag: string): string {
   return tag.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase())

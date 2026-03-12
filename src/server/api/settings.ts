@@ -4,8 +4,8 @@ import { z } from "zod"
 import { readdirSync, readFileSync } from "node:fs"
 import { fileURLToPath } from "node:url"
 import { dirname, join } from "node:path"
-import * as db from "../db.js"
-import { getCtxLimitCached } from "../llm.js"
+import * as db from "../core/db.js"
+import { getCtxLimitCached } from "../llm/index.js"
 import { desc } from "../schemas/field-descriptions.js"
 
 const __dirname = dirname(fileURLToPath(import.meta.url))

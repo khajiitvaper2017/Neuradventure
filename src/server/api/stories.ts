@@ -1,7 +1,7 @@
 import { Hono } from "hono"
 import { zValidator } from "@hono/zod-validator"
 import { z } from "zod"
-import * as db from "../db.js"
+import * as db from "../core/db.js"
 import {
   CreateStoryRequestSchema,
   MainCharacterStateSchema,
@@ -10,8 +10,8 @@ import {
   UpdateStoryRequestSchema,
   UpdateStoryStateRequestSchema,
   WorldStateStoredSchema,
-} from "../models.js"
-import { createNewStory } from "../game.js"
+} from "../core/models.js"
+import { createNewStory } from "../game/index.js"
 import { desc } from "../schemas/field-descriptions.js"
 import {
   characterToTavernCard,
@@ -21,7 +21,7 @@ import {
   detectImportFormat,
   parseTavernJSONL,
   type TavernCardV2,
-} from "../converters/tavern.js"
+} from "../utils/converters/tavern.js"
 
 const stories = new Hono()
 

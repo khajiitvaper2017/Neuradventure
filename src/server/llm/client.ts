@@ -1,5 +1,5 @@
 import OpenAI from "openai"
-import { type GenerationParams, type LLMConnector, getSettings } from "../db.js"
+import { type GenerationParams, type LLMConnector, getSettings } from "../core/db.js"
 
 // ─── OpenAI client (re-created when connector settings change) ───────────────
 

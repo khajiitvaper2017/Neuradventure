@@ -1,5 +1,5 @@
 import { mount } from "svelte"
-import "./app.css"
+import "./styles/app.css"
 import App from "./App.svelte"
 
 window.addEventListener("error", (e) => {

@@ -6,11 +6,11 @@
     type NPCState,
     type StoryCharacterGroup,
     type StoryNpcGroup,
-  } from "../api/client.js"
-  import { navigate, showError } from "../stores/ui.js"
-  import { autoresize } from "./actions/autoresize.js"
-  import { loadStoryById } from "./storyLoader.js"
-  import { loadPromptHistory, savePromptHistory, removePromptHistory } from "./utils/promptHistory.js"
+  } from "../../api/client.js"
+  import { navigate, showError } from "../../stores/ui.js"
+  import { autoresize } from "../../utils/actions/autoresize.js"
+  import { loadStoryById } from "../../utils/storyLoader.js"
+  import { loadPromptHistory, savePromptHistory, removePromptHistory } from "../../utils/promptHistory.js"
   import IconTrash from "../icons/IconTrash.svelte"
   import {
     pendingCharacter,
@@ -22,7 +22,7 @@
     pendingStoryTime,
     pendingStoryGenerateDescription,
     pendingCharacterId,
-  } from "../stores/game.js"
+  } from "../../stores/game.js"
 
   let submitting = false
   let generating = false

@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { confirmDialog, resolveConfirm } from "../stores/ui.js"
+  import { confirmDialog, resolveConfirm } from "../../stores/ui.js"
 
   function onKeydown(e: KeyboardEvent) {
     if (!$confirmDialog) return

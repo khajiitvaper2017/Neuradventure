@@ -3,10 +3,10 @@
   import { api, type StoryMeta, type StoryCharacterGroup, type CharacterImportResult } from "../api/client.js"
   import { navigate, showError, showConfirm } from "../stores/ui.js"
   import { theme } from "../stores/settings.js"
-  import IconDots from "../icons/IconDots.svelte"
-  import IconGear from "../icons/IconGear.svelte"
-  import IconPlus from "../icons/IconPlus.svelte"
-  import IconUser from "../icons/IconUser.svelte"
+  import IconDots from "../components/icons/IconDots.svelte"
+  import IconGear from "../components/icons/IconGear.svelte"
+  import IconPlus from "../components/icons/IconPlus.svelte"
+  import IconUser from "../components/icons/IconUser.svelte"
   import {
     resetActiveStory,
     resetGame,
@@ -19,7 +19,7 @@
     pendingStoryNPCs,
     pendingStoryLocation,
   } from "../stores/game.js"
-  import { loadStoryById } from "./storyLoader.js"
+  import { loadStoryById } from "../utils/storyLoader.js"
 
   let stories: StoryMeta[] = []
   let loading = true

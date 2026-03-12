@@ -12,8 +12,8 @@ import {
   NPCStateStoredSchema,
   WorldStateSchema,
   WorldStateStoredSchema,
-} from "./schemas/game-state.js"
-import { NPCStateUpdateBaseSchema } from "./schemas/npc-state-update-base.js"
+} from "../schemas/game-state.js"
+import { NPCStateUpdateBaseSchema } from "../schemas/npc-state-update-base.js"
 import {
   AppearanceChangeSection,
   ClothingChangeSection,
@@ -25,14 +25,14 @@ import {
   TurnResponseSchema,
   buildNPCChangesSection,
   buildNPCStateUpdateSchema,
-} from "./schemas/llm-response.js"
+} from "../schemas/llm-response.js"
 import {
   GenerateCharacterAppearanceResponseSchema,
   GenerateCharacterClothingResponseSchema,
   GenerateCharacterResponseSchema,
   GenerateCharacterTraitsResponseSchema,
   GenerateStoryResponseSchema,
-} from "./schemas/generation-response.js"
+} from "../schemas/generation-response.js"
 import {
   CancelLastRequestSchema,
   CreateCharacterRequestSchema,
@@ -46,7 +46,7 @@ import {
   UpdateStoryRequestSchema,
   UpdateStoryStateRequestSchema,
   UpdateTurnRequestSchema,
-} from "./schemas/requests.js"
+} from "../schemas/requests.js"
 
 export {
   InventoryItemSchema,

@@ -7,9 +7,9 @@ import {
   type NPCStateUpdate,
   type NPCState,
   type WorldState,
-} from "./models.js"
+} from "../core/models.js"
 type NPCUpdateArray = NPCStateUpdate[]
-import * as db from "./db.js"
+import * as db from "../core/db.js"
 import {
   buildNpcCreationMessages,
   buildTurnMessages,
@@ -17,8 +17,8 @@ import {
   generateNpcCreation,
   generatePlayerAction,
   getCtxLimitCached,
-} from "./llm.js"
-import { DATE_REGEX, TIME_OF_DAY_REGEX } from "./schemas/constants.js"
+} from "../llm/index.js"
+import { DATE_REGEX, TIME_OF_DAY_REGEX } from "../schemas/constants.js"
 import {
   applyNPCCreations,
   applyNPCUpdates,
@@ -28,9 +28,9 @@ import {
   mergeLocations,
   syncCharacterLocation,
   syncLocationCharacters,
-} from "./game/state.js"
-import { parseInitialStorySnapshot, parseTurnSnapshot, parseTurnVariantSnapshot } from "./game/snapshots.js"
-import { getServerDefaults } from "./strings.js"
+} from "./state.js"
+import { parseInitialStorySnapshot, parseTurnSnapshot, parseTurnVariantSnapshot } from "./snapshots.js"
+import { getServerDefaults } from "../core/strings.js"
 
 // ─── Core Game Operations ──────────────────────────────────────────────────────
 

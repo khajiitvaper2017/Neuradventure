@@ -1,6 +1,6 @@
 // Quick test to verify LLM integration. Run with: npm run test-llm
-import { buildTurnMessages, callLLM, testConnection } from "./llm.js"
-import type { MainCharacterState, NPCState, WorldState } from "./models.js"
+import { buildTurnMessages, callLLM, testConnection } from "./llm/index.js"
+import type { MainCharacterState, NPCState, WorldState } from "./core/models.js"
 
 const character: MainCharacterState = {
   name: "Kira Solene",

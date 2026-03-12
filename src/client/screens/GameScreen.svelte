@@ -10,17 +10,17 @@
     showConfirm,
     showQuietNotice,
   } from "../stores/ui.js"
-  import { autoresize } from "./actions/autoresize.js"
-  import IconDots from "../icons/IconDots.svelte"
-  import IconFace from "../icons/IconFace.svelte"
-  import IconHome from "../icons/IconHome.svelte"
-  import IconMapPin from "../icons/IconMapPin.svelte"
-  import IconPencilSquare from "../icons/IconPencilSquare.svelte"
-  import IconSend from "../icons/IconSend.svelte"
-  import IconSpinner from "../icons/IconSpinner.svelte"
-  import IconTrash from "../icons/IconTrash.svelte"
-  import IconUser from "../icons/IconUser.svelte"
-  import IconUsers from "../icons/IconUsers.svelte"
+  import { autoresize } from "../utils/actions/autoresize.js"
+  import IconDots from "../components/icons/IconDots.svelte"
+  import IconFace from "../components/icons/IconFace.svelte"
+  import IconHome from "../components/icons/IconHome.svelte"
+  import IconMapPin from "../components/icons/IconMapPin.svelte"
+  import IconPencilSquare from "../components/icons/IconPencilSquare.svelte"
+  import IconSend from "../components/icons/IconSend.svelte"
+  import IconSpinner from "../components/icons/IconSpinner.svelte"
+  import IconTrash from "../components/icons/IconTrash.svelte"
+  import IconUser from "../components/icons/IconUser.svelte"
+  import IconUsers from "../components/icons/IconUsers.svelte"
   import {
     currentStoryId,
     currentStoryTitle,
@@ -37,7 +37,7 @@
     llmUpdateId,
     markLlmUpdate,
   } from "../stores/game.js"
-  import { tokenizeInline } from "./utils/inlineTokens.js"
+  import { tokenizeInline } from "../utils/inlineTokens.js"
 
   type ActionMode = "do" | "say" | "story"
   const ACTION_MODES: ActionMode[] = ["do", "say", "story"]

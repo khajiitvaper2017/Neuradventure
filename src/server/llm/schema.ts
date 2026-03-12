@@ -5,7 +5,7 @@ import {
   TurnResponseSchema,
   type NPCState,
   type TurnResponse,
-} from "../models.js"
+} from "../core/models.js"
 import { desc } from "../schemas/field-descriptions.js"
 
 export function buildTurnResponseSchema(knownNpcs: NPCState[]): z.ZodType<TurnResponse, z.ZodTypeDef, unknown> {

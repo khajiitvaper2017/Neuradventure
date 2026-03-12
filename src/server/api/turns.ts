@@ -1,6 +1,6 @@
 import { Hono } from "hono"
 import { zValidator } from "@hono/zod-validator"
-import * as db from "../db.js"
+import * as db from "../core/db.js"
 import {
   CancelLastRequestSchema,
   ImpersonateRequestSchema,
@@ -10,7 +10,7 @@ import {
   UndoCancelRequestSchema,
   UpdateTurnRequestSchema,
   WorldStateStoredSchema,
-} from "../models.js"
+} from "../core/models.js"
 import {
   buildTurnResultFromRow,
   cancelLastTurn,
@@ -20,7 +20,7 @@ import {
   regenerateLastTurn,
   selectTurnVariant,
   undoCancelLastTurn,
-} from "../game.js"
+} from "../game/index.js"
 
 const turns = new Hono()
 const inFlight = new Map<string, ReturnType<typeof processTurn>>()

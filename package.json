@@ -11,7 +11,9 @@
     "preview": "vite preview",
     "format": "prettier --write \"src/**/*.{ts,svelte,css}\" \"*.{json,js,ts}\"",
     "lint": "eslint src && tsc -p tsconfig.json --noEmit",
-    "check": "svelte-check --tsconfig ./tsconfig.app.json && tsc -p tsconfig.node.json",
+    "check:config": "tsx scripts/check-configs.ts",
+    "check:css": "tsx scripts/check-css-imports.ts",
+    "check": "npm run check:config && npm run check:css && svelte-check --tsconfig ./tsconfig.app.json && tsc -p tsconfig.node.json",
     "test-llm": "tsx --tsconfig tsconfig.json src/server/test_llm.ts"
   },
   "dependencies": {

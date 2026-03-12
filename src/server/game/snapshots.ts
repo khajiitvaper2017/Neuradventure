@@ -5,8 +5,8 @@ import {
   type MainCharacterState,
   type NPCState,
   type WorldState,
-} from "../models.js"
-import type { StoryRow, TurnRow, TurnVariantRow } from "../db.js"
+} from "../core/models.js"
+import type { StoryRow, TurnRow, TurnVariantRow } from "../core/db.js"
 
 export function parseTurnSnapshot(turn: TurnRow): {
   character: MainCharacterState

@@ -1,5 +1,5 @@
 import OpenAI from "openai"
-import { buildJsonSchemaResponseFormat, derefJsonSchema, zodSchemaToJsonSchema } from "./json-schema.js"
+import { buildJsonSchemaResponseFormat, derefJsonSchema, zodSchemaToJsonSchema } from "../utils/json-schema.js"
 import {
   GenerateCharacterResponseSchema,
   GenerateCharacterAppearanceResponseSchema,
@@ -17,18 +17,18 @@ import {
   type GenerateCharacterClothingResponse,
   type GenerateCharacterTraitsResponse,
   type GenerateStoryResponse,
-} from "./models.js"
-import { type TurnRow } from "./db.js"
-import { buildTurnResponseSchema } from "./llm/schema.js"
-import { buildSamplingParams } from "./llm/sampling.js"
-import { parseJsonFromContent } from "./llm/parse.js"
-import { getClient, getGenerationParams, getConnector } from "./llm/client.js"
-import { getConfig, npcTraits } from "./llm/config.js"
-import { buildImpersonateMessages } from "./llm/context.js"
-import { formatTemplate, getLlmStrings, getServerDefaults } from "./strings.js"
+} from "../core/models.js"
+import { type TurnRow } from "../core/db.js"
+import { buildTurnResponseSchema } from "./schema.js"
+import { buildSamplingParams } from "./sampling.js"
+import { parseJsonFromContent } from "./parse.js"
+import { getClient, getGenerationParams, getConnector } from "./client.js"
+import { getConfig, npcTraits } from "./config.js"
+import { buildImpersonateMessages } from "./context.js"
+import { formatTemplate, getLlmStrings, getServerDefaults } from "../core/strings.js"
 
-export { buildTurnMessages, buildNpcCreationMessages, buildImpersonateMessages } from "./llm/context.js"
-export { getCtxLimit, getCtxLimitCached, initCtxLimit } from "./llm/client.js"
+export { buildTurnMessages, buildNpcCreationMessages, buildImpersonateMessages } from "./context.js"
+export { getCtxLimit, getCtxLimitCached, initCtxLimit } from "./client.js"
 
 export async function callLLM(
   messages: OpenAI.ChatCompletionMessageParam[],

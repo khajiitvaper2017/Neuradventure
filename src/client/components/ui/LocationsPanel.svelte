@@ -1,7 +1,7 @@
 <script lang="ts">
-  import { showLocations } from "../stores/ui.js"
-  import { worldState } from "../stores/game.js"
-  import type { Location } from "../api/client.js"
+  import { showLocations } from "../../stores/ui.js"
+  import { worldState } from "../../stores/game.js"
+  import type { Location } from "../../api/client.js"
   import IconMapPin from "../icons/IconMapPin.svelte"
   import IconUsers from "../icons/IconUsers.svelte"
   import IconCube from "../icons/IconCube.svelte"

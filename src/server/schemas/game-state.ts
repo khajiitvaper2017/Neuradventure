@@ -14,7 +14,7 @@ import {
   stripSummaryLeak,
 } from "./normalizers.js"
 import { desc } from "./field-descriptions.js"
-import { getServerDefaults } from "../strings.js"
+import { getServerDefaults } from "../core/strings.js"
 
 export const InventoryItemSchema = z
   .object({

@@ -1,6 +1,6 @@
 import OpenAI from "openai"
-import type { MainCharacterState, NPCState, WorldState } from "../models.js"
-import type { TurnRow } from "../db.js"
+import type { MainCharacterState, NPCState, WorldState } from "../core/models.js"
+import type { TurnRow } from "../core/db.js"
 import { getGenerationParams } from "./client.js"
 import { getImpersonatePrompt, getNpcCreationPrompt, getSystemPrompt } from "./config.js"
 import {
@@ -12,7 +12,7 @@ import {
   wrapSection,
   estimateTokens,
 } from "./format.js"
-import { formatTemplate, getLlmStrings, getServerDefaults } from "../strings.js"
+import { formatTemplate, getLlmStrings, getServerDefaults } from "../core/strings.js"
 
 // ─── Shared context block builder ─────────────────────────────────────────────
 

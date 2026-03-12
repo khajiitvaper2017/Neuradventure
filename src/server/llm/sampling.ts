@@ -1,4 +1,4 @@
-import type { GenerationParams } from "../db.js"
+import type { GenerationParams } from "../core/db.js"
 
 export function buildSamplingParams(
   gen: GenerationParams,
