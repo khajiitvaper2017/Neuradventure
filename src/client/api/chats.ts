@@ -17,6 +17,9 @@ export const chats = {
   messages: (id: number) => request<ChatMessage[]>(`/api/chats/${id}/messages`),
   update: (id: number, data: { title?: string; scenario?: string }) =>
     request<ChatUpdateResult>(`/api/chats/${id}`, { method: "PUT", body: JSON.stringify(data) }),
+  delete: (id: number) => request<{ ok: boolean }>(`/api/chats/${id}`, { method: "DELETE" }),
+  exportUrl: (id: number, format?: "neuradventure" | "tavern" | "plaintext") =>
+    `/api/chats/${id}/export${format ? `?format=${format}` : ""}`,
   updateMessage: (chatId: number, messageId: number, content: string) =>
     request<ChatUpdateMessageResult>(`/api/chats/${chatId}/messages/${messageId}`, {
       method: "PUT",

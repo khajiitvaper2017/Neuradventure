@@ -48,6 +48,7 @@ export {
   listChats,
   getChat,
   updateChat,
+  deleteChat,
   listChatMembers,
   listChatMessages,
   getChatMessage,

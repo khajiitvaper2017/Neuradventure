@@ -32,7 +32,8 @@
 
   let stories: StoryMeta[] = []
   let loading = true
-  let openMenuId: number | null = null
+  let openStoryMenuId: number | null = null
+  let openChatMenuId: number | null = null
   let storyCharacters: StoryCharacterGroup[] = []
   let loadingCharacters = false
   let showCharacters = false
@@ -136,7 +137,24 @@
     } catch {
       showError("Failed to delete story")
     }
-    openMenuId = null
+    openStoryMenuId = null
+  }
+
+  async function deleteChat(id: number) {
+    const confirmed = await showConfirm({
+      title: "Delete chat",
+      message: "Delete this chat? This cannot be undone.",
+      confirmLabel: "Delete",
+      danger: true,
+    })
+    if (!confirmed) return
+    try {
+      await api.chats.delete(id)
+      chats = chats.filter((c) => c.id !== id)
+    } catch {
+      showError("Failed to delete chat")
+    }
+    openChatMenuId = null
   }
 
   async function importStory() {
@@ -310,6 +328,28 @@
                 {relativeTime(chat.updated_at)}
               </span>
             </button>
+            <div class="story-menu-wrap">
+              <button
+                class="menu-btn"
+                aria-label="Chat options"
+                onclick={(e) => {
+                  e.stopPropagation()
+                  openChatMenuId = openChatMenuId === chat.id ? null : chat.id
+                }}
+              >
+                <IconDots size={14} strokeWidth={2} />
+              </button>
+              {#if openChatMenuId === chat.id}
+                <div class="dropdown">
+                  <a href={api.chats.exportUrl(chat.id, "neuradventure")} download class="dropdown-link">
+                    Export JSON
+                  </a>
+                  <a href={api.chats.exportUrl(chat.id, "tavern")} download class="dropdown-link">Export ST Chat</a>
+                  <a href={api.chats.exportUrl(chat.id, "plaintext")} download class="dropdown-link">Export Text</a>
+                  <button class="danger-item" onclick={() => deleteChat(chat.id)}>Delete</button>
+                </div>
+              {/if}
+            </div>
           </div>
         {/each}
       {/if}
@@ -338,12 +378,12 @@
                 aria-label="Story options"
                 onclick={(e) => {
                   e.stopPropagation()
-                  openMenuId = openMenuId === story.id ? null : story.id
+                  openStoryMenuId = openStoryMenuId === story.id ? null : story.id
                 }}
               >
                 <IconDots size={14} strokeWidth={2} />
               </button>
-              {#if openMenuId === story.id}
+              {#if openStoryMenuId === story.id}
                 <div class="dropdown">
                   <a href={api.stories.exportUrl(story.id, "neuradventure")} download class="dropdown-link">
                     Export JSON

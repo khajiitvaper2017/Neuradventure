@@ -3,7 +3,7 @@ import { NPCStateStoredSchema } from "./game-state.js"
 import { DATE_REGEX, TIME_OF_DAY_REGEX } from "./constants.js"
 import { PersonalityTraitsSchema } from "./personality-traits.js"
 import { resolveModuleFlags, type StoryModules } from "./story-modules.js"
-import type { GenerateCharacterResponse, GenerateStoryResponse } from "../core/models.js"
+import type { GenerateCharacterResponse, StoryResponse } from "../core/models.js"
 import { buildNpcCreationSchema } from "./npc-creation.js"
 
 const MajorFlawSchema = z.string().min(1)
@@ -19,9 +19,9 @@ export const GenerateCharacterResponseSchema = z
     race: z.string().min(1),
     gender: z.string().min(1),
     general_description: z.string().min(1).optional(),
+    personality_traits: PersonalityTraitsSchema.optional(),
     baseline_appearance: z.string().min(1).optional(),
     current_clothing: z.string().min(1).optional(),
-    personality_traits: PersonalityTraitsSchema.optional(),
     major_flaws: MajorFlawsStrictSchema.optional(),
     quirks: QuirksStrictSchema.optional(),
     perks: PerksStrictSchema.optional(),
@@ -81,7 +81,7 @@ export const GenerateCharacterTraitsResponseSchema = z
   })
   .strict()
 
-export const GenerateStoryResponseSchema = z
+export const StoryResponseSchema = z
   .object({
     title: z.string().min(1),
     opening_scenario: z.string().min(1),
@@ -94,16 +94,16 @@ export const GenerateStoryResponseSchema = z
   })
   .strict()
 
-export function buildGenerateStoryResponseSchema(modules: StoryModules): z.ZodType<GenerateStoryResponse> {
+export function buildStoryResponseSchema(modules: StoryModules): z.ZodType<StoryResponse> {
   const flags = resolveModuleFlags(modules)
   const npcSchema = buildNpcCreationSchema({
-    useNpcAppearance: flags.useNpcAppearance,
+    useNpcActivity: flags.useNpcActivity,
+    useNpcLocation: flags.useNpcLocation,
     useNpcPersonalityTraits: flags.useNpcPersonalityTraits,
+    useNpcAppearance: flags.useNpcAppearance,
     useNpcMajorFlaws: flags.useNpcMajorFlaws,
     useNpcQuirks: flags.useNpcQuirks,
     useNpcPerks: flags.useNpcPerks,
-    useNpcLocation: flags.useNpcLocation,
-    useNpcActivity: flags.useNpcActivity,
   })
 
   const baseShape: Record<string, z.ZodTypeAny> = {
@@ -135,7 +135,7 @@ export function buildGenerateStoryResponseSchema(modules: StoryModules): z.ZodTy
   return schema.transform((value: { [key: string]: unknown; pregen_npcs?: unknown[] }) => ({
     ...value,
     pregen_npcs: (value.pregen_npcs ?? []).map((npc: unknown) => NPCStateStoredSchema.parse(npc)),
-  })) as unknown as z.ZodType<GenerateStoryResponse>
+  })) as unknown as z.ZodType<StoryResponse>
 }
 
 export const GenerateChatResponseSchema = z

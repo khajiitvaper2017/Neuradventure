@@ -1,6 +1,4 @@
-import type { MainCharacterState } from "../models.js"
 import { getDb } from "./connection.js"
-import { createCharacter, normalizeCharacterBase } from "./characters.js"
 import { DEFAULT_SETTINGS } from "./settings.js"
 
 export function initDb() {
@@ -26,6 +24,8 @@ export function initDb() {
       initial_character_state_json  TEXT NOT NULL,
       initial_world_state_json      TEXT NOT NULL,
       initial_npc_states_json       TEXT NOT NULL,
+      author_note           TEXT NOT NULL DEFAULT '',
+      author_note_depth     INTEGER NOT NULL DEFAULT 4,
       created_at            TEXT NOT NULL DEFAULT (datetime('now')),
       updated_at            TEXT NOT NULL DEFAULT (datetime('now'))
     );
@@ -113,151 +113,8 @@ export function initDb() {
 
     CREATE INDEX IF NOT EXISTS idx_chat_messages_chat ON chat_messages(chat_id, message_index);
   `)
-
-  const storyColumns = database.prepare("PRAGMA table_info(stories)").all() as { name: string }[]
-  const storyColumnNames = new Set(storyColumns.map((c) => c.name))
-  if (!storyColumnNames.has("initial_character_state_json")) {
-    database.exec("ALTER TABLE stories ADD COLUMN initial_character_state_json TEXT")
-  }
-  if (!storyColumnNames.has("initial_world_state_json")) {
-    database.exec("ALTER TABLE stories ADD COLUMN initial_world_state_json TEXT")
-  }
-  if (!storyColumnNames.has("initial_npc_states_json")) {
-    database.exec("ALTER TABLE stories ADD COLUMN initial_npc_states_json TEXT")
-  }
-  if (!storyColumnNames.has("character_id")) {
-    database.exec("ALTER TABLE stories ADD COLUMN character_id INTEGER REFERENCES characters(id)")
-  }
-  if (!storyColumnNames.has("author_note")) {
-    database.exec("ALTER TABLE stories ADD COLUMN author_note TEXT NOT NULL DEFAULT ''")
-  }
-  if (!storyColumnNames.has("author_note_depth")) {
-    database.exec("ALTER TABLE stories ADD COLUMN author_note_depth INTEGER NOT NULL DEFAULT 4")
-  }
-  if (!storyColumnNames.has("story_modules_json")) {
-    const modulesJson = JSON.stringify(DEFAULT_SETTINGS.storyDefaults).replace(/'/g, "''")
-    database.exec(`ALTER TABLE stories ADD COLUMN story_modules_json TEXT NOT NULL DEFAULT '${modulesJson}'`)
-  }
-  database.exec(`
-    UPDATE stories
-    SET initial_character_state_json = COALESCE(initial_character_state_json, character_state_json),
-        initial_world_state_json = COALESCE(initial_world_state_json, world_state_json),
-        initial_npc_states_json = COALESCE(initial_npc_states_json, npc_states_json)
-  `)
-
-  const storiesNeedingCharacter = database
-    .prepare(
-      `SELECT id, character_id, initial_character_state_json, character_state_json
-       FROM stories
-       WHERE character_id IS NULL`,
-    )
-    .all() as {
-    id: number
-    character_id: number | null
-    initial_character_state_json: string | null
-    character_state_json: string
-  }[]
-  for (const story of storiesNeedingCharacter) {
-    const raw = story.initial_character_state_json ?? story.character_state_json
-    try {
-      const parsed = JSON.parse(raw) as Partial<MainCharacterState>
-      const base = normalizeCharacterBase(parsed)
-      const id = createCharacter(base)
-      database.prepare("UPDATE stories SET character_id = ? WHERE id = ?").run(id, story.id)
-    } catch (err) {
-      console.warn(`[db] Failed to migrate character for story ${story.id}`, err)
-    }
-  }
-
   database.exec("CREATE INDEX IF NOT EXISTS idx_stories_character ON stories(character_id)")
-
-  const turnColumns = database.prepare("PRAGMA table_info(turns)").all() as { name: string }[]
-  const turnColumnNames = new Set(turnColumns.map((c) => c.name))
-  if (!turnColumnNames.has("request_id")) {
-    database.exec("ALTER TABLE turns ADD COLUMN request_id TEXT")
-  }
   database.exec("CREATE UNIQUE INDEX IF NOT EXISTS idx_turns_request_id ON turns(request_id)")
-  if (!turnColumnNames.has("action_mode")) {
-    database.exec("ALTER TABLE turns ADD COLUMN action_mode TEXT NOT NULL DEFAULT 'do'")
-  }
-  if (!turnColumnNames.has("active_variant_id")) {
-    database.exec("ALTER TABLE turns ADD COLUMN active_variant_id INTEGER")
-  }
-
-  database.exec(`
-    INSERT INTO turn_variants (
-      turn_id,
-      variant_index,
-      narrative_text,
-      character_snapshot_json,
-      world_snapshot_json,
-      npc_snapshot_json,
-      created_at
-    )
-    SELECT
-      t.id,
-      1,
-      t.narrative_text,
-      t.character_snapshot_json,
-      t.world_snapshot_json,
-      t.npc_snapshot_json,
-      t.created_at
-    FROM turns t
-    WHERE NOT EXISTS (SELECT 1 FROM turn_variants tv WHERE tv.turn_id = t.id)
-  `)
-
-  database.exec(`
-    UPDATE turns
-    SET active_variant_id = COALESCE(
-      active_variant_id,
-      (SELECT tv.id FROM turn_variants tv WHERE tv.turn_id = turns.id ORDER BY tv.variant_index DESC LIMIT 1)
-    )
-  `)
-
-  const chatColumns = database.prepare("PRAGMA table_info(chats)").all() as { name: string }[]
-  const chatColumnNames = new Set(chatColumns.map((c) => c.name))
-  if (chatColumns.length > 0) {
-    if (!chatColumnNames.has("scenario")) {
-      database.exec("ALTER TABLE chats ADD COLUMN scenario TEXT NOT NULL DEFAULT ''")
-    }
-    if (!chatColumnNames.has("speaker_strategy")) {
-      database.exec("ALTER TABLE chats ADD COLUMN speaker_strategy TEXT NOT NULL DEFAULT 'round_robin'")
-    }
-    if (!chatColumnNames.has("next_speaker_index")) {
-      database.exec("ALTER TABLE chats ADD COLUMN next_speaker_index INTEGER NOT NULL DEFAULT 0")
-    }
-    if (!chatColumnNames.has("updated_at")) {
-      database.exec("ALTER TABLE chats ADD COLUMN updated_at TEXT NOT NULL DEFAULT (datetime('now'))")
-    }
-  }
-
-  const chatMemberColumns = database.prepare("PRAGMA table_info(chat_members)").all() as { name: string }[]
-  const chatMemberNames = new Set(chatMemberColumns.map((c) => c.name))
-  if (chatMemberColumns.length > 0) {
-    if (!chatMemberNames.has("member_kind")) {
-      database.exec("ALTER TABLE chat_members ADD COLUMN member_kind TEXT NOT NULL DEFAULT 'character'")
-    }
-    if (!chatMemberNames.has("state_json")) {
-      database.exec("ALTER TABLE chat_members ADD COLUMN state_json TEXT NOT NULL DEFAULT ''")
-    }
-    if (!chatMemberNames.has("sort_order")) {
-      database.exec("ALTER TABLE chat_members ADD COLUMN sort_order INTEGER NOT NULL DEFAULT 0")
-    }
-  }
-
-  const chatMessageColumns = database.prepare("PRAGMA table_info(chat_messages)").all() as { name: string }[]
-  const chatMessageNames = new Set(chatMessageColumns.map((c) => c.name))
-  if (chatMessageColumns.length > 0) {
-    if (!chatMessageNames.has("message_index")) {
-      database.exec("ALTER TABLE chat_messages ADD COLUMN message_index INTEGER NOT NULL DEFAULT 0")
-    }
-    if (!chatMessageNames.has("speaker_member_id")) {
-      database.exec("ALTER TABLE chat_messages ADD COLUMN speaker_member_id INTEGER NOT NULL DEFAULT 0")
-    }
-    if (!chatMessageNames.has("role")) {
-      database.exec("ALTER TABLE chat_messages ADD COLUMN role TEXT NOT NULL DEFAULT 'assistant'")
-    }
-  }
 
   const settingsRow = database.prepare("SELECT settings_json FROM settings WHERE id = 1").get() as
     | { settings_json: string }

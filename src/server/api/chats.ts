@@ -12,6 +12,7 @@ import {
 import { getServerDefaults } from "../core/strings.js"
 import { buildChatMessages, buildChatStopTokens, sanitizeChatReply } from "../llm/chat.js"
 import { generateChatReply } from "../llm/index.js"
+import { chatToPlaintext, chatToTavernJSONL } from "../utils/converters/tavern.js"
 
 const chats = new Hono()
 
@@ -27,6 +28,27 @@ function memberNameFromState(state: db.ChatMemberState | null): string {
   const defaults = getServerDefaults()
   if (!state) return defaults.unknown.value
   return state.name?.trim() || defaults.unknown.value
+}
+
+function resolveMemberState(member: db.ChatMemberRow): db.ChatMemberState {
+  const parsed = parseMemberState(member.state_json)
+  if (parsed) return parsed
+  const defaults = getServerDefaults()
+  return {
+    name: defaults.unknown.value,
+    race: "",
+    gender: "",
+    current_location: "",
+    appearance: {
+      baseline_appearance: "",
+      current_appearance: "",
+      current_clothing: "",
+    },
+    personality_traits: [],
+    major_flaws: [],
+    quirks: [],
+    perks: [],
+  }
 }
 
 function buildMessagePayload(
@@ -159,6 +181,108 @@ chats.put("/:id", zValidator("json", UpdateChatRequestSchema), (c) => {
   const body = c.req.valid("json")
   db.updateChat(id, { title: body.title?.trim(), scenario: body.scenario?.trim() })
   return c.json({ ok: true })
+})
+
+chats.delete("/:id", (c) => {
+  const id = Number(c.req.param("id"))
+  const chat = db.getChat(id)
+  if (!chat) return c.json({ error: "Chat not found" }, 404)
+  db.deleteChat(id)
+  return c.json({ ok: true })
+})
+
+// ─── Chat Export (multiple formats) ───────────────────────────────────────────
+
+chats.get("/:id/export", (c) => {
+  const id = Number(c.req.param("id"))
+  const format = (c.req.query("format") || "neuradventure") as string
+  const chat = db.getChat(id)
+  if (!chat) return c.json({ error: "Chat not found" }, 404)
+
+  const members = db.listChatMembers(id)
+  const messages = db.listChatMessages(id)
+  const memberNameById = new Map<number, string>()
+  const memberStateById = new Map<number, db.ChatMemberState>()
+
+  for (const member of members) {
+    const state = resolveMemberState(member)
+    memberStateById.set(member.id, state)
+    memberNameById.set(member.id, memberNameFromState(state))
+  }
+
+  const defaults = getServerDefaults()
+  const messageSummaries = messages.map((message) => {
+    const speakerName =
+      message.role === "system" ? "System" : (memberNameById.get(message.speaker_member_id) ?? defaults.unknown.value)
+    return {
+      role: message.role,
+      content: message.content,
+      created_at: message.created_at,
+      speaker_name: speakerName,
+      speaker_member_id: message.speaker_member_id,
+      message_index: message.message_index,
+    }
+  })
+  const playerMember = members.find((member) => member.role === "player")
+  const playerName = playerMember
+    ? (memberNameById.get(playerMember.id) ?? defaults.unknown.value)
+    : defaults.unknown.value
+
+  if (format === "tavern") {
+    const jsonl = chatToTavernJSONL(chat, messageSummaries, playerName)
+    return new Response(jsonl, {
+      headers: {
+        "Content-Type": "application/x-jsonlines",
+        "Content-Disposition": `attachment; filename="chat-${id}.jsonl"`,
+      },
+    })
+  }
+
+  if (format === "plaintext") {
+    const text = chatToPlaintext(chat, messageSummaries)
+    return new Response(text, {
+      headers: {
+        "Content-Type": "text/plain; charset=utf-8",
+        "Content-Disposition": `attachment; filename="chat-${id}.txt"`,
+      },
+    })
+  }
+
+  const data = JSON.stringify(
+    {
+      title: chat.title,
+      scenario: chat.scenario,
+      speaker_strategy: chat.speaker_strategy,
+      next_speaker_index: chat.next_speaker_index,
+      created_at: chat.created_at,
+      updated_at: chat.updated_at,
+      members: members.map((member) => ({
+        id: member.id,
+        role: member.role,
+        member_kind: member.member_kind,
+        character_id: member.character_id,
+        sort_order: member.sort_order,
+        state: memberStateById.get(member.id) ?? resolveMemberState(member),
+      })),
+      messages: messageSummaries.map((message) => ({
+        message_index: message.message_index,
+        speaker_member_id: message.speaker_member_id,
+        role: message.role,
+        content: message.content,
+        created_at: message.created_at,
+      })),
+      exported_at: new Date().toISOString(),
+    },
+    null,
+    2,
+  )
+
+  return new Response(data, {
+    headers: {
+      "Content-Type": "application/json",
+      "Content-Disposition": `attachment; filename="chat-${id}.json"`,
+    },
+  })
 })
 
 chats.put("/:id/messages/:messageId", zValidator("json", UpdateChatMessageRequestSchema), (c) => {

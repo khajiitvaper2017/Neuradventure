@@ -12,10 +12,8 @@ export interface CharacterRow {
 }
 
 export function normalizeCharacterBase(input: Partial<CharacterBase>): CharacterBase {
-  const legacyAppearance = input.appearance as { physical_description?: string } | undefined
-  const baselineAppearance = input.appearance?.baseline_appearance ?? legacyAppearance?.physical_description ?? ""
-  const currentAppearance =
-    input.appearance?.current_appearance ?? legacyAppearance?.physical_description ?? baselineAppearance ?? ""
+  const baselineAppearance = input.appearance?.baseline_appearance ?? ""
+  const currentAppearance = input.appearance?.current_appearance ?? baselineAppearance ?? ""
   return {
     name: input.name ?? "",
     race: input.race ?? "",
@@ -29,11 +27,7 @@ export function normalizeCharacterBase(input: Partial<CharacterBase>): Character
     },
     personality_traits: Array.isArray(input.personality_traits) ? input.personality_traits : [],
     major_flaws: Array.isArray(input.major_flaws) ? input.major_flaws : [],
-    quirks: Array.isArray(input.quirks)
-      ? input.quirks
-      : Array.isArray((input as { custom_traits?: string[] }).custom_traits)
-        ? ((input as { custom_traits?: string[] }).custom_traits ?? [])
-        : [],
+    quirks: Array.isArray(input.quirks) ? input.quirks : [],
     perks: Array.isArray(input.perks) ? input.perks : [],
   }
 }

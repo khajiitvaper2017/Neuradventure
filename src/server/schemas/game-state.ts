@@ -66,8 +66,8 @@ const defaults = getServerDefaults()
 export const CharacterAppearanceSchema = z
   .object({
     baseline_appearance: z.string().min(1),
-    current_appearance: z.string().min(1),
     current_clothing: z.string().min(1),
+    current_appearance: z.string().min(1),
   })
   .strict()
 
@@ -90,8 +90,8 @@ const CharacterStateBaseSchema = z
     current_location: z.string().min(1).optional().default(defaults.unknown.location),
     appearance: CharacterAppearanceSchema.optional().default({
       baseline_appearance: defaults.unknown.baselineAppearance,
-      current_appearance: defaults.unknown.appearance,
       current_clothing: defaults.unknown.clothing,
+      current_appearance: defaults.unknown.appearance,
     }),
     personality_traits: PersonalityTraitsOptionalSchema.optional().default([]),
     major_flaws: MajorFlawsSchema.optional().default([]),
@@ -144,14 +144,14 @@ const normalizeCharacterStoredBase = (value: z.input<typeof CharacterStateStored
   race: normalizeNonEmptyString(value.race, getServerDefaults().unknown.value),
   gender: normalizeGender(value.gender, getServerDefaults().unknown.value),
   general_description: normalizeNonEmptyString(
-    value.general_description ?? (value as Record<string, unknown>).baseline_description,
+    value.general_description,
     getServerDefaults().unknown.generalDescription,
   ),
   current_location: normalizeNonEmptyString(value.current_location, getServerDefaults().unknown.location),
   appearance: normalizeAppearance(value.appearance),
   personality_traits: normalizePersonalityTraits(value.personality_traits),
   major_flaws: normalizeTraitList(value.major_flaws, 3),
-  quirks: normalizeTraitList(value.quirks ?? (value as Record<string, unknown>).custom_traits, 6),
+  quirks: normalizeTraitList(value.quirks, 6),
   perks: normalizeTraitList(value.perks, 6),
   inventory: normalizeInventoryItems(value.inventory),
 })
@@ -194,18 +194,16 @@ export const WorldStateStoredSchema = z
     current_date: z.string().optional(),
     time_of_day: z.string().optional(),
     memory: z.string().optional(),
-    recent_events_summary: z.string().optional(),
     locations: z.unknown().optional(),
   })
   .passthrough()
   .transform((value) => {
     const currentScene = normalizeCurrentScene(value.current_scene)
-    const legacyDayOfWeek = (value as Record<string, unknown>).day_of_week
     return {
       current_scene: currentScene,
-      current_date: normalizeCurrentDate(value.current_date ?? legacyDayOfWeek),
+      current_date: normalizeCurrentDate(value.current_date),
       time_of_day: normalizeTimeOfDay(value.time_of_day),
-      memory: normalizeMemory(value.memory ?? value.recent_events_summary),
+      memory: normalizeMemory(value.memory),
       locations: normalizeLocations(value.locations, currentScene),
     }
   })

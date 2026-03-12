@@ -1,5 +1,5 @@
 import type { MainCharacterState } from "../../core/models.js"
-import type { TurnRow } from "../../core/db.js"
+import type { ChatMessageRow, ChatRow, TurnRow } from "../../core/db.js"
 import { npcTraitLookup } from "../../schemas/npc-traits.js"
 import { getServerDefaults } from "../../core/strings.js"
 import { normalizeGender } from "../../schemas/normalizers.js"
@@ -91,12 +91,7 @@ export function tavernCardToCharacter(card: TavernCardV2): TavernImportResult {
   // Lossless round-trip if neuradventure extension exists
   if (card.data.extensions?.neuradventure) {
     const raw = card.data.extensions.neuradventure as Record<string, unknown>
-    const {
-      inventory: _inventory,
-      baseline_description: _baselineDescription,
-      ...base
-    } = raw as Record<string, unknown>
-    void _baselineDescription
+    const { inventory: _inventory, ...base } = raw as Record<string, unknown>
     void _inventory
     const character = { ...base } as Omit<MainCharacterState, "inventory">
     if (!Array.isArray(character.major_flaws)) character.major_flaws = []
@@ -181,6 +176,10 @@ export interface STChatLine {
   mes?: string
 }
 
+export type ChatExportMessage = Pick<ChatMessageRow, "role" | "content" | "created_at"> & {
+  speaker_name: string
+}
+
 export function storyToTavernJSONL(
   title: string,
   openingScenario: string,
@@ -226,6 +225,46 @@ export function storyToTavernJSONL(
   return lines.map((line) => JSON.stringify(line)).join("\n")
 }
 
+// ─── Chat Export: SillyTavern JSONL ───────────────────────────────────────────
+
+export function chatToTavernJSONL(
+  chat: Pick<ChatRow, "title" | "created_at" | "scenario">,
+  messages: ChatExportMessage[],
+  playerName?: string,
+) {
+  const lines: STChatLine[] = []
+  const createdAt = chat.created_at || new Date().toISOString()
+  const safeTitle = chat.title?.trim() || "Group Chat"
+  const resolvedPlayerName =
+    playerName?.trim() || messages.find((m) => m.role === "user")?.speaker_name || getServerDefaults().unknown.value
+
+  lines.push({
+    user_name: resolvedPlayerName,
+    character_name: safeTitle,
+    create_date: createdAt,
+  })
+
+  if (chat.scenario?.trim()) {
+    lines.push({
+      name: "System",
+      is_user: false,
+      send_date: createdAt,
+      mes: chat.scenario.trim(),
+    })
+  }
+
+  for (const message of messages) {
+    lines.push({
+      name: message.speaker_name || getServerDefaults().unknown.value,
+      is_user: message.role === "user",
+      send_date: message.created_at,
+      mes: message.content,
+    })
+  }
+
+  return lines.map((line) => JSON.stringify(line)).join("\n")
+}
+
 // ─── Story Export: Plaintext ──────────────────────────────────────────────────
 
 export function storyToPlaintext(title: string, openingScenario: string, turns: TurnRow[]): string {
@@ -236,6 +275,25 @@ export function storyToPlaintext(title: string, openingScenario: string, turns: 
     parts.push(`> ${turn.player_input}`)
     parts.push("")
     parts.push(turn.narrative_text)
+  }
+
+  return parts.join("\n")
+}
+
+// ─── Chat Export: Plaintext ───────────────────────────────────────────────────
+
+export function chatToPlaintext(chat: Pick<ChatRow, "title" | "scenario">, messages: ChatExportMessage[]): string {
+  const safeTitle = chat.title?.trim() || "Chat"
+  const parts: string[] = [`# ${safeTitle}`]
+
+  if (chat.scenario?.trim()) {
+    parts.push("", chat.scenario.trim())
+  }
+
+  for (const message of messages) {
+    parts.push("")
+    parts.push(`${message.speaker_name || getServerDefaults().unknown.value}:`)
+    parts.push(message.content)
   }
 
   return parts.join("\n")

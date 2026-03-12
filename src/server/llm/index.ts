@@ -6,7 +6,7 @@ import {
   GenerateCharacterTraitsResponseSchema,
   GenerateChatResponseSchema,
   buildGenerateCharacterResponseSchema,
-  buildGenerateStoryResponseSchema,
+  buildStoryResponseSchema,
   type MainCharacterState,
   type NPCState,
   type NPCCreation,
@@ -18,7 +18,7 @@ import {
   type GenerateCharacterClothingResponse,
   type GenerateCharacterTraitsResponse,
   type GenerateChatResponse,
-  type GenerateStoryResponse,
+  type StoryResponse,
 } from "../core/models.js"
 import { type TurnRow } from "../core/db.js"
 import { buildTurnResponseSchema } from "./schema.js"
@@ -363,11 +363,11 @@ export async function generateStory(
     perks?: string[]
   },
   storyModules?: StoryModules,
-): Promise<GenerateStoryResponse> {
+): Promise<StoryResponse> {
   const modules = storyModules ?? DEFAULT_STORY_MODULES
   const flags = resolveModuleFlags(modules)
-  const responseSchema = buildGenerateStoryResponseSchema(modules)
-  const schema = zodSchemaToJsonSchema(responseSchema, "GenerateStoryResponse")
+  const responseSchema = buildStoryResponseSchema(modules)
+  const schema = zodSchemaToJsonSchema(responseSchema, "StoryResponse")
   const llmStrings = getLlmStrings()
   const defaults = getServerDefaults()
   const unknown = defaults.unknown.value
@@ -422,7 +422,7 @@ export async function generateStory(
         ].join("\n"),
       },
     ],
-    "GenerateStoryResponse",
+    "StoryResponse",
     schema,
     undefined,
     { disableRepetition: true },

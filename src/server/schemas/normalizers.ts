@@ -157,12 +157,9 @@ export function normalizeAppearance(value: unknown): {
   if (value && typeof value === "object") {
     const obj = value as Record<string, unknown>
     const defaults = getServerDefaults()
-    const baseline = normalizeNonEmptyString(
-      obj.baseline_appearance ?? obj.physical_description,
-      defaults.unknown.baselineAppearance,
-    )
+    const baseline = normalizeNonEmptyString(obj.baseline_appearance, defaults.unknown.baselineAppearance)
     const current = normalizeNonEmptyString(
-      obj.current_appearance ?? obj.physical_description ?? obj.baseline_appearance,
+      obj.current_appearance ?? obj.baseline_appearance,
       baseline || defaults.unknown.appearance,
     )
     return {

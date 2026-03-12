@@ -34,10 +34,10 @@ import {
   GenerateCharacterResponseSchema,
   GenerateCharacterTraitsResponseSchema,
   GenerateChatResponseSchema,
-  GenerateStoryResponseSchema,
+  StoryResponseSchema,
   buildGenerateCharacterResponseSchema,
-  buildGenerateStoryResponseSchema,
-} from "../schemas/generation-response.js"
+  buildStoryResponseSchema,
+} from "../schemas/story-response.js"
 import {
   CancelLastRequestSchema,
   ChatIdRequestSchema,
@@ -90,9 +90,9 @@ export {
   GenerateCharacterClothingResponseSchema,
   GenerateCharacterTraitsResponseSchema,
   GenerateChatResponseSchema,
-  GenerateStoryResponseSchema,
+  StoryResponseSchema,
   buildGenerateCharacterResponseSchema,
-  buildGenerateStoryResponseSchema,
+  buildStoryResponseSchema,
   CreateCharacterRequestSchema,
   UpdateCharacterRequestSchema,
   CreateStoryRequestSchema,
@@ -147,4 +147,4 @@ export type GenerateCharacterAppearanceResponse = z.infer<typeof GenerateCharact
 export type GenerateCharacterClothingResponse = z.infer<typeof GenerateCharacterClothingResponseSchema>
 export type GenerateCharacterTraitsResponse = z.infer<typeof GenerateCharacterTraitsResponseSchema>
 export type GenerateChatResponse = z.infer<typeof GenerateChatResponseSchema>
-export type GenerateStoryResponse = z.infer<typeof GenerateStoryResponseSchema>
+export type StoryResponse = z.infer<typeof StoryResponseSchema>

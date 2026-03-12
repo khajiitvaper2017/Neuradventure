@@ -88,8 +88,8 @@ export const TurnResponseSchema = z
   .object({
     narrative_text: z.string().min(1),
     world_state_update: WorldStateUpdateSchema,
-    current_appearance: SetCurrentAppearanceSection.optional(),
     current_clothing: CurrentClothingSection.optional(),
+    current_appearance: SetCurrentAppearanceSection.optional(),
     set_current_inventory: SetCurrentInventorySection.optional(),
     npc_changes: NPCChangesSection.optional(),
     npc_introductions: NPCIntroductionsSection.optional(),

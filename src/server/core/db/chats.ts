@@ -116,6 +116,10 @@ export function updateChat(id: number, data: { title?: string; scenario?: string
     .run(nextTitle, nextScenario, id)
 }
 
+export function deleteChat(id: number): void {
+  getDb().prepare("DELETE FROM chats WHERE id = ?").run(id)
+}
+
 export function listChatMembers(chat_id: number): ChatMemberRow[] {
   return getDb()
     .prepare("SELECT * FROM chat_members WHERE chat_id = ? ORDER BY sort_order ASC, id ASC")
