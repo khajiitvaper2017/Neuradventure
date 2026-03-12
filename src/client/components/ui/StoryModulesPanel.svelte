@@ -3,6 +3,7 @@
 
   export let modules: StoryModules
   export let setModules: (next: StoryModules) => void
+  export let bare = false
 
   function updateModule<K extends keyof StoryModules>(key: K, value: StoryModules[K]) {
     setModules({ ...modules, [key]: value })
@@ -15,7 +16,7 @@
   }
 </script>
 
-<div class="modules-panel">
+<div class="modules-panel" class:bare>
   <div class="group">
     <div class="section-label">Core</div>
     <label class="row">
@@ -50,7 +51,8 @@
       <select
         class="select-input"
         value={modules.character_detail_mode}
-        onchange={(e) => updateDetailMode((e.target as HTMLSelectElement).value as StoryModules["character_detail_mode"])}
+        onchange={(e) =>
+          updateDetailMode((e.target as HTMLSelectElement).value as StoryModules["character_detail_mode"])}
       >
         <option value="detailed">Detailed (appearance + traits)</option>
         <option value="general">General description only</option>
@@ -220,6 +222,12 @@
     border: 1px solid var(--border);
     border-radius: 6px;
     overflow: hidden;
+  }
+  .modules-panel.bare {
+    background: transparent;
+    border: none;
+    border-radius: 0;
+    overflow: visible;
   }
   .section-label {
     padding: 1.25rem 1rem 0.4rem;

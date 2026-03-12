@@ -404,7 +404,7 @@
     font-weight: 600;
     letter-spacing: 0.06em;
     color: var(--accent);
-      }
+  }
   .brand-flame {
     font-size: 1.8rem;
     opacity: 0.75;
@@ -416,7 +416,7 @@
     font-weight: 600;
     letter-spacing: 0.12em;
     color: var(--accent);
-        margin: 0;
+    margin: 0;
   }
   .brand-sub {
     font-family: var(--font-story);
@@ -444,7 +444,7 @@
     font-family: var(--font-ui);
     font-size: 0.82rem;
     letter-spacing: 0.04em;
-        padding: 0.55rem 1rem;
+    padding: 0.55rem 1rem;
     cursor: pointer;
     min-height: 40px;
     transition:
@@ -505,7 +505,7 @@
   }
   .char-card-label {
     font-size: 0.7rem;
-        letter-spacing: 0.08em;
+    letter-spacing: 0.08em;
     color: var(--text-dim);
   }
   .char-card-links {
@@ -535,7 +535,7 @@
   .list-header {
     padding: 0.85rem 1rem 0.4rem;
     font-size: 0.7rem;
-        letter-spacing: 0.08em;
+    letter-spacing: 0.08em;
     color: var(--text-dim);
   }
   .story-row {
@@ -625,7 +625,7 @@
   footer button {
     width: 100%;
     font-size: 0.8rem;
-        letter-spacing: 0.05em;
+    letter-spacing: 0.05em;
     min-height: 40px;
   }
 </style>

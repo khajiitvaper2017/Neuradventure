@@ -662,7 +662,7 @@
     padding: 0.2rem 0.6rem;
     font-size: 0.62rem;
     letter-spacing: 0.08em;
-        min-width: auto;
+    min-width: auto;
     min-height: auto;
   }
   .cs-toggle-btn:hover:not(:disabled) {

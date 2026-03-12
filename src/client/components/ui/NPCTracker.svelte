@@ -11,7 +11,9 @@
   } from "../../stores/game.js"
   import type { NPCState } from "../../api/client.js"
   import { autoresize } from "../../utils/actions/autoresize.js"
+  import { createRequestId } from "../../utils/ids.js"
   import { genderIcon, normalizeGender, splitCsv } from "../../utils/text.js"
+  import { getDiffSegments, type DiffSegment } from "../../utils/textDiff.js"
   import IconMale from "../icons/IconMale.svelte"
   import IconFemale from "../icons/IconFemale.svelte"
   import IconIntersex from "../icons/IconIntersex.svelte"
@@ -55,61 +57,6 @@
   function updateField(field: EditField, event: Event) {
     const target = event.target as HTMLInputElement | HTMLTextAreaElement
     field.onInput(target.value)
-  }
-
-  type DiffSegment = { text: string; added: boolean }
-
-  function splitWords(text: string): string[] {
-    return text.trim().length > 0 ? text.trim().split(/\s+/) : []
-  }
-
-  function normalizeWord(word: string): string {
-    return word.toLowerCase().replace(/[^\p{L}\p{N}]+/gu, "")
-  }
-
-  function buildLcsTable(a: string[], b: string[]): number[][] {
-    const table: number[][] = Array.from({ length: a.length + 1 }, () => Array(b.length + 1).fill(0))
-    for (let i = 1; i <= a.length; i += 1) {
-      for (let j = 1; j <= b.length; j += 1) {
-        if (a[i - 1] === b[j - 1]) {
-          table[i][j] = table[i - 1][j - 1] + 1
-        } else {
-          table[i][j] = Math.max(table[i - 1][j], table[i][j - 1])
-        }
-      }
-    }
-    return table
-  }
-
-  function getDiffSegments(baseline: string, current: string): DiffSegment[] {
-    const baseWords = splitWords(baseline).map(normalizeWord)
-    const currWordsRaw = splitWords(current)
-    const currWords = currWordsRaw.map(normalizeWord)
-    if (baseWords.length === 0) {
-      return currWordsRaw.map((word, idx) => ({
-        text: idx === currWordsRaw.length - 1 ? word : `${word} `,
-        added: false,
-      }))
-    }
-    const table = buildLcsTable(baseWords, currWords)
-    const inLcs = new Set<number>()
-    let i = baseWords.length
-    let j = currWords.length
-    while (i > 0 && j > 0) {
-      if (baseWords[i - 1] === currWords[j - 1]) {
-        inLcs.add(j - 1)
-        i -= 1
-        j -= 1
-      } else if (table[i - 1][j] >= table[i][j - 1]) {
-        i -= 1
-      } else {
-        j -= 1
-      }
-    }
-    return currWordsRaw.map((word, idx) => ({
-      text: idx === currWordsRaw.length - 1 ? word : `${word} `,
-      added: !inLcs.has(idx) && currWords[idx].length > 0,
-    }))
   }
 
   function npcEditFields(npc: NPCState): EditField[] {
@@ -417,13 +364,6 @@
     quirks: "",
     perks: "",
   })
-
-  function createRequestId(): string {
-    if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
-      return crypto.randomUUID()
-    }
-    return `req_${Date.now()}_${Math.random().toString(36).substring(2, 10)}`
-  }
 
   async function addNpc() {
     if ($isGenerating || addingNpc) return
@@ -819,7 +759,7 @@
     padding: 0.2rem 0.6rem;
     font-size: 0.62rem;
     letter-spacing: 0.08em;
-        min-width: auto;
+    min-width: auto;
     min-height: auto;
   }
   .npc-toggle-btn:hover:not(:disabled) {
@@ -884,7 +824,7 @@
     padding: 0.2rem 0.55rem;
     font-size: 0.65rem;
     letter-spacing: 0.08em;
-      }
+  }
   .npc-edit-btn:disabled {
     opacity: 0.5;
     cursor: not-allowed;

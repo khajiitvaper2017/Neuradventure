@@ -231,16 +231,16 @@
         </button>
       </div>
       {#if chatPromptHistory.length > 0}
-        <div class="prompt-history">
-          <div class="prompt-history-label">Recent prompts</div>
-          <div class="prompt-history-list">
+        <div class="shared-prompt-history">
+          <div class="shared-prompt-history__label">Recent prompts</div>
+          <div class="shared-prompt-history__list">
             {#each chatPromptHistory.slice(0, 6) as item}
-              <div class="prompt-history-item">
-                <button class="prompt-history-use" onclick={() => useChatPrompt(item)} title={item}>
+              <div class="shared-prompt-history__item">
+                <button class="shared-prompt-history__use" onclick={() => useChatPrompt(item)} title={item}>
                   {item}
                 </button>
                 <button
-                  class="prompt-history-delete"
+                  class="shared-prompt-history__delete"
                   type="button"
                   onclick={() => deleteChatPrompt(item)}
                   aria-label="Delete prompt"
@@ -273,11 +273,11 @@
 
     <div class="field">
       <label for="saved-player">Use Character From Stories</label>
-      <div class="saved-row">
-        <div class="saved-select-wrap">
+      <div class="shared-select-row">
+        <div class="shared-select-wrap">
           <button
             id="saved-player"
-            class="saved-select-btn"
+            class="shared-select-btn"
             onclick={(e) => {
               e.stopPropagation()
               togglePlayerDropdown()
@@ -293,13 +293,13 @@
                   ? "No characters yet"
                   : selectedPlayerLabel}</span
             >
-            <span class="saved-caret"></span>
+            <span class="shared-select-caret"></span>
           </button>
           {#if showPlayerDropdown}
-            <div class="saved-select-menu" role="listbox" tabindex="-1">
+            <div class="shared-select-menu" role="listbox" tabindex="-1">
               {#each playableOptions as option}
                 <button
-                  class="saved-select-item"
+                  class="shared-select-item"
                   role="option"
                   aria-selected={playerKey === option.key}
                   onclick={(e) => {
@@ -307,11 +307,11 @@
                     selectPlayer(option.key)
                   }}
                 >
-                  <span class="saved-select-name">
+                  <span class="shared-select-name">
                     {option.name}
                     {option.kind === "npc" ? " (NPC)" : ""}
                   </span>
-                  <span class="saved-select-meta">{option.description}</span>
+                  <span class="shared-select-meta">{option.description}</span>
                 </button>
               {/each}
             </div>
@@ -323,10 +323,10 @@
     </div>
 
     {#if selectedPlayerOption}
-      <div class="char-summary">
-        <div class="char-summary-header">Player Character</div>
-        <div class="char-name">{selectedPlayerOption.name}</div>
-        <div class="char-details">
+      <div class="shared-summary shared-summary--tight">
+        <div class="shared-summary__header">Player Character</div>
+        <div class="shared-summary__name shared-summary__name--lg">{selectedPlayerOption.name}</div>
+        <div class="shared-summary__details">
           {selectedPlayerOption.state.gender || "Unknown"} ·
           {[
             ...selectedPlayerOption.state.personality_traits,
@@ -336,9 +336,9 @@
         </div>
       </div>
     {:else}
-      <div class="char-summary is-empty">
-        <div class="char-summary-header">Player Character</div>
-        <div class="char-details">No player selected yet.</div>
+      <div class="shared-summary shared-summary--empty">
+        <div class="shared-summary__header">Player Character</div>
+        <div class="shared-summary__details">No player selected yet.</div>
         <button class="btn-accent small" onclick={() => navigate("char-create")}>New Character</button>
       </div>
     {/if}
@@ -376,16 +376,16 @@
     </div>
 
     {#if selectedAiOptions.length > 0}
-      <div class="npc-summary">
-        <div class="npc-summary-header">AI Members</div>
-        <div class="npc-list">
+      <div class="shared-summary shared-summary--roomy">
+        <div class="shared-summary__header">AI Members</div>
+        <div class="shared-summary__list">
           {#each selectedAiOptions as member}
-            <div class="npc-card">
-              <div class="npc-name">{member.name}</div>
-              <div class="npc-details">
+            <div class="shared-card">
+              <div class="shared-summary__name">{member.name}</div>
+              <div class="shared-summary__details">
                 {member.state.race || "Unknown"} · {member.state.gender || "Unknown"}
               </div>
-              <div class="npc-traits">
+              <div class="shared-summary__details">
                 {[...member.state.personality_traits, ...member.state.quirks, ...member.state.perks].join(", ") ||
                   "No traits"}
               </div>
@@ -453,175 +453,6 @@
     white-space: nowrap;
   }
 
-  .prompt-history {
-    margin-top: 0.6rem;
-    display: flex;
-    flex-direction: column;
-    gap: 0.4rem;
-  }
-  .prompt-history-label {
-    font-size: 0.7rem;
-    letter-spacing: 0.08em;
-    color: var(--text-dim);
-  }
-  .prompt-history-list {
-    display: grid;
-    gap: 0.35rem;
-  }
-  .prompt-history-item {
-    display: flex;
-    align-items: center;
-    gap: 0.35rem;
-    width: 100%;
-    max-width: 100%;
-    min-width: 0;
-  }
-  .prompt-history-use {
-    flex: 1;
-    min-width: 0;
-    text-align: left;
-    background: var(--bg-input);
-    border: 1px solid var(--border);
-    color: var(--text);
-    padding: 0.45rem 0.6rem;
-    border-radius: 4px;
-    font-size: 0.85rem;
-    cursor: pointer;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-  .prompt-history-use:hover {
-    border-color: var(--accent);
-  }
-  .prompt-history-delete {
-    background: transparent;
-    border: 1px solid var(--border);
-    color: var(--text-dim);
-    border-radius: 4px;
-    padding: 0.35rem 0.5rem;
-    font-size: 0.8rem;
-    cursor: pointer;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-  }
-  .prompt-history-delete:hover {
-    border-color: var(--accent);
-    color: var(--text);
-  }
-
-  .saved-row {
-    display: flex;
-    gap: 0.5rem;
-    align-items: center;
-  }
-  .saved-select-wrap {
-    position: relative;
-    flex: 1;
-  }
-  .saved-select-btn {
-    width: 100%;
-    flex: 1;
-    background: var(--bg-input);
-    border: 1px solid var(--border);
-    border-radius: 4px;
-    color: var(--text);
-    padding: 0.6rem 0.75rem;
-    padding-right: 2rem;
-    font-size: 0.95rem;
-    font-family: var(--font-ui);
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 0.5rem;
-    cursor: pointer;
-  }
-  .saved-select-btn:focus {
-    outline: none;
-    border-color: var(--accent);
-  }
-  .saved-select-btn:disabled {
-    opacity: 0.6;
-    cursor: not-allowed;
-  }
-  .saved-caret {
-    width: 0;
-    height: 0;
-    border-left: 5px solid transparent;
-    border-right: 5px solid transparent;
-    border-top: 6px solid var(--text-dim);
-  }
-  .saved-select-menu {
-    position: absolute;
-    top: calc(100% + 6px);
-    left: 0;
-    right: 0;
-    background: var(--bg-raised);
-    border: 1px solid var(--border);
-    border-radius: 6px;
-    z-index: 20;
-    max-height: 220px;
-    overflow-y: auto;
-    box-shadow: 0 10px 28px rgba(0, 0, 0, 0.35);
-  }
-  .saved-select-item {
-    width: 100%;
-    text-align: left;
-    background: none;
-    border: none;
-    color: var(--text);
-    font-family: var(--font-ui);
-    font-size: 0.95rem;
-    padding: 0.55rem 0.75rem;
-    cursor: pointer;
-    display: flex;
-    flex-direction: column;
-    gap: 0.15rem;
-  }
-  .saved-select-item:hover {
-    background: var(--bg-action);
-  }
-  .saved-select-name {
-    font-size: 0.95rem;
-    color: var(--text);
-  }
-  .saved-select-meta {
-    font-size: 0.75rem;
-    color: var(--text-dim);
-  }
-
-  .char-summary {
-    background: var(--bg-raised);
-    border: 1px solid var(--border);
-    border-radius: 6px;
-    padding: 1rem;
-    display: flex;
-    flex-direction: column;
-    gap: 0.25rem;
-  }
-  .char-summary.is-empty {
-    gap: 0.6rem;
-  }
-  .char-summary .small {
-    align-self: flex-start;
-    margin-top: 0.5rem;
-  }
-  .char-summary-header {
-    font-size: 0.75rem;
-    letter-spacing: 0.08em;
-    color: var(--text-dim);
-  }
-  .char-name {
-    font-size: 1.1rem;
-    font-family: var(--font-story);
-    color: var(--text);
-  }
-  .char-details {
-    font-size: 0.85rem;
-    color: var(--text-dim);
-  }
-
   .ai-list {
     display: grid;
     gap: 0.35rem;
@@ -658,44 +489,6 @@
   }
   .ai-meta {
     font-size: 0.75rem;
-    color: var(--text-dim);
-  }
-
-  .npc-summary {
-    background: var(--bg-raised);
-    border: 1px solid var(--border);
-    border-radius: 6px;
-    padding: 1rem;
-    display: flex;
-    flex-direction: column;
-    gap: 0.75rem;
-  }
-  .npc-summary-header {
-    font-size: 0.75rem;
-    letter-spacing: 0.08em;
-    color: var(--text-dim);
-  }
-  .npc-list {
-    display: grid;
-    gap: 0.75rem;
-  }
-  .npc-card {
-    background: var(--bg-input);
-    border: 1px solid var(--border);
-    border-radius: 6px;
-    padding: 0.75rem;
-    display: flex;
-    flex-direction: column;
-    gap: 0.25rem;
-  }
-  .npc-name {
-    font-size: 1rem;
-    font-family: var(--font-story);
-    color: var(--text);
-  }
-  .npc-details,
-  .npc-traits {
-    font-size: 0.85rem;
     color: var(--text-dim);
   }
 

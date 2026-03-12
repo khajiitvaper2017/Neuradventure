@@ -14,6 +14,9 @@
     collapseLocationsPanel,
   } from "../stores/ui.js"
   import { autoresize } from "../utils/actions/autoresize.js"
+  import { createRequestId } from "../utils/ids.js"
+  import { normalizePlayerInput } from "../utils/inputNormalize.js"
+  import { scrollToBottom } from "../utils/scroll.js"
   import IconDots from "../components/icons/IconDots.svelte"
   import IconFace from "../components/icons/IconFace.svelte"
   import IconHome from "../components/icons/IconHome.svelte"
@@ -43,6 +46,7 @@
     llmUpdateId,
     markLlmUpdate,
   } from "../stores/game.js"
+  import { clearPendingTurn, getPendingTurn, setPendingTurn, type PendingTurn } from "./game/pendingTurn.js"
 
   type ActionMode = "do" | "say" | "story"
   const ACTION_MODES: ActionMode[] = ["do", "say", "story"]
@@ -110,51 +114,8 @@
   let userActed = $state(false)
   let resumeAttemptedFor = ""
 
-  const PENDING_TURN_KEY = "pending_turn"
-  type PendingTurn = {
-    storyId: number
-    actionMode: ActionMode
-    playerInput: string
-    requestId: string
-    lastTurnId: number | null
-    createdAt: number
-  }
-
-  function getPendingTurn(): PendingTurn | null {
-    try {
-      const raw = window.localStorage.getItem(PENDING_TURN_KEY)
-      if (!raw) return null
-      return JSON.parse(raw) as PendingTurn
-    } catch {
-      return null
-    }
-  }
-
-  function setPendingTurn(pending: PendingTurn) {
-    try {
-      window.localStorage.setItem(PENDING_TURN_KEY, JSON.stringify(pending))
-    } catch {
-      // ignore storage failures
-    }
-  }
-
-  function clearPendingTurn() {
-    try {
-      window.localStorage.removeItem(PENDING_TURN_KEY)
-    } catch {
-      // ignore storage failures
-    }
-  }
-
   function lastTurnId(): number | null {
     return $turns.length > 0 ? $turns[$turns.length - 1].id : null
-  }
-
-  function createRequestId(): string {
-    if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
-      return crypto.randomUUID()
-    }
-    return `req_${Date.now()}_${Math.random().toString(36).substring(2, 10)}`
   }
 
   function triggerSceneFlash() {
@@ -171,36 +132,6 @@
     openingFlashTimer = window.setTimeout(() => {
       flashOpening = false
     }, 900)
-  }
-
-  function matchCase(match: string, replacement: string): string {
-    if (match.toUpperCase() === match) return replacement.toUpperCase()
-    if (match[0] === match[0].toUpperCase()) return replacement[0].toUpperCase() + replacement.substring(1)
-    return replacement
-  }
-
-  function normalizeDoInput(text: string): string {
-    let normalized = text
-    normalized = normalized.replace(/\bmyself\b/gi, (m) => matchCase(m, "yourself"))
-    normalized = normalized.replace(/\bmy\b/gi, (m) => matchCase(m, "your"))
-    if (!/^(you|your|yourself)\b/i.test(normalized)) {
-      const lowered = normalized.replace(/^([A-Z])/, (m) => m.toLowerCase())
-      normalized = `You ${lowered}`
-    }
-    return normalized
-  }
-
-  function normalizeSayInput(text: string): string {
-    if (text.startsWith('"') && text.endsWith('"') && text.length >= 2) return text
-    return `"${text}"`
-  }
-
-  function normalizePlayerInput(text: string, mode?: ActionMode): string {
-    const trimmed = text.trim()
-    if (!trimmed) return trimmed
-    if (mode === "do") return normalizeDoInput(trimmed)
-    if (mode === "say") return normalizeSayInput(trimmed)
-    return trimmed
   }
 
   function handleLlmWarnings(warnings?: string[]) {
@@ -248,7 +179,7 @@
       canUndoCancel = false
       await loadVariants(result.turn_id, true)
       await tick()
-      scrollToBottom(true)
+      scrollToBottom(storyDiv, { smooth: true })
       clearPendingTurn()
     } catch (err) {
       if (err instanceof ApiError) {
@@ -316,7 +247,7 @@
       clearPendingTurn()
       await loadVariants(result.turn_id, true)
       await tick()
-      scrollToBottom(true)
+      scrollToBottom(storyDiv, { smooth: true })
     } catch (err) {
       if (err instanceof ApiError) {
         showError(err.message)
@@ -367,7 +298,7 @@
       await loadVariants(result.turn_id, true)
       editingTurnId = null
       await tick()
-      scrollToBottom(true)
+      scrollToBottom(storyDiv, { smooth: true })
     } catch (err) {
       if (err instanceof ApiError) {
         showError(err.message)
@@ -404,7 +335,7 @@
       }
       editingTurnId = null
       await tick()
-      scrollToBottom(true)
+      scrollToBottom(storyDiv, { smooth: true })
     } catch (err) {
       if (err instanceof ApiError) {
         showError(err.message)
@@ -439,7 +370,7 @@
       canUndoCancel = false
       await loadVariants(result.turn_id, true)
       await tick()
-      scrollToBottom(true)
+      scrollToBottom(storyDiv, { smooth: true })
     } catch (err) {
       if (err instanceof ApiError) {
         showError(err.message)
@@ -560,7 +491,9 @@
     editNarrative = turn.narrative_text
     // autoresize uses rAF internally, so wait for tick + 2 rAFs to ensure textareas are sized
     tick().then(() =>
-      requestAnimationFrame(() => requestAnimationFrame(() => requestAnimationFrame(() => scrollToBottom(true)))),
+      requestAnimationFrame(() =>
+        requestAnimationFrame(() => requestAnimationFrame(() => scrollToBottom(storyDiv, { smooth: true }))),
+      ),
     )
   }
 
@@ -614,20 +547,10 @@
     }
   }
 
-  function scrollToBottom(smooth = false) {
-    if (storyDiv) {
-      if (smooth) {
-        storyDiv.scrollTo({ top: storyDiv.scrollHeight, behavior: "smooth" })
-      } else {
-        storyDiv.scrollTop = storyDiv.scrollHeight
-      }
-    }
-  }
-
   function scheduleKeyboardScroll() {
     if (keyboardScrollTimer) window.clearTimeout(keyboardScrollTimer)
-    requestAnimationFrame(() => scrollToBottom())
-    keyboardScrollTimer = window.setTimeout(() => scrollToBottom(), 120)
+    requestAnimationFrame(() => scrollToBottom(storyDiv))
+    keyboardScrollTimer = window.setTimeout(() => scrollToBottom(storyDiv), 120)
   }
 
   function goHome() {
@@ -691,7 +614,7 @@
       )
       activeVariantId = result.active_variant_id
       await tick()
-      scrollToBottom(true)
+      scrollToBottom(storyDiv, { smooth: true })
     } catch (err) {
       if (err instanceof ApiError) {
         showError(err.message)
@@ -712,7 +635,7 @@
           loadVariants(lastId).then(() => {
             if (!initialScrollDone) {
               initialScrollDone = true
-              tick().then(() => requestAnimationFrame(() => scrollToBottom()))
+              tick().then(() => requestAnimationFrame(() => scrollToBottom(storyDiv)))
             }
           })
         }
@@ -1428,7 +1351,7 @@
     font-family: var(--font-ui);
     font-size: 0.65rem;
     color: var(--text-scene);
-        letter-spacing: 0.06em;
+    letter-spacing: 0.06em;
     white-space: normal;
     overflow-wrap: anywhere;
     line-height: 1.2;
@@ -1522,27 +1445,27 @@
     justify-content: space-between;
     align-items: center;
     font-size: 0.72rem;
-        letter-spacing: 0.1em;
+    letter-spacing: 0.1em;
     color: var(--text-dim);
   }
   .opening-scene {
     font-family: var(--font-ui);
     font-size: 0.65rem;
     color: var(--text-scene);
-        letter-spacing: 0.08em;
+    letter-spacing: 0.08em;
   }
   .scene-crumb {
     font-family: var(--font-ui);
     font-size: 0.72rem;
     color: var(--text-scene);
-        letter-spacing: 0.1em;
+    letter-spacing: 0.1em;
     margin-bottom: 1.25rem;
   }
   .turn-scene {
     font-family: var(--font-ui);
     font-size: 0.65rem;
     color: var(--text-scene);
-        letter-spacing: 0.08em;
+    letter-spacing: 0.08em;
     margin-bottom: 0.4rem;
   }
   .opening-text {
@@ -1567,7 +1490,7 @@
   }
   .edit-label {
     font-size: 0.72rem;
-        letter-spacing: 0.1em;
+    letter-spacing: 0.1em;
     color: var(--text-dim);
   }
   .edit-textarea {
@@ -1680,7 +1603,7 @@
   .variant-label {
     font-size: 0.65rem;
     letter-spacing: 0.08em;
-        color: var(--text-dim);
+    color: var(--text-dim);
     font-family: var(--font-ui);
   }
   .variant-pill {
@@ -1770,7 +1693,7 @@
     font-size: 0.9rem;
     font-weight: 600;
     color: var(--text);
-        letter-spacing: 0.06em;
+    letter-spacing: 0.06em;
   }
   .editor-hint {
     font-size: 0.75rem;

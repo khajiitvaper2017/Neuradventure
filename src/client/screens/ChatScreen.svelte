@@ -1,6 +1,8 @@
 <script lang="ts">
   import { onMount, tick } from "svelte"
   import { api, type ChatMessage } from "../api/client.js"
+  import { normalizeChatInput } from "../utils/inputNormalize.js"
+  import { scrollToBottom } from "../utils/scroll.js"
   import { showConfirm, showError, goBack } from "../stores/ui.js"
   import {
     canUndoChatCancel,
@@ -55,18 +57,13 @@
     return list[safeIndex]?.name ?? "Unknown"
   }
 
-  function scrollToBottom() {
-    if (!logEl) return
-    logEl.scrollTop = logEl.scrollHeight
-  }
-
   $effect(() => {
     if ($chatMessages.length === 0) return
-    tick().then(scrollToBottom)
+    tick().then(() => scrollToBottom(logEl))
   })
 
   onMount(() => {
-    tick().then(scrollToBottom)
+    tick().then(() => scrollToBottom(logEl))
   })
 
   function startEditScenario() {
@@ -105,35 +102,6 @@
     }
   }
 
-  function matchCase(match: string, replacement: string): string {
-    if (match.toUpperCase() === match) return replacement.toUpperCase()
-    if (match[0] === match[0].toUpperCase()) return replacement[0].toUpperCase() + replacement.substring(1)
-    return replacement
-  }
-
-  function normalizeDoInput(text: string): string {
-    let normalized = text
-    normalized = normalized.replace(/\\bmyself\\b/gi, (m) => matchCase(m, "yourself"))
-    normalized = normalized.replace(/\\bmy\\b/gi, (m) => matchCase(m, "your"))
-    if (!/^(you|your|yourself)\\b/i.test(normalized)) {
-      const lowered = normalized.replace(/^([A-Z])/, (m) => m.toLowerCase())
-      normalized = `You ${lowered}`
-    }
-    return normalized
-  }
-
-  function normalizeSayInput(text: string): string {
-    if (text.startsWith('\"') && text.endsWith('\"') && text.length >= 2) return text
-    return `\"${text}\"`
-  }
-
-  function normalizeChatInput(text: string, mode: ActionMode): string {
-    const trimmed = text.trim()
-    if (!trimmed) return trimmed
-    if (mode === "do") return normalizeDoInput(trimmed)
-    return normalizeSayInput(trimmed)
-  }
-
   async function sendMessage() {
     if (!$currentChatId || $isChatGenerating) return
     const raw = input
@@ -154,7 +122,7 @@
       }
       canUndoChatCancel.set(false)
       await tick()
-      scrollToBottom()
+      scrollToBottom(logEl)
     } catch (err) {
       showError(err instanceof Error ? err.message : "Failed to send message")
     } finally {
@@ -175,7 +143,7 @@
       nextSpeakerIndex.set(result.next_speaker_index)
       canUndoChatCancel.set(false)
       await tick()
-      scrollToBottom()
+      scrollToBottom(logEl)
     } catch (err) {
       showError(err instanceof Error ? err.message : "Failed to regenerate reply")
     } finally {
@@ -207,7 +175,7 @@
       nextSpeakerIndex.set(result.next_speaker_index)
       canUndoChatCancel.set(false)
       await tick()
-      scrollToBottom()
+      scrollToBottom(logEl)
     } catch (err) {
       showError(err instanceof Error ? err.message : "Failed to undo cancel")
     } finally {
@@ -218,7 +186,7 @@
   function startEditMessage(message: ChatMessage) {
     editingMessageId = message.id
     editMessageContent = message.content
-    tick().then(scrollToBottom)
+    tick().then(() => scrollToBottom(logEl))
   }
 
   function cancelEditMessage() {
@@ -546,7 +514,7 @@
     font-family: var(--font-ui);
     font-size: 0.65rem;
     color: var(--text-scene);
-        letter-spacing: 0.06em;
+    letter-spacing: 0.06em;
     white-space: normal;
     overflow-wrap: anywhere;
     line-height: 1.2;
@@ -616,7 +584,7 @@
     justify-content: space-between;
     align-items: center;
     font-size: 0.72rem;
-        letter-spacing: 0.1em;
+    letter-spacing: 0.1em;
     color: var(--text-dim);
   }
   .opening-text {
@@ -631,7 +599,7 @@
   .chat-participants {
     font-size: 0.7rem;
     color: var(--text-dim);
-        letter-spacing: 0.08em;
+    letter-spacing: 0.08em;
   }
 
   .chat-message {
@@ -654,7 +622,7 @@
     gap: 0.5rem;
     font-size: 0.7rem;
     color: var(--text-dim);
-        letter-spacing: 0.06em;
+    letter-spacing: 0.06em;
   }
   .message-actions {
     display: inline-flex;
@@ -696,7 +664,7 @@
   }
   .edit-label {
     font-size: 0.72rem;
-        letter-spacing: 0.1em;
+    letter-spacing: 0.1em;
     color: var(--text-dim);
   }
   .edit-actions {
@@ -779,7 +747,7 @@
     font-size: 0.9rem;
     font-weight: 600;
     color: var(--text);
-        letter-spacing: 0.06em;
+    letter-spacing: 0.06em;
   }
   .editor-hint {
     font-size: 0.75rem;

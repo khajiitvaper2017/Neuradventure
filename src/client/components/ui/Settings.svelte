@@ -15,15 +15,18 @@
   } from "../../stores/settings.js"
   import type { GenerationParams, SamplerPreset, StoryModules } from "../../api/client.js"
   import { presets, loadPresets } from "../../utils/presets.js"
+  import StoryModulesPanel from "./StoryModulesPanel.svelte"
 
-  type SettingsTab = "appearance" | "generation"
+  type SettingsTab = "appearance" | "generation" | "modules"
   const SETTINGS_TAB_KEY = "settings_active_tab"
 
   function loadInitialTab(): SettingsTab {
     if (typeof window === "undefined") return "appearance"
     try {
       const stored = window.localStorage.getItem(SETTINGS_TAB_KEY)
-      return stored === "generation" ? "generation" : "appearance"
+      if (stored === "generation") return "generation"
+      if (stored === "modules") return "modules"
+      return "appearance"
     } catch {
       return "appearance"
     }
@@ -84,8 +87,8 @@
     }
   }
 
-  function updateStoryDefaults<K extends keyof StoryModules>(key: K, value: StoryModules[K]) {
-    storyDefaults.set({ ...$storyDefaults, [key]: value })
+  function setStoryDefaults(next: StoryModules) {
+    storyDefaults.set(next)
   }
 
   // ── Presets ──────────────────────────────────────────
@@ -333,6 +336,9 @@
     <button class="tab" class:active={activeTab === "generation"} onclick={() => (activeTab = "generation")}>
       Text Generation
     </button>
+    <button class="tab" class:active={activeTab === "modules"} onclick={() => (activeTab = "modules")}>
+      Story Modules
+    </button>
   </nav>
 
   <div class="list" data-scroll-root="screen">
@@ -473,198 +479,6 @@
           step="1"
           bind:value={authorNoteDepthDraft}
           onblur={commitAuthorNote}
-        />
-      </label>
-
-      <label class="row">
-        <span class="row-text">
-          <span class="row-title">Track NPCs by default</span>
-          <span class="row-sub">New stories track NPC state and updates</span>
-        </span>
-        <input
-          type="checkbox"
-          checked={$storyDefaults.track_npcs}
-          onchange={(e) => updateStoryDefaults("track_npcs", (e.target as HTMLInputElement).checked)}
-        />
-      </label>
-
-      <label class="row">
-        <span class="row-text">
-          <span class="row-title">Track locations by default</span>
-          <span class="row-sub">New stories track location lists and presence</span>
-        </span>
-        <input
-          type="checkbox"
-          checked={$storyDefaults.track_locations}
-          onchange={(e) => updateStoryDefaults("track_locations", (e.target as HTMLInputElement).checked)}
-        />
-      </label>
-
-      <label class="row row-input">
-        <span class="row-text">
-          <span class="row-title">Character detail mode</span>
-          <span class="row-sub">Default character detail style for new stories</span>
-        </span>
-        <select
-          class="select-input"
-          value={$storyDefaults.character_detail_mode}
-          onchange={(e) => {
-            const next = (e.target as HTMLSelectElement).value as StoryModules["character_detail_mode"]
-            updateStoryDefaults("character_detail_mode", next)
-            if (next === "detailed") updateStoryDefaults("character_appearance_clothing", true)
-          }}
-        >
-          <option value="detailed">Detailed (appearance + traits)</option>
-          <option value="general">General description only</option>
-        </select>
-      </label>
-
-      {#if $storyDefaults.character_detail_mode === "detailed"}
-        <label class="row">
-          <span class="row-text">
-            <span class="row-title">Player appearance + clothing</span>
-            <span class="row-sub">Always enabled in detailed mode</span>
-          </span>
-          <input type="checkbox" checked={true} disabled />
-        </label>
-      {/if}
-
-      <label class="row">
-        <span class="row-text">
-          <span class="row-title">Player personality traits</span>
-        </span>
-        <input
-          type="checkbox"
-          checked={$storyDefaults.character_personality_traits}
-          onchange={(e) => updateStoryDefaults("character_personality_traits", (e.target as HTMLInputElement).checked)}
-        />
-      </label>
-
-      <label class="row">
-        <span class="row-text">
-          <span class="row-title">Player major flaws</span>
-        </span>
-        <input
-          type="checkbox"
-          checked={$storyDefaults.character_major_flaws}
-          onchange={(e) => updateStoryDefaults("character_major_flaws", (e.target as HTMLInputElement).checked)}
-        />
-      </label>
-
-      <label class="row">
-        <span class="row-text">
-          <span class="row-title">Player quirks</span>
-        </span>
-        <input
-          type="checkbox"
-          checked={$storyDefaults.character_quirks}
-          onchange={(e) => updateStoryDefaults("character_quirks", (e.target as HTMLInputElement).checked)}
-        />
-      </label>
-
-      <label class="row">
-        <span class="row-text">
-          <span class="row-title">Player perks</span>
-        </span>
-        <input
-          type="checkbox"
-          checked={$storyDefaults.character_perks}
-          onchange={(e) => updateStoryDefaults("character_perks", (e.target as HTMLInputElement).checked)}
-        />
-      </label>
-
-      <label class="row">
-        <span class="row-text">
-          <span class="row-title">Player inventory</span>
-        </span>
-        <input
-          type="checkbox"
-          checked={$storyDefaults.character_inventory}
-          onchange={(e) => updateStoryDefaults("character_inventory", (e.target as HTMLInputElement).checked)}
-        />
-      </label>
-
-      <label class="row">
-        <span class="row-text">
-          <span class="row-title">NPC appearance + clothing</span>
-        </span>
-        <input
-          type="checkbox"
-          checked={$storyDefaults.npc_appearance_clothing}
-          disabled={!$storyDefaults.track_npcs}
-          onchange={(e) => updateStoryDefaults("npc_appearance_clothing", (e.target as HTMLInputElement).checked)}
-        />
-      </label>
-
-      <label class="row">
-        <span class="row-text">
-          <span class="row-title">NPC personality traits</span>
-        </span>
-        <input
-          type="checkbox"
-          checked={$storyDefaults.npc_personality_traits}
-          disabled={!$storyDefaults.track_npcs}
-          onchange={(e) => updateStoryDefaults("npc_personality_traits", (e.target as HTMLInputElement).checked)}
-        />
-      </label>
-
-      <label class="row">
-        <span class="row-text">
-          <span class="row-title">NPC major flaws</span>
-        </span>
-        <input
-          type="checkbox"
-          checked={$storyDefaults.npc_major_flaws}
-          disabled={!$storyDefaults.track_npcs}
-          onchange={(e) => updateStoryDefaults("npc_major_flaws", (e.target as HTMLInputElement).checked)}
-        />
-      </label>
-
-      <label class="row">
-        <span class="row-text">
-          <span class="row-title">NPC quirks</span>
-        </span>
-        <input
-          type="checkbox"
-          checked={$storyDefaults.npc_quirks}
-          disabled={!$storyDefaults.track_npcs}
-          onchange={(e) => updateStoryDefaults("npc_quirks", (e.target as HTMLInputElement).checked)}
-        />
-      </label>
-
-      <label class="row">
-        <span class="row-text">
-          <span class="row-title">NPC perks</span>
-        </span>
-        <input
-          type="checkbox"
-          checked={$storyDefaults.npc_perks}
-          disabled={!$storyDefaults.track_npcs}
-          onchange={(e) => updateStoryDefaults("npc_perks", (e.target as HTMLInputElement).checked)}
-        />
-      </label>
-
-      <label class="row">
-        <span class="row-text">
-          <span class="row-title">NPC location</span>
-        </span>
-        <input
-          type="checkbox"
-          checked={$storyDefaults.npc_location}
-          disabled={!$storyDefaults.track_npcs}
-          onchange={(e) => updateStoryDefaults("npc_location", (e.target as HTMLInputElement).checked)}
-        />
-      </label>
-
-      <label class="row">
-        <span class="row-text">
-          <span class="row-title">NPC activity</span>
-        </span>
-        <input
-          type="checkbox"
-          checked={$storyDefaults.npc_activity}
-          disabled={!$storyDefaults.track_npcs}
-          onchange={(e) => updateStoryDefaults("npc_activity", (e.target as HTMLInputElement).checked)}
         />
       </label>
 
@@ -843,6 +657,12 @@
       {/each}
 
       <div class="bottom-pad"></div>
+    {:else if activeTab === "modules"}
+      <div class="section-label">Defaults</div>
+      <div class="modules-settings">
+        <StoryModulesPanel modules={$storyDefaults} setModules={setStoryDefaults} />
+      </div>
+      <div class="bottom-pad"></div>
     {/if}
   </div>
 </div>
@@ -950,6 +770,10 @@
     width: 100%;
   }
 
+  .modules-settings {
+    padding: 0.4rem 1rem 1rem;
+  }
+
   .connector-badge {
     font-family: var(--font-ui);
     font-size: 0.75rem;
@@ -958,7 +782,7 @@
     background: var(--accent-dim);
     padding: 0.25rem 0.6rem;
     letter-spacing: 0.03em;
-      }
+  }
 
   /* ── Presets ──────────────────────────────────────── */
   .preset-row {

@@ -210,7 +210,7 @@ input[type="checkbox"] {
   font-size: 0.78rem;
   font-weight: 400;
   letter-spacing: 0.1em;
-    color: var(--accent);
+  color: var(--accent);
   min-height: 48px;
 }
 
@@ -370,7 +370,7 @@ input[type="checkbox"] {
   background: none;
   color: var(--text-dim);
   font-size: 0.75rem;
-    letter-spacing: 0.12em;
+  letter-spacing: 0.12em;
   padding: 0.3rem 0.65rem;
   border-radius: 999px;
   cursor: pointer;
@@ -463,7 +463,7 @@ input[type="checkbox"] {
   font-size: 0.85rem;
   font-weight: 600;
   color: var(--text-dim);
-    letter-spacing: 0.05em;
+  letter-spacing: 0.05em;
 }
 
 .hint {
@@ -616,10 +616,203 @@ input[type="checkbox"] {
   -moz-appearance: textfield;
 }
 
+/* ── Shared prompt history ─────────────────────────── */
+.shared-prompt-history {
+  margin-top: 0.6rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+.shared-prompt-history__label {
+  font-size: 0.7rem;
+  letter-spacing: 0.08em;
+  color: var(--text-dim);
+}
+.shared-prompt-history__list {
+  display: grid;
+  gap: 0.35rem;
+}
+.shared-prompt-history__item {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+}
+.shared-prompt-history__use {
+  flex: 1;
+  min-width: 0;
+  text-align: left;
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  color: var(--text);
+  padding: 0.45rem 0.6rem;
+  border-radius: 4px;
+  font-size: 0.85rem;
+  cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.shared-prompt-history__use:hover {
+  border-color: var(--accent);
+}
+.shared-prompt-history__delete {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--text-dim);
+  border-radius: 4px;
+  padding: 0.35rem 0.5rem;
+  font-size: 0.8rem;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.shared-prompt-history__delete:hover {
+  border-color: var(--accent);
+  color: var(--text);
+}
+
+/* ── Shared select dropdowns ───────────────────────── */
+.shared-select-row {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+.shared-select-wrap {
+  position: relative;
+  flex: 1;
+}
+.shared-select-btn {
+  width: 100%;
+  flex: 1;
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: var(--text);
+  padding: 0.6rem 0.75rem;
+  padding-right: 2rem;
+  font-size: 0.95rem;
+  font-family: var(--font-ui);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  cursor: pointer;
+}
+.shared-select-btn:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+.shared-select-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+.shared-select-caret {
+  width: 0;
+  height: 0;
+  border-left: 5px solid transparent;
+  border-right: 5px solid transparent;
+  border-top: 6px solid var(--text-dim);
+}
+.shared-select-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  right: 0;
+  background: var(--bg-raised);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  z-index: 20;
+  max-height: 220px;
+  overflow-y: auto;
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.35);
+}
+.shared-select-item {
+  width: 100%;
+  text-align: left;
+  background: none;
+  border: none;
+  color: var(--text);
+  font-family: var(--font-ui);
+  font-size: 0.95rem;
+  padding: 0.55rem 0.75rem;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+.shared-select-item:hover {
+  background: var(--bg-action);
+}
+.shared-select-name {
+  font-size: 0.95rem;
+  color: var(--text);
+}
+.shared-select-meta {
+  font-size: 0.75rem;
+  color: var(--text-dim);
+}
+
+/* ── Shared summary cards ──────────────────────────── */
+.shared-summary {
+  background: var(--bg-raised);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+}
+.shared-summary--tight {
+  gap: 0.25rem;
+}
+.shared-summary--roomy {
+  gap: 0.75rem;
+}
+.shared-summary--empty {
+  gap: 0.6rem;
+}
+.shared-summary__header {
+  font-size: 0.75rem;
+  letter-spacing: 0.08em;
+  color: var(--text-dim);
+}
+.shared-summary__name {
+  font-size: 1rem;
+  font-family: var(--font-story);
+  color: var(--text);
+}
+.shared-summary__name--lg {
+  font-size: 1.1rem;
+}
+.shared-summary__details {
+  font-size: 0.85rem;
+  color: var(--text-dim);
+}
+.shared-summary__list {
+  display: grid;
+  gap: 0.75rem;
+}
+.shared-summary .small {
+  align-self: flex-start;
+  margin-top: 0.5rem;
+}
+.shared-card {
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 0.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
 /* ── Section labels & dividers ─────────────────────── */
 .section-label {
   font-size: 0.75rem;
-    letter-spacing: 0.08em;
+  letter-spacing: 0.08em;
   font-family: var(--font-ui);
   font-weight: 600;
   color: var(--text-dim);
@@ -727,6 +920,30 @@ button.chip:disabled {
   z-index: 20;
 }
 
+.modules-shell {
+  background: var(--bg-raised);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.modules-shell-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.85rem 1rem;
+  border-bottom: 1px solid var(--border);
+  font-family: var(--font-brand);
+  font-size: 0.78rem;
+  font-weight: 400;
+  letter-spacing: 0.1em;
+  color: var(--text-dim);
+}
+
+.modules-shell-body {
+  padding: 1rem;
+}
+
 .panel {
   position: fixed;
   top: 0;
@@ -751,7 +968,7 @@ button.chip:disabled {
   font-size: 0.78rem;
   font-weight: 400;
   letter-spacing: 0.1em;
-    color: var(--text-dim);
+  color: var(--text-dim);
 }
 
 .panel-header button {

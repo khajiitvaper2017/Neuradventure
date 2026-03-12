@@ -478,16 +478,16 @@
         </div>
       {/if}
       {#if promptHistory.length > 0}
-        <div class="prompt-history">
-          <div class="prompt-history-label">Recent prompts</div>
-          <div class="prompt-history-list">
+        <div class="shared-prompt-history">
+          <div class="shared-prompt-history__label">Recent prompts</div>
+          <div class="shared-prompt-history__list">
             {#each promptHistory.slice(0, 6) as item}
-              <div class="prompt-history-item">
-                <button class="prompt-history-use" onclick={() => usePrompt(item)} title={item}>
+              <div class="shared-prompt-history__item">
+                <button class="shared-prompt-history__use" onclick={() => usePrompt(item)} title={item}>
                   {item}
                 </button>
                 <button
-                  class="prompt-history-delete"
+                  class="shared-prompt-history__delete"
                   type="button"
                   onclick={() => deletePrompt(item)}
                   aria-label="Delete prompt"
@@ -532,9 +532,12 @@
     </div>
 
     <div class="field">
-      <!-- svelte-ignore a11y_label_has_associated_control -->
-      <label>Story Modules</label>
-      <StoryModulesPanel modules={activeModules} setModules={setModules} />
+      <div class="modules-shell">
+        <div class="modules-shell-header">Story Modules</div>
+        <div class="modules-shell-body">
+          <StoryModulesPanel modules={activeModules} {setModules} bare />
+        </div>
+      </div>
     </div>
 
     {#if activeModules.character_detail_mode === "general"}
@@ -837,12 +840,6 @@
   .custom-input input {
     flex: 1;
   }
-  .prompt-history {
-    margin-top: 0.6rem;
-    display: flex;
-    flex-direction: column;
-    gap: 0.4rem;
-  }
   .import-autofill {
     margin-top: 0.6rem;
     display: flex;
@@ -853,56 +850,5 @@
   .import-label {
     font-size: 0.75rem;
     color: var(--text-dim);
-  }
-  .prompt-history-label {
-    font-size: 0.7rem;
-    letter-spacing: 0.08em;
-    color: var(--text-dim);
-  }
-  .prompt-history-list {
-    display: grid;
-    gap: 0.35rem;
-  }
-  .prompt-history-item {
-    display: flex;
-    align-items: center;
-    gap: 0.35rem;
-    width: 100%;
-    max-width: 100%;
-    min-width: 0;
-  }
-  .prompt-history-use {
-    flex: 1;
-    min-width: 0;
-    text-align: left;
-    background: var(--bg-input);
-    border: 1px solid var(--border);
-    color: var(--text);
-    padding: 0.45rem 0.6rem;
-    border-radius: 4px;
-    font-size: 0.85rem;
-    cursor: pointer;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-  .prompt-history-use:hover {
-    border-color: var(--accent);
-  }
-  .prompt-history-delete {
-    background: transparent;
-    border: 1px solid var(--border);
-    color: var(--text-dim);
-    border-radius: 4px;
-    padding: 0.35rem 0.5rem;
-    font-size: 0.8rem;
-    cursor: pointer;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-  }
-  .prompt-history-delete:hover {
-    border-color: var(--accent);
-    color: var(--text);
   }
 </style>
