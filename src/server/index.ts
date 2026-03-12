@@ -14,6 +14,7 @@ import stories from "./api/stories.js"
 import turns from "./api/turns.js"
 import generate from "./api/generate.js"
 import settings from "./api/settings.js"
+import chats from "./api/chats.js"
 
 initDb()
 console.log("Database initialized")
@@ -41,6 +42,7 @@ app.route("/api/stories", stories)
 app.route("/api/turns", turns)
 app.route("/api/generate", generate)
 app.route("/api/settings", settings)
+app.route("/api/chats", chats)
 
 const PORT = 3001
 const HOST = process.env.HOST ?? "0.0.0.0"

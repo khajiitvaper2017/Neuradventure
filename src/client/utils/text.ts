@@ -1,3 +1,5 @@
+export { normalizeGender } from "../../../shared/utils/normalize.js"
+
 export type GenderIcon = "male" | "female" | "intersex" | "transgender" | null
 
 export function genderIcon(gender: string | undefined): GenderIcon {

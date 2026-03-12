@@ -4,7 +4,7 @@
   import { character, currentStoryId, llmUpdateId } from "../../stores/game.js"
   import type { MainCharacterState } from "../../api/client.js"
   import { autoresize } from "../../utils/actions/autoresize.js"
-  import { genderIcon, splitCsv } from "../../utils/text.js"
+  import { genderIcon, normalizeGender, splitCsv } from "../../utils/text.js"
   import IconMale from "../icons/IconMale.svelte"
   import IconFemale from "../icons/IconFemale.svelte"
   import IconIntersex from "../icons/IconIntersex.svelte"
@@ -214,7 +214,7 @@
     }
     const name = draft.name.trim()
     const race = draft.race.trim()
-    const gender = draft.gender.trim()
+    const gender = normalizeGender(draft.gender, "")
     const baselineAppearance = draft.baselineAppearance.trim()
     const currentAppearance = draft.currentAppearance.trim()
     const clothing = draft.clothing.trim()

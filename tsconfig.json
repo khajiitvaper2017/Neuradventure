@@ -7,8 +7,8 @@
     "esModuleInterop": true,
     "skipLibCheck": true,
     "outDir": "dist-server",
-    "rootDir": "src/server"
+    "rootDir": "."
   },
-  "include": ["src/server/**/*"],
+  "include": ["src/server/**/*", "shared/**/*.ts"],
   "exclude": ["node_modules"]
 }

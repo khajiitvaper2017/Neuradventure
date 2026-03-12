@@ -1,37 +1,47 @@
 import { writable, readable, get } from "svelte/store"
 
-export type Screen = "home" | "char-create" | "new-story" | "game" | "settings"
+export type Screen = "home" | "char-create" | "new-story" | "new-chat" | "game" | "chat" | "settings"
 
-type Route = { screen: Screen; storyId: number | null }
+type Route = { screen: Screen; storyId: number | null; chatId: number | null }
 
 function parseHash(hash: string): Route {
   const cleaned = hash.replace(/^#\/?/, "").trim()
-  if (!cleaned) return { screen: "home", storyId: null }
+  if (!cleaned) return { screen: "home", storyId: null, chatId: null }
   const [segment, rawId] = cleaned.split("/")
   if (segment === "game") {
     const id = Number(rawId)
-    if (!Number.isFinite(id) || id <= 0) return { screen: "home", storyId: null }
-    return { screen: "game", storyId: id }
+    if (!Number.isFinite(id) || id <= 0) return { screen: "home", storyId: null, chatId: null }
+    return { screen: "game", storyId: id, chatId: null }
   }
-  if (segment === "char-create") return { screen: "char-create", storyId: null }
-  if (segment === "new-story") return { screen: "new-story", storyId: null }
-  if (segment === "settings") return { screen: "settings", storyId: null }
-  return { screen: "home", storyId: null }
+  if (segment === "chat") {
+    const id = Number(rawId)
+    if (!Number.isFinite(id) || id <= 0) return { screen: "home", storyId: null, chatId: null }
+    return { screen: "chat", storyId: null, chatId: id }
+  }
+  if (segment === "char-create") return { screen: "char-create", storyId: null, chatId: null }
+  if (segment === "new-story") return { screen: "new-story", storyId: null, chatId: null }
+  if (segment === "new-chat") return { screen: "new-chat", storyId: null, chatId: null }
+  if (segment === "settings") return { screen: "settings", storyId: null, chatId: null }
+  return { screen: "home", storyId: null, chatId: null }
 }
 
-function buildHash(screen: Screen, storyId: number | null): string {
+function buildHash(screen: Screen, storyId: number | null, chatId: number | null): string {
   if (screen === "game") {
     return storyId ? `#/game/${storyId}` : "#/game"
+  }
+  if (screen === "chat") {
+    return chatId ? `#/chat/${chatId}` : "#/chat"
   }
   if (screen === "home") return "#/home"
   return `#/${screen}`
 }
 
 const initialRoute: Route =
-  typeof window !== "undefined" ? parseHash(window.location.hash) : { screen: "home", storyId: null }
+  typeof window !== "undefined" ? parseHash(window.location.hash) : { screen: "home", storyId: null, chatId: null }
 
 export const activeScreen = writable<Screen>(initialRoute.screen)
 export const routeStoryId = writable<number | null>(initialRoute.storyId)
+export const routeChatId = writable<number | null>(initialRoute.chatId)
 const screenHistory: Screen[] = []
 let ignoreNextHashChange = false
 
@@ -40,6 +50,7 @@ function syncFromLocation(resetHistory: boolean) {
   const route = parseHash(window.location.hash)
   activeScreen.set(route.screen)
   routeStoryId.set(route.storyId)
+  routeChatId.set(route.chatId)
   if (resetHistory) screenHistory.length = 0
 }
 
@@ -60,7 +71,8 @@ export function initRouter() {
 
 function setHash(screen: Screen, storyId: number | null, replace?: boolean) {
   if (typeof window === "undefined") return
-  const hash = buildHash(screen, storyId)
+  const chatId = screen === "chat" ? get(routeChatId) : null
+  const hash = buildHash(screen, storyId, chatId)
   if (window.location.hash === hash) return
   if (replace) {
     window.history.replaceState(null, "", hash)
@@ -72,13 +84,15 @@ function setHash(screen: Screen, storyId: number | null, replace?: boolean) {
 
 export function navigate(
   screen: Screen,
-  options: { replace?: boolean; reset?: boolean; params?: { storyId?: number } } = {},
+  options: { replace?: boolean; reset?: boolean; params?: { storyId?: number; chatId?: number } } = {},
 ) {
   const current = get(activeScreen)
   const nextStoryId = screen === "game" ? (options.params?.storyId ?? get(routeStoryId)) : null
-  const nextScreen = screen === "game" && !nextStoryId ? "home" : screen
+  const nextChatId = screen === "chat" ? (options.params?.chatId ?? get(routeChatId)) : null
+  const nextScreen = (screen === "game" && !nextStoryId) || (screen === "chat" && !nextChatId) ? "home" : screen
   activeScreen.set(nextScreen)
   routeStoryId.set(nextScreen === "game" ? nextStoryId : null)
+  routeChatId.set(nextScreen === "chat" ? nextChatId : null)
   if (options.reset) screenHistory.length = 0
   if (!options.replace && current !== nextScreen) screenHistory.push(current)
   setHash(nextScreen, nextScreen === "game" ? nextStoryId : null, options.replace)

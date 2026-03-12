@@ -4,6 +4,7 @@ import path from "path"
 import { fileURLToPath } from "url"
 import type { MainCharacterState, NPCState, WorldState } from "./models.js"
 import { getServerDefaults } from "./strings.js"
+import { normalizeGender } from "../schemas/normalizers.js"
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 export const DB_PATH = path.resolve(__dirname, "../../../data/neuradventure.db")
@@ -20,7 +21,7 @@ function normalizeCharacterBase(input: Partial<CharacterBase>): CharacterBase {
   return {
     name: input.name ?? "",
     race: input.race ?? "",
-    gender: input.gender ?? "",
+    gender: normalizeGender(input.gender, ""),
     current_location: input.current_location ?? getServerDefaults().unknown.location,
     appearance: {
       baseline_appearance: baselineAppearance,
@@ -80,6 +81,8 @@ export interface SettingsState {
   design: "classic" | "roboto"
   textJustify: boolean
   colorScheme: "gold" | "emerald" | "sapphire" | "crimson"
+  defaultAuthorNote: string
+  defaultAuthorNoteDepth: number
   connector: LLMConnector
   generation: GenerationParams
 }
@@ -116,6 +119,8 @@ const DEFAULT_SETTINGS: SettingsState = {
   design: "classic",
   textJustify: true,
   colorScheme: "gold",
+  defaultAuthorNote: "Remember the instructions you were given at the beginning of this chat.",
+  defaultAuthorNoteDepth: 4,
   connector: {
     type: "koboldcpp",
     url: "http://localhost:5001/v1",
@@ -201,6 +206,41 @@ export function initDb() {
       settings_json TEXT NOT NULL,
       updated_at    TEXT NOT NULL DEFAULT (datetime('now'))
     );
+
+    CREATE TABLE IF NOT EXISTS chats (
+      id                  INTEGER PRIMARY KEY AUTOINCREMENT,
+      title               TEXT NOT NULL DEFAULT '',
+      scenario            TEXT NOT NULL DEFAULT '',
+      speaker_strategy    TEXT NOT NULL DEFAULT 'round_robin',
+      next_speaker_index  INTEGER NOT NULL DEFAULT 0,
+      created_at          TEXT NOT NULL DEFAULT (datetime('now')),
+      updated_at          TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+
+    CREATE TABLE IF NOT EXISTS chat_members (
+      id            INTEGER PRIMARY KEY AUTOINCREMENT,
+      chat_id       INTEGER NOT NULL REFERENCES chats(id) ON DELETE CASCADE,
+      role          TEXT NOT NULL,
+      member_kind   TEXT NOT NULL,
+      character_id  INTEGER REFERENCES characters(id),
+      state_json    TEXT NOT NULL,
+      sort_order    INTEGER NOT NULL,
+      created_at    TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_chat_members_chat ON chat_members(chat_id, sort_order);
+
+    CREATE TABLE IF NOT EXISTS chat_messages (
+      id                INTEGER PRIMARY KEY AUTOINCREMENT,
+      chat_id           INTEGER NOT NULL REFERENCES chats(id) ON DELETE CASCADE,
+      message_index     INTEGER NOT NULL,
+      speaker_member_id INTEGER NOT NULL REFERENCES chat_members(id) ON DELETE CASCADE,
+      role              TEXT NOT NULL,
+      content           TEXT NOT NULL,
+      created_at        TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_chat_messages_chat ON chat_messages(chat_id, message_index);
   `)
 
   const storyColumns = database.prepare("PRAGMA table_info(stories)").all() as { name: string }[]
@@ -298,6 +338,51 @@ export function initDb() {
       (SELECT tv.id FROM turn_variants tv WHERE tv.turn_id = turns.id ORDER BY tv.variant_index DESC LIMIT 1)
     )
   `)
+
+  const chatColumns = database.prepare("PRAGMA table_info(chats)").all() as { name: string }[]
+  const chatColumnNames = new Set(chatColumns.map((c) => c.name))
+  if (chatColumns.length > 0) {
+    if (!chatColumnNames.has("scenario")) {
+      database.exec("ALTER TABLE chats ADD COLUMN scenario TEXT NOT NULL DEFAULT ''")
+    }
+    if (!chatColumnNames.has("speaker_strategy")) {
+      database.exec("ALTER TABLE chats ADD COLUMN speaker_strategy TEXT NOT NULL DEFAULT 'round_robin'")
+    }
+    if (!chatColumnNames.has("next_speaker_index")) {
+      database.exec("ALTER TABLE chats ADD COLUMN next_speaker_index INTEGER NOT NULL DEFAULT 0")
+    }
+    if (!chatColumnNames.has("updated_at")) {
+      database.exec("ALTER TABLE chats ADD COLUMN updated_at TEXT NOT NULL DEFAULT (datetime('now'))")
+    }
+  }
+
+  const chatMemberColumns = database.prepare("PRAGMA table_info(chat_members)").all() as { name: string }[]
+  const chatMemberNames = new Set(chatMemberColumns.map((c) => c.name))
+  if (chatMemberColumns.length > 0) {
+    if (!chatMemberNames.has("member_kind")) {
+      database.exec("ALTER TABLE chat_members ADD COLUMN member_kind TEXT NOT NULL DEFAULT 'character'")
+    }
+    if (!chatMemberNames.has("state_json")) {
+      database.exec("ALTER TABLE chat_members ADD COLUMN state_json TEXT NOT NULL DEFAULT ''")
+    }
+    if (!chatMemberNames.has("sort_order")) {
+      database.exec("ALTER TABLE chat_members ADD COLUMN sort_order INTEGER NOT NULL DEFAULT 0")
+    }
+  }
+
+  const chatMessageColumns = database.prepare("PRAGMA table_info(chat_messages)").all() as { name: string }[]
+  const chatMessageNames = new Set(chatMessageColumns.map((c) => c.name))
+  if (chatMessageColumns.length > 0) {
+    if (!chatMessageNames.has("message_index")) {
+      database.exec("ALTER TABLE chat_messages ADD COLUMN message_index INTEGER NOT NULL DEFAULT 0")
+    }
+    if (!chatMessageNames.has("speaker_member_id")) {
+      database.exec("ALTER TABLE chat_messages ADD COLUMN speaker_member_id INTEGER NOT NULL DEFAULT 0")
+    }
+    if (!chatMessageNames.has("role")) {
+      database.exec("ALTER TABLE chat_messages ADD COLUMN role TEXT NOT NULL DEFAULT 'assistant'")
+    }
+  }
 
   const settingsRow = database.prepare("SELECT settings_json FROM settings WHERE id = 1").get() as
     | { settings_json: string }
@@ -422,6 +507,8 @@ export function createStory(
   world: WorldState,
   npcs: NPCState[],
   characterId: number | null,
+  authorNote: string,
+  authorNoteDepth: number,
 ): number {
   const result = getDb()
     .prepare(
@@ -434,9 +521,11 @@ export function createStory(
         npc_states_json,
         initial_character_state_json,
         initial_world_state_json,
-        initial_npc_states_json
+        initial_npc_states_json,
+        author_note,
+        author_note_depth
       )
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     )
     .run(
       characterId,
@@ -448,6 +537,8 @@ export function createStory(
       JSON.stringify(character),
       JSON.stringify(world),
       JSON.stringify(npcs),
+      authorNote,
+      authorNoteDepth,
     )
   return result.lastInsertRowid as number
 }
@@ -734,6 +825,145 @@ export function getCanceledTurn(story_id: number): CanceledTurnPayload | undefin
 
 export function clearCanceledTurn(story_id: number): void {
   getDb().prepare("DELETE FROM canceled_turns WHERE story_id = ?").run(story_id)
+}
+
+// ─── Chats ───────────────────────────────────────────────────────────────────
+
+export type ChatMemberState = Omit<MainCharacterState, "inventory"> | Omit<NPCState, "inventory">
+
+export interface ChatRow {
+  id: number
+  title: string
+  scenario: string
+  speaker_strategy: string
+  next_speaker_index: number
+  created_at: string
+  updated_at: string
+}
+
+export interface ChatMemberRow {
+  id: number
+  chat_id: number
+  role: "player" | "ai"
+  member_kind: "character" | "npc"
+  character_id: number | null
+  state_json: string
+  sort_order: number
+  created_at: string
+}
+
+export interface ChatMessageRow {
+  id: number
+  chat_id: number
+  message_index: number
+  speaker_member_id: number
+  role: "user" | "assistant" | "system"
+  content: string
+  created_at: string
+}
+
+export interface ChatMemberInput {
+  role: "player" | "ai"
+  member_kind: "character" | "npc"
+  character_id: number | null
+  state: ChatMemberState
+  sort_order: number
+}
+
+export function createChat(
+  title: string,
+  scenario: string,
+  speaker_strategy: string,
+  next_speaker_index: number,
+  members: ChatMemberInput[],
+): number {
+  const database = getDb()
+  const insertChat = database.prepare(
+    `INSERT INTO chats (title, scenario, speaker_strategy, next_speaker_index)
+     VALUES (?, ?, ?, ?)`,
+  )
+  const insertMember = database.prepare(
+    `INSERT INTO chat_members (chat_id, role, member_kind, character_id, state_json, sort_order)
+     VALUES (?, ?, ?, ?, ?, ?)`,
+  )
+  const tx = database.transaction(() => {
+    const result = insertChat.run(title, scenario, speaker_strategy, next_speaker_index)
+    const chatId = result.lastInsertRowid as number
+    for (const member of members) {
+      insertMember.run(
+        chatId,
+        member.role,
+        member.member_kind,
+        member.character_id,
+        JSON.stringify(member.state),
+        member.sort_order,
+      )
+    }
+    return chatId
+  })
+  return tx()
+}
+
+export function listChats(): (ChatRow & { message_count: number })[] {
+  return getDb()
+    .prepare(
+      `SELECT c.*, COUNT(m.id) as message_count
+       FROM chats c
+       LEFT JOIN chat_messages m ON m.chat_id = c.id
+       GROUP BY c.id
+       ORDER BY c.updated_at DESC`,
+    )
+    .all() as (ChatRow & { message_count: number })[]
+}
+
+export function getChat(id: number): ChatRow | undefined {
+  return getDb().prepare("SELECT * FROM chats WHERE id = ?").get(id) as ChatRow | undefined
+}
+
+export function listChatMembers(chat_id: number): ChatMemberRow[] {
+  return getDb()
+    .prepare("SELECT * FROM chat_members WHERE chat_id = ? ORDER BY sort_order ASC, id ASC")
+    .all(chat_id) as ChatMemberRow[]
+}
+
+export function listChatMessages(chat_id: number): ChatMessageRow[] {
+  return getDb()
+    .prepare("SELECT * FROM chat_messages WHERE chat_id = ? ORDER BY message_index ASC")
+    .all(chat_id) as ChatMessageRow[]
+}
+
+export function getChatMessage(id: number): ChatMessageRow | undefined {
+  return getDb().prepare("SELECT * FROM chat_messages WHERE id = ?").get(id) as ChatMessageRow | undefined
+}
+
+export function getNextChatMessageIndex(chat_id: number): number {
+  const result = getDb()
+    .prepare("SELECT COALESCE(MAX(message_index), 0) + 1 as next FROM chat_messages WHERE chat_id = ?")
+    .get(chat_id) as { next: number }
+  return result.next
+}
+
+export function appendChatMessage(
+  chat_id: number,
+  message_index: number,
+  speaker_member_id: number,
+  role: "user" | "assistant" | "system",
+  content: string,
+): number {
+  const result = getDb()
+    .prepare(
+      `INSERT INTO chat_messages (chat_id, message_index, speaker_member_id, role, content)
+       VALUES (?, ?, ?, ?, ?)`,
+    )
+    .run(chat_id, message_index, speaker_member_id, role, content)
+  getDb().prepare("UPDATE chats SET updated_at = datetime('now') WHERE id = ?").run(chat_id)
+  return result.lastInsertRowid as number
+}
+
+export function advanceChatSpeaker(chat_id: number, next_speaker_index: number): void {
+  getDb()
+    .prepare("UPDATE chats SET next_speaker_index = ?, updated_at = datetime('now') WHERE id = ?")
+    .run(next_speaker_index, chat_id)
 }
 
 // ─── Settings ────────────────────────────────────────────────────────────────

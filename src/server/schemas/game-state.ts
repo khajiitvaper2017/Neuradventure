@@ -7,6 +7,7 @@ import {
   normalizeCurrentDate,
   normalizeLocations,
   normalizeNonEmptyString,
+  normalizeGender,
   normalizePersonalityTraits,
   normalizeMemory,
   normalizeTimeOfDay,
@@ -137,7 +138,7 @@ const CharacterStateStoredBaseSchema = z
 const normalizeCharacterStoredBase = (value: z.input<typeof CharacterStateStoredBaseSchema>) => ({
   name: normalizeNonEmptyString(value.name, getServerDefaults().unknown.npc),
   race: normalizeNonEmptyString(value.race, getServerDefaults().unknown.value),
-  gender: normalizeNonEmptyString(value.gender, getServerDefaults().unknown.value),
+  gender: normalizeGender(value.gender, getServerDefaults().unknown.value),
   current_location: normalizeNonEmptyString(
     value.current_location ?? value.last_known_location,
     getServerDefaults().unknown.location,

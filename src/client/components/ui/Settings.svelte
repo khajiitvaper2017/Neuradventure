@@ -6,6 +6,8 @@
     design,
     textJustify,
     colorScheme,
+    defaultAuthorNote,
+    defaultAuthorNoteDepth,
     connector,
     generation,
     ctxLimitDetected,
@@ -44,6 +46,8 @@
   // Local copies for text inputs (committed on blur/enter)
   let connectorUrl = $state($connector.url)
   let connectorApiKey = $state($connector.api_key)
+  let authorNoteDraft = $state($defaultAuthorNote)
+  let authorNoteDepthDraft = $state($defaultAuthorNoteDepth)
 
   // Sync local copies when store changes externally
   $effect(() => {
@@ -52,12 +56,30 @@
   $effect(() => {
     connectorApiKey = $connector.api_key
   })
+  $effect(() => {
+    authorNoteDraft = $defaultAuthorNote
+  })
+  $effect(() => {
+    authorNoteDepthDraft = $defaultAuthorNoteDepth
+  })
 
   function commitConnector() {
     const trimmedUrl = connectorUrl.trim()
     const trimmedKey = connectorApiKey.trim()
     if (trimmedUrl !== $connector.url || trimmedKey !== $connector.api_key) {
       connector.set({ ...$connector, url: trimmedUrl, api_key: trimmedKey })
+    }
+  }
+
+  function commitAuthorNote() {
+    const trimmedNote = authorNoteDraft.trim()
+    const nextDepthRaw = Number(authorNoteDepthDraft)
+    const nextDepth = Number.isFinite(nextDepthRaw) ? Math.min(100, Math.max(0, Math.floor(nextDepthRaw))) : 4
+    if (trimmedNote !== $defaultAuthorNote) {
+      defaultAuthorNote.set(trimmedNote)
+    }
+    if (nextDepth !== $defaultAuthorNoteDepth) {
+      defaultAuthorNoteDepth.set(nextDepth)
     }
   }
 
@@ -422,6 +444,35 @@
 
       <div class="divider"></div>
 
+      <!-- Story Defaults -->
+      <div class="section-label">Story Defaults</div>
+
+      <label class="row row-input row-stack">
+        <span class="row-text">
+          <span class="row-title">Default Author Note</span>
+          <span class="row-sub">Applied to newly created stories</span>
+        </span>
+        <textarea class="text-input" rows="3" bind:value={authorNoteDraft} onblur={commitAuthorNote}></textarea>
+      </label>
+
+      <label class="row row-input">
+        <span class="row-text">
+          <span class="row-title">Author Note Depth</span>
+          <span class="row-sub">How many recent turns from the bottom to inject</span>
+        </span>
+        <input
+          class="num-input"
+          type="number"
+          min="0"
+          max="100"
+          step="1"
+          bind:value={authorNoteDepthDraft}
+          onblur={commitAuthorNote}
+        />
+      </label>
+
+      <div class="divider"></div>
+
       <!-- Preset -->
       <div class="section-label">Sampler Preset</div>
       <div class="preset-row">
@@ -692,6 +743,14 @@
   /* ── Input fields ─────────────────────────────────── */
   .row-input {
     cursor: default;
+  }
+  .row-stack {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.6rem;
+  }
+  .row-stack .text-input {
+    width: 100%;
   }
 
   .connector-badge {

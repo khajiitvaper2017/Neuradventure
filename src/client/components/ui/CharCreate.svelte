@@ -8,6 +8,7 @@
   import { pendingCharacterGenerateDescription } from "../../stores/game.js"
   import personalityOptions from "../../../../shared/config/traits.json"
   import { loadPromptHistory, savePromptHistory, removePromptHistory } from "../../utils/promptHistory.js"
+  import { normalizeGender } from "../../utils/text.js"
   import IconTrash from "../icons/IconTrash.svelte"
 
   const CHARACTER_PROMPT_HISTORY_KEY = "na:prompt_history:character"
@@ -15,14 +16,6 @@
   // Ordered as opposite pairs — each adjacent pair blocks each other
   const PERSONALITY_OPTIONS = personalityOptions
   const normalizeKey = (t: string) => t.trim().toLowerCase()
-  const normalizeGender = (value: string, fallback = "female") => {
-    const trimmed = value.trim()
-    if (!trimmed) return fallback
-    const lower = trimmed.toLowerCase()
-    if (lower === "male") return "male"
-    if (lower === "female") return "female"
-    return trimmed
-  }
   const PERSONALITY_CANONICAL: Record<string, string> = Object.fromEntries(
     PERSONALITY_OPTIONS.map((t) => [normalizeKey(t), t]),
   )
@@ -162,11 +155,11 @@
 
   let name = existing?.name ?? ""
   let race = existing?.race ?? ""
-  let gender: string = normalizeGender(existing?.gender ?? "female")
-  $: genderCustom = gender !== "male" && gender !== "female" ? gender : ""
+  let gender: string = normalizeGender(existing?.gender ?? "Female", "Female")
+  $: genderCustom = gender !== "Male" && gender !== "Female" ? gender : ""
   function setGenderCustom(val: string) {
     const normalized = normalizeGender(val, "")
-    gender = normalized || "female"
+    gender = normalized || "Female"
   }
   let baselineAppearance = existing?.appearance.baseline_appearance ?? ""
   let currentAppearance = existing?.appearance.current_appearance ?? ""
@@ -454,15 +447,13 @@
       <div class="field">
         <label id="gender-label" for="gender-custom">Gender</label>
         <div class="gender-row">
-          {#each ["male", "female"] as g}
-            <button class="toggle {gender === g ? 'active' : ''}" onclick={() => (gender = g)}
-              >{g.charAt(0).toUpperCase() + g.substring(1)}</button
-            >
+          {#each ["Male", "Female"] as g}
+            <button class="toggle {gender === g ? 'active' : ''}" onclick={() => (gender = g)}>{g}</button>
           {/each}
           <input
             id="gender-custom"
             type="text"
-            class="gender-custom {gender !== 'male' && gender !== 'female' ? 'active' : ''}"
+            class="gender-custom {gender !== 'Male' && gender !== 'Female' ? 'active' : ''}"
             placeholder="or specify..."
             value={genderCustom}
             oninput={(e) => setGenderCustom((e.target as HTMLInputElement).value)}

@@ -13,6 +13,8 @@ type PromptConfig = {
   generateCharacterClothingPrompt: string[]
   generateCharacterTraitsPrompt: string[]
   generateStoryPrompt: string[]
+  generateChatPrompt?: string[]
+  chatPromptLines?: string[]
   npcCreationPrompt?: string[]
   impersonatePrompt?: string[]
   sectionFormat?: SectionFormat
@@ -22,6 +24,7 @@ const PROMPT_FILES = [
   join(__dirname, "../../../shared/config/prompts/system.json"),
   join(__dirname, "../../../shared/config/prompts/character.json"),
   join(__dirname, "../../../shared/config/prompts/story.json"),
+  join(__dirname, "../../../shared/config/prompts/chat.json"),
   join(__dirname, "../../../shared/config/prompts/npc.json"),
   join(__dirname, "../../../shared/config/prompts/impersonate.json"),
 ]
@@ -56,6 +59,11 @@ export function getConfig(): PromptConfig {
 
 export function getSystemPrompt(): string {
   return getConfig().systemPromptLines.join("\n").replace("{npcTraits}", npcTraits.join(", "))
+}
+
+export function getChatPrompt(): string {
+  const config = getConfig()
+  return (config.chatPromptLines ?? config.systemPromptLines).join("\n")
 }
 
 export function getNpcCreationPrompt(): string {

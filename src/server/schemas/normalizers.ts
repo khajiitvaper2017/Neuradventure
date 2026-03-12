@@ -1,6 +1,7 @@
 import { DATE_REGEX, DEFAULT_RECENT_EVENTS_SUMMARY } from "./constants.js"
 import { npcTraitEnumValues, npcTraitLookup } from "./npc-traits.js"
 import { getServerDefaults } from "../core/strings.js"
+export { normalizeGender } from "../../../shared/utils/normalize.js"
 
 type NormalizedLocationItem = { name: string; description: string }
 type NormalizedLocation = {

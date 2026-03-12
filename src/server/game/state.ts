@@ -7,6 +7,7 @@ import type {
   WorldState,
 } from "../core/models.js"
 import { getServerDefaults } from "../core/strings.js"
+import { normalizeGender } from "../schemas/normalizers.js"
 
 // ─── State Application ─────────────────────────────────────────────────────────
 
@@ -116,6 +117,7 @@ export function syncLocationCharacters(world: WorldState, character: MainCharact
 export function buildNpcFromCreation(creation: NPCCreation): NPCState {
   return {
     ...creation,
+    gender: normalizeGender(creation.gender, getServerDefaults().unknown.value),
     inventory: creation.inventory ?? [],
   }
 }
@@ -128,7 +130,7 @@ export function applyNPCUpdates(npcs: NPCState[], updates: NPCStateUpdate[]): NP
     return {
       ...npc,
       race: patch.race ?? npc.race,
-      gender: patch.gender ?? npc.gender,
+      gender: patch.gender ? normalizeGender(patch.gender, npc.gender) : npc.gender,
       current_location: patch.set_current_location ?? npc.current_location,
       appearance: {
         ...npc.appearance,

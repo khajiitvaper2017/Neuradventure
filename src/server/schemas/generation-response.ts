@@ -64,3 +64,10 @@ export const GenerateStoryResponseSchema = z
     pregen_npcs: z.array(NPCStateSchema).describe(desc("generation.story.pregen_npcs")),
   })
   .strict()
+
+export const GenerateChatResponseSchema = z
+  .object({
+    title: z.string().min(1).describe(desc("generation.chat.title")),
+    scenario: z.string().min(1).describe(desc("generation.chat.scenario")),
+  })
+  .strict()

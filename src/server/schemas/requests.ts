@@ -1,5 +1,10 @@
 import { z } from "zod"
-import { CharacterAppearanceSchema, MainCharacterStateSchema, NPCStateStoredSchema } from "./game-state.js"
+import {
+  CharacterAppearanceSchema,
+  MainCharacterStateSchema,
+  NPCStateSchema,
+  NPCStateStoredSchema,
+} from "./game-state.js"
 import { desc } from "./field-descriptions.js"
 import { DATE_REGEX, TIME_OF_DAY_REGEX } from "./constants.js"
 
@@ -113,4 +118,30 @@ export const UndoCancelRequestSchema = z.object({
 
 export const SelectTurnVariantRequestSchema = z.object({
   variant_id: z.number().int().describe(desc("requests.select_turn_variant.variant_id")),
+})
+
+const ChatMemberStateSchema = z.union([
+  MainCharacterStateSchema.omit({ inventory: true }),
+  NPCStateSchema.omit({ inventory: true }),
+])
+
+export const CreateChatRequestSchema = z.object({
+  title: z.string().optional().describe(desc("requests.create_chat.title")),
+  scenario: z.string().optional().describe(desc("requests.create_chat.scenario")),
+  members: z
+    .array(
+      z.object({
+        role: z.enum(["player", "ai"]).describe(desc("requests.create_chat.member.role")),
+        member_kind: z.enum(["character", "npc"]).describe(desc("requests.create_chat.member.member_kind")),
+        character_id: z.number().int().nullable().optional().describe(desc("requests.create_chat.member.character_id")),
+        state: ChatMemberStateSchema.describe(desc("requests.create_chat.member.state")),
+      }),
+    )
+    .min(2)
+    .describe(desc("requests.create_chat.members")),
+})
+
+export const SendChatMessageRequestSchema = z.object({
+  chat_id: z.number().int().describe(desc("requests.chat_id")),
+  content: z.string().min(1).describe(desc("requests.chat_message.content")),
 })

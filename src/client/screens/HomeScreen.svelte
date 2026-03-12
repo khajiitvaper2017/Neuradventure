@@ -1,11 +1,18 @@
 <script lang="ts">
   import { onMount } from "svelte"
-  import { api, type StoryMeta, type StoryCharacterGroup, type CharacterImportResult } from "../api/client.js"
+  import {
+    api,
+    type StoryMeta,
+    type StoryCharacterGroup,
+    type CharacterImportResult,
+    type ChatSummary,
+  } from "../api/client.js"
   import { navigate, showError, showConfirm } from "../stores/ui.js"
   import { theme } from "../stores/settings.js"
   import IconDots from "../components/icons/IconDots.svelte"
   import IconGear from "../components/icons/IconGear.svelte"
   import IconPlus from "../components/icons/IconPlus.svelte"
+  import IconUsers from "../components/icons/IconUsers.svelte"
   import IconUser from "../components/icons/IconUser.svelte"
   import {
     resetActiveStory,
@@ -19,6 +26,7 @@
     pendingStoryNPCs,
     pendingStoryLocation,
   } from "../stores/game.js"
+  import { resetChat } from "../stores/chat.js"
   import { loadStoryById } from "../utils/storyLoader.js"
 
   let stories: StoryMeta[] = []
@@ -27,10 +35,13 @@
   let storyCharacters: StoryCharacterGroup[] = []
   let loadingCharacters = false
   let showCharacters = false
+  let chats: ChatSummary[] = []
+  let loadingChats = false
 
   onMount(() => {
     loadStories()
     loadCharacters()
+    loadChats()
   })
 
   async function loadStories() {
@@ -54,6 +65,17 @@
     }
   }
 
+  async function loadChats() {
+    loadingChats = true
+    try {
+      chats = await api.chats.list()
+    } catch {
+      showError("Failed to load chats")
+    } finally {
+      loadingChats = false
+    }
+  }
+
   async function openStory(story: StoryMeta) {
     try {
       await loadStoryById(story.id)
@@ -72,9 +94,18 @@
     }
   }
 
+  function openChat(chat: ChatSummary) {
+    navigate("chat", { reset: true, params: { chatId: chat.id } })
+  }
+
   function startNew() {
     resetActiveStory()
     navigate("new-story")
+  }
+
+  function startNewChat() {
+    resetChat()
+    navigate("new-chat")
   }
 
   function startNewCharacter() {
@@ -198,6 +229,10 @@
       <IconPlus size={13} strokeWidth={2.5} />
       New Story
     </button>
+    <button class="new-btn" onclick={startNewChat}>
+      <IconUsers size={13} strokeWidth={2.5} />
+      New Chat
+    </button>
     <button class="new-btn" onclick={startNewCharacter}>
       <IconPlus size={13} strokeWidth={2.5} />
       New Character
@@ -254,6 +289,29 @@
 
   <!-- Story list -->
   <div class="story-list" data-scroll-root="screen">
+    <div class="list-header">Chats</div>
+    {#if loadingChats}
+      <div class="empty">Loading chats...</div>
+    {:else if chats.length === 0}
+      <div class="empty">
+        <p>No chats yet.</p>
+        <p class="empty-hint">Start a new group chat above.</p>
+      </div>
+    {:else}
+      {#each chats as chat (chat.id)}
+        <div class="story-row">
+          <button class="story-btn" onclick={() => openChat(chat)}>
+            <span class="story-title">{chat.title || chat.player_name || "Chat"}</span>
+            <span class="story-meta">
+              {chat.participants.join(" · ")} &middot; {chat.message_count} messages &middot;
+              {relativeTime(chat.updated_at)}
+            </span>
+          </button>
+        </div>
+      {/each}
+    {/if}
+
+    <div class="list-header">Stories</div>
     {#if loading}
       <div class="empty">Loading...</div>
     {:else if stories.length === 0}
@@ -475,6 +533,13 @@
   .story-list {
     flex: 1;
     overflow-y: auto;
+  }
+  .list-header {
+    padding: 0.85rem 1rem 0.4rem;
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--text-dim);
   }
   .story-row {
     display: flex;

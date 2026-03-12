@@ -55,6 +55,10 @@
     }
   },
   "generation": {
+    "chat": {
+      "title": "Generated chat title.",
+      "scenario": "Generated chat scenario."
+    },
     "story": {
       "title": "3-5 word title tied to the opening scenario.",
       "opening_scenario": "1-3 paragraphs separated by a blank line.",
@@ -66,9 +70,24 @@
   },
   "requests": {
     "story_id": "Story ID.",
+    "chat_id": "Chat ID.",
     "story_title": "Story title.",
     "opening_scenario": "Opening scenario text.",
     "action_mode": "Action mode: do, say, or story.",
+    "create_chat": {
+      "title": "Chat title.",
+      "scenario": "Optional chat scenario or setup.",
+      "members": "Chat members list (player + AI characters).",
+      "member": {
+        "role": "Member role: player or ai.",
+        "member_kind": "Member type: character or npc.",
+        "character_id": "Optional saved character ID.",
+        "state": "Member character state snapshot."
+      }
+    },
+    "chat_message": {
+      "content": "Chat message text."
+    },
     "create_story": {
       "starting_scene": "Starting scene label.",
       "starting_date": "Starting date (YYYY-MM-DD).",
@@ -110,6 +129,9 @@
       "description": "Story description prompt.",
       "character": "Character data for story generation."
     },
+    "generate_chat": {
+      "description": "Chat description prompt."
+    },
     "import_story": {
       "character": "Full character state.",
       "world": "World state (stored format accepted).",
@@ -117,6 +139,16 @@
     }
   },
   "settings": {
+    "update": {
+      "theme": "Updated theme.",
+      "design": "Updated typography style.",
+      "textJustify": "Updated text justification setting.",
+      "colorScheme": "Updated accent color scheme.",
+      "defaultAuthorNote": "Default author's note for new stories.",
+      "defaultAuthorNoteDepth": "Depth to inject default author's note.",
+      "connector": "Updated connector settings.",
+      "generation": "Updated generation parameters."
+    },
     "generation": {
       "max_tokens": "Maximum tokens to generate.",
       "ctx_limit": "Context limit override (0 to auto-detect).",
@@ -147,14 +179,6 @@
       "type": "Connector type.",
       "url": "Connector base URL.",
       "api_key": "Connector API key."
-    },
-    "update": {
-      "theme": "UI theme.",
-      "design": "UI design variant.",
-      "textJustify": "Whether to justify text.",
-      "colorScheme": "UI color scheme.",
-      "connector": "Connector settings update.",
-      "generation": "Generation settings update."
     }
   },
   "traits": {

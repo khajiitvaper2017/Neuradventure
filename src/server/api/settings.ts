@@ -50,6 +50,8 @@ const SettingsUpdateSchema = z
     design: z.enum(["classic", "roboto"]).describe(desc("settings.update.design")),
     textJustify: z.boolean().describe(desc("settings.update.textJustify")),
     colorScheme: z.enum(["gold", "emerald", "sapphire", "crimson"]).describe(desc("settings.update.colorScheme")),
+    defaultAuthorNote: z.string().describe(desc("settings.update.defaultAuthorNote")),
+    defaultAuthorNoteDepth: z.number().int().min(0).max(100).describe(desc("settings.update.defaultAuthorNoteDepth")),
     connector: ConnectorSchema.partial().describe(desc("settings.update.connector")),
     generation: GenerationParamsSchema.partial().describe(desc("settings.update.generation")),
   })
@@ -73,6 +75,8 @@ settings.put("/", zValidator("json", SettingsUpdateSchema), (c) => {
     ...(update.design !== undefined && { design: update.design }),
     ...(update.textJustify !== undefined && { textJustify: update.textJustify }),
     ...(update.colorScheme !== undefined && { colorScheme: update.colorScheme }),
+    ...(update.defaultAuthorNote !== undefined && { defaultAuthorNote: update.defaultAuthorNote }),
+    ...(update.defaultAuthorNoteDepth !== undefined && { defaultAuthorNoteDepth: update.defaultAuthorNoteDepth }),
     ...(update.connector && { connector: { ...current.connector, ...update.connector } }),
     ...(update.generation && { generation: { ...current.generation, ...update.generation } }),
   }

@@ -180,11 +180,11 @@ stories.post("/", zValidator("json", CreateStoryRequestSchema), async (c) => {
     character = { ...base, inventory: [] }
     characterId = charRow.id
   } else if (body.character_data) {
-    characterId = db.createCharacter(body.character_data)
-    character = {
-      ...body.character_data,
-      inventory: [],
-    }
+    const parsed = MainCharacterStateStoredSchema.parse(body.character_data)
+    const { inventory: _inventory, ...base } = parsed
+    void _inventory
+    characterId = db.createCharacter(base)
+    character = parsed
   } else {
     return c.json({ error: "Provide character_id or character_data" }, 400)
   }
@@ -217,7 +217,7 @@ stories.put("/:id/state", zValidator("json", UpdateStoryStateRequestSchema), (c)
   const body = c.req.valid("json")
   const currentCharacter = MainCharacterStateStoredSchema.parse(JSON.parse(row.character_state_json))
   const { world: currentWorld, npcs: currentNpcs } = parseStoryState(row)
-  const nextCharacter = body.character ? MainCharacterStateSchema.parse(body.character) : currentCharacter
+  const nextCharacter = body.character ? MainCharacterStateStoredSchema.parse(body.character) : currentCharacter
   const nextNpcs = body.npcs ? body.npcs.map((n) => NPCStateStoredSchema.parse(n)) : currentNpcs
   const nextWorld = body.world
     ? { ...currentWorld, ...(body.world.memory !== undefined ? { memory: body.world.memory } : {}) }
@@ -365,6 +365,8 @@ stories.post("/import", async (c) => {
       parsed.world,
       parsed.npcs,
       characterId,
+      parsed.author_note ?? "",
+      parsed.author_note_depth ?? 4,
     )
     if (parsed.author_note !== undefined || parsed.author_note_depth !== undefined) {
       db.updateStoryMeta(id, {

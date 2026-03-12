@@ -2,6 +2,7 @@ import type { MainCharacterState } from "../../core/models.js"
 import type { TurnRow } from "../../core/db.js"
 import { npcTraitLookup } from "../../schemas/npc-traits.js"
 import { getServerDefaults } from "../../core/strings.js"
+import { normalizeGender } from "../../schemas/normalizers.js"
 
 // ─── TavernCardV2 types ───────────────────────────────────────────────────────
 
@@ -80,7 +81,10 @@ function parseRaceFromDescription(description: string): string {
 
 function parseGenderFromDescription(description: string): string {
   const genderMatch = description.match(/\bGender:\s*([^.]+)\./i)
-  return genderMatch ? genderMatch[1].trim() : getServerDefaults().unknown.value
+  return normalizeGender(
+    genderMatch ? genderMatch[1].trim() : getServerDefaults().unknown.value,
+    getServerDefaults().unknown.value,
+  )
 }
 
 export function tavernCardToCharacter(card: TavernCardV2): TavernImportResult {

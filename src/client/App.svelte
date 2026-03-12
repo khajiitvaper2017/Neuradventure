@@ -8,20 +8,25 @@
     navigate,
     quietNotice,
     routeStoryId,
+    routeChatId,
     showError,
   } from "./stores/ui.js"
   import { theme, design, textJustify, colorScheme, initSettings } from "./stores/settings.js"
   import { currentStoryId } from "./stores/game.js"
+  import { currentChatId } from "./stores/chat.js"
   import HomeScreen from "./screens/HomeScreen.svelte"
   import GameScreen from "./screens/GameScreen.svelte"
+  import ChatScreen from "./screens/ChatScreen.svelte"
   import CharCreate from "./components/ui/CharCreate.svelte"
   import NewStory from "./components/ui/NewStory.svelte"
+  import NewChat from "./components/ui/NewChat.svelte"
   import CharSheet from "./components/ui/CharSheet.svelte"
   import NPCTracker from "./components/ui/NPCTracker.svelte"
   import LocationsPanel from "./components/ui/LocationsPanel.svelte"
   import Settings from "./components/ui/Settings.svelte"
   import ConfirmDialog from "./components/ui/ConfirmDialog.svelte"
   import { loadStoryById } from "./utils/storyLoader.js"
+  import { loadChatById } from "./utils/chatLoader.js"
 
   let appEl: HTMLDivElement | null = null
 
@@ -52,6 +57,7 @@
 
   let appReady = $state(false)
   let restoringStory = $state(false)
+  let restoringChat = $state(false)
 
   onMount(() => {
     initRouter()
@@ -79,6 +85,22 @@
       })
       .finally(() => {
         restoringStory = false
+      })
+  })
+
+  $effect(() => {
+    if ($activeScreen !== "chat") return
+    if (!$routeChatId) return
+    if ($currentChatId === $routeChatId) return
+    if (restoringChat) return
+    restoringChat = true
+    void loadChatById($routeChatId)
+      .catch(() => {
+        showError("Failed to load chat")
+        navigate("home", { replace: true, reset: true })
+      })
+      .finally(() => {
+        restoringChat = false
       })
   })
 </script>
@@ -114,6 +136,10 @@
         <CharCreate />
       {:else if $activeScreen === "new-story"}
         <NewStory />
+      {:else if $activeScreen === "new-chat"}
+        <NewChat />
+      {:else if $activeScreen === "chat"}
+        <ChatScreen />
       {:else if $activeScreen === "settings"}
         <Settings />
       {/if}

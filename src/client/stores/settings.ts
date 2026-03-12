@@ -44,6 +44,10 @@ const colorSchemeStore = writable<"gold" | "emerald" | "sapphire" | "crimson">("
 const connectorStore = writable<LLMConnector>({ ...DEFAULT_CONNECTOR })
 const generationStore = writable<GenerationParams>({ ...DEFAULT_GENERATION })
 const ctxLimitDetectedStore = writable<number>(0)
+const defaultAuthorNoteStore = writable<string>(
+  "Remember the instructions you were given at the beginning of this chat.",
+)
+const defaultAuthorNoteDepthStore = writable<number>(4)
 
 let initialized = false
 let suppressSync = true
@@ -52,6 +56,8 @@ let current: AppSettings = {
   design: "classic",
   textJustify: true,
   colorScheme: "gold",
+  defaultAuthorNote: "Remember the instructions you were given at the beginning of this chat.",
+  defaultAuthorNoteDepth: 4,
   connector: { ...DEFAULT_CONNECTOR },
   generation: { ...DEFAULT_GENERATION },
 }
@@ -63,6 +69,8 @@ function applySettings(settings: AppSettings) {
   designStore.set(settings.design)
   textJustifyStore.set(settings.textJustify)
   colorSchemeStore.set(settings.colorScheme)
+  defaultAuthorNoteStore.set(settings.defaultAuthorNote)
+  defaultAuthorNoteDepthStore.set(settings.defaultAuthorNoteDepth)
   connectorStore.set(settings.connector)
   generationStore.set(settings.generation)
   ctxLimitDetectedStore.set(settings.ctx_limit_detected ?? 0)
@@ -110,6 +118,16 @@ colorSchemeStore.subscribe((value) => {
   if (!suppressSync) void persistSettings({ colorScheme: value })
 })
 
+defaultAuthorNoteStore.subscribe((value) => {
+  current = { ...current, defaultAuthorNote: value }
+  if (!suppressSync) void persistSettings({ defaultAuthorNote: value })
+})
+
+defaultAuthorNoteDepthStore.subscribe((value) => {
+  current = { ...current, defaultAuthorNoteDepth: value }
+  if (!suppressSync) void persistSettings({ defaultAuthorNoteDepth: value })
+})
+
 connectorStore.subscribe((value) => {
   current = { ...current, connector: value }
   if (!suppressSync) void persistSettings({ connector: value })
@@ -124,6 +142,8 @@ export const theme = themeStore
 export const design = designStore
 export const textJustify = textJustifyStore
 export const colorScheme = colorSchemeStore
+export const defaultAuthorNote = defaultAuthorNoteStore
+export const defaultAuthorNoteDepth = defaultAuthorNoteDepthStore
 export const connector = connectorStore
 export const generation = generationStore
 export const ctxLimitDetected = ctxLimitDetectedStore

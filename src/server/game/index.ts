@@ -450,6 +450,7 @@ export function createNewStory(
   startingTime?: string,
   characterId: number | null = null,
 ): number {
+  const settings = db.getSettings()
   const now = new Date()
   const fallbackDate = now.toISOString().slice(0, 10)
   const fallbackTime = `${now.getHours().toString().padStart(2, "0")}:${now.getMinutes().toString().padStart(2, "0")}`
@@ -477,5 +478,14 @@ export function createNewStory(
       },
     ],
   }
-  return db.createStory(title, opening_scenario, locationSyncedCharacter, world, npcs, characterId)
+  return db.createStory(
+    title,
+    opening_scenario,
+    locationSyncedCharacter,
+    world,
+    npcs,
+    characterId,
+    settings.defaultAuthorNote ?? "",
+    settings.defaultAuthorNoteDepth ?? 4,
+  )
 }

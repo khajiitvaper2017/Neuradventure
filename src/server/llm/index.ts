@@ -5,6 +5,7 @@ import {
   GenerateCharacterAppearanceResponseSchema,
   GenerateCharacterClothingResponseSchema,
   GenerateCharacterTraitsResponseSchema,
+  GenerateChatResponseSchema,
   GenerateStoryResponseSchema,
   NPCCreationSchema,
   type MainCharacterState,
@@ -16,6 +17,7 @@ import {
   type GenerateCharacterAppearanceResponse,
   type GenerateCharacterClothingResponse,
   type GenerateCharacterTraitsResponse,
+  type GenerateChatResponse,
   type GenerateStoryResponse,
 } from "../core/models.js"
 import { type TurnRow } from "../core/db.js"
@@ -133,6 +135,14 @@ export async function generatePlayerAction(
   const maxTokens = Math.min(getGenerationParams().max_tokens, 160)
   const raw = await callLLMText(messages, maxTokens, { disableRepetition: true, stop: ["\n"] })
   return sanitizePlayerAction(raw)
+}
+
+export async function generateChatReply(
+  messages: OpenAI.ChatCompletionMessageParam[],
+  stopTokens: string[],
+): Promise<string> {
+  const cleanedStops = stopTokens.filter((token) => token.trim().length > 0)
+  return callLLMText(messages, undefined, { disableRepetition: true, stop: cleanedStops })
 }
 
 export async function generateCharacter(description: string): Promise<GenerateCharacterResponse> {
@@ -336,6 +346,22 @@ export async function generateStory(
     { disableRepetition: true },
   )
   return GenerateStoryResponseSchema.parse(result)
+}
+
+export async function generateChat(description: string): Promise<GenerateChatResponse> {
+  const schema = zodSchemaToJsonSchema(GenerateChatResponseSchema, "GenerateChatResponse")
+  const prompt = getConfig().generateChatPrompt?.join("\n") ?? getConfig().generateStoryPrompt.join("\n")
+  const result = await callLLMRaw<unknown>(
+    [
+      { role: "system", content: prompt },
+      { role: "user", content: description.trim() },
+    ],
+    "GenerateChatResponse",
+    schema,
+    undefined,
+    { disableRepetition: true },
+  )
+  return GenerateChatResponseSchema.parse(result)
 }
 
 export async function testConnection(): Promise<boolean> {

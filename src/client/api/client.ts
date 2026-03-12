@@ -58,6 +58,46 @@ export interface StoryMeta {
   updated_at: string
 }
 
+export interface ChatSummary {
+  id: number
+  title: string
+  scenario: string
+  message_count: number
+  updated_at: string
+  participants: string[]
+  player_name: string
+}
+
+export interface ChatMember {
+  id: number
+  role: "player" | "ai"
+  member_kind: "character" | "npc"
+  character_id: number | null
+  sort_order: number
+  name: string
+}
+
+export interface ChatDetail {
+  id: number
+  title: string
+  scenario: string
+  speaker_strategy: string
+  next_speaker_index: number
+  created_at: string
+  updated_at: string
+  members: ChatMember[]
+}
+
+export interface ChatMessage {
+  id: number
+  message_index: number
+  speaker_member_id: number
+  speaker_name: string
+  role: "user" | "assistant" | "system"
+  content: string
+  created_at: string
+}
+
 export interface StoryDetail {
   id: number
   title: string
@@ -141,6 +181,11 @@ export interface GenerateStoryResponse {
   pregen_npcs: NPCState[]
 }
 
+export interface GenerateChatResponse {
+  title: string
+  scenario: string
+}
+
 export interface TurnResult {
   turn_id: number
   story_id: number
@@ -155,6 +200,12 @@ export interface TurnResult {
 export interface CreateNpcResult {
   npc: NPCState
   npcs: NPCState[]
+}
+
+export interface ChatSendResult {
+  player_message: ChatMessage
+  ai_message: ChatMessage
+  next_speaker_index: number
 }
 
 export interface ImpersonateResult {
@@ -235,6 +286,8 @@ export interface AppSettings {
   design: "classic" | "roboto"
   textJustify: boolean
   colorScheme: "gold" | "emerald" | "sapphire" | "crimson"
+  defaultAuthorNote: string
+  defaultAuthorNoteDepth: number
   connector: LLMConnector
   generation: GenerationParams
   ctx_limit_detected?: number
@@ -348,6 +401,27 @@ export const api = {
       }),
   },
 
+  chats: {
+    list: () => request<ChatSummary[]>("/api/chats"),
+    get: (id: number) => request<ChatDetail>(`/api/chats/${id}`),
+    messages: (id: number) => request<ChatMessage[]>(`/api/chats/${id}/messages`),
+    create: (data: {
+      title?: string
+      scenario?: string
+      members: Array<{
+        role: "player" | "ai"
+        member_kind: "character" | "npc"
+        character_id?: number | null
+        state: Omit<MainCharacterState, "inventory"> | Omit<NPCState, "inventory">
+      }>
+    }) => request<{ id: number }>("/api/chats", { method: "POST", body: JSON.stringify(data) }),
+    send: (id: number, content: string) =>
+      request<ChatSendResult>(`/api/chats/${id}/messages`, {
+        method: "POST",
+        body: JSON.stringify({ chat_id: id, content }),
+      }),
+  },
+
   turns: {
     list: (storyId: number) => request<TurnSummary[]>(`/api/turns/${storyId}`),
     take: (storyId: number, playerInput: string, actionMode: "do" | "say" | "story", requestId?: string) =>
@@ -426,6 +500,11 @@ export const api = {
       request<GenerateStoryResponse>("/api/generate/story", {
         method: "POST",
         body: JSON.stringify({ description, character }),
+      }),
+    chat: (description: string) =>
+      request<GenerateChatResponse>("/api/generate/chat", {
+        method: "POST",
+        body: JSON.stringify({ description }),
       }),
   },
 
