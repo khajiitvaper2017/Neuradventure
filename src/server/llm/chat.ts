@@ -47,6 +47,7 @@ export function buildChatMessages(
   members: ChatMember[],
   history: ChatMessage[],
   nextSpeakerName: string,
+  options: { continueWithoutPlayer?: boolean } = {},
 ): OpenAI.ChatCompletionMessageParam[] {
   const trimmedHistory = history.slice(-MAX_CHAT_HISTORY)
   const participantBlock = members
@@ -68,11 +69,13 @@ export function buildChatMessages(
     "=== Chat History ===",
     historyBlock,
     "",
+    options.continueWithoutPlayer ? "Player sent no new message; continue the conversation naturally." : null,
+    options.continueWithoutPlayer ? "" : null,
     "=== Next Speaker ===",
     nextSpeakerName,
     "",
     `Reply as ${nextSpeakerName} with message text only.`,
-  ]
+  ].filter((line): line is string => line !== null)
 
   return [
     { role: "system", content: getChatPrompt() },

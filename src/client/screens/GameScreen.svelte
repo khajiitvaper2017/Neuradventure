@@ -9,6 +9,9 @@
     showError,
     showConfirm,
     showQuietNotice,
+    collapseCharSheet,
+    collapseNPCTracker,
+    collapseLocationsPanel,
   } from "../stores/ui.js"
   import { autoresize } from "../utils/actions/autoresize.js"
   import IconDots from "../components/icons/IconDots.svelte"
@@ -16,11 +19,13 @@
   import IconHome from "../components/icons/IconHome.svelte"
   import IconMapPin from "../components/icons/IconMapPin.svelte"
   import IconPencilSquare from "../components/icons/IconPencilSquare.svelte"
-  import IconSend from "../components/icons/IconSend.svelte"
   import IconSpinner from "../components/icons/IconSpinner.svelte"
   import IconTrash from "../components/icons/IconTrash.svelte"
   import IconUser from "../components/icons/IconUser.svelte"
   import IconUsers from "../components/icons/IconUsers.svelte"
+  import ConversationInput from "../components/ui/ConversationInput.svelte"
+  import InlineTokens from "../components/ui/InlineTokens.svelte"
+  import ThinkingDots from "../components/ui/ThinkingDots.svelte"
   import {
     currentStoryId,
     currentStoryTitle,
@@ -37,7 +42,6 @@
     llmUpdateId,
     markLlmUpdate,
   } from "../stores/game.js"
-  import { tokenizeInline } from "../utils/inlineTokens.js"
 
   type ActionMode = "do" | "say" | "story"
   const ACTION_MODES: ActionMode[] = ["do", "say", "story"]
@@ -50,7 +54,7 @@
   let input = $state("")
   let actionMode = $state<ActionMode>("do")
   let storyDiv: HTMLDivElement
-  let inputEl: HTMLTextAreaElement | null = null
+  let inputEl = $state<HTMLTextAreaElement | null>(null)
   let showMenu = $state(false)
   let editingOpening = $state(false)
   let openingDraft = $state("")
@@ -553,13 +557,6 @@
     }
   }
 
-  function handleKeydown(e: KeyboardEvent) {
-    if (e.key === "Enter" && !e.shiftKey) {
-      e.preventDefault()
-      sendTurn()
-    }
-  }
-
   function scrollToBottom(smooth = false) {
     if (storyDiv) {
       if (smooth) {
@@ -775,6 +772,30 @@
 
     <div class="header-actions">
       <span class="turn-badge">{$turns.length}</span>
+      <button
+        class="hbtn desktop-only"
+        class:inactive={$collapseCharSheet}
+        title={$collapseCharSheet ? "Show character sheet" : "Hide character sheet"}
+        onclick={() => collapseCharSheet.update((v) => !v)}
+      >
+        <IconUser size={15} strokeWidth={1.8} />
+      </button>
+      <button
+        class="hbtn desktop-only"
+        class:inactive={$collapseNPCTracker}
+        title={$collapseNPCTracker ? "Show NPC tracker" : "Hide NPC tracker"}
+        onclick={() => collapseNPCTracker.update((v) => !v)}
+      >
+        <IconUsers size={15} strokeWidth={1.8} />
+      </button>
+      <button
+        class="hbtn desktop-only"
+        class:inactive={$collapseLocationsPanel}
+        title={$collapseLocationsPanel ? "Show locations" : "Hide locations"}
+        onclick={() => collapseLocationsPanel.update((v) => !v)}
+      >
+        <IconMapPin size={15} strokeWidth={1.8} />
+      </button>
       <button class="hbtn mobile-only" title="Character Sheet" onclick={() => showCharSheet.update((v) => !v)}>
         <IconUser size={15} strokeWidth={1.8} />
       </button>
@@ -893,17 +914,7 @@
         </div>
       {:else}
         <p class="opening-text" class:flash={flashOpening}>
-          {#each tokenizeInline($currentStoryOpeningScenario || $worldState?.memory || "") as token}
-            {#if token.type === "text"}
-              {token.content}
-            {:else if token.type === "code"}
-              <span class="inline-code">{token.content}</span>
-            {:else if token.type === "dquote"}
-              <span class="inline-quote">"{token.content}"</span>
-            {:else}
-              <span class="inline-quote">'{token.content}'</span>
-            {/if}
-          {/each}
+          <InlineTokens text={$currentStoryOpeningScenario || $worldState?.memory || ""} />
         </p>
       {/if}
     </div>
@@ -941,17 +952,7 @@
             <IconPencilSquare className="pencil-icon" size={12} strokeWidth={2} />
           {/if}
           <span class="action-text">
-            {#each tokenizeInline(turn.player_input) as token}
-              {#if token.type === "text"}
-                {token.content}
-              {:else if token.type === "code"}
-                <span class="inline-code">{token.content}</span>
-              {:else if token.type === "dquote"}
-                <span class="inline-quote">"{token.content}"</span>
-              {:else}
-                <span class="inline-quote">'{token.content}'</span>
-              {/if}
-            {/each}
+            <InlineTokens text={turn.player_input} />
           </span>
           <button class="edit-btn inline" onclick={() => startEditTurn(turn)} disabled={$isGenerating}>Edit</button>
           <button
@@ -971,17 +972,7 @@
           {/if}
           {#each paragraphs(turn.narrative_text) as para, j}
             <p class="para" style="animation-delay: {j * 0.06}s">
-              {#each tokenizeInline(para) as token}
-                {#if token.type === "text"}
-                  {token.content}
-                {:else if token.type === "code"}
-                  <span class="inline-code">{token.content}</span>
-                {:else if token.type === "dquote"}
-                  <span class="inline-quote">"{token.content}"</span>
-                {:else}
-                  <span class="inline-quote">'{token.content}'</span>
-                {/if}
-              {/each}
+              <InlineTokens text={para} />
             </p>
           {/each}
 
@@ -1005,9 +996,7 @@
     {/each}
 
     {#if $isGenerating}
-      <div class="thinking">
-        <span class="dot"></span><span class="dot"></span><span class="dot"></span>
-      </div>
+      <ThinkingDots />
     {/if}
 
     <!-- Breathing room at bottom -->
@@ -1015,9 +1004,17 @@
   </div>
 
   <!-- ── Input zone ──────────────────────────────────────── -->
-  <div class="input-zone">
-    <!-- Mode selector row — AI Dungeon style -->
-    <div class="mode-row">
+  <ConversationInput
+    bind:textareaEl={inputEl}
+    bind:value={input}
+    placeholder={MODE_HINTS[actionMode]}
+    disabled={$isGenerating}
+    canSend={true}
+    sending={$isGenerating}
+    onSend={sendTurn}
+    onFocus={scheduleKeyboardScroll}
+  >
+    <div slot="top-controls">
       <button class="mode-clear" onclick={() => (input = "")} disabled={!input} aria-label="Clear"> × </button>
 
       <div class="mode-group" role="group" aria-label="Action mode">
@@ -1073,30 +1070,9 @@
           <IconFace size={14} strokeWidth={2} />
         {/if}
       </button>
-
-      <button class="send-btn" onclick={sendTurn} disabled={$isGenerating} aria-label="Send">
-        {#if $isGenerating}
-          <IconSpinner className="spin" size={16} strokeWidth={2.2} />
-        {:else}
-          <IconSend size={16} strokeWidth={2.2} />
-        {/if}
-      </button>
     </div>
 
-    <!-- Text input -->
-    <textarea
-      bind:this={inputEl}
-      bind:value={input}
-      placeholder={MODE_HINTS[actionMode]}
-      rows="2"
-      disabled={$isGenerating}
-      onkeydown={handleKeydown}
-      onfocus={scheduleKeyboardScroll}
-      use:autoresize={input}
-    ></textarea>
-
-    <!-- Bottom toolbar -->
-    <div class="toolbar">
+    <div slot="bottom-controls">
       <button class="tbtn" onclick={goHome} title="Stories">
         <IconHome size={14} strokeWidth={1.8} />
       </button>
@@ -1110,7 +1086,7 @@
         <IconMapPin size={14} strokeWidth={1.8} />
       </button>
     </div>
-  </div>
+  </ConversationInput>
 </div>
 
 <style>
@@ -1228,6 +1204,14 @@
     .mobile-only {
       display: none;
     }
+  }
+  @media (max-width: 1199px) {
+    .desktop-only {
+      display: none;
+    }
+  }
+  .hbtn.inactive {
+    opacity: 0.45;
   }
 
   /* ── Story area ─────────────────────────────────────── */
@@ -1464,21 +1448,6 @@
     flex: 1;
     min-width: 0;
   }
-  .inline-code {
-    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
-    font-size: 0.95em;
-    padding: 0.08em 0.28em;
-    border-radius: 4px;
-    border: 1px solid var(--border);
-    color: var(--accent);
-  }
-  .inline-quote {
-    padding: 0.04em 0.12em;
-    border-radius: 4px;
-    color: var(--accent);
-    font-style: italic;
-  }
-
   /* Fade-in animation for fresh turns */
   .fresh .para {
     animation: paraIn 0.4s ease both;
@@ -1495,250 +1464,6 @@
       opacity: 1;
       transform: translateY(0);
     }
-  }
-
-  /* Thinking dots */
-  .thinking {
-    display: flex;
-    gap: 5px;
-    align-items: center;
-    padding: 0.75rem 0 0.5rem;
-  }
-  .dot {
-    width: 6px;
-    height: 6px;
-    background: var(--accent);
-    border-radius: 50%;
-    opacity: 0.5;
-    animation: blink 1.2s infinite ease-in-out;
-  }
-  .dot:nth-child(2) {
-    animation-delay: 0.2s;
-  }
-  .dot:nth-child(3) {
-    animation-delay: 0.4s;
-  }
-  @keyframes blink {
-    0%,
-    80%,
-    100% {
-      opacity: 0.2;
-      transform: scale(0.75);
-    }
-    40% {
-      opacity: 0.9;
-      transform: scale(1);
-    }
-  }
-
-  /* ── Input zone ─────────────────────────────────────── */
-  .input-zone {
-    flex-shrink: 0;
-    border-top: 1px solid var(--border);
-    background: var(--bg);
-  }
-  @media (min-width: 1200px) {
-    .input-zone {
-      padding-left: 1.25rem;
-      padding-right: 1.25rem;
-      padding-bottom: 1.1rem;
-    }
-  }
-
-  /* Mode selector row */
-  .mode-row {
-    display: flex;
-    align-items: center;
-    gap: 0;
-    padding: 0.35rem 0.75rem;
-    border-bottom: 1px solid var(--border);
-    min-height: 42px;
-  }
-  .mode-clear {
-    background: none;
-    border: none;
-    color: var(--text-dim);
-    font-size: 1.1rem;
-    min-width: 34px;
-    min-height: 36px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    cursor: pointer;
-    opacity: 0;
-    transition:
-      opacity 0.15s,
-      color 0.15s;
-    pointer-events: none;
-  }
-  .mode-clear:not(:disabled) {
-    opacity: 1;
-    pointer-events: auto;
-  }
-  .mode-clear:hover {
-    color: var(--text);
-  }
-  .mode-group {
-    display: flex;
-    gap: 0.35rem;
-    padding: 0.15rem 0.2rem;
-    border: 1px solid var(--border);
-    border-radius: 999px;
-    background: var(--bg-action);
-  }
-  .mode-pill {
-    border: none;
-    background: none;
-    color: var(--text-dim);
-    font-size: 0.75rem;
-    text-transform: uppercase;
-    letter-spacing: 0.12em;
-    padding: 0.3rem 0.65rem;
-    border-radius: 999px;
-    cursor: pointer;
-    min-height: 28px;
-  }
-  .mode-pill:hover {
-    color: var(--text);
-  }
-  .mode-pill.active {
-    background: var(--accent);
-    color: #0d0b08;
-  }
-  .mode-undo,
-  .mode-undo-cancel,
-  .mode-regen,
-  .mode-impersonate {
-    background: var(--bg-action);
-    border: 1px solid var(--border);
-    color: var(--text-dim);
-    font-size: 1rem;
-    min-width: 34px;
-    min-height: 34px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    cursor: pointer;
-    opacity: 0.85;
-    border-radius: 50%;
-  }
-  .mode-undo {
-    margin-left: 0.35rem;
-  }
-  .mode-undo-cancel {
-    margin-left: 0.25rem;
-  }
-  .mode-regen {
-    margin-left: 0.25rem;
-  }
-  .mode-impersonate {
-    margin-left: 0.25rem;
-  }
-  .mode-undo:hover:not(:disabled),
-  .mode-undo-cancel:hover:not(:disabled),
-  .mode-regen:hover:not(:disabled),
-  .mode-impersonate:hover:not(:disabled) {
-    color: var(--text);
-    border-color: var(--border-hover);
-  }
-  .mode-undo:disabled,
-  .mode-undo-cancel:disabled,
-  .mode-regen:disabled,
-  .mode-impersonate:disabled {
-    cursor: not-allowed;
-    opacity: 0.4;
-  }
-  .send-btn {
-    margin-left: auto;
-    background: var(--accent);
-    border: none;
-    color: #0d0b08;
-    border-radius: 50%;
-    width: 34px;
-    height: 34px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    cursor: pointer;
-    transition:
-      background 0.15s,
-      opacity 0.15s;
-    flex-shrink: 0;
-  }
-  .send-btn:hover:not(:disabled) {
-    background: var(--accent-hover);
-  }
-  .send-btn:disabled {
-    opacity: 0.35;
-    cursor: not-allowed;
-  }
-  .spin {
-    animation: spin 0.8s linear infinite;
-  }
-  @keyframes spin {
-    to {
-      transform: rotate(360deg);
-    }
-  }
-
-  /* Textarea */
-  .input-zone textarea {
-    width: 100%;
-    background: transparent;
-    border: none;
-    color: var(--text);
-    font-family: var(--font-story);
-    font-size: 0.95rem;
-    line-height: 1.5;
-    padding: 0.85rem 1.25rem 0.65rem;
-    resize: none;
-    display: block;
-  }
-  @media (min-width: 1200px) {
-    .input-zone textarea {
-      padding-bottom: 1.25rem;
-      min-height: 68px;
-    }
-  }
-  .input-zone textarea::placeholder {
-    color: var(--text-dim);
-    font-style: italic;
-  }
-  .input-zone textarea:focus {
-    outline: none;
-  }
-  .input-zone textarea:disabled {
-    opacity: 0.4;
-  }
-
-  /* Bottom toolbar */
-  .toolbar {
-    display: flex;
-    align-items: center;
-    justify-content: space-around;
-    padding: 0.2rem 0.5rem 0.5rem;
-    border-top: 1px solid var(--border);
-  }
-  @media (min-width: 1200px) {
-    .toolbar {
-      display: none;
-    }
-  }
-  .tbtn {
-    background: none;
-    border: none;
-    color: var(--text-dim);
-    min-width: 48px;
-    min-height: 40px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    cursor: pointer;
-    transition: color 0.15s;
-    border-radius: 4px;
-  }
-  .tbtn:hover {
-    color: var(--text);
   }
 
   /* Editor overlay */

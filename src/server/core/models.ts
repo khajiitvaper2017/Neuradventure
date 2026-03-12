@@ -36,15 +36,19 @@ import {
 } from "../schemas/generation-response.js"
 import {
   CancelLastRequestSchema,
+  ChatIdRequestSchema,
   CreateChatRequestSchema,
   CreateCharacterRequestSchema,
   CreateStoryRequestSchema,
   ImpersonateRequestSchema,
   RegenerateLastRequestSchema,
+  SetNextChatSpeakerRequestSchema,
   SendChatMessageRequestSchema,
   SelectTurnVariantRequestSchema,
   TakeTurnRequestSchema,
   UndoCancelRequestSchema,
+  UpdateChatMessageRequestSchema,
+  UpdateChatRequestSchema,
   UpdateCharacterRequestSchema,
   UpdateStoryRequestSchema,
   UpdateStoryStateRequestSchema,
@@ -94,6 +98,10 @@ export {
   UndoCancelRequestSchema,
   SelectTurnVariantRequestSchema,
   CreateChatRequestSchema,
+  UpdateChatRequestSchema,
+  UpdateChatMessageRequestSchema,
+  ChatIdRequestSchema,
+  SetNextChatSpeakerRequestSchema,
   SendChatMessageRequestSchema,
 }
 
@@ -113,6 +121,10 @@ export type CreateCharacterRequest = z.infer<typeof CreateCharacterRequestSchema
 export type CreateStoryRequest = z.infer<typeof CreateStoryRequestSchema>
 export type UpdateStoryStateRequest = z.infer<typeof UpdateStoryStateRequestSchema>
 export type CreateChatRequest = z.infer<typeof CreateChatRequestSchema>
+export type UpdateChatRequest = z.infer<typeof UpdateChatRequestSchema>
+export type UpdateChatMessageRequest = z.infer<typeof UpdateChatMessageRequestSchema>
+export type ChatIdRequest = z.infer<typeof ChatIdRequestSchema>
+export type SetNextChatSpeakerRequest = z.infer<typeof SetNextChatSpeakerRequestSchema>
 export type SendChatMessageRequest = z.infer<typeof SendChatMessageRequestSchema>
 export type TakeTurnRequest = z.infer<typeof TakeTurnRequestSchema>
 export type RegenerateLastRequest = z.infer<typeof RegenerateLastRequestSchema>

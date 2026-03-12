@@ -201,6 +201,12 @@ export function initDb() {
       canceled_at  TEXT NOT NULL DEFAULT (datetime('now'))
     );
 
+    CREATE TABLE IF NOT EXISTS canceled_chat_exchanges (
+      chat_id      INTEGER PRIMARY KEY REFERENCES chats(id) ON DELETE CASCADE,
+      payload_json TEXT NOT NULL,
+      canceled_at  TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+
     CREATE TABLE IF NOT EXISTS settings (
       id            INTEGER PRIMARY KEY CHECK (id = 1),
       settings_json TEXT NOT NULL,
@@ -827,6 +833,42 @@ export function clearCanceledTurn(story_id: number): void {
   getDb().prepare("DELETE FROM canceled_turns WHERE story_id = ?").run(story_id)
 }
 
+export type CanceledChatExchangePayload = {
+  messages: Array<{
+    message_index: number
+    speaker_member_id: number
+    role: "user" | "assistant" | "system"
+    content: string
+  }>
+  next_speaker_index: number
+}
+
+export function setCanceledChatExchange(chat_id: number, payload: CanceledChatExchangePayload): void {
+  getDb()
+    .prepare(
+      `INSERT INTO canceled_chat_exchanges (chat_id, payload_json, canceled_at)
+       VALUES (?, ?, datetime('now'))
+       ON CONFLICT(chat_id) DO UPDATE SET payload_json = excluded.payload_json, canceled_at = datetime('now')`,
+    )
+    .run(chat_id, JSON.stringify(payload))
+}
+
+export function getCanceledChatExchange(chat_id: number): CanceledChatExchangePayload | undefined {
+  const row = getDb().prepare("SELECT payload_json FROM canceled_chat_exchanges WHERE chat_id = ?").get(chat_id) as
+    | { payload_json: string }
+    | undefined
+  if (!row) return undefined
+  try {
+    return JSON.parse(row.payload_json) as CanceledChatExchangePayload
+  } catch {
+    return undefined
+  }
+}
+
+export function clearCanceledChatExchange(chat_id: number): void {
+  getDb().prepare("DELETE FROM canceled_chat_exchanges WHERE chat_id = ?").run(chat_id)
+}
+
 // ─── Chats ───────────────────────────────────────────────────────────────────
 
 export type ChatMemberState = Omit<MainCharacterState, "inventory"> | Omit<NPCState, "inventory">
@@ -920,6 +962,20 @@ export function getChat(id: number): ChatRow | undefined {
   return getDb().prepare("SELECT * FROM chats WHERE id = ?").get(id) as ChatRow | undefined
 }
 
+export function updateChat(id: number, data: { title?: string; scenario?: string }): void {
+  const nextTitle = data.title ?? null
+  const nextScenario = data.scenario ?? null
+  getDb()
+    .prepare(
+      `UPDATE chats
+       SET title = COALESCE(?, title),
+           scenario = COALESCE(?, scenario),
+           updated_at = datetime('now')
+       WHERE id = ?`,
+    )
+    .run(nextTitle, nextScenario, id)
+}
+
 export function listChatMembers(chat_id: number): ChatMemberRow[] {
   return getDb()
     .prepare("SELECT * FROM chat_members WHERE chat_id = ? ORDER BY sort_order ASC, id ASC")
@@ -934,6 +990,31 @@ export function listChatMessages(chat_id: number): ChatMessageRow[] {
 
 export function getChatMessage(id: number): ChatMessageRow | undefined {
   return getDb().prepare("SELECT * FROM chat_messages WHERE id = ?").get(id) as ChatMessageRow | undefined
+}
+
+export function updateChatMessage(id: number, content: string): void {
+  getDb().prepare("UPDATE chat_messages SET content = ? WHERE id = ?").run(content, id)
+  getDb()
+    .prepare(
+      "UPDATE chats SET updated_at = datetime('now') WHERE id = (SELECT chat_id FROM chat_messages WHERE id = ?)",
+    )
+    .run(id)
+}
+
+export function deleteChatMessage(id: number): void {
+  const row = getDb().prepare("SELECT chat_id FROM chat_messages WHERE id = ?").get(id) as
+    | { chat_id: number }
+    | undefined
+  getDb().prepare("DELETE FROM chat_messages WHERE id = ?").run(id)
+  if (row) {
+    getDb().prepare("UPDATE chats SET updated_at = datetime('now') WHERE id = ?").run(row.chat_id)
+  }
+}
+
+export function updateChatNextSpeaker(chat_id: number, next_speaker_index: number): void {
+  getDb()
+    .prepare("UPDATE chats SET next_speaker_index = ?, updated_at = datetime('now') WHERE id = ?")
+    .run(next_speaker_index, chat_id)
 }
 
 export function getNextChatMessageIndex(chat_id: number): number {

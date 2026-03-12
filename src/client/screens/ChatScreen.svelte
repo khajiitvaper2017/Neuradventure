@@ -1,8 +1,9 @@
 <script lang="ts">
   import { onMount, tick } from "svelte"
-  import { api } from "../api/client.js"
-  import { showError, goBack } from "../stores/ui.js"
+  import { api, type ChatMessage } from "../api/client.js"
+  import { showConfirm, showError, goBack } from "../stores/ui.js"
   import {
+    canUndoChatCancel,
     chatMembers,
     chatMessages,
     currentChatId,
@@ -11,14 +12,46 @@
     isChatGenerating,
     nextSpeakerIndex,
   } from "../stores/chat.js"
-  import IconSend from "../components/icons/IconSend.svelte"
-  import IconSpinner from "../components/icons/IconSpinner.svelte"
+  import { autoresize } from "../utils/actions/autoresize.js"
+  import ConversationInput from "../components/ui/ConversationInput.svelte"
+  import InlineTokens from "../components/ui/InlineTokens.svelte"
+  import ThinkingDots from "../components/ui/ThinkingDots.svelte"
+  import IconTrash from "../components/icons/IconTrash.svelte"
+
+  type ActionMode = "do" | "say"
+  const ACTION_MODES: ActionMode[] = ["do", "say"]
+  const MODE_HINTS: Record<ActionMode, string> = {
+    do: "What do you do?",
+    say: "What do you say?",
+  }
 
   let input = $state("")
+  let actionMode = $state<ActionMode>("say")
   let logEl: HTMLDivElement | null = null
+  let editingMessageId = $state<number | null>(null)
+  let editMessageContent = $state("")
+  let showScenarioEditor = $state(false)
+  let titleDraft = $state("")
+  let scenarioDraft = $state("")
+  let showSpeakerPicker = $state(false)
 
   function participantLabel() {
     return $chatMembers.map((m) => m.name).join(" · ")
+  }
+
+  function aiMembers() {
+    return $chatMembers.filter((m) => m.role === "ai").sort((a, b) => a.sort_order - b.sort_order)
+  }
+
+  function showNextSpeakerControl() {
+    return aiMembers().length > 1
+  }
+
+  function nextSpeakerName() {
+    const list = aiMembers()
+    if (list.length === 0) return "Unknown"
+    const safeIndex = $nextSpeakerIndex % list.length
+    return list[safeIndex]?.name ?? "Unknown"
   }
 
   function scrollToBottom() {
@@ -35,15 +68,90 @@
     tick().then(scrollToBottom)
   })
 
+  function startEditScenario() {
+    titleDraft = $currentChatTitle
+    scenarioDraft = $currentChatScenario
+    showScenarioEditor = true
+  }
+
+  function cancelEditScenario() {
+    showScenarioEditor = false
+  }
+
+  async function saveScenario() {
+    if (!$currentChatId) return
+    try {
+      await api.chats.update($currentChatId, {
+        title: titleDraft.trim(),
+        scenario: scenarioDraft.trim(),
+      })
+      currentChatTitle.set(titleDraft.trim())
+      currentChatScenario.set(scenarioDraft.trim())
+      showScenarioEditor = false
+    } catch (err) {
+      showError(err instanceof Error ? err.message : "Failed to update chat")
+    }
+  }
+
+  async function setNextSpeaker(memberId: number) {
+    if (!$currentChatId || $isChatGenerating) return
+    try {
+      const result = await api.chats.setNextSpeaker($currentChatId, memberId)
+      nextSpeakerIndex.set(result.next_speaker_index)
+      showSpeakerPicker = false
+    } catch (err) {
+      showError(err instanceof Error ? err.message : "Failed to set next speaker")
+    }
+  }
+
+  function matchCase(match: string, replacement: string): string {
+    if (match.toUpperCase() === match) return replacement.toUpperCase()
+    if (match[0] === match[0].toUpperCase()) return replacement[0].toUpperCase() + replacement.substring(1)
+    return replacement
+  }
+
+  function normalizeDoInput(text: string): string {
+    let normalized = text
+    normalized = normalized.replace(/\\bmyself\\b/gi, (m) => matchCase(m, "yourself"))
+    normalized = normalized.replace(/\\bmy\\b/gi, (m) => matchCase(m, "your"))
+    if (!/^(you|your|yourself)\\b/i.test(normalized)) {
+      const lowered = normalized.replace(/^([A-Z])/, (m) => m.toLowerCase())
+      normalized = `You ${lowered}`
+    }
+    return normalized
+  }
+
+  function normalizeSayInput(text: string): string {
+    if (text.startsWith('\"') && text.endsWith('\"') && text.length >= 2) return text
+    return `\"${text}\"`
+  }
+
+  function normalizeChatInput(text: string, mode: ActionMode): string {
+    const trimmed = text.trim()
+    if (!trimmed) return trimmed
+    if (mode === "do") return normalizeDoInput(trimmed)
+    return normalizeSayInput(trimmed)
+  }
+
   async function sendMessage() {
-    const content = input.trim()
-    if (!content || !$currentChatId || $isChatGenerating) return
+    if (!$currentChatId || $isChatGenerating) return
+    const raw = input
+    const trimmed = raw.trim()
     isChatGenerating.set(true)
     input = ""
     try {
-      const result = await api.chats.send($currentChatId, content)
-      chatMessages.update((list) => [...list, result.player_message, result.ai_message])
-      nextSpeakerIndex.set(result.next_speaker_index)
+      if (trimmed) {
+        const content = normalizeChatInput(trimmed, actionMode)
+        if (!content) return
+        const result = await api.chats.send($currentChatId, content)
+        chatMessages.update((list) => [...list, result.player_message, result.ai_message])
+        nextSpeakerIndex.set(result.next_speaker_index)
+      } else {
+        const result = await api.chats.continue($currentChatId)
+        chatMessages.update((list) => [...list, result.ai_message])
+        nextSpeakerIndex.set(result.next_speaker_index)
+      }
+      canUndoChatCancel.set(false)
       await tick()
       scrollToBottom()
     } catch (err) {
@@ -53,54 +161,314 @@
     }
   }
 
-  function handleKeydown(e: KeyboardEvent) {
-    if (e.key === "Enter" && !e.shiftKey) {
-      e.preventDefault()
-      void sendMessage()
+  async function regenerateLast() {
+    if (!$currentChatId || $isChatGenerating || $chatMessages.length === 0) return
+    isChatGenerating.set(true)
+    try {
+      const result = await api.chats.regenerateLast($currentChatId)
+      if (result.replaced) {
+        chatMessages.update((list) => list.map((m) => (m.id === result.ai_message.id ? result.ai_message : m)))
+      } else {
+        chatMessages.update((list) => [...list, result.ai_message])
+      }
+      nextSpeakerIndex.set(result.next_speaker_index)
+      canUndoChatCancel.set(false)
+      await tick()
+      scrollToBottom()
+    } catch (err) {
+      showError(err instanceof Error ? err.message : "Failed to regenerate reply")
+    } finally {
+      isChatGenerating.set(false)
+    }
+  }
+
+  async function cancelLastExchange() {
+    if (!$currentChatId || $isChatGenerating || $chatMessages.length === 0) return
+    isChatGenerating.set(true)
+    try {
+      const result = await api.chats.cancelLast($currentChatId)
+      chatMessages.update((list) => list.filter((m) => !result.removed_ids.includes(m.id)))
+      nextSpeakerIndex.set(result.next_speaker_index)
+      canUndoChatCancel.set(true)
+    } catch (err) {
+      showError(err instanceof Error ? err.message : "Failed to cancel last exchange")
+    } finally {
+      isChatGenerating.set(false)
+    }
+  }
+
+  async function undoCancel() {
+    if (!$currentChatId || $isChatGenerating || !$canUndoChatCancel) return
+    isChatGenerating.set(true)
+    try {
+      const result = await api.chats.undoCancel($currentChatId)
+      chatMessages.update((list) => [...list, ...result.messages].sort((a, b) => a.message_index - b.message_index))
+      nextSpeakerIndex.set(result.next_speaker_index)
+      canUndoChatCancel.set(false)
+      await tick()
+      scrollToBottom()
+    } catch (err) {
+      showError(err instanceof Error ? err.message : "Failed to undo cancel")
+    } finally {
+      isChatGenerating.set(false)
+    }
+  }
+
+  function startEditMessage(message: ChatMessage) {
+    editingMessageId = message.id
+    editMessageContent = message.content
+    tick().then(scrollToBottom)
+  }
+
+  function cancelEditMessage() {
+    editingMessageId = null
+  }
+
+  async function saveMessageEdit(messageId: number) {
+    if (!$currentChatId) return
+    const content = editMessageContent.trim()
+    if (!content) {
+      showError("Message content cannot be empty")
+      return
+    }
+    try {
+      const result = await api.chats.updateMessage($currentChatId, messageId, content)
+      chatMessages.update((list) => list.map((m) => (m.id === messageId ? result.message : m)))
+      editingMessageId = null
+      canUndoChatCancel.set(false)
+    } catch (err) {
+      showError(err instanceof Error ? err.message : "Failed to update message")
+    }
+  }
+
+  async function deleteMessage(messageId: number) {
+    if (!$currentChatId || $isChatGenerating) return
+    const confirmed = await showConfirm({
+      title: "Delete message",
+      message: "Delete this message? This cannot be undone.",
+      confirmLabel: "Delete",
+      danger: true,
+    })
+    if (!confirmed) return
+    try {
+      await api.chats.deleteMessage($currentChatId, messageId)
+      chatMessages.update((list) => list.filter((m) => m.id !== messageId))
+      canUndoChatCancel.set(false)
+    } catch (err) {
+      showError(err instanceof Error ? err.message : "Failed to delete message")
     }
   }
 </script>
 
 <div class="screen chat">
-  <div class="screen-header">
-    <button class="back-btn" onclick={() => goBack("home")} aria-label="Back">←</button>
-    <h2 class="screen-title">{$currentChatTitle || "Chat"}</h2>
-  </div>
+  <header>
+    <button class="header-back" onclick={() => goBack("home")} title="Return to menu" aria-label="Back to home">
+      <svg
+        width="14"
+        height="14"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="2"
+        stroke-linecap="round"
+        aria-hidden="true"
+      >
+        <path d="M19 12H5" /><path d="M12 19l-7-7 7-7" />
+      </svg>
+    </button>
 
-  {#if $currentChatScenario.trim()}
-    <div class="chat-scenario">{$currentChatScenario}</div>
+    <div class="header-center">
+      <span class="story-name">{$currentChatTitle || "Chat"}</span>
+      <span class="header-scene">{participantLabel() || "No participants"}</span>
+    </div>
+
+    <div class="header-actions">
+      <span class="turn-badge">{$chatMessages.length}</span>
+      {#if showNextSpeakerControl()}
+        <button class="next-speaker" onclick={() => (showSpeakerPicker = true)} title="Pick next speaker">
+          Next: {nextSpeakerName()}
+        </button>
+      {/if}
+    </div>
+  </header>
+
+  {#if showScenarioEditor}
+    <div class="editor-overlay">
+      <div class="editor-panel">
+        <div class="editor-header">
+          <span>Chat Setup</span>
+          <span class="editor-hint">Edit the title and scenario for this chat</span>
+        </div>
+        <label class="edit-label" for="chat-title">Title</label>
+        <input id="chat-title" class="edit-input" type="text" bind:value={titleDraft} />
+        <label class="edit-label" for="chat-scenario">Scenario</label>
+        <textarea
+          id="chat-scenario"
+          class="edit-textarea"
+          bind:value={scenarioDraft}
+          rows="5"
+          use:autoresize={scenarioDraft}
+        ></textarea>
+        <div class="edit-actions">
+          <button class="btn-ghost" onclick={cancelEditScenario}>Cancel</button>
+          <button class="btn-accent" onclick={saveScenario}>Save</button>
+        </div>
+      </div>
+    </div>
   {/if}
-  <div class="chat-participants">{participantLabel()}</div>
+
+  {#if showSpeakerPicker && showNextSpeakerControl()}
+    <div
+      class="editor-overlay"
+      role="button"
+      tabindex="0"
+      aria-label="Close speaker picker"
+      onclick={(e) => {
+        if (e.currentTarget !== e.target) return
+        showSpeakerPicker = false
+      }}
+      onkeydown={(e) => {
+        if (e.key === "Escape" || e.key === "Enter" || e.key === " ") {
+          e.preventDefault()
+          showSpeakerPicker = false
+        }
+      }}
+    >
+      <div class="editor-panel">
+        <div class="editor-header">
+          <span>Next Speaker</span>
+          <span class="editor-hint">Choose which AI should reply next</span>
+        </div>
+        <div class="speaker-list">
+          {#each aiMembers() as member}
+            <button class="speaker-btn" onclick={() => setNextSpeaker(member.id)} disabled={$isChatGenerating}>
+              {member.name}
+            </button>
+          {/each}
+        </div>
+        <div class="edit-actions">
+          <button class="btn-ghost" onclick={() => (showSpeakerPicker = false)}>Close</button>
+        </div>
+      </div>
+    </div>
+  {/if}
 
   <div class="chat-log" bind:this={logEl} data-scroll-root="screen">
+    {#if $currentChatScenario.trim() || $chatMembers.length > 0}
+      <div class="opening-block">
+        <div class="opening-header">
+          <span>Scenario</span>
+          <button class="edit-btn" onclick={startEditScenario} disabled={$isChatGenerating}>Edit</button>
+        </div>
+        {#if $currentChatScenario.trim()}
+          <p class="opening-text">
+            <InlineTokens text={$currentChatScenario} />
+          </p>
+        {/if}
+        {#if $chatMembers.length > 0}
+          <p class="chat-participants">{participantLabel()}</p>
+        {/if}
+      </div>
+    {/if}
+
     {#if $chatMessages.length === 0}
       <div class="empty">No messages yet.</div>
     {:else}
       {#each $chatMessages as message (message.id)}
         <div class="chat-message {message.role === 'user' ? 'from-user' : 'from-ai'}">
-          <div class="chat-speaker">{message.speaker_name}</div>
-          <div class="chat-text">{message.content}</div>
+          <div class="chat-speaker">
+            <span>{message.speaker_name}</span>
+            <span class="message-actions">
+              <button class="edit-btn inline" onclick={() => startEditMessage(message)} disabled={$isChatGenerating}>
+                Edit
+              </button>
+              <button
+                class="delete-btn inline"
+                onclick={() => deleteMessage(message.id)}
+                disabled={$isChatGenerating}
+                title="Delete message"
+              >
+                <IconTrash size={12} strokeWidth={2} />
+              </button>
+            </span>
+          </div>
+
+          {#if editingMessageId === message.id}
+            <textarea
+              class="edit-textarea"
+              bind:value={editMessageContent}
+              rows="3"
+              disabled={$isChatGenerating}
+              use:autoresize={editMessageContent}
+            ></textarea>
+            <div class="edit-actions">
+              <button class="btn-ghost" onclick={cancelEditMessage} disabled={$isChatGenerating}>Cancel</button>
+              <button class="btn-accent" onclick={() => saveMessageEdit(message.id)} disabled={$isChatGenerating}>
+                Save
+              </button>
+            </div>
+          {:else}
+            <div class="chat-text"><InlineTokens text={message.content} /></div>
+          {/if}
         </div>
       {/each}
     {/if}
+
+    {#if $isChatGenerating}
+      <ThinkingDots />
+    {/if}
+
+    <div style="height:1rem"></div>
   </div>
 
-  <div class="chat-input">
-    <textarea
-      bind:value={input}
-      rows="2"
-      placeholder="Type a message..."
-      disabled={$isChatGenerating}
-      onkeydown={handleKeydown}
-    ></textarea>
-    <button class="send-btn" onclick={sendMessage} disabled={$isChatGenerating || !input.trim()} aria-label="Send">
-      {#if $isChatGenerating}
-        <IconSpinner className="spin" size={16} strokeWidth={2.2} />
-      {:else}
-        <IconSend size={16} strokeWidth={2.2} />
+  <ConversationInput
+    bind:value={input}
+    placeholder={`${MODE_HINTS[actionMode]} (send empty to continue)`}
+    disabled={$isChatGenerating}
+    canSend={true}
+    sending={$isChatGenerating}
+    onSend={sendMessage}
+  >
+    <div slot="top-controls">
+      <button class="mode-clear" onclick={() => (input = "")} disabled={!input} aria-label="Clear"> × </button>
+      <div class="mode-group" role="group" aria-label="Action mode">
+        {#each ACTION_MODES as mode}
+          <button class="mode-pill {actionMode === mode ? 'active' : ''}" onclick={() => (actionMode = mode)}
+            >{mode}</button
+          >
+        {/each}
+      </div>
+      <button
+        class="mode-undo"
+        onclick={cancelLastExchange}
+        disabled={$isChatGenerating || $chatMessages.length === 0}
+        title="Cancel last exchange"
+        aria-label="Cancel last exchange"
+      >
+        ↶
+      </button>
+      {#if $canUndoChatCancel}
+        <button
+          class="mode-undo-cancel"
+          onclick={undoCancel}
+          disabled={$isChatGenerating}
+          title="Undo cancel"
+          aria-label="Undo cancel"
+        >
+          ↷
+        </button>
       {/if}
-    </button>
-  </div>
+      <button
+        class="mode-regen"
+        onclick={regenerateLast}
+        disabled={$isChatGenerating || $chatMessages.length === 0}
+        title="Regenerate last reply"
+        aria-label="Regenerate last reply"
+      >
+        ↻
+      </button>
+    </div>
+  </ConversationInput>
 </div>
 
 <style>
@@ -108,96 +476,321 @@
     background: var(--bg);
   }
 
-  .chat-scenario {
-    padding: 0.75rem 1rem 0;
-    font-size: 0.8rem;
+  header {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0 0.5rem 0 0;
+    border-bottom: 1px solid var(--border);
+    min-height: 46px;
+    flex-shrink: 0;
+  }
+  @media (min-width: 1200px) {
+    header {
+      padding: 0 1.5rem 0 0;
+    }
+  }
+  .header-back {
+    background: none;
+    border: none;
+    border-right: 1px solid var(--border);
     color: var(--text-dim);
-    font-style: italic;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 46px;
+    min-height: 46px;
+    flex-shrink: 0;
+    transition:
+      color 0.15s,
+      background 0.15s;
+  }
+  .header-back:hover {
+    color: var(--text);
+    background: var(--bg-action);
+  }
+  .header-center {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.1rem;
+    padding: 0.35rem 0;
+  }
+  .story-name {
+    font-family: var(--font-ui);
+    font-size: 0.82rem;
+    color: var(--text);
+    font-weight: 500;
+    white-space: normal;
+    overflow-wrap: anywhere;
+    line-height: 1.2;
+  }
+  .header-scene {
+    font-family: var(--font-ui);
+    font-size: 0.65rem;
+    color: var(--text-scene);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    white-space: normal;
+    overflow-wrap: anywhere;
+    line-height: 1.2;
+  }
+  .header-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    flex-shrink: 0;
+  }
+  .turn-badge {
+    font-family: var(--font-ui);
+    font-size: 0.7rem;
+    color: var(--accent);
+    background: var(--accent-dim);
+    padding: 0.15rem 0.5rem;
+    border-radius: var(--radius-pill);
+    font-feature-settings: "tnum";
+    font-weight: 500;
+    letter-spacing: 0.02em;
+  }
+  .next-speaker {
+    background: var(--bg-action);
+    border: 1px solid var(--border);
+    color: var(--text-dim);
+    font-size: 0.72rem;
+    padding: 0.35rem 0.6rem;
+    border-radius: 999px;
+    cursor: pointer;
+    white-space: nowrap;
+  }
+  .next-speaker:hover {
+    color: var(--text);
+    border-color: var(--border-hover);
+  }
+  .next-speaker:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
   }
 
+  .chat-log {
+    flex: 1;
+    overflow-y: auto;
+    padding: 1.5rem 1.25rem 0.5rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+  @media (min-width: 1200px) {
+    .chat-log {
+      padding: 2rem 2.5rem 0.5rem;
+    }
+  }
+
+  .opening-block {
+    background: var(--bg-raised);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 0.9rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+    margin-bottom: 1.25rem;
+  }
+  .opening-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--text-dim);
+  }
+  .opening-text {
+    font-family: var(--font-story);
+    font-size: var(--story-size);
+    line-height: var(--story-line);
+    color: var(--text);
+    font-style: italic;
+    opacity: 0.75;
+    white-space: pre-line;
+  }
   .chat-participants {
-    padding: 0.4rem 1rem 0.75rem;
     font-size: 0.7rem;
     color: var(--text-dim);
     text-transform: uppercase;
     letter-spacing: 0.08em;
   }
 
-  .chat-log {
-    flex: 1;
-    overflow-y: auto;
-    padding: 0 1rem 1rem;
-    display: flex;
-    flex-direction: column;
-    gap: 0.75rem;
-  }
-
   .chat-message {
     display: flex;
     flex-direction: column;
-    gap: 0.35rem;
-    padding: 0.6rem 0.8rem;
+    gap: 0.5rem;
+    padding: 0.7rem 0.9rem;
     border-radius: var(--radius-sm);
     border: 1px solid var(--border);
     background: var(--bg-raised);
   }
-
   .chat-message.from-user {
     border-color: var(--accent-dim);
     background: rgba(255, 255, 255, 0.04);
   }
-
   .chat-speaker {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
     font-size: 0.7rem;
     color: var(--text-dim);
     text-transform: uppercase;
     letter-spacing: 0.06em;
   }
-
+  .message-actions {
+    display: inline-flex;
+    gap: 0.3rem;
+    align-items: center;
+  }
   .chat-text {
     font-size: 0.92rem;
     line-height: 1.5;
     color: var(--text);
+    white-space: pre-line;
   }
 
-  .chat-input {
-    display: grid;
-    grid-template-columns: 1fr auto;
-    gap: 0.6rem;
-    padding: 0.75rem 1rem 1rem;
-    border-top: 1px solid var(--border);
-  }
-
-  .chat-input textarea {
-    resize: none;
+  .edit-textarea {
     background: var(--bg-input);
     border: 1px solid var(--border);
+    border-radius: 4px;
     color: var(--text);
-    font-family: var(--font-story);
-    font-size: 0.92rem;
+    padding: 0.75rem;
+    font-size: 0.95rem;
+    font-family: var(--font-ui);
+    resize: none;
+    overflow: hidden;
+    width: 100%;
+    box-sizing: border-box;
+  }
+  .edit-textarea:focus {
+    outline: none;
+    border-color: var(--accent);
+  }
+  .edit-input {
+    background: var(--bg-input);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    color: var(--text);
     padding: 0.65rem 0.75rem;
-    border-radius: var(--radius-sm);
-    min-height: 56px;
+    font-size: 0.95rem;
+    font-family: var(--font-ui);
   }
-
-  .chat-input textarea:focus {
-    outline: 1px solid var(--accent);
+  .edit-label {
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--text-dim);
   }
-
-  .send-btn {
-    display: inline-flex;
+  .edit-actions {
+    display: flex;
+    gap: 0.5rem;
+    justify-content: flex-end;
+  }
+  .edit-btn {
+    background: none;
+    border: 1px solid var(--border);
+    color: var(--text-dim);
+    padding: 0.25rem 0.6rem;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.75rem;
+    min-height: 28px;
+  }
+  .edit-btn:hover {
+    color: var(--text);
+  }
+  .edit-btn.inline {
+    margin-left: auto;
+  }
+  .delete-btn {
+    background: none;
+    border: 1px solid var(--accent);
+    color: var(--accent);
+    padding: 0.25rem 0.5rem;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.75rem;
+    min-height: 28px;
+    display: flex;
     align-items: center;
     justify-content: center;
-    width: 44px;
-    height: 44px;
-    border: none;
-    border-radius: 999px;
+  }
+  .delete-btn:hover:not(:disabled) {
     background: var(--accent);
     color: #0d0b08;
-    cursor: pointer;
+  }
+  .delete-btn:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+  }
+  .delete-btn.inline {
+    margin-left: 0.25rem;
   }
 
-  .send-btn:disabled {
+  .editor-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.6);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 100;
+    padding: 1rem;
+  }
+  .editor-panel {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 1.25rem;
+    width: 100%;
+    max-width: 480px;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+  .editor-header {
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+  }
+  .editor-header > span:first-child {
+    font-family: var(--font-ui);
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--text);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+  }
+  .editor-hint {
+    font-size: 0.75rem;
+    color: var(--text-dim);
+  }
+  .speaker-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+  }
+  .speaker-btn {
+    background: var(--bg-action);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 0.5rem 0.75rem;
+    border-radius: 6px;
+    text-align: left;
+    cursor: pointer;
+  }
+  .speaker-btn:hover:not(:disabled) {
+    border-color: var(--border-hover);
+  }
+  .speaker-btn:disabled {
     opacity: 0.5;
     cursor: not-allowed;
   }

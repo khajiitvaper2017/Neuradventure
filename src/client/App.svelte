@@ -2,6 +2,9 @@
   import { onMount } from "svelte"
   import {
     activeScreen,
+    collapseCharSheet,
+    collapseLocationsPanel,
+    collapseNPCTracker,
     errorMessage,
     initRouter,
     isDesktop,
@@ -115,19 +118,33 @@
   class:scheme-sapphire={$colorScheme === "sapphire"}
   class:scheme-crimson={$colorScheme === "crimson"}
   class:game-active={desktopGame}
+  class:collapse-char={$collapseCharSheet}
+  class:collapse-npc={$collapseNPCTracker}
+  class:collapse-locations={$collapseLocationsPanel}
   bind:this={appEl}
 >
   {#if appReady}
     {#if gameReady}
-      {#if $isDesktop}
-        <CharSheet inline />
+      {#if $isDesktop && !$collapseCharSheet}
+        <div class="sidebar-slot left">
+          <CharSheet inline />
+        </div>
       {/if}
 
-      <GameScreen />
+      <div class="game-slot">
+        <GameScreen />
+      </div>
 
-      {#if $isDesktop}
-        <NPCTracker inline />
-        <LocationsPanel inline />
+      {#if $isDesktop && !$collapseNPCTracker}
+        <div class="sidebar-slot right-1">
+          <NPCTracker inline />
+        </div>
+      {/if}
+
+      {#if $isDesktop && !$collapseLocationsPanel}
+        <div class="sidebar-slot right-2">
+          <LocationsPanel inline />
+        </div>
       {/if}
     {:else if !gameActive}
       {#if $activeScreen === "home"}
@@ -170,11 +187,40 @@
 
   /* ── Desktop game: three-column grid ──────────────── */
   .app.game-active {
+    --sidebar-left: var(--sidebar-width);
+    --sidebar-right-1: var(--sidebar-width);
+    --sidebar-right-2: var(--sidebar-width);
     display: grid;
-    grid-template-columns: var(--sidebar-width) minmax(0, 1fr) var(--sidebar-width) var(--sidebar-width);
+    grid-template-columns: var(--sidebar-left) minmax(var(--sidebar-width), 1fr) var(--sidebar-right-1)
+      var(--sidebar-right-2);
     grid-template-rows: 100dvh;
     max-width: 1800px;
     margin: 0 auto;
+  }
+  .app.game-active .game-slot {
+    grid-column: 2;
+    min-width: 0;
+  }
+  .app.game-active .sidebar-slot {
+    height: 100dvh;
+  }
+  .app.game-active .sidebar-slot.left {
+    grid-column: 1;
+  }
+  .app.game-active .sidebar-slot.right-1 {
+    grid-column: 3;
+  }
+  .app.game-active .sidebar-slot.right-2 {
+    grid-column: 4;
+  }
+  .app.game-active.collapse-char {
+    --sidebar-left: 0px;
+  }
+  .app.game-active.collapse-npc {
+    --sidebar-right-1: 0px;
+  }
+  .app.game-active.collapse-locations {
+    --sidebar-right-2: 0px;
   }
 
   /* ── Toast ────────────────────────────────────────── */

@@ -123,7 +123,9 @@ input[type="checkbox"] {
 
 .app.text-justify p,
 .app.text-justify textarea,
-.app.text-justify .value {
+.app.text-justify .value,
+.app.text-justify .chat-text,
+.app.text-justify .opening-text {
   text-align: justify;
 }
 
@@ -327,6 +329,128 @@ input[type="checkbox"] {
   display: flex;
   flex-direction: column;
   gap: 1.25rem;
+}
+
+/* ── Conversation controls ───────────────────────── */
+.mode-clear {
+  background: none;
+  border: none;
+  color: var(--text-dim);
+  font-size: 1.1rem;
+  min-width: 34px;
+  min-height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  opacity: 0;
+  transition:
+    opacity 0.15s,
+    color 0.15s;
+  pointer-events: none;
+}
+.mode-clear:not(:disabled) {
+  opacity: 1;
+  pointer-events: auto;
+}
+.mode-clear:hover {
+  color: var(--text);
+}
+.mode-group {
+  display: flex;
+  gap: 0.35rem;
+  padding: 0.15rem 0.2rem;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--bg-action);
+}
+.mode-pill {
+  border: none;
+  background: none;
+  color: var(--text-dim);
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  padding: 0.3rem 0.65rem;
+  border-radius: 999px;
+  cursor: pointer;
+  min-height: 28px;
+}
+.mode-pill:hover {
+  color: var(--text);
+}
+.mode-pill.active {
+  background: var(--accent);
+  color: #0d0b08;
+}
+.mode-undo,
+.mode-undo-cancel,
+.mode-regen,
+.mode-impersonate {
+  background: var(--bg-action);
+  border: 1px solid var(--border);
+  color: var(--text-dim);
+  font-size: 1rem;
+  min-width: 34px;
+  min-height: 34px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  opacity: 0.85;
+  border-radius: 50%;
+}
+.mode-undo {
+  margin-left: 0.35rem;
+}
+.mode-undo-cancel {
+  margin-left: 0.25rem;
+}
+.mode-regen {
+  margin-left: 0.25rem;
+}
+.mode-impersonate {
+  margin-left: 0.25rem;
+}
+.mode-undo:hover:not(:disabled),
+.mode-undo-cancel:hover:not(:disabled),
+.mode-regen:hover:not(:disabled),
+.mode-impersonate:hover:not(:disabled) {
+  color: var(--text);
+  border-color: var(--border-hover);
+}
+.mode-undo:disabled,
+.mode-undo-cancel:disabled,
+.mode-regen:disabled,
+.mode-impersonate:disabled {
+  cursor: not-allowed;
+  opacity: 0.4;
+}
+
+.tbtn {
+  background: none;
+  border: none;
+  color: var(--text-dim);
+  min-width: 48px;
+  min-height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: color 0.15s;
+  border-radius: 4px;
+}
+.tbtn:hover {
+  color: var(--text);
+}
+
+.spin {
+  animation: spin 0.8s linear infinite;
+}
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .field {

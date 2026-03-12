@@ -145,3 +145,21 @@ export const SendChatMessageRequestSchema = z.object({
   chat_id: z.number().int().describe(desc("requests.chat_id")),
   content: z.string().min(1).describe(desc("requests.chat_message.content")),
 })
+
+export const UpdateChatRequestSchema = z.object({
+  title: z.string().optional().describe(desc("requests.update_chat.title")),
+  scenario: z.string().optional().describe(desc("requests.update_chat.scenario")),
+})
+
+export const UpdateChatMessageRequestSchema = z.object({
+  content: z.string().min(1).describe(desc("requests.chat_message.content")),
+})
+
+export const ChatIdRequestSchema = z.object({
+  chat_id: z.number().int().describe(desc("requests.chat_id")),
+})
+
+export const SetNextChatSpeakerRequestSchema = z.object({
+  chat_id: z.number().int().describe(desc("requests.chat_id")),
+  speaker_member_id: z.number().int().describe(desc("requests.chat_next_speaker.speaker_member_id")),
+})

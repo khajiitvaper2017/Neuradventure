@@ -1,7 +1,14 @@
 import { Hono } from "hono"
 import { zValidator } from "@hono/zod-validator"
 import * as db from "../core/db.js"
-import { CreateChatRequestSchema, SendChatMessageRequestSchema } from "../core/models.js"
+import {
+  ChatIdRequestSchema,
+  CreateChatRequestSchema,
+  SendChatMessageRequestSchema,
+  SetNextChatSpeakerRequestSchema,
+  UpdateChatMessageRequestSchema,
+  UpdateChatRequestSchema,
+} from "../core/models.js"
 import { getServerDefaults } from "../core/strings.js"
 import { buildChatMessages, buildChatStopTokens, sanitizeChatReply } from "../llm/chat.js"
 import { generateChatReply } from "../llm/index.js"
@@ -47,6 +54,46 @@ function buildMessagePayload(
   }
 }
 
+function buildChatHistory(members: db.ChatMemberRow[], messages: db.ChatMessageRow[]) {
+  return messages.map((m) => {
+    const member = members.find((memberRow) => memberRow.id === m.speaker_member_id)
+    const state = member ? parseMemberState(member.state_json) : null
+    return {
+      speakerName: memberNameFromState(state),
+      content: m.content,
+    }
+  })
+}
+
+function buildChatMembersForPrompt(members: db.ChatMemberRow[]) {
+  return members.map((member) => ({
+    id: member.id,
+    role: member.role,
+    sort_order: member.sort_order,
+    state:
+      parseMemberState(member.state_json) ??
+      ({
+        name: memberNameFromState(null),
+        race: "",
+        gender: "",
+        current_location: "",
+        appearance: {
+          baseline_appearance: "",
+          current_appearance: "",
+          current_clothing: "",
+        },
+        personality_traits: [],
+        major_flaws: [],
+        quirks: [],
+        perks: [],
+      } as db.ChatMemberState),
+  }))
+}
+
+function listAiMembers(members: db.ChatMemberRow[]) {
+  return members.filter((m) => m.role === "ai").sort((a, b) => a.sort_order - b.sort_order)
+}
+
 chats.get("/", (c) => {
   const rows = db.listChats()
   const summaries = rows.map((row) => {
@@ -71,6 +118,7 @@ chats.get("/:id", (c) => {
   const id = Number(c.req.param("id"))
   const chat = db.getChat(id)
   if (!chat) return c.json({ error: "Chat not found" }, 404)
+  const canceled = db.getCanceledChatExchange(id)
   const members = db.listChatMembers(id)
   return c.json({
     id: chat.id,
@@ -78,6 +126,7 @@ chats.get("/:id", (c) => {
     scenario: chat.scenario,
     speaker_strategy: chat.speaker_strategy,
     next_speaker_index: chat.next_speaker_index,
+    can_undo_cancel: !!canceled,
     created_at: chat.created_at,
     updated_at: chat.updated_at,
     members: members.map((m) => {
@@ -101,6 +150,41 @@ chats.get("/:id/messages", (c) => {
   const members = db.listChatMembers(id)
   const messages = db.listChatMessages(id)
   return c.json(messages.map((m) => buildMessagePayload(m, members)))
+})
+
+chats.put("/:id", zValidator("json", UpdateChatRequestSchema), (c) => {
+  const id = Number(c.req.param("id"))
+  const chat = db.getChat(id)
+  if (!chat) return c.json({ error: "Chat not found" }, 404)
+  const body = c.req.valid("json")
+  db.updateChat(id, { title: body.title?.trim(), scenario: body.scenario?.trim() })
+  return c.json({ ok: true })
+})
+
+chats.put("/:id/messages/:messageId", zValidator("json", UpdateChatMessageRequestSchema), (c) => {
+  const chatId = Number(c.req.param("id"))
+  const messageId = Number(c.req.param("messageId"))
+  const message = db.getChatMessage(messageId)
+  if (!message || message.chat_id !== chatId) return c.json({ error: "Message not found" }, 404)
+  const body = c.req.valid("json")
+  const trimmed = body.content.trim()
+  if (!trimmed) return c.json({ error: "Message content is required" }, 400)
+  db.updateChatMessage(messageId, trimmed)
+  db.clearCanceledChatExchange(chatId)
+  const members = db.listChatMembers(chatId)
+  const updated = db.getChatMessage(messageId)
+  if (!updated) return c.json({ error: "Failed to update message" }, 500)
+  return c.json({ ok: true, message: buildMessagePayload(updated, members) })
+})
+
+chats.delete("/:id/messages/:messageId", (c) => {
+  const chatId = Number(c.req.param("id"))
+  const messageId = Number(c.req.param("messageId"))
+  const message = db.getChatMessage(messageId)
+  if (!message || message.chat_id !== chatId) return c.json({ error: "Message not found" }, 404)
+  db.deleteChatMessage(messageId)
+  db.clearCanceledChatExchange(chatId)
+  return c.json({ ok: true })
 })
 
 chats.post("/", zValidator("json", CreateChatRequestSchema), (c) => {
@@ -144,7 +228,7 @@ chats.post("/:id/messages", zValidator("json", SendChatMessageRequestSchema), as
   const playerMember = members.find((m) => m.role === "player")
   if (!playerMember) return c.json({ error: "Chat has no player member" }, 400)
 
-  const aiMembers = members.filter((m) => m.role === "ai").sort((a, b) => a.sort_order - b.sort_order)
+  const aiMembers = listAiMembers(members)
   if (aiMembers.length === 0) return c.json({ error: "Chat has no AI members" }, 400)
 
   const trimmedContent = body.content.trim()
@@ -152,43 +236,15 @@ chats.post("/:id/messages", zValidator("json", SendChatMessageRequestSchema), as
 
   const playerMessageIndex = db.getNextChatMessageIndex(chatId)
   const playerMessageId = db.appendChatMessage(chatId, playerMessageIndex, playerMember.id, "user", trimmedContent)
+  db.clearCanceledChatExchange(chatId)
 
   const safeIndex = chat.next_speaker_index % aiMembers.length
   const nextSpeaker = aiMembers[safeIndex]
   const nextSpeakerState = parseMemberState(nextSpeaker.state_json)
   const nextSpeakerName = memberNameFromState(nextSpeakerState)
 
-  const history = db.listChatMessages(chatId).map((m) => {
-    const member = members.find((memberRow) => memberRow.id === m.speaker_member_id)
-    const state = member ? parseMemberState(member.state_json) : null
-    return {
-      speakerName: memberNameFromState(state),
-      content: m.content,
-    }
-  })
-
-  const chatMembersForPrompt = members.map((member) => ({
-    id: member.id,
-    role: member.role,
-    sort_order: member.sort_order,
-    state:
-      parseMemberState(member.state_json) ??
-      ({
-        name: memberNameFromState(null),
-        race: "",
-        gender: "",
-        current_location: "",
-        appearance: {
-          baseline_appearance: "",
-          current_appearance: "",
-          current_clothing: "",
-        },
-        personality_traits: [],
-        major_flaws: [],
-        quirks: [],
-        perks: [],
-      } as db.ChatMemberState),
-  }))
+  const history = buildChatHistory(members, db.listChatMessages(chatId))
+  const chatMembersForPrompt = buildChatMembersForPrompt(members)
 
   const stopTokens = buildChatStopTokens(chatMembersForPrompt.map((member) => member.state.name))
   const messages = buildChatMessages(chat.scenario, chatMembersForPrompt, history, nextSpeakerName)
@@ -224,6 +280,241 @@ chats.post("/:id/messages", zValidator("json", SendChatMessageRequestSchema), as
     console.error("LLM error:", err)
     return c.json({ error: "LLM generation failed: " + message }, 500)
   }
+})
+
+chats.post("/:id/continue", zValidator("json", ChatIdRequestSchema), async (c) => {
+  const chatId = Number(c.req.param("id"))
+  const body = c.req.valid("json")
+  if (body.chat_id !== chatId) {
+    return c.json({ error: "chat_id does not match path" }, 400)
+  }
+  const chat = db.getChat(chatId)
+  if (!chat) return c.json({ error: "Chat not found" }, 404)
+
+  const members = db.listChatMembers(chatId)
+  const aiMembers = listAiMembers(members)
+  if (aiMembers.length === 0) return c.json({ error: "Chat has no AI members" }, 400)
+
+  const safeIndex = chat.next_speaker_index % aiMembers.length
+  const nextSpeaker = aiMembers[safeIndex]
+  const nextSpeakerState = parseMemberState(nextSpeaker.state_json)
+  const nextSpeakerName = memberNameFromState(nextSpeakerState)
+
+  const history = buildChatHistory(members, db.listChatMessages(chatId))
+  const chatMembersForPrompt = buildChatMembersForPrompt(members)
+  const stopTokens = buildChatStopTokens(chatMembersForPrompt.map((member) => member.state.name))
+  const messages = buildChatMessages(chat.scenario, chatMembersForPrompt, history, nextSpeakerName, {
+    continueWithoutPlayer: true,
+  })
+
+  try {
+    const rawReply = await generateChatReply(messages, stopTokens)
+    const replyText = sanitizeChatReply(rawReply, nextSpeakerName)
+    if (!replyText) return c.json({ error: "LLM returned empty response" }, 500)
+
+    const aiMessageIndex = db.getNextChatMessageIndex(chatId)
+    const aiMessageId = db.appendChatMessage(chatId, aiMessageIndex, nextSpeaker.id, "assistant", replyText)
+    const nextIndex = (safeIndex + 1) % aiMembers.length
+    db.advanceChatSpeaker(chatId, nextIndex)
+    db.clearCanceledChatExchange(chatId)
+
+    const aiMessage = db.getChatMessage(aiMessageId)
+    if (!aiMessage) {
+      return c.json({ error: "Failed to persist chat message" }, 500)
+    }
+
+    return c.json({
+      ai_message: buildMessagePayload(aiMessage, members),
+      next_speaker_index: nextIndex,
+    })
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Unknown error"
+    if (message.includes("ECONNREFUSED") || message.includes("fetch failed")) {
+      return c.json({ error: "KoboldCpp is not running. Please start KoboldCpp first." }, 503)
+    }
+    console.error("LLM error:", err)
+    return c.json({ error: "LLM generation failed: " + message }, 500)
+  }
+})
+
+chats.post("/:id/regenerate", zValidator("json", ChatIdRequestSchema), async (c) => {
+  const chatId = Number(c.req.param("id"))
+  const body = c.req.valid("json")
+  if (body.chat_id !== chatId) {
+    return c.json({ error: "chat_id does not match path" }, 400)
+  }
+  const chat = db.getChat(chatId)
+  if (!chat) return c.json({ error: "Chat not found" }, 404)
+
+  const members = db.listChatMembers(chatId)
+  const aiMembers = listAiMembers(members)
+  if (aiMembers.length === 0) return c.json({ error: "Chat has no AI members" }, 400)
+
+  const allMessages = db.listChatMessages(chatId)
+  if (allMessages.length === 0) return c.json({ error: "Chat has no messages" }, 400)
+
+  const lastMessage = allMessages[allMessages.length - 1]
+  let history = allMessages
+  let speakerMember = null as db.ChatMemberRow | null
+  let replaced = false
+
+  if (lastMessage.role === "assistant") {
+    speakerMember = members.find((m) => m.id === lastMessage.speaker_member_id) ?? null
+    history = allMessages.slice(0, -1)
+    replaced = true
+  } else {
+    const safeIndex = chat.next_speaker_index % aiMembers.length
+    speakerMember = aiMembers[safeIndex] ?? null
+  }
+
+  if (!speakerMember) return c.json({ error: "Failed to resolve speaker" }, 500)
+
+  const speakerState = parseMemberState(speakerMember.state_json)
+  const speakerName = memberNameFromState(speakerState)
+  const chatMembersForPrompt = buildChatMembersForPrompt(members)
+  const stopTokens = buildChatStopTokens(chatMembersForPrompt.map((member) => member.state.name))
+  const prompt = buildChatMessages(chat.scenario, chatMembersForPrompt, buildChatHistory(members, history), speakerName)
+
+  try {
+    const rawReply = await generateChatReply(prompt, stopTokens)
+    const replyText = sanitizeChatReply(rawReply, speakerName)
+    if (!replyText) return c.json({ error: "LLM returned empty response" }, 500)
+
+    let aiMessageId: number
+    let nextIndex = chat.next_speaker_index
+
+    if (replaced) {
+      db.updateChatMessage(lastMessage.id, replyText)
+      aiMessageId = lastMessage.id
+    } else {
+      const aiMessageIndex = db.getNextChatMessageIndex(chatId)
+      aiMessageId = db.appendChatMessage(chatId, aiMessageIndex, speakerMember.id, "assistant", replyText)
+      const speakerIndex = aiMembers.findIndex((m) => m.id === speakerMember?.id)
+      nextIndex = speakerIndex >= 0 ? (speakerIndex + 1) % aiMembers.length : chat.next_speaker_index
+      db.advanceChatSpeaker(chatId, nextIndex)
+    }
+
+    db.clearCanceledChatExchange(chatId)
+
+    const aiMessage = db.getChatMessage(aiMessageId)
+    if (!aiMessage) return c.json({ error: "Failed to persist chat message" }, 500)
+
+    return c.json({
+      ai_message: buildMessagePayload(aiMessage, members),
+      next_speaker_index: nextIndex,
+      replaced,
+    })
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Unknown error"
+    if (message.includes("ECONNREFUSED") || message.includes("fetch failed")) {
+      return c.json({ error: "KoboldCpp is not running. Please start KoboldCpp first." }, 503)
+    }
+    console.error("LLM error:", err)
+    return c.json({ error: "LLM generation failed: " + message }, 500)
+  }
+})
+
+chats.post("/:id/cancel-last", zValidator("json", ChatIdRequestSchema), (c) => {
+  const chatId = Number(c.req.param("id"))
+  const body = c.req.valid("json")
+  if (body.chat_id !== chatId) {
+    return c.json({ error: "chat_id does not match path" }, 400)
+  }
+  const chat = db.getChat(chatId)
+  if (!chat) return c.json({ error: "Chat not found" }, 404)
+
+  const members = db.listChatMembers(chatId)
+  const aiMembers = listAiMembers(members)
+  const messages = db.listChatMessages(chatId)
+  if (messages.length === 0) return c.json({ error: "Chat has no messages" }, 400)
+
+  const last = messages[messages.length - 1]
+  const prev = messages.length > 1 ? messages[messages.length - 2] : null
+  const toRemove: db.ChatMessageRow[] = []
+
+  if (last.role === "assistant" && prev && prev.role === "user") {
+    toRemove.push(prev, last)
+  } else {
+    toRemove.push(last)
+  }
+
+  const removedIds = toRemove.map((m) => m.id)
+  const payload: db.CanceledChatExchangePayload = {
+    messages: toRemove.map((m) => ({
+      message_index: m.message_index,
+      speaker_member_id: m.speaker_member_id,
+      role: m.role,
+      content: m.content,
+    })),
+    next_speaker_index: chat.next_speaker_index,
+  }
+
+  for (const msg of toRemove) {
+    db.deleteChatMessage(msg.id)
+  }
+
+  let nextIndex = chat.next_speaker_index
+  const lastAssistant = toRemove.find((m) => m.role === "assistant")
+  if (lastAssistant && aiMembers.length > 0) {
+    const assistantIndex = aiMembers.findIndex((m) => m.id === lastAssistant.speaker_member_id)
+    if (assistantIndex >= 0) {
+      nextIndex = assistantIndex
+      db.updateChatNextSpeaker(chatId, nextIndex)
+    }
+  }
+
+  db.setCanceledChatExchange(chatId, payload)
+
+  return c.json({ removed_ids: removedIds, next_speaker_index: nextIndex })
+})
+
+chats.post("/:id/undo-cancel", zValidator("json", ChatIdRequestSchema), (c) => {
+  const chatId = Number(c.req.param("id"))
+  const body = c.req.valid("json")
+  if (body.chat_id !== chatId) {
+    return c.json({ error: "chat_id does not match path" }, 400)
+  }
+  const chat = db.getChat(chatId)
+  if (!chat) return c.json({ error: "Chat not found" }, 404)
+
+  const payload = db.getCanceledChatExchange(chatId)
+  if (!payload) return c.json({ error: "Nothing to undo" }, 400)
+
+  const members = db.listChatMembers(chatId)
+  const inserted: db.ChatMessageRow[] = []
+  const sorted = [...payload.messages].sort((a, b) => a.message_index - b.message_index)
+
+  for (const msg of sorted) {
+    const id = db.appendChatMessage(chatId, msg.message_index, msg.speaker_member_id, msg.role, msg.content)
+    const restored = db.getChatMessage(id)
+    if (restored) inserted.push(restored)
+  }
+
+  db.updateChatNextSpeaker(chatId, payload.next_speaker_index)
+  db.clearCanceledChatExchange(chatId)
+
+  return c.json({
+    messages: inserted.map((m) => buildMessagePayload(m, members)),
+    next_speaker_index: payload.next_speaker_index,
+  })
+})
+
+chats.post("/:id/next-speaker", zValidator("json", SetNextChatSpeakerRequestSchema), (c) => {
+  const chatId = Number(c.req.param("id"))
+  const body = c.req.valid("json")
+  if (body.chat_id !== chatId) {
+    return c.json({ error: "chat_id does not match path" }, 400)
+  }
+  const chat = db.getChat(chatId)
+  if (!chat) return c.json({ error: "Chat not found" }, 404)
+
+  const members = db.listChatMembers(chatId)
+  const aiMembers = listAiMembers(members)
+  const idx = aiMembers.findIndex((m) => m.id === body.speaker_member_id)
+  if (idx < 0) return c.json({ error: "Speaker not found" }, 404)
+
+  db.updateChatNextSpeaker(chatId, idx)
+  return c.json({ next_speaker_index: idx })
 })
 
 export default chats

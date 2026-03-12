@@ -88,6 +88,13 @@
     "chat_message": {
       "content": "Chat message text."
     },
+    "update_chat": {
+      "title": "Updated chat title.",
+      "scenario": "Updated chat scenario."
+    },
+    "chat_next_speaker": {
+      "speaker_member_id": "Chat member ID to speak next."
+    },
     "create_story": {
       "starting_scene": "Starting scene label.",
       "starting_date": "Starting date (YYYY-MM-DD).",

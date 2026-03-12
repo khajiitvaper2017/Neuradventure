@@ -8,6 +8,7 @@ export const chatMembers = writable<ChatMember[]>([])
 export const chatMessages = writable<ChatMessage[]>([])
 export const nextSpeakerIndex = writable<number>(0)
 export const isChatGenerating = writable(false)
+export const canUndoChatCancel = writable(false)
 
 export function resetChat() {
   currentChatId.set(null)
@@ -17,6 +18,7 @@ export function resetChat() {
   chatMessages.set([])
   nextSpeakerIndex.set(0)
   isChatGenerating.set(false)
+  canUndoChatCancel.set(false)
 }
 
 export function applyChatDetail(detail: ChatDetail) {
@@ -25,4 +27,5 @@ export function applyChatDetail(detail: ChatDetail) {
   currentChatScenario.set(detail.scenario)
   chatMembers.set(detail.members)
   nextSpeakerIndex.set(detail.next_speaker_index ?? 0)
+  canUndoChatCancel.set(detail.can_undo_cancel ?? false)
 }

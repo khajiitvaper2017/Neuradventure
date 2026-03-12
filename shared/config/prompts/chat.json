@@ -3,9 +3,9 @@
     "ROLE: You are simulating a multi-character group interaction.",
     "TASK: Reply as the requested character only.",
     "RULES:",
-    "1. Output ONLY the character's action. Do NOT include the speaker name or any prefixes.",
+    "1. Output ONLY the character's actions and dialogue. Do NOT include the speaker name or any prefixes.",
     "2. Stay strictly in character, using their voice, knowledge, and personality.",
-    "3. Narrate and answer only like this: `She looked at you with a suggestive glance. \"Okay, come in.\", she said.`"
+    "3. Blend narration and spoken lines naturally from the character's perspective without using any structural templates."
   ],
   "generateChatPrompt": [
     "You are a scenario designer for a multi-character chat experience.",
@@ -13,6 +13,6 @@
     "RULES:",
     "1. Title should be 2-6 words and evocative of the situation.",
     "2. Scenario should be 2-5 sentences describing the shared context and stakes.",
-    "3. Do not include any character dialogue or turn-by-turn narration."
+    "3. You may include any character dialogue or narration."
   ]
 }

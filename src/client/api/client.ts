@@ -83,6 +83,7 @@ export interface ChatDetail {
   scenario: string
   speaker_strategy: string
   next_speaker_index: number
+  can_undo_cancel: boolean
   created_at: string
   updated_at: string
   members: ChatMember[]
@@ -96,6 +97,40 @@ export interface ChatMessage {
   role: "user" | "assistant" | "system"
   content: string
   created_at: string
+}
+
+export interface ChatUpdateResult {
+  ok: boolean
+}
+
+export interface ChatUpdateMessageResult {
+  ok: boolean
+  message: ChatMessage
+}
+
+export interface ChatRegenerateResult {
+  ai_message: ChatMessage
+  next_speaker_index: number
+  replaced: boolean
+}
+
+export interface ChatCancelResult {
+  removed_ids: number[]
+  next_speaker_index: number
+}
+
+export interface ChatUndoCancelResult {
+  messages: ChatMessage[]
+  next_speaker_index: number
+}
+
+export interface ChatContinueResult {
+  ai_message: ChatMessage
+  next_speaker_index: number
+}
+
+export interface ChatSetNextSpeakerResult {
+  next_speaker_index: number
 }
 
 export interface StoryDetail {
@@ -405,6 +440,15 @@ export const api = {
     list: () => request<ChatSummary[]>("/api/chats"),
     get: (id: number) => request<ChatDetail>(`/api/chats/${id}`),
     messages: (id: number) => request<ChatMessage[]>(`/api/chats/${id}/messages`),
+    update: (id: number, data: { title?: string; scenario?: string }) =>
+      request<ChatUpdateResult>(`/api/chats/${id}`, { method: "PUT", body: JSON.stringify(data) }),
+    updateMessage: (chatId: number, messageId: number, content: string) =>
+      request<ChatUpdateMessageResult>(`/api/chats/${chatId}/messages/${messageId}`, {
+        method: "PUT",
+        body: JSON.stringify({ content }),
+      }),
+    deleteMessage: (chatId: number, messageId: number) =>
+      request<{ ok: boolean }>(`/api/chats/${chatId}/messages/${messageId}`, { method: "DELETE" }),
     create: (data: {
       title?: string
       scenario?: string
@@ -419,6 +463,31 @@ export const api = {
       request<ChatSendResult>(`/api/chats/${id}/messages`, {
         method: "POST",
         body: JSON.stringify({ chat_id: id, content }),
+      }),
+    continue: (id: number) =>
+      request<ChatContinueResult>(`/api/chats/${id}/continue`, {
+        method: "POST",
+        body: JSON.stringify({ chat_id: id }),
+      }),
+    regenerateLast: (id: number) =>
+      request<ChatRegenerateResult>(`/api/chats/${id}/regenerate`, {
+        method: "POST",
+        body: JSON.stringify({ chat_id: id }),
+      }),
+    cancelLast: (id: number) =>
+      request<ChatCancelResult>(`/api/chats/${id}/cancel-last`, {
+        method: "POST",
+        body: JSON.stringify({ chat_id: id }),
+      }),
+    undoCancel: (id: number) =>
+      request<ChatUndoCancelResult>(`/api/chats/${id}/undo-cancel`, {
+        method: "POST",
+        body: JSON.stringify({ chat_id: id }),
+      }),
+    setNextSpeaker: (id: number, speakerMemberId: number) =>
+      request<ChatSetNextSpeakerResult>(`/api/chats/${id}/next-speaker`, {
+        method: "POST",
+        body: JSON.stringify({ chat_id: id, speaker_member_id: speakerMemberId }),
       }),
   },
 

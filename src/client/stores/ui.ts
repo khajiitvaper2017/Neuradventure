@@ -130,6 +130,9 @@ export interface ConfirmOptions {
 type ConfirmResolve = (confirmed: boolean) => void
 
 export const confirmDialog = writable<(ConfirmOptions & { resolve: ConfirmResolve }) | null>(null)
+export const collapseCharSheet = writable(false)
+export const collapseNPCTracker = writable(false)
+export const collapseLocationsPanel = writable(false)
 
 export function showConfirm(options: ConfirmOptions): Promise<boolean> {
   return new Promise((resolve) => {
@@ -145,7 +148,7 @@ export function resolveConfirm(confirmed: boolean) {
   }
 }
 
-const DESKTOP_MQ = "(min-width: 1200px)"
+const DESKTOP_MQ = "(min-width: 1400px)"
 
 export const isDesktop = readable(
   typeof window !== "undefined" ? window.matchMedia(DESKTOP_MQ).matches : false,
