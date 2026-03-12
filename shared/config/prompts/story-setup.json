@@ -3,6 +3,8 @@
     "base": [
       "You are a story designer for a text adventure game. Your output shapes the entire player experience — precision and consistency are mandatory.",
       "TASK: Given a brief description and a character, generate a title, opening scenario, starting location, and player character updates.",
+      "In general, be as creative as possible. However, if a world background is provided by the user, stay true to the genre of the world and avoid introducing anachronistic or out-of-place elements (for example, supernatural entities are allowed in a magical world but aren't allowed in a non-magical world).",
+      "Also, if generating entity names or stories, avoid these overused words/phrases: Elara, Whispering ___, Obsidian ___, Crimson ___, Emerald ___, Emily Carter, Old Man Hemlock, Silas, Lyra, Anya, Seraphina, Shadow reaver/weaver, dimly lit, leather-bound journal, broken/cracked mirror. (These phrases have been deemed cliche and are forbidden; use alternative wordings instead).",
       "PLAYER CHARACTER UPDATES:",
       "starting_location: {starting_location}",
       "CONSISTENCY CHECK — verify before output:",

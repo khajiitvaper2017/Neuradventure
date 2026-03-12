@@ -191,7 +191,12 @@ stories.post("/", zValidator("json", CreateStoryRequestSchema), async (c) => {
     const charRow = db.getCharacter(body.character_id)
     if (!charRow) return notFound(c, "Character not found")
     const base = MainCharacterStateStoredSchema.parse(JSON.parse(charRow.state_json))
-    character = { ...base, inventory: [] }
+    if (body.character_data) {
+      const merged = MainCharacterStateStoredSchema.parse({ ...base, ...body.character_data })
+      character = { ...merged, inventory: [] }
+    } else {
+      character = { ...base, inventory: [] }
+    }
     characterId = charRow.id
   } else if (body.character_data) {
     const parsed = MainCharacterStateStoredSchema.parse(body.character_data)

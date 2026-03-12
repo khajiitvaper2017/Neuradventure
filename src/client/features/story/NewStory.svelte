@@ -248,6 +248,7 @@
       }
       if ($pendingCharacterId) {
         payload.character_id = $pendingCharacterId
+        if (charData) payload.character_data = charData
       } else if (charData) {
         payload.character_data = charData
       }
