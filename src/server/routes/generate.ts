@@ -37,18 +37,13 @@ const characterContextSchema = z.object({
     })
     .default({ baseline_appearance: "", current_appearance: "", current_clothing: "" })
     .describe(desc("state.character.appearance")),
-  baseline_description: z.string().default("").describe(desc("state.character.baseline_description")),
-  current_activity: z.string().default("").describe(desc("state.character.current_activity")),
   personality_traits: z.array(z.string()).default([]).describe(desc("traits.personality_traits")),
   major_flaws: z.array(z.string()).default([]).describe(desc("traits.major_flaws")),
   quirks: z.array(z.string()).default([]).describe(desc("traits.quirks")),
   perks: z.array(z.string()).default([]).describe(desc("traits.perks")),
 })
 
-const generateStoryCharacterSchema = CreateCharacterRequestSchema.extend({
-  baseline_description: z.string().default("").describe(desc("state.character.baseline_description")),
-  current_activity: z.string().default("").describe(desc("state.character.current_activity")),
-})
+const generateStoryCharacterSchema = CreateCharacterRequestSchema
 
 generate.post(
   "/character/part",

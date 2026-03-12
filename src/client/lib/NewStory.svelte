@@ -166,8 +166,6 @@
       pendingStoryNPCs.set(result.pregen_npcs ?? [])
       const updatedCharacter = {
         ...$pendingCharacter,
-        baseline_description: result.character_baseline_description,
-        current_activity: result.character_current_activity,
         appearance: {
           ...$pendingCharacter.appearance,
           current_appearance: result.character_current_appearance,
@@ -199,8 +197,6 @@
     if (charData) {
       const missing: string[] = []
       if (!charData.appearance?.current_appearance?.trim()) missing.push("Current appearance")
-      if (!charData.baseline_description?.trim()) missing.push("Baseline description")
-      if (!charData.current_activity?.trim()) missing.push("Current activity")
       if (missing.length > 0) {
         showError(`Missing ${missing.join(", ")}. Generate the story or fill these fields.`)
         return

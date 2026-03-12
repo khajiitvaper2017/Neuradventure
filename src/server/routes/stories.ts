@@ -215,7 +215,7 @@ stories.put("/:id/state", zValidator("json", UpdateStoryStateRequestSchema), (c)
   const row = db.getStory(id)
   if (!row) return c.json({ error: "Story not found" }, 404)
   const body = c.req.valid("json")
-  const currentCharacter = MainCharacterStateSchema.parse(JSON.parse(row.character_state_json))
+  const currentCharacter = MainCharacterStateStoredSchema.parse(JSON.parse(row.character_state_json))
   const { world: currentWorld, npcs: currentNpcs } = parseStoryState(row)
   const nextCharacter = body.character ? MainCharacterStateSchema.parse(body.character) : currentCharacter
   const nextNpcs = body.npcs ? body.npcs.map((n) => NPCStateStoredSchema.parse(n)) : currentNpcs

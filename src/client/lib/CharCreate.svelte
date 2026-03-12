@@ -171,8 +171,6 @@
   let baselineAppearance = existing?.appearance.baseline_appearance ?? ""
   let currentAppearance = existing?.appearance.current_appearance ?? ""
   let currentClothing = existing?.appearance.current_clothing ?? ""
-  let baselineDescription = existing?.baseline_description ?? ""
-  let currentActivity = existing?.current_activity ?? ""
   let selectedTraits: string[] = initialPersonality.selected
   let customPersonalityInput = ""
   let customPersonalityTraits: string[] = initialPersonality.custom
@@ -296,8 +294,6 @@
         current_appearance: currentAppearance.trim() || baselineAppearance.trim(),
         current_clothing: currentClothing.trim(),
       },
-      baseline_description: baselineDescription.trim(),
-      current_activity: currentActivity.trim(),
       personality_traits: uniquePersonality([...selectedTraits, ...customPersonalityTraits]).filter((_, i) => i < 5),
       major_flaws: majorFlaws,
       quirks,

@@ -29,8 +29,6 @@ export interface CharacterState {
   gender: string
   current_location: string
   appearance: CharacterAppearance
-  baseline_description: string
-  current_activity: string
   personality_traits: string[]
   major_flaws: string[]
   quirks: string[]
@@ -39,7 +37,9 @@ export interface CharacterState {
 }
 
 export type MainCharacterState = CharacterState
-export type NPCState = CharacterState
+export interface NPCState extends CharacterState {
+  current_activity: string
+}
 
 export interface WorldState {
   current_scene: string
@@ -135,9 +135,7 @@ export interface GenerateStoryResponse {
   starting_location: string
   starting_date: string
   starting_time: string
-  character_baseline_description: string
   character_current_appearance: string
-  character_current_activity: string
   pregen_npcs: NPCState[]
 }
 

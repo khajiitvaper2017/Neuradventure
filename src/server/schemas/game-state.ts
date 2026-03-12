@@ -79,15 +79,13 @@ export const MajorFlawsSchema = z.array(MajorFlawSchema).max(3).describe(desc("t
 export const QuirksSchema = z.array(QuirkSchema).max(6).describe(desc("traits.quirks"))
 export const PerksSchema = z.array(PerkSchema).max(6).describe(desc("traits.perks"))
 
-export const CharacterStateSchema = z
+const CharacterStateBaseSchema = z
   .object({
     name: z.string().min(1).describe(desc("state.character.name")),
     race: z.string().min(1).describe(desc("state.character.race")),
     gender: z.string().min(1).describe(desc("state.character.gender")),
     current_location: z.string().min(1).describe(desc("state.character.current_location")),
     appearance: CharacterAppearanceSchema.describe(desc("state.character.appearance")),
-    baseline_description: z.string().min(1).describe(desc("state.character.baseline_description")),
-    current_activity: z.string().min(1).describe(desc("state.character.current_activity")),
     personality_traits: PersonalityTraitsSchema.describe(desc("traits.personality_traits")),
     major_flaws: MajorFlawsSchema.describe(desc("traits.major_flaws")),
     quirks: QuirksSchema.describe(desc("traits.quirks")),
@@ -96,9 +94,15 @@ export const CharacterStateSchema = z
   })
   .strict()
 
-export const MainCharacterStateSchema = CharacterStateSchema
+export const CharacterStateSchema = CharacterStateBaseSchema
 
-export const NPCStateSchema = CharacterStateSchema
+export const MainCharacterStateSchema = CharacterStateBaseSchema
+
+export const NPCStateSchema = CharacterStateBaseSchema
+  .extend({
+    current_activity: z.string().min(1).describe(desc("state.character.current_activity")),
+  })
+  .strict()
 
 function normalizeInventoryItems(value: unknown): { name: string; description: string }[] {
   if (!Array.isArray(value)) return []
@@ -114,7 +118,7 @@ function normalizeInventoryItems(value: unknown): { name: string; description: s
   return items
 }
 
-export const CharacterStateStoredSchema = z
+const CharacterStateStoredBaseSchema = z
   .object({
     name: z.string().optional().describe(desc("state.character.name")),
     race: z.string().optional().describe(desc("state.character.race")),
@@ -126,30 +130,36 @@ export const CharacterStateStoredSchema = z
     major_flaws: z.unknown().optional().describe(desc("traits.major_flaws")),
     quirks: z.unknown().optional().describe(desc("traits.quirks")),
     perks: z.unknown().optional().describe(desc("traits.perks")),
-    baseline_description: z.string().optional().describe(desc("state.character.baseline_description")),
     current_activity: z.string().optional().describe(desc("state.character.current_activity")),
     inventory: z.unknown().optional().describe(desc("state.character.inventory")),
     notes: z.string().optional().describe(desc("state.character.current_activity")),
   })
   .passthrough()
-  .transform((value) => ({
-    name: normalizeNonEmptyString(value.name, "Unknown NPC"),
-    race: normalizeNonEmptyString(value.race, "Unknown"),
-    gender: normalizeNonEmptyString(value.gender, "Unknown"),
-    current_location: normalizeNonEmptyString(value.current_location ?? value.last_known_location, "Unknown location"),
-    appearance: normalizeAppearance(value.appearance),
-    personality_traits: normalizePersonalityTraits(value.personality_traits),
-    major_flaws: normalizeTraitList(value.major_flaws, 3),
-    quirks: normalizeTraitList(value.quirks ?? (value as Record<string, unknown>).custom_traits, 6),
-    perks: normalizeTraitList(value.perks, 6),
-    baseline_description: normalizeNonEmptyString(value.baseline_description, "Unknown background"),
-    current_activity: normalizeNonEmptyString(value.current_activity ?? value.notes, "Unknown activity"),
-    inventory: normalizeInventoryItems(value.inventory),
-  }))
+const normalizeCharacterStoredBase = (value: z.input<typeof CharacterStateStoredBaseSchema>) => ({
+  name: normalizeNonEmptyString(value.name, "Unknown NPC"),
+  race: normalizeNonEmptyString(value.race, "Unknown"),
+  gender: normalizeNonEmptyString(value.gender, "Unknown"),
+  current_location: normalizeNonEmptyString(value.current_location ?? value.last_known_location, "Unknown location"),
+  appearance: normalizeAppearance(value.appearance),
+  personality_traits: normalizePersonalityTraits(value.personality_traits),
+  major_flaws: normalizeTraitList(value.major_flaws, 3),
+  quirks: normalizeTraitList(value.quirks ?? (value as Record<string, unknown>).custom_traits, 6),
+  perks: normalizeTraitList(value.perks, 6),
+  inventory: normalizeInventoryItems(value.inventory),
+})
+
+export const CharacterStateStoredSchema = CharacterStateStoredBaseSchema
+  .transform((value) => normalizeCharacterStoredBase(value))
   .pipe(CharacterStateSchema)
 
 export const MainCharacterStateStoredSchema = CharacterStateStoredSchema
-export const NPCStateStoredSchema = CharacterStateStoredSchema
+
+export const NPCStateStoredSchema = CharacterStateStoredBaseSchema
+  .transform((value) => ({
+    ...normalizeCharacterStoredBase(value),
+    current_activity: normalizeNonEmptyString(value.current_activity ?? value.notes, "Unknown activity"),
+  }))
+  .pipe(NPCStateSchema)
 
 export const WorldStateSchema = z
   .object({

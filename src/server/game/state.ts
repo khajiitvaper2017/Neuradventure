@@ -23,8 +23,11 @@ export function applyPlayerUpdate(character: MainCharacterState, turnResponse: T
   }
 }
 
-export function mergeLocations(previous: WorldState[\"locations\"], updated: WorldState[\"locations\"]): WorldState[\"locations\"] {
-  const merged = new Map<string, WorldState[\"locations\"][number]>()
+export function mergeLocations(
+  previous: WorldState["locations"],
+  updated: WorldState["locations"],
+): WorldState["locations"] {
+  const merged = new Map<string, WorldState["locations"][number]>()
   for (const location of previous) {
     const key = location.name.trim().toLowerCase()
     if (!key) continue
@@ -72,7 +75,7 @@ export function syncLocationCharacters(world: WorldState, character: MainCharact
     if (existing) return existing
     const created = {
       name: locationName.trim(),
-      description: \"Unknown location details\",
+      description: "Unknown location details",
       characters: [],
       available_items: [],
     }
@@ -168,7 +171,7 @@ export function collectLlmWarnings(world: WorldState, npcs: NPCState[], turnResp
     worldUpdate.memory === world.memory &&
     JSON.stringify(worldUpdate.locations) === JSON.stringify(world.locations)
   ) {
-    warnings.push(\"world_state_update matches existing world state\")
+    warnings.push("world_state_update matches existing world state")
   }
 
   const npcUpdates = turnResponse.npc_changes ?? []

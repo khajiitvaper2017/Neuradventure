@@ -94,13 +94,6 @@
         onInput: (v) => (draft.clothing = v),
       },
       {
-        id: npcFieldId(npc, "baseline-description"),
-        label: "Baseline Description",
-        kind: "textarea",
-        value: draft.baselineDescription,
-        onInput: (v) => (draft.baselineDescription = v),
-      },
-      {
         id: npcFieldId(npc, "current-activity"),
         label: "Current Activity",
         kind: "textarea",
@@ -148,7 +141,6 @@
       baselineAppearance: npc.appearance.baseline_appearance,
       currentAppearance: npc.appearance.current_appearance,
       clothing: npc.appearance.current_clothing,
-      baselineDescription: npc.baseline_description,
       currentActivity: npc.current_activity,
       traits: npc.personality_traits.join(", "),
       majorFlaws: npc.major_flaws.join(", "),
@@ -174,14 +166,13 @@
     const baselineAppearance = draft.baselineAppearance.trim()
     const currentAppearance = draft.currentAppearance.trim()
     const clothing = draft.clothing.trim()
-    const baselineDescription = draft.baselineDescription.trim()
     const currentActivity = draft.currentActivity.trim()
     if (!name || !race || !gender || !location || !baselineAppearance || !currentAppearance || !clothing) {
       showError("Name, race, gender, location, baseline appearance, current appearance, and clothing are required.")
       return
     }
-    if (!baselineDescription || !currentActivity) {
-      showError("Baseline description and current activity are required.")
+    if (!currentActivity) {
+      showError("Current activity is required.")
       return
     }
     const traits = splitCsv(draft.traits)
@@ -199,7 +190,6 @@
         current_appearance: currentAppearance,
         current_clothing: clothing,
       },
-      baseline_description: baselineDescription,
       current_activity: currentActivity,
       personality_traits: traits,
       major_flaws: majorFlaws,
@@ -282,7 +272,6 @@
     baselineAppearance: string
     currentAppearance: string
     clothing: string
-    baselineDescription: string
     currentActivity: string
     traits: string
     majorFlaws: string
@@ -297,7 +286,6 @@
     baselineAppearance: "",
     currentAppearance: "",
     clothing: "",
-    baselineDescription: "",
     currentActivity: "",
     traits: "",
     majorFlaws: "",
@@ -356,7 +344,6 @@
       npc.appearance.baseline_appearance,
       npc.appearance.current_appearance,
       npc.appearance.current_clothing,
-      npc.baseline_description,
       npc.current_activity,
       npc.personality_traits.join(","),
       npc.quirks.join(","),
@@ -584,13 +571,6 @@
             <IconShirt size={13} strokeWidth={1.5} className="npc-icon" />
             <span>{npc.appearance.current_clothing}</span>
           </div>
-
-          {#if showBaselineDetails}
-            <div class="npc-detail-row">
-              <IconDocument size={13} strokeWidth={1.5} className="npc-icon" />
-              <span>{npc.baseline_description}</span>
-            </div>
-          {/if}
 
           <div class="npc-detail-row">
             <IconDocument size={13} strokeWidth={1.5} className="npc-icon" />

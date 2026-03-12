@@ -12,9 +12,6 @@ const character: MainCharacterState = {
     current_appearance: "172 cm, athletic build, dark braided hair, green eyes, olive skin",
     current_clothing: "worn leather armor, dark cloak",
   },
-  baseline_description:
-    "Lives in Ashford's north quarter; estranged father in Graybend; two close friends in the local militia.",
-  current_activity: "Sits at the tavern bar, scanning the room.",
   personality_traits: ["Brave", "Curious"],
   major_flaws: ["Reckless in danger"],
   quirks: ["Counts exits on entry"],

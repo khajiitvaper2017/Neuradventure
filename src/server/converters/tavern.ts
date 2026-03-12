@@ -35,11 +35,9 @@ export function characterToTavernCard(
   const descriptionLines: string[] = []
   const race = character.race?.trim() || "Unknown"
   const gender = character.gender?.trim() || "Unknown"
-  const baselineDescription = character.baseline_description?.trim()
   const baselineAppearance = character.appearance.baseline_appearance?.trim() || "Unknown appearance"
 
   descriptionLines.push(`Race: ${race}. Gender: ${gender}.`)
-  if (baselineDescription) descriptionLines.push(baselineDescription)
 
   return {
     spec: "chara_card_v2",
@@ -87,7 +85,8 @@ export function tavernCardToCharacter(card: TavernCardV2): TavernImportResult {
   // Lossless round-trip if neuradventure extension exists
   if (card.data.extensions?.neuradventure) {
     const raw = card.data.extensions.neuradventure as Record<string, unknown>
-    const { inventory: _inventory, ...base } = raw as MainCharacterState
+    const { inventory: _inventory, baseline_description: _baselineDescription, ...base } = raw as Record<string, unknown>
+    void _baselineDescription
     void _inventory
     const character = { ...base } as Omit<MainCharacterState, "inventory">
     if (!Array.isArray(character.major_flaws)) character.major_flaws = []
@@ -121,16 +120,12 @@ export function tavernCardToCharacter(card: TavernCardV2): TavernImportResult {
     .filter(Boolean)
   const contentLines = descLines.filter((l) => !l.match(/^(Race|Gender):/i))
   let baselineAppearance = "Unknown appearance"
-  const baselineDescLines: string[] = []
   for (const line of contentLines) {
     const appearanceMatch = line.match(/^Appearance:\s*(.+)$/i)
     if (appearanceMatch) {
       baselineAppearance = appearanceMatch[1].trim() || baselineAppearance
-    } else {
-      baselineDescLines.push(line)
     }
   }
-  const baselineDescription = baselineDescLines.join("\n").trim() || card.data.scenario?.trim() || "Unknown background"
 
   const sourceText = [
     `Name: ${card.data.name || "Unknown"}`,
@@ -153,8 +148,6 @@ export function tavernCardToCharacter(card: TavernCardV2): TavernImportResult {
         current_appearance: baselineAppearance,
         current_clothing: "Unknown clothing",
       },
-      baseline_description: baselineDescription,
-      current_activity: "Unknown activity",
       personality_traits: traits.length >= 2 ? traits : ["Curious", "Honest"],
       major_flaws: [],
       quirks: card.data.tags?.slice(0, 6) ?? [],

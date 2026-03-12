@@ -23,8 +23,6 @@
     baselineAppearance: string
     currentAppearance: string
     clothing: string
-    baselineDescription: string
-    currentActivity: string
     inventory: string
   }
 
@@ -33,14 +31,10 @@
   let flashIdentity = $state(false)
   let flashAppearance = $state(false)
   let flashClothing = $state(false)
-  let flashBackground = $state(false)
-  let flashActivity = $state(false)
   let flashInventory = $state(false)
   let identityTimer: number | null = null
   let appearanceTimer: number | null = null
   let clothingTimer: number | null = null
-  let backgroundTimer: number | null = null
-  let activityTimer: number | null = null
   let inventoryTimer: number | null = null
   let editing = $state(false)
   let saving = $state(false)
@@ -54,8 +48,6 @@
     baselineAppearance: string
     currentAppearance: string
     clothing: string
-    baselineDescription: string
-    currentActivity: string
     personalityTraits: string
     majorFlaws: string
     quirks: string
@@ -69,8 +61,6 @@
     baselineAppearance: "",
     currentAppearance: "",
     clothing: "",
-    baselineDescription: "",
-    currentActivity: "",
     personalityTraits: "",
     majorFlaws: "",
     quirks: "",
@@ -93,15 +83,11 @@
       baselineAppearance: c.appearance?.baseline_appearance ?? "",
       currentAppearance: c.appearance?.current_appearance ?? "",
       clothing: c.appearance?.current_clothing ?? "",
-      baselineDescription: c.baseline_description ?? "",
-      currentActivity: c.current_activity ?? "",
       inventory: c.inventory.map((item) => `${item.name}:${item.description}`).join("|"),
     }
   }
 
-  function triggerFlash(
-    kind: "identity" | "appearance" | "clothing" | "background" | "activity" | "inventory",
-  ) {
+  function triggerFlash(kind: "identity" | "appearance" | "clothing" | "inventory") {
     if (kind === "identity") {
       flashIdentity = true
       if (identityTimer) window.clearTimeout(identityTimer)
@@ -118,18 +104,6 @@
       flashClothing = true
       if (clothingTimer) window.clearTimeout(clothingTimer)
       clothingTimer = window.setTimeout(() => (flashClothing = false), 900)
-      return
-    }
-    if (kind === "background") {
-      flashBackground = true
-      if (backgroundTimer) window.clearTimeout(backgroundTimer)
-      backgroundTimer = window.setTimeout(() => (flashBackground = false), 900)
-      return
-    }
-    if (kind === "activity") {
-      flashActivity = true
-      if (activityTimer) window.clearTimeout(activityTimer)
-      activityTimer = window.setTimeout(() => (flashActivity = false), 900)
       return
     }
     flashInventory = true
@@ -167,20 +141,6 @@
         kind: "textarea",
         value: draft.clothing,
         onInput: (v) => (draft.clothing = v),
-      },
-      {
-        id: "cs-baseline-description",
-        label: "Baseline Description",
-        kind: "textarea",
-        value: draft.baselineDescription,
-        onInput: (v) => (draft.baselineDescription = v),
-      },
-      {
-        id: "cs-current-activity",
-        label: "Current Activity",
-        kind: "textarea",
-        value: draft.currentActivity,
-        onInput: (v) => (draft.currentActivity = v),
       },
       {
         id: "cs-personality",
@@ -222,8 +182,6 @@
       baselineAppearance: $character.appearance.baseline_appearance,
       currentAppearance: $character.appearance.current_appearance,
       clothing: $character.appearance.current_clothing,
-      baselineDescription: $character.baseline_description,
-      currentActivity: $character.current_activity,
       personalityTraits: $character.personality_traits.join(", "),
       majorFlaws: $character.major_flaws.join(", "),
       quirks: $character.quirks.join(", "),
@@ -260,14 +218,8 @@
     const baselineAppearance = draft.baselineAppearance.trim()
     const currentAppearance = draft.currentAppearance.trim()
     const clothing = draft.clothing.trim()
-    const baselineDescription = draft.baselineDescription.trim()
-    const currentActivity = draft.currentActivity.trim()
     if (!name || !race || !gender || !baselineAppearance || !currentAppearance || !clothing) {
       showError("Name, race, gender, baseline appearance, current appearance, and clothing are required.")
-      return
-    }
-    if (!baselineDescription || !currentActivity) {
-      showError("Baseline description and current activity are required.")
       return
     }
     const personalityTraits = splitCsv(draft.personalityTraits)
@@ -293,8 +245,6 @@
         current_appearance: currentAppearance,
         current_clothing: clothing,
       },
-      baseline_description: baselineDescription,
-      current_activity: currentActivity,
       personality_traits: personalityTraits,
       major_flaws: majorFlaws,
       quirks,
@@ -337,8 +287,6 @@
             triggerFlash("appearance")
           }
           if (nextSigs.clothing !== lastSigs.clothing) triggerFlash("clothing")
-          if (nextSigs.baselineDescription !== lastSigs.baselineDescription) triggerFlash("background")
-          if (nextSigs.currentActivity !== lastSigs.currentActivity) triggerFlash("activity")
           if (nextSigs.inventory !== lastSigs.inventory) triggerFlash("inventory")
         }
         lastSigs = nextSigs
@@ -453,24 +401,6 @@
           <span class="section-label">Wearing</span>
         </div>
         <div class="cs-value">{$character.appearance.current_clothing}</div>
-      </div>
-
-      {#if showBaselineDetails}
-        <div class="cs-section" class:flash={flashBackground}>
-          <div class="cs-section-header">
-            <IconDocument size={14} strokeWidth={1.5} className="cs-icon" />
-            <span class="section-label">Baseline Description</span>
-          </div>
-          <div class="cs-value">{$character.baseline_description}</div>
-        </div>
-      {/if}
-
-      <div class="cs-section" class:flash={flashActivity}>
-        <div class="cs-section-header">
-          <IconDocument size={14} strokeWidth={1.5} className="cs-icon" />
-          <span class="section-label">Current Activity</span>
-        </div>
-        <div class="cs-value">{$character.current_activity}</div>
       </div>
 
       {#if $character.personality_traits.length > 0 || $character.major_flaws.length > 0 || $character.quirks.length > 0 || $character.perks.length > 0}
