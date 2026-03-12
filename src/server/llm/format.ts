@@ -1,4 +1,4 @@
-import type { MainCharacterState, NPCState, WorldState } from "../core/models.js"
+import type { MainCharacterState, NPCState, StoryModules, WorldState } from "../core/models.js"
 import type { TurnRow } from "../core/db.js"
 import { getSectionFormat } from "./config.js"
 import { formatTemplate, getLlmStrings, getServerDefaults } from "../core/strings.js"
@@ -32,38 +32,49 @@ export function escapeForInlineJson(value: string): string {
   return value.replace(/\\/g, "\\\\").replace(/"/g, '\\"')
 }
 
-export function formatNPCBaselines(npcs: NPCState[]): string {
+export function formatNPCBaselines(npcs: NPCState[], detailMode: StoryModules["character_detail_mode"]): string {
   if (npcs.length === 0) return ""
   const llmStrings = getLlmStrings()
   const defaults = getServerDefaults()
   const labels = llmStrings.contextLabels
   const none = defaults.format.noneLower
+  const useGeneral = detailMode === "general"
   return npcs
     .map(
       (npc) =>
         `[${npc.name}]\n` +
         `  ${formatTemplate(labels.race, { value: npc.race })}\n` +
         (npc.gender ? `  ${formatTemplate(labels.gender, { value: npc.gender })}\n` : "") +
-        `  ${formatTemplate(labels.baselineAppearance, { value: npc.appearance.baseline_appearance })}\n` +
-        `  ${formatTemplate(labels.personalityTraits, { value: npc.personality_traits.join(", ") })}\n` +
-        `  ${formatTemplate(labels.majorFlaws, { value: npc.major_flaws.join(", ") || none })}\n` +
-        `  ${formatTemplate(labels.quirks, { value: npc.quirks.join(", ") || none })}\n` +
-        `  ${formatTemplate(labels.perks, { value: npc.perks.join(", ") || none })}`,
+        (useGeneral
+          ? `  ${formatTemplate(labels.generalDescription, {
+              value: npc.general_description?.trim() || defaults.unknown.generalDescription,
+            })}`
+          : `  ${formatTemplate(labels.baselineAppearance, { value: npc.appearance.baseline_appearance })}\n` +
+            `  ${formatTemplate(labels.personalityTraits, { value: npc.personality_traits.join(", ") })}\n` +
+            `  ${formatTemplate(labels.majorFlaws, { value: npc.major_flaws.join(", ") || none })}\n` +
+            `  ${formatTemplate(labels.quirks, { value: npc.quirks.join(", ") || none })}\n` +
+            `  ${formatTemplate(labels.perks, { value: npc.perks.join(", ") || none })}`),
     )
     .join("\n\n")
 }
 
-export function formatNPCCurrentStates(npcs: NPCState[]): string {
+export function formatNPCCurrentStates(npcs: NPCState[], detailMode: StoryModules["character_detail_mode"]): string {
   if (npcs.length === 0) return ""
   const llmStrings = getLlmStrings()
   const labels = llmStrings.characterContextLabels
   const contextLabels = llmStrings.contextLabels
+  const defaults = getServerDefaults()
+  const useGeneral = detailMode === "general"
   return npcs
     .map(
       (npc) =>
         `[${npc.name}]\n` +
-        `  ${formatTemplate(labels.currentAppearance, { value: npc.appearance.current_appearance })}\n` +
-        `  ${formatTemplate(contextLabels.wearing, { value: npc.appearance.current_clothing })}\n` +
+        (useGeneral
+          ? `  ${formatTemplate(labels.generalDescription, {
+              value: npc.general_description?.trim() || defaults.unknown.generalDescription,
+            })}\n`
+          : `  ${formatTemplate(labels.currentAppearance, { value: npc.appearance.current_appearance })}\n` +
+            `  ${formatTemplate(contextLabels.wearing, { value: npc.appearance.current_clothing })}\n`) +
         `  ${formatTemplate(labels.currentActivity, { value: npc.current_activity })}\n` +
         `  ${formatTemplate(labels.location, { value: npc.current_location })}`,
     )

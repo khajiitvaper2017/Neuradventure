@@ -8,7 +8,7 @@
     "PLAYER CHARACTER UPDATES:",
     "- character_current_appearance: Precise, surgical current appearance at story start. Include baseline features and any immediate changes.",
     "PREGENERATED NPCs:",
-    "- Always output pregen_npcs, even if it is an empty array.",
+    "- If NPC tracking is enabled, output pregen_npcs (it may be an empty array).",
     "- Never include the player character as an NPC.",
     "- Every NPC must have a generated name — no exceptions. If the description says 'your sister', assign her a name.",
     "- Every character named or distinctly identified in the description MUST appear in pregen_npcs with all fields filled.",

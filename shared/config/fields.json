@@ -48,11 +48,17 @@
       "name": "Full legal name.",
       "race": "Character race.",
       "gender": "Character gender (male, female, futanari, intersex and so on).",
+      "general_description": "General description for the character when detailed appearance/clothing is disabled.",
       "current_location": "Character current unique location name.",
       "appearance": "Character appearance object.",
       "current_activity": "Concise, factual description of what the character is doing right now.",
       "inventory": "Complete inventory list."
     }
+  },
+  "story_modules": {
+    "track_npcs": "Whether to track NPC state and updates.",
+    "track_locations": "Whether to track locations list and presence.",
+    "character_detail_mode": "Character detail mode: detailed or general."
   },
   "generation": {
     "chat": {
@@ -101,11 +107,13 @@
       "starting_time": "Starting time (HH:MM).",
       "character_id": "Optional character ID to reuse.",
       "character_data": "Inline character data when not using character_id.",
-      "npcs": "Optional list of NPCs."
+      "npcs": "Optional list of NPCs.",
+      "story_modules": "Optional story module overrides."
     },
     "update_story": {
       "title": "Updated story title.",
-      "opening_scenario": "Updated opening scenario text."
+      "opening_scenario": "Updated opening scenario text.",
+      "story_modules": "Updated story module overrides."
     },
     "update_story_state": {
       "character": "Updated character state.",
@@ -134,7 +142,8 @@
     },
     "generate_story": {
       "description": "Story description prompt.",
-      "character": "Character data for story generation."
+      "character": "Character data for story generation.",
+      "story_modules": "Optional story module overrides for generation."
     },
     "generate_chat": {
       "description": "Chat description prompt."
@@ -153,8 +162,14 @@
       "colorScheme": "Updated accent color scheme.",
       "defaultAuthorNote": "Default author's note for new stories.",
       "defaultAuthorNoteDepth": "Depth to inject default author's note.",
+      "storyDefaults": "Default story module settings for new stories.",
       "connector": "Updated connector settings.",
       "generation": "Updated generation parameters."
+    },
+    "story_defaults": {
+      "track_npcs": "Default NPC tracking for new stories.",
+      "track_locations": "Default location tracking for new stories.",
+      "character_detail_mode": "Default character detail mode for new stories."
     },
     "generation": {
       "max_tokens": "Maximum tokens to generate.",

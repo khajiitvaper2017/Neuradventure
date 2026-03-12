@@ -1,5 +1,5 @@
 import { writable } from "svelte/store"
-import { api, type AppSettings, type LLMConnector, type GenerationParams } from "../api/client.js"
+import { api, type AppSettings, type LLMConnector, type GenerationParams, type StoryModules } from "../api/client.js"
 
 export type Theme = "default" | "amoled"
 export type Design = "classic" | "roboto"
@@ -37,6 +37,12 @@ const DEFAULT_GENERATION: GenerationParams = {
   seed: -1,
 }
 
+const DEFAULT_STORY_MODULES: StoryModules = {
+  track_npcs: true,
+  track_locations: true,
+  character_detail_mode: "detailed",
+}
+
 const themeStore = writable<Theme>("default")
 const designStore = writable<Design>("classic")
 const textJustifyStore = writable<boolean>(true)
@@ -48,6 +54,7 @@ const defaultAuthorNoteStore = writable<string>(
   "Remember the instructions you were given at the beginning of this chat.",
 )
 const defaultAuthorNoteDepthStore = writable<number>(4)
+const storyDefaultsStore = writable<StoryModules>({ ...DEFAULT_STORY_MODULES })
 
 let initialized = false
 let suppressSync = true
@@ -58,6 +65,7 @@ let current: AppSettings = {
   colorScheme: "gold",
   defaultAuthorNote: "Remember the instructions you were given at the beginning of this chat.",
   defaultAuthorNoteDepth: 4,
+  storyDefaults: { ...DEFAULT_STORY_MODULES },
   connector: { ...DEFAULT_CONNECTOR },
   generation: { ...DEFAULT_GENERATION },
 }
@@ -71,6 +79,7 @@ function applySettings(settings: AppSettings) {
   colorSchemeStore.set(settings.colorScheme)
   defaultAuthorNoteStore.set(settings.defaultAuthorNote)
   defaultAuthorNoteDepthStore.set(settings.defaultAuthorNoteDepth)
+  storyDefaultsStore.set(settings.storyDefaults)
   connectorStore.set(settings.connector)
   generationStore.set(settings.generation)
   ctxLimitDetectedStore.set(settings.ctx_limit_detected ?? 0)
@@ -128,6 +137,11 @@ defaultAuthorNoteDepthStore.subscribe((value) => {
   if (!suppressSync) void persistSettings({ defaultAuthorNoteDepth: value })
 })
 
+storyDefaultsStore.subscribe((value) => {
+  current = { ...current, storyDefaults: value }
+  if (!suppressSync) void persistSettings({ storyDefaults: value })
+})
+
 connectorStore.subscribe((value) => {
   current = { ...current, connector: value }
   if (!suppressSync) void persistSettings({ connector: value })
@@ -144,6 +158,7 @@ export const textJustify = textJustifyStore
 export const colorScheme = colorSchemeStore
 export const defaultAuthorNote = defaultAuthorNoteStore
 export const defaultAuthorNoteDepth = defaultAuthorNoteDepthStore
+export const storyDefaults = storyDefaultsStore
 export const connector = connectorStore
 export const generation = generationStore
 export const ctxLimitDetected = ctxLimitDetectedStore

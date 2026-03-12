@@ -1,9 +1,11 @@
 import { Hono } from "hono"
 import { zValidator } from "@hono/zod-validator"
 import { z } from "zod"
+import * as db from "../core/db.js"
 import { CreateCharacterRequestSchema } from "../core/models.js"
 import { generateCharacter, generateCharacterPart, generateChat, generateStory } from "../llm/index.js"
 import { desc } from "../schemas/field-descriptions.js"
+import { StoryModulesSchema } from "../schemas/story-modules.js"
 
 const generate = new Hono()
 
@@ -71,12 +73,14 @@ generate.post(
     z.object({
       description: z.string().min(1).describe(desc("requests.generate_story.description")),
       character: generateStoryCharacterSchema.describe(desc("requests.generate_story.character")),
+      story_modules: StoryModulesSchema.optional().describe(desc("requests.generate_story.story_modules")),
     }),
   ),
   async (c) => {
-    const { description, character } = c.req.valid("json")
+    const { description, character, story_modules } = c.req.valid("json")
     try {
-      return c.json(await generateStory(description, character))
+      const defaults = db.getSettings().storyDefaults
+      return c.json(await generateStory(description, character, story_modules ?? defaults))
     } catch (err) {
       return c.json({ error: err instanceof Error ? err.message : "Generation failed" }, 500)
     }

@@ -1,6 +1,6 @@
 import { z } from "zod"
 import { NPCStateUpdateBaseSchema } from "./npc-state-update-base.js"
-import { InventoryItemSchema, WorldStateSchema, NPCStateSchema } from "./game-state.js"
+import { InventoryItemSchema, WorldStateUpdateSchema, NPCStateSchema } from "./game-state.js"
 import { desc } from "./field-descriptions.js"
 
 type NPCStateUpdateBase = z.infer<typeof NPCStateUpdateBaseSchema>
@@ -45,7 +45,7 @@ export const NPCIntroductionsSection = z.array(NPCCreationSchema).describe(desc(
 export const TurnResponseSchema = z
   .object({
     narrative_text: z.string().min(1).describe(desc("llm.turn_response.narrative_text")),
-    world_state_update: WorldStateSchema.describe(desc("llm.turn_response.world_state_update")),
+    world_state_update: WorldStateUpdateSchema.describe(desc("llm.turn_response.world_state_update")),
     appearance_change: AppearanceChangeSection.optional(),
     clothing_change: ClothingChangeSection.optional(),
     inventory_change: InventoryChangeSection.optional(),

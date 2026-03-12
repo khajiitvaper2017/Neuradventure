@@ -1,7 +1,7 @@
 <script lang="ts">
   import { api, ApiError } from "../../api/client.js"
   import { showCharSheet, showError, showQuietNotice } from "../../stores/ui.js"
-  import { character, currentStoryId, llmUpdateId } from "../../stores/game.js"
+  import { character, currentStoryId, currentStoryModules, llmUpdateId } from "../../stores/game.js"
   import type { MainCharacterState } from "../../api/client.js"
   import { autoresize } from "../../utils/actions/autoresize.js"
   import { genderIcon, normalizeGender, splitCsv } from "../../utils/text.js"
@@ -20,6 +20,7 @@
 
   type CharacterSigs = {
     identity: string
+    generalDescription: string
     baselineAppearance: string
     currentAppearance: string
     clothing: string
@@ -39,12 +40,14 @@
   let editing = $state(false)
   let saving = $state(false)
   let showBaselineDetails = $state(false)
+  const detailMode = $derived($currentStoryModules?.character_detail_mode ?? "detailed")
 
   type InventoryDraft = { name: string; description: string }
   type CharacterDraft = {
     name: string
     race: string
     gender: string
+    generalDescription: string
     baselineAppearance: string
     currentAppearance: string
     clothing: string
@@ -58,6 +61,7 @@
     name: "",
     race: "",
     gender: "",
+    generalDescription: "",
     baselineAppearance: "",
     currentAppearance: "",
     clothing: "",
@@ -80,6 +84,7 @@
   function buildCharacterSigs(c: MainCharacterState): CharacterSigs {
     return {
       identity: `${c.name}|${c.race}|${c.gender}`,
+      generalDescription: c.general_description?.trim() ?? "",
       baselineAppearance: c.appearance?.baseline_appearance ?? "",
       currentAppearance: c.appearance?.current_appearance ?? "",
       clothing: c.appearance?.current_clothing ?? "",
@@ -117,10 +122,22 @@
   }
 
   function characterFields(): EditField[] {
-    return [
+    const fields: EditField[] = [
       { id: "cs-name", label: "Name", kind: "input", value: draft.name, onInput: (v) => (draft.name = v) },
       { id: "cs-race", label: "Race", kind: "input", value: draft.race, onInput: (v) => (draft.race = v) },
       { id: "cs-gender", label: "Gender", kind: "input", value: draft.gender, onInput: (v) => (draft.gender = v) },
+    ]
+    if (detailMode === "general") {
+      fields.push({
+        id: "cs-general-description",
+        label: "General Description",
+        kind: "textarea",
+        value: draft.generalDescription,
+        onInput: (v) => (draft.generalDescription = v),
+      })
+      return fields
+    }
+    fields.push(
       {
         id: "cs-baseline-appearance",
         label: "Baseline Appearance",
@@ -170,7 +187,8 @@
         value: draft.perks,
         onInput: (v) => (draft.perks = v),
       },
-    ]
+    )
+    return fields
   }
 
   function startEdit() {
@@ -179,6 +197,7 @@
       name: $character.name,
       race: $character.race,
       gender: $character.gender,
+      generalDescription: $character.general_description ?? "",
       baselineAppearance: $character.appearance.baseline_appearance,
       currentAppearance: $character.appearance.current_appearance,
       clothing: $character.appearance.current_clothing,
@@ -215,11 +234,16 @@
     const name = draft.name.trim()
     const race = draft.race.trim()
     const gender = normalizeGender(draft.gender, "")
+    const generalDescription = draft.generalDescription.trim()
     const baselineAppearance = draft.baselineAppearance.trim()
     const currentAppearance = draft.currentAppearance.trim()
     const clothing = draft.clothing.trim()
-    if (!name || !race || !gender || !baselineAppearance || !currentAppearance || !clothing) {
-      showError("Name, race, gender, baseline appearance, current appearance, and clothing are required.")
+    if (!name || !race || !gender) {
+      showError("Name, race, and gender are required.")
+      return
+    }
+    if (detailMode === "general" && !generalDescription) {
+      showError("General description is required.")
       return
     }
     const personalityTraits = splitCsv(draft.personalityTraits)
@@ -235,20 +259,22 @@
         return
       }
     }
+    const existing = $character
     const nextCharacter: MainCharacterState = {
       name,
       race,
       gender,
-      current_location: $character?.current_location ?? "",
+      general_description: generalDescription || existing?.general_description,
+      current_location: existing?.current_location ?? "",
       appearance: {
-        baseline_appearance: baselineAppearance,
-        current_appearance: currentAppearance,
-        current_clothing: clothing,
+        baseline_appearance: baselineAppearance || existing?.appearance.baseline_appearance || "",
+        current_appearance: currentAppearance || existing?.appearance.current_appearance || "",
+        current_clothing: clothing || existing?.appearance.current_clothing || "",
       },
-      personality_traits: personalityTraits,
-      major_flaws: majorFlaws,
-      quirks,
-      perks,
+      personality_traits: personalityTraits.length > 0 ? personalityTraits : (existing?.personality_traits ?? []),
+      major_flaws: majorFlaws.length > 0 ? majorFlaws : (existing?.major_flaws ?? []),
+      quirks: quirks.length > 0 ? quirks : (existing?.quirks ?? []),
+      perks: perks.length > 0 ? perks : (existing?.perks ?? []),
       inventory,
     }
     saving = true
@@ -280,13 +306,15 @@
         const nextSigs = buildCharacterSigs($character)
         if (lastSigs) {
           if (nextSigs.identity !== lastSigs.identity) triggerFlash("identity")
-          if (
+          if (detailMode === "general") {
+            if (nextSigs.generalDescription !== lastSigs.generalDescription) triggerFlash("appearance")
+          } else if (
             nextSigs.baselineAppearance !== lastSigs.baselineAppearance ||
             nextSigs.currentAppearance !== lastSigs.currentAppearance
           ) {
             triggerFlash("appearance")
           }
-          if (nextSigs.clothing !== lastSigs.clothing) triggerFlash("clothing")
+          if (detailMode === "detailed" && nextSigs.clothing !== lastSigs.clothing) triggerFlash("clothing")
           if (nextSigs.inventory !== lastSigs.inventory) triggerFlash("inventory")
         }
         lastSigs = nextSigs
@@ -377,53 +405,63 @@
         <div class="cs-identity-detail">{$character.race}{$character.gender ? ` · ${$character.gender}` : ""}</div>
       </div>
 
-      {#if showBaselineDetails}
+      {#if detailMode === "general"}
         <div class="cs-section" class:flash={flashAppearance}>
           <div class="cs-section-header">
             <IconFace size={14} strokeWidth={1.5} className="cs-icon" />
-            <span class="section-label">Baseline Appearance</span>
+            <span class="section-label">General Description</span>
           </div>
-          <div class="cs-value">{$character.appearance.baseline_appearance}</div>
+          <div class="cs-value">{$character.general_description || "Unknown description"}</div>
         </div>
-      {/if}
+      {:else}
+        {#if showBaselineDetails}
+          <div class="cs-section" class:flash={flashAppearance}>
+            <div class="cs-section-header">
+              <IconFace size={14} strokeWidth={1.5} className="cs-icon" />
+              <span class="section-label">Baseline Appearance</span>
+            </div>
+            <div class="cs-value">{$character.appearance.baseline_appearance}</div>
+          </div>
+        {/if}
 
-      <div class="cs-section" class:flash={flashAppearance}>
-        <div class="cs-section-header">
-          <IconFace size={14} strokeWidth={1.5} className="cs-icon" />
-          <span class="section-label">Current Appearance</span>
-        </div>
-        <div class="cs-value">{$character.appearance.current_appearance}</div>
-      </div>
-
-      <div class="cs-section" class:flash={flashClothing}>
-        <div class="cs-section-header">
-          <IconShirt size={14} strokeWidth={1.5} className="cs-icon" />
-          <span class="section-label">Wearing</span>
-        </div>
-        <div class="cs-value">{$character.appearance.current_clothing}</div>
-      </div>
-
-      {#if $character.personality_traits.length > 0 || $character.major_flaws.length > 0 || $character.quirks.length > 0 || $character.perks.length > 0}
-        <div class="cs-section">
+        <div class="cs-section" class:flash={flashAppearance}>
           <div class="cs-section-header">
-            <IconStar size={14} strokeWidth={1.5} className="cs-icon" />
-            <span class="section-label">Traits · Flaws · Quirks · Perks</span>
+            <IconFace size={14} strokeWidth={1.5} className="cs-icon" />
+            <span class="section-label">Current Appearance</span>
           </div>
-          <div class="chips">
-            {#each $character.personality_traits as t}
-              <span class="chip">{t}</span>
-            {/each}
-            {#each $character.major_flaws as t}
-              <span class="chip">{t}</span>
-            {/each}
-            {#each $character.quirks as t}
-              <span class="chip">{t}</span>
-            {/each}
-            {#each $character.perks as t}
-              <span class="chip">{t}</span>
-            {/each}
-          </div>
+          <div class="cs-value">{$character.appearance.current_appearance}</div>
         </div>
+
+        <div class="cs-section" class:flash={flashClothing}>
+          <div class="cs-section-header">
+            <IconShirt size={14} strokeWidth={1.5} className="cs-icon" />
+            <span class="section-label">Wearing</span>
+          </div>
+          <div class="cs-value">{$character.appearance.current_clothing}</div>
+        </div>
+
+        {#if $character.personality_traits.length > 0 || $character.major_flaws.length > 0 || $character.quirks.length > 0 || $character.perks.length > 0}
+          <div class="cs-section">
+            <div class="cs-section-header">
+              <IconStar size={14} strokeWidth={1.5} className="cs-icon" />
+              <span class="section-label">Traits · Flaws · Quirks · Perks</span>
+            </div>
+            <div class="chips">
+              {#each $character.personality_traits as t}
+                <span class="chip">{t}</span>
+              {/each}
+              {#each $character.major_flaws as t}
+                <span class="chip">{t}</span>
+              {/each}
+              {#each $character.quirks as t}
+                <span class="chip">{t}</span>
+              {/each}
+              {#each $character.perks as t}
+                <span class="chip">{t}</span>
+              {/each}
+            </div>
+          </div>
+        {/if}
       {/if}
 
       <div class="cs-section" class:flash={flashInventory}>
@@ -461,13 +499,15 @@
         <span>Character Sheet</span>
       </div>
       <div class="cs-header-actions">
-        <button
-          class="cs-toggle-btn"
-          onclick={() => (showBaselineDetails = !showBaselineDetails)}
-          disabled={!$character}
-        >
-          {showBaselineDetails ? "Hide Baseline" : "Show Baseline"}
-        </button>
+        {#if detailMode === "detailed"}
+          <button
+            class="cs-toggle-btn"
+            onclick={() => (showBaselineDetails = !showBaselineDetails)}
+            disabled={!$character}
+          >
+            {showBaselineDetails ? "Hide Baseline" : "Show Baseline"}
+          </button>
+        {/if}
         <button class="cs-edit-btn" onclick={startEdit} disabled={editing || !$character || !$currentStoryId || saving}>
           Edit
         </button>
@@ -488,13 +528,15 @@
         <span>Character Sheet</span>
       </div>
       <div class="cs-header-actions">
-        <button
-          class="cs-toggle-btn"
-          onclick={() => (showBaselineDetails = !showBaselineDetails)}
-          disabled={!$character}
-        >
-          {showBaselineDetails ? "Hide Baseline" : "Show Baseline"}
-        </button>
+        {#if detailMode === "detailed"}
+          <button
+            class="cs-toggle-btn"
+            onclick={() => (showBaselineDetails = !showBaselineDetails)}
+            disabled={!$character}
+          >
+            {showBaselineDetails ? "Hide Baseline" : "Show Baseline"}
+          </button>
+        {/if}
         <button class="cs-edit-btn" onclick={startEdit} disabled={editing || !$character || !$currentStoryId || saving}>
           Edit
         </button>

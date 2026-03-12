@@ -6,6 +6,7 @@ import {
   type NPCCreation,
   type NPCStateUpdate,
   type NPCState,
+  type StoryModules,
   type WorldState,
 } from "../core/models.js"
 type NPCUpdateArray = NPCStateUpdate[]
@@ -19,6 +20,7 @@ import {
   getCtxLimitCached,
 } from "../llm/index.js"
 import { DATE_REGEX, TIME_OF_DAY_REGEX } from "../schemas/constants.js"
+import { normalizeStoryModules } from "../schemas/story-modules.js"
 import {
   applyNPCCreations,
   applyNPCUpdates,
@@ -53,6 +55,8 @@ export interface CreateNpcResult {
 export async function createNpcFromTurnPrompt(storyId: number, npcName: string): Promise<CreateNpcResult> {
   const story = db.getStory(storyId)
   if (!story) throw new Error(`Story ${storyId} not found`)
+  const modules = getStoryModules(story)
+  if (!modules.track_npcs) throw new Error("NPC tracking is disabled for this story")
 
   const trimmedName = npcName.trim()
   if (!trimmedName) throw new Error("NPC name is required")
@@ -69,11 +73,20 @@ export async function createNpcFromTurnPrompt(storyId: number, npcName: string):
   const ctxLimit = getCtxLimitCached()
 
   const authorNote = getAuthorNote(story)
-  const messages = buildNpcCreationMessages(character, world, npcs, recentTurns, trimmedName, ctxLimit, authorNote)
+  const messages = buildNpcCreationMessages(
+    character,
+    world,
+    npcs,
+    recentTurns,
+    trimmedName,
+    ctxLimit,
+    authorNote,
+    modules,
+  )
   const creation = await generateNpcCreation(messages, trimmedName)
   const updatedNpcs = applyNPCCreations(npcs, [creation])
   const newNpc = buildNpcFromCreation(creation)
-  const syncedWorld = syncLocationCharacters(world, character, updatedNpcs)
+  const syncedWorld = modules.track_locations ? syncLocationCharacters(world, character, updatedNpcs) : world
   const locationSyncedCharacter = syncCharacterLocation(character, syncedWorld)
   db.updateStory(storyId, locationSyncedCharacter, syncedWorld, updatedNpcs)
 
@@ -89,6 +102,16 @@ function getAuthorNote(story: db.StoryRow): { text: string; depth: number } | nu
   return { text, depth: story.author_note_depth ?? 4 }
 }
 
+function getStoryModules(story: db.StoryRow): StoryModules {
+  const defaults = db.getSettings().storyDefaults
+  try {
+    const raw = story.story_modules_json ? JSON.parse(story.story_modules_json) : null
+    return normalizeStoryModules(raw, defaults)
+  } catch {
+    return defaults
+  }
+}
+
 export async function processTurn(
   storyId: number,
   playerInput: string,
@@ -97,6 +120,7 @@ export async function processTurn(
 ): Promise<TurnResult> {
   const story = db.getStory(storyId)
   if (!story) throw new Error(`Story ${storyId} not found`)
+  const modules = getStoryModules(story)
 
   const character = MainCharacterStateStoredSchema.parse(JSON.parse(story.character_state_json))
   const world = WorldStateStoredSchema.parse(JSON.parse(story.world_state_json))
@@ -116,18 +140,29 @@ export async function processTurn(
     initial,
     ctxLimit,
     authorNote,
+    modules,
   )
-  const turnResponse = await callLLM(messages, npcs)
+  const turnResponse = await callLLM(messages, npcs, modules)
   const llmWarnings = collectLlmWarnings(world, npcs, turnResponse)
 
   const newCharacter = applyPlayerUpdate(character, turnResponse)
-  const npcUpdates: NPCUpdateArray = turnResponse.npc_changes ?? []
-  const updatedNpcs = applyNPCUpdates(npcs, npcUpdates)
-  const npcCreations: NPCCreation[] = turnResponse.npc_introductions ?? []
-  const newNpcs = applyNPCCreations(updatedNpcs, npcCreations)
+  const npcUpdates: NPCUpdateArray = modules.track_npcs ? (turnResponse.npc_changes ?? []) : []
+  const updatedNpcs = modules.track_npcs ? applyNPCUpdates(npcs, npcUpdates) : npcs
+  const npcCreations: NPCCreation[] = modules.track_npcs ? (turnResponse.npc_introductions ?? []) : []
+  const newNpcs = modules.track_npcs ? applyNPCCreations(updatedNpcs, npcCreations) : updatedNpcs
   const worldUpdate = turnResponse.world_state_update
-  const mergedLocations = mergeLocations(world.locations, worldUpdate.locations)
-  const newWorld = syncLocationCharacters({ ...worldUpdate, locations: mergedLocations }, newCharacter, newNpcs)
+  const nextWorld: WorldState = {
+    ...world,
+    ...(worldUpdate.current_scene !== undefined && { current_scene: worldUpdate.current_scene }),
+    ...(worldUpdate.current_date !== undefined && { current_date: worldUpdate.current_date }),
+    ...(worldUpdate.time_of_day !== undefined && { time_of_day: worldUpdate.time_of_day }),
+    ...(worldUpdate.memory !== undefined && { memory: worldUpdate.memory }),
+    locations:
+      modules.track_locations && worldUpdate.locations
+        ? mergeLocations(world.locations, worldUpdate.locations)
+        : world.locations,
+  }
+  const newWorld = modules.track_locations ? syncLocationCharacters(nextWorld, newCharacter, newNpcs) : nextWorld
   const locationSyncedCharacter = syncCharacterLocation(newCharacter, newWorld)
 
   db.updateStory(storyId, locationSyncedCharacter, newWorld, newNpcs)
@@ -162,6 +197,7 @@ export async function processTurn(
 export async function impersonatePlayerAction(storyId: number, actionMode: string): Promise<{ player_action: string }> {
   const story = db.getStory(storyId)
   if (!story) throw new Error(`Story ${storyId} not found`)
+  const modules = getStoryModules(story)
 
   const character = MainCharacterStateStoredSchema.parse(JSON.parse(story.character_state_json))
   const world = WorldStateStoredSchema.parse(JSON.parse(story.world_state_json))
@@ -180,6 +216,7 @@ export async function impersonatePlayerAction(storyId: number, actionMode: strin
     initial,
     ctxLimit,
     authorNote,
+    modules,
   )
   if (!action.trim()) throw new Error("LLM returned empty player action")
   return { player_action: action.trim() }
@@ -337,6 +374,7 @@ export function undoCancelLastTurn(storyId: number): UndoCancelResult {
 export async function regenerateLastTurn(storyId: number, actionMode?: string): Promise<TurnResult> {
   const story = db.getStory(storyId)
   if (!story) throw new Error(`Story ${storyId} not found`)
+  const modules = getStoryModules(story)
 
   const turnRows = db.getTurnsForStory(storyId)
   const lastTurn = turnRows[turnRows.length - 1]
@@ -362,16 +400,29 @@ export async function regenerateLastTurn(storyId: number, actionMode?: string): 
     initial,
     ctxLimit,
     authorNote,
+    modules,
   )
-  const turnResponse = await callLLM(messages, snapshot.npcs)
+  const turnResponse = await callLLM(messages, snapshot.npcs, modules)
   const llmWarnings = collectLlmWarnings(snapshot.world, snapshot.npcs, turnResponse)
 
   const newCharacter = applyPlayerUpdate(snapshot.character, turnResponse)
-  const newWorld = turnResponse.world_state_update
-  const npcUpdates: NPCUpdateArray = turnResponse.npc_changes ?? []
-  const updatedNpcs = applyNPCUpdates(snapshot.npcs, npcUpdates)
-  const npcCreations: NPCCreation[] = turnResponse.npc_introductions ?? []
-  const newNpcs = applyNPCCreations(updatedNpcs, npcCreations)
+  const npcUpdates: NPCUpdateArray = modules.track_npcs ? (turnResponse.npc_changes ?? []) : []
+  const updatedNpcs = modules.track_npcs ? applyNPCUpdates(snapshot.npcs, npcUpdates) : snapshot.npcs
+  const npcCreations: NPCCreation[] = modules.track_npcs ? (turnResponse.npc_introductions ?? []) : []
+  const newNpcs = modules.track_npcs ? applyNPCCreations(updatedNpcs, npcCreations) : updatedNpcs
+  const worldUpdate = turnResponse.world_state_update
+  const nextWorld: WorldState = {
+    ...snapshot.world,
+    ...(worldUpdate.current_scene !== undefined && { current_scene: worldUpdate.current_scene }),
+    ...(worldUpdate.current_date !== undefined && { current_date: worldUpdate.current_date }),
+    ...(worldUpdate.time_of_day !== undefined && { time_of_day: worldUpdate.time_of_day }),
+    ...(worldUpdate.memory !== undefined && { memory: worldUpdate.memory }),
+    locations:
+      modules.track_locations && worldUpdate.locations
+        ? mergeLocations(snapshot.world.locations, worldUpdate.locations)
+        : snapshot.world.locations,
+  }
+  const newWorld = modules.track_locations ? syncLocationCharacters(nextWorld, newCharacter, newNpcs) : nextWorld
 
   db.updateStory(storyId, newCharacter, newWorld, newNpcs)
   const variant = db.createTurnVariant(lastTurn.id, turnResponse.narrative_text, newCharacter, newWorld, newNpcs)
@@ -448,6 +499,7 @@ export function createNewStory(
   startingScene?: string,
   startingDate?: string,
   startingTime?: string,
+  storyModules?: StoryModules,
   characterId: number | null = null,
 ): number {
   const settings = db.getSettings()
@@ -484,6 +536,7 @@ export function createNewStory(
     locationSyncedCharacter,
     world,
     npcs,
+    storyModules ?? settings.storyDefaults,
     characterId,
     settings.defaultAuthorNote ?? "",
     settings.defaultAuthorNoteDepth ?? 4,

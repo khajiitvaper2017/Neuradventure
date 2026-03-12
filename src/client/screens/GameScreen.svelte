@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount, tick, untrack } from "svelte"
-  import { api, type TurnSummary, type TurnVariantSummary, ApiError } from "../api/client.js"
+  import { api, type TurnSummary, type TurnVariantSummary, type StoryModules, ApiError } from "../api/client.js"
   import {
     navigate,
     showCharSheet,
@@ -32,6 +32,7 @@
     currentStoryOpeningScenario,
     currentStoryAuthorNote,
     currentStoryAuthorNoteDepth,
+    currentStoryModules,
     currentStoryInitialWorld,
     character,
     worldState,
@@ -71,6 +72,12 @@
   let showAuthorNoteEditor = $state(false)
   let authorNoteDraft = $state("")
   let authorNoteDepthDraft = $state(4)
+  let showModulesEditor = $state(false)
+  let modulesDraft = $state<StoryModules>({
+    track_npcs: true,
+    track_locations: true,
+    character_detail_mode: "detailed",
+  })
   let flashScene = $state(false)
   let flashOpening = $state(false)
   let isImpersonating = $state(false)
@@ -82,6 +89,9 @@
   let openingFlashTimer: number | null = null
   let keyboardScrollTimer: number | null = null
   let lastViewportHeight = 0
+
+  const trackNpcs = $derived($currentStoryModules?.track_npcs ?? true)
+  const trackLocations = $derived($currentStoryModules?.track_locations ?? true)
 
   let initialScrollDone = $state(false)
   let userActed = $state(false)
@@ -497,6 +507,27 @@
     }
   }
 
+  function openModulesEditor() {
+    modulesDraft = $currentStoryModules ?? {
+      track_npcs: true,
+      track_locations: true,
+      character_detail_mode: "detailed",
+    }
+    showModulesEditor = true
+    showMenu = false
+  }
+
+  async function saveModules() {
+    if (!$currentStoryId) return
+    try {
+      await api.stories.update($currentStoryId, { story_modules: modulesDraft })
+      currentStoryModules.set(modulesDraft)
+      showModulesEditor = false
+    } catch {
+      showError("Failed to update story modules")
+    }
+  }
+
   function startEditTurn(turn: TurnSummary) {
     editingTurnId = turn.id
     editPlayerInput = turn.player_input
@@ -780,31 +811,39 @@
       >
         <IconUser size={15} strokeWidth={1.8} />
       </button>
-      <button
-        class="hbtn desktop-only"
-        class:inactive={$collapseNPCTracker}
-        title={$collapseNPCTracker ? "Show NPC tracker" : "Hide NPC tracker"}
-        onclick={() => collapseNPCTracker.update((v) => !v)}
-      >
-        <IconUsers size={15} strokeWidth={1.8} />
-      </button>
-      <button
-        class="hbtn desktop-only"
-        class:inactive={$collapseLocationsPanel}
-        title={$collapseLocationsPanel ? "Show locations" : "Hide locations"}
-        onclick={() => collapseLocationsPanel.update((v) => !v)}
-      >
-        <IconMapPin size={15} strokeWidth={1.8} />
-      </button>
+      {#if trackNpcs}
+        <button
+          class="hbtn desktop-only"
+          class:inactive={$collapseNPCTracker}
+          title={$collapseNPCTracker ? "Show NPC tracker" : "Hide NPC tracker"}
+          onclick={() => collapseNPCTracker.update((v) => !v)}
+        >
+          <IconUsers size={15} strokeWidth={1.8} />
+        </button>
+      {/if}
+      {#if trackLocations}
+        <button
+          class="hbtn desktop-only"
+          class:inactive={$collapseLocationsPanel}
+          title={$collapseLocationsPanel ? "Show locations" : "Hide locations"}
+          onclick={() => collapseLocationsPanel.update((v) => !v)}
+        >
+          <IconMapPin size={15} strokeWidth={1.8} />
+        </button>
+      {/if}
       <button class="hbtn mobile-only" title="Character Sheet" onclick={() => showCharSheet.update((v) => !v)}>
         <IconUser size={15} strokeWidth={1.8} />
       </button>
-      <button class="hbtn mobile-only" title="NPC Tracker" onclick={() => showNPCTracker.update((v) => !v)}>
-        <IconUsers size={15} strokeWidth={1.8} />
-      </button>
-      <button class="hbtn mobile-only" title="Locations" onclick={() => showLocations.update((v) => !v)}>
-        <IconMapPin size={15} strokeWidth={1.8} />
-      </button>
+      {#if trackNpcs}
+        <button class="hbtn mobile-only" title="NPC Tracker" onclick={() => showNPCTracker.update((v) => !v)}>
+          <IconUsers size={15} strokeWidth={1.8} />
+        </button>
+      {/if}
+      {#if trackLocations}
+        <button class="hbtn mobile-only" title="Locations" onclick={() => showLocations.update((v) => !v)}>
+          <IconMapPin size={15} strokeWidth={1.8} />
+        </button>
+      {/if}
       <div class="menu-wrap">
         <button class="hbtn" aria-label="More options" onclick={() => (showMenu = !showMenu)}>
           <IconDots size={15} strokeWidth={1.8} />
@@ -813,6 +852,7 @@
           <div class="dropdown">
             <button onclick={openMemoryEditor}>Memory</button>
             <button onclick={openAuthorNoteEditor}>Author's Note</button>
+            <button onclick={openModulesEditor}>Story Modules</button>
             {#if $currentStoryId}
               <a href={api.stories.exportUrl($currentStoryId, "neuradventure")} download class="dropdown-link"
                 >Export JSON</a
@@ -869,6 +909,62 @@
         <div class="edit-actions">
           <button class="btn-ghost" onclick={() => (showAuthorNoteEditor = false)}>Cancel</button>
           <button class="btn-accent" onclick={saveAuthorNote}>Save</button>
+        </div>
+      </div>
+    </div>
+  {/if}
+
+  <!-- ── Story Modules editor overlay ──────────────────── -->
+  {#if showModulesEditor}
+    <div class="editor-overlay">
+      <div class="editor-panel">
+        <div class="editor-header">
+          <span>Story Modules</span>
+          <span class="editor-hint">Control which mechanics are tracked for this story</span>
+        </div>
+        <div class="editor-body">
+          <label class="row">
+            <span class="row-text">
+              <span class="row-title">Track NPCs</span>
+              <span class="row-sub">Enable NPC state and updates</span>
+            </span>
+            <input
+              type="checkbox"
+              checked={modulesDraft.track_npcs}
+              onchange={(e) => (modulesDraft.track_npcs = (e.target as HTMLInputElement).checked)}
+            />
+          </label>
+          <label class="row">
+            <span class="row-text">
+              <span class="row-title">Track Locations</span>
+              <span class="row-sub">Enable location list tracking</span>
+            </span>
+            <input
+              type="checkbox"
+              checked={modulesDraft.track_locations}
+              onchange={(e) => (modulesDraft.track_locations = (e.target as HTMLInputElement).checked)}
+            />
+          </label>
+          <label class="row row-input">
+            <span class="row-text">
+              <span class="row-title">Character Detail Mode</span>
+              <span class="row-sub">Choose detailed fields or general description</span>
+            </span>
+            <select
+              class="select-input"
+              value={modulesDraft.character_detail_mode}
+              onchange={(e) =>
+                (modulesDraft.character_detail_mode = (e.target as HTMLSelectElement)
+                  .value as StoryModules["character_detail_mode"])}
+            >
+              <option value="detailed">Detailed</option>
+              <option value="general">General description</option>
+            </select>
+          </label>
+        </div>
+        <div class="edit-actions">
+          <button class="btn-ghost" onclick={() => (showModulesEditor = false)}>Cancel</button>
+          <button class="btn-accent" onclick={saveModules}>Save</button>
         </div>
       </div>
     </div>

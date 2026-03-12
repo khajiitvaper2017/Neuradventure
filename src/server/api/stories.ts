@@ -22,6 +22,7 @@ import {
   parseTavernJSONL,
   type TavernCardV2,
 } from "../utils/converters/tavern.js"
+import { normalizeStoryModules, StoryModulesSchema } from "../schemas/story-modules.js"
 
 const stories = new Hono()
 
@@ -45,6 +46,16 @@ function parseStoryState(row: db.StoryRow) {
   return { character, world, initialWorld, npcs }
 }
 
+function parseStoryModules(row: db.StoryRow) {
+  const defaults = db.getSettings().storyDefaults
+  try {
+    const raw = row.story_modules_json ? JSON.parse(row.story_modules_json) : null
+    return normalizeStoryModules(raw, defaults)
+  } catch {
+    return defaults
+  }
+}
+
 const ImportTurnSchema = z.object({
   player_input: z.string().min(1),
   narrative_text: z.string().min(1),
@@ -57,6 +68,7 @@ const ImportStorySchema = z.object({
   character: MainCharacterStateStoredSchema.describe(desc("requests.import_story.character")),
   world: WorldStateStoredSchema.describe(desc("requests.import_story.world")),
   npcs: z.array(NPCStateStoredSchema).describe(desc("requests.import_story.npcs")).default([]),
+  story_modules: StoryModulesSchema.optional().describe(desc("requests.create_story.story_modules")),
   author_note: z.string().optional(),
   author_note_depth: z.number().int().min(0).max(100).optional(),
   turns: z.array(ImportTurnSchema).optional(),
@@ -153,12 +165,14 @@ stories.get("/:id", (c) => {
   const row = db.getStory(id)
   if (!row) return c.json({ error: "Story not found" }, 404)
   const { character, world, initialWorld, npcs } = parseStoryState(row)
+  const storyModules = parseStoryModules(row)
   return c.json({
     id: row.id,
     title: row.title,
     opening_scenario: row.opening_scenario,
     author_note: row.author_note ?? "",
     author_note_depth: row.author_note_depth ?? 4,
+    story_modules: storyModules,
     character,
     world,
     initial_world: initialWorld,
@@ -197,6 +211,7 @@ stories.post("/", zValidator("json", CreateStoryRequestSchema), async (c) => {
     body.starting_scene,
     body.starting_date,
     body.starting_time,
+    body.story_modules ?? db.getSettings().storyDefaults,
     characterId,
   )
   return c.json({ id }, 201)
@@ -206,7 +221,14 @@ stories.put("/:id", zValidator("json", UpdateStoryRequestSchema), (c) => {
   const id = Number(c.req.param("id"))
   const row = db.getStory(id)
   if (!row) return c.json({ error: "Story not found" }, 404)
-  db.updateStoryMeta(id, c.req.valid("json"))
+  const body = c.req.valid("json")
+  db.updateStoryMeta(id, {
+    title: body.title,
+    opening_scenario: body.opening_scenario,
+    author_note: body.author_note,
+    author_note_depth: body.author_note_depth,
+    story_modules: body.story_modules,
+  })
   return c.json({ ok: true })
 })
 
@@ -240,6 +262,7 @@ stories.get("/:id/export", (c) => {
   const row = db.getStory(id)
   if (!row) return c.json({ error: "Story not found" }, 404)
   const { character, world, npcs } = parseStoryState(row)
+  const storyModules = parseStoryModules(row)
   const turns = db.getTurnsForStory(id)
 
   if (format === "tavern") {
@@ -269,6 +292,7 @@ stories.get("/:id/export", (c) => {
       opening_scenario: row.opening_scenario,
       author_note: row.author_note ?? "",
       author_note_depth: row.author_note_depth ?? 4,
+      story_modules: storyModules,
       character,
       world,
       npcs,
@@ -327,6 +351,7 @@ stories.post("/import", async (c) => {
         undefined,
         undefined,
         undefined,
+        db.getSettings().storyDefaults,
         characterId,
       )
       const storyRow = db.getStory(storyId)
@@ -364,6 +389,7 @@ stories.post("/import", async (c) => {
       parsed.character,
       parsed.world,
       parsed.npcs,
+      parsed.story_modules ?? db.getSettings().storyDefaults,
       characterId,
       parsed.author_note ?? "",
       parsed.author_note_depth ?? 4,

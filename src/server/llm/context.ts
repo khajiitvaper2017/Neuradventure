@@ -1,5 +1,5 @@
 import OpenAI from "openai"
-import type { MainCharacterState, NPCState, WorldState } from "../core/models.js"
+import type { MainCharacterState, NPCState, StoryModules, WorldState } from "../core/models.js"
 import type { TurnRow } from "../core/db.js"
 import { getGenerationParams } from "./client.js"
 import { getImpersonatePrompt, getNpcCreationPrompt, getSystemPrompt } from "./config.js"
@@ -26,6 +26,7 @@ export interface ContextBlockOpts {
   actionBlock?: string | null
   memory?: string | null
   authorNote?: { text: string; depth: number } | null
+  modules?: StoryModules
 }
 
 function buildContextBlock(opts: ContextBlockOpts): string {
@@ -36,34 +37,53 @@ function buildContextBlock(opts: ContextBlockOpts): string {
   const labels = llmStrings.contextLabels
   const sections = llmStrings.sections
   const none = defaults.format.noneLower
+  const modules: StoryModules = opts.modules ?? {
+    track_npcs: true,
+    track_locations: true,
+    character_detail_mode: "detailed",
+  }
+  const useGeneral = modules.character_detail_mode === "general"
+  const generalDescription = character.general_description?.trim() || defaults.unknown.generalDescription
+  const initialGeneralDescription = initial.general_description?.trim() || defaults.unknown.generalDescription
 
   // ── STABLE (cached across turns) ──
   const initialSection = wrapSection(
     sections.initialCharacter,
-    `${formatTemplate(labels.baselineAppearance, { value: initial.appearance.baseline_appearance })}\n` +
-      `${formatTemplate(labels.currentAppearance, { value: initial.appearance.current_appearance })}\n` +
-      `${formatTemplate(labels.wearing, { value: initial.appearance.current_clothing })}`,
+    useGeneral
+      ? formatTemplate(labels.generalDescription, { value: initialGeneralDescription })
+      : `${formatTemplate(labels.baselineAppearance, { value: initial.appearance.baseline_appearance })}\n` +
+          `${formatTemplate(labels.currentAppearance, { value: initial.appearance.current_appearance })}\n` +
+          `${formatTemplate(labels.wearing, { value: initial.appearance.current_clothing })}`,
   )
 
   const baseSection = wrapSection(
     sections.playerCharacterBase,
-    `${formatTemplate(labels.nameRaceGender, {
-      name: character.name,
-      race: character.race,
-      gender: character.gender,
-    })}\n` +
-      `${formatTemplate(labels.personalityTraits, {
-        value: character.personality_traits.join(", ") || none,
-      })}\n` +
-      `${formatTemplate(labels.majorFlaws, { value: character.major_flaws.join(", ") || none })}\n` +
-      `${formatTemplate(labels.quirks, { value: character.quirks.join(", ") || none })}\n` +
-      `${formatTemplate(labels.perks, { value: character.perks.join(", ") || none })}`,
+    useGeneral
+      ? `${formatTemplate(labels.nameRaceGender, {
+          name: character.name,
+          race: character.race,
+          gender: character.gender,
+        })}\n${formatTemplate(labels.generalDescription, { value: generalDescription })}`
+      : `${formatTemplate(labels.nameRaceGender, {
+          name: character.name,
+          race: character.race,
+          gender: character.gender,
+        })}\n` +
+          `${formatTemplate(labels.personalityTraits, {
+            value: character.personality_traits.join(", ") || none,
+          })}\n` +
+          `${formatTemplate(labels.majorFlaws, { value: character.major_flaws.join(", ") || none })}\n` +
+          `${formatTemplate(labels.quirks, { value: character.quirks.join(", ") || none })}\n` +
+          `${formatTemplate(labels.perks, { value: character.perks.join(", ") || none })}`,
   )
 
-  const npcBaselineSection = npcs.length > 0 ? wrapSection(sections.npcBaselines, formatNPCBaselines(npcs)) : null
+  const npcBaselineSection =
+    modules.track_npcs && npcs.length > 0
+      ? wrapSection(sections.npcBaselines, formatNPCBaselines(npcs, modules.character_detail_mode))
+      : null
 
   const locationSection =
-    world.locations && world.locations.length > 0
+    modules.track_locations && world.locations && world.locations.length > 0
       ? wrapSection(sections.locations, formatLocations(world.locations))
       : null
 
@@ -76,14 +96,20 @@ function buildContextBlock(opts: ContextBlockOpts): string {
   // ── VOLATILE ──
   const currentSection = wrapSection(
     sections.playerCharacterState,
-    `${formatTemplate(labels.currentAppearance, { value: character.appearance.current_appearance })}\n` +
-      `${formatTemplate(labels.wearing, { value: character.appearance.current_clothing })}\n` +
-      `${formatTemplate(labels.location, { value: character.current_location })}\n` +
-      `${formatTemplate(labels.inventory, { value: formatInventory(character.inventory) })}`,
+    [
+      !useGeneral ? formatTemplate(labels.currentAppearance, { value: character.appearance.current_appearance }) : null,
+      !useGeneral ? formatTemplate(labels.wearing, { value: character.appearance.current_clothing }) : null,
+      formatTemplate(labels.location, { value: character.current_location }),
+      formatTemplate(labels.inventory, { value: formatInventory(character.inventory) }),
+    ]
+      .filter(Boolean)
+      .join("\n"),
   )
 
   const npcCurrentSection =
-    npcs.length > 0 ? wrapSection(sections.npcCurrentStates, formatNPCCurrentStates(npcs)) : null
+    modules.track_npcs && npcs.length > 0
+      ? wrapSection(sections.npcCurrentStates, formatNPCCurrentStates(npcs, modules.character_detail_mode))
+      : null
 
   const storyContextSection = wrapSection(
     sections.storyContext,
@@ -125,6 +151,7 @@ export function buildTurnMessages(
   initialCharacter?: MainCharacterState,
   ctxLimitOverride?: number,
   authorNote?: { text: string; depth: number } | null,
+  modules?: StoryModules,
 ): OpenAI.ChatCompletionMessageParam[] {
   const ctxLimit = ctxLimitOverride ?? getGenerationParams().ctx_limit
   const hasPlayerInput = playerInput.trim().length > 0
@@ -151,6 +178,7 @@ export function buildTurnMessages(
     initialCharacter,
     actionBlock: actionSection,
     authorNote,
+    modules,
   })
 
   return [
@@ -167,6 +195,7 @@ export function buildNpcCreationMessages(
   npcName: string,
   ctxLimitOverride?: number,
   authorNote?: { text: string; depth: number } | null,
+  modules?: StoryModules,
 ): OpenAI.ChatCompletionMessageParam[] {
   const ctxLimit = ctxLimitOverride ?? getGenerationParams().ctx_limit
   const sections = getLlmStrings().sections
@@ -183,6 +212,7 @@ export function buildNpcCreationMessages(
     ctxLimit,
     actionBlock,
     authorNote,
+    modules,
   })
 
   return [
@@ -200,6 +230,7 @@ export function buildImpersonateMessages(
   initialCharacter?: MainCharacterState,
   ctxLimitOverride?: number,
   authorNote?: { text: string; depth: number } | null,
+  modules?: StoryModules,
 ): OpenAI.ChatCompletionMessageParam[] {
   const ctxLimit = ctxLimitOverride ?? getGenerationParams().ctx_limit
   const llmStrings = getLlmStrings()
@@ -217,6 +248,7 @@ export function buildImpersonateMessages(
     initialCharacter,
     actionBlock: actionModeSection,
     authorNote,
+    modules,
   })
   const prompt = `${contextBlock}\n\n${wrapSection(sections.playersAction, "")}`
 

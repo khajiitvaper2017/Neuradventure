@@ -2,9 +2,10 @@ import Database from "better-sqlite3"
 import fs from "node:fs"
 import path from "path"
 import { fileURLToPath } from "url"
-import type { MainCharacterState, NPCState, WorldState } from "./models.js"
+import type { MainCharacterState, NPCState, StoryModules, WorldState } from "./models.js"
 import { getServerDefaults } from "./strings.js"
 import { normalizeGender } from "../schemas/normalizers.js"
+import { normalizeStoryModules } from "../schemas/story-modules.js"
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 export const DB_PATH = path.resolve(__dirname, "../../../data/neuradventure.db")
@@ -22,6 +23,7 @@ function normalizeCharacterBase(input: Partial<CharacterBase>): CharacterBase {
     name: input.name ?? "",
     race: input.race ?? "",
     gender: normalizeGender(input.gender, ""),
+    general_description: input.general_description ?? "",
     current_location: input.current_location ?? getServerDefaults().unknown.location,
     appearance: {
       baseline_appearance: baselineAppearance,
@@ -83,6 +85,7 @@ export interface SettingsState {
   colorScheme: "gold" | "emerald" | "sapphire" | "crimson"
   defaultAuthorNote: string
   defaultAuthorNoteDepth: number
+  storyDefaults: StoryModules
   connector: LLMConnector
   generation: GenerationParams
 }
@@ -121,6 +124,11 @@ const DEFAULT_SETTINGS: SettingsState = {
   colorScheme: "gold",
   defaultAuthorNote: "Remember the instructions you were given at the beginning of this chat.",
   defaultAuthorNoteDepth: 4,
+  storyDefaults: {
+    track_npcs: true,
+    track_locations: true,
+    character_detail_mode: "detailed",
+  },
   connector: {
     type: "koboldcpp",
     url: "http://localhost:5001/v1",
@@ -158,6 +166,7 @@ export function initDb() {
       character_state_json  TEXT NOT NULL,
       world_state_json      TEXT NOT NULL,
       npc_states_json       TEXT NOT NULL,
+      story_modules_json    TEXT NOT NULL,
       initial_character_state_json  TEXT NOT NULL,
       initial_world_state_json      TEXT NOT NULL,
       initial_npc_states_json       TEXT NOT NULL,
@@ -268,6 +277,10 @@ export function initDb() {
   }
   if (!storyColumnNames.has("author_note_depth")) {
     database.exec("ALTER TABLE stories ADD COLUMN author_note_depth INTEGER NOT NULL DEFAULT 4")
+  }
+  if (!storyColumnNames.has("story_modules_json")) {
+    const modulesJson = JSON.stringify(DEFAULT_SETTINGS.storyDefaults).replace(/'/g, "''")
+    database.exec(`ALTER TABLE stories ADD COLUMN story_modules_json TEXT NOT NULL DEFAULT '${modulesJson}'`)
   }
   database.exec(`
     UPDATE stories
@@ -455,6 +468,7 @@ export interface StoryRow {
   character_state_json: string
   world_state_json: string
   npc_states_json: string
+  story_modules_json: string
   initial_character_state_json: string | null
   initial_world_state_json: string | null
   initial_npc_states_json: string | null
@@ -512,6 +526,7 @@ export function createStory(
   character: MainCharacterState,
   world: WorldState,
   npcs: NPCState[],
+  storyModules: StoryModules,
   characterId: number | null,
   authorNote: string,
   authorNoteDepth: number,
@@ -525,13 +540,14 @@ export function createStory(
         character_state_json,
         world_state_json,
         npc_states_json,
+        story_modules_json,
         initial_character_state_json,
         initial_world_state_json,
         initial_npc_states_json,
         author_note,
         author_note_depth
       )
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     )
     .run(
       characterId,
@@ -540,6 +556,7 @@ export function createStory(
       JSON.stringify(character),
       JSON.stringify(world),
       JSON.stringify(npcs),
+      JSON.stringify(storyModules),
       JSON.stringify(character),
       JSON.stringify(world),
       JSON.stringify(npcs),
@@ -560,7 +577,13 @@ export function updateStory(id: number, character: MainCharacterState, world: Wo
 
 export function updateStoryMeta(
   id: number,
-  fields: { title?: string; opening_scenario?: string; author_note?: string; author_note_depth?: number },
+  fields: {
+    title?: string
+    opening_scenario?: string
+    author_note?: string
+    author_note_depth?: number
+    story_modules?: StoryModules
+  },
 ): void {
   const updates: string[] = ["updated_at = datetime('now')"]
   const values: unknown[] = []
@@ -579,6 +602,10 @@ export function updateStoryMeta(
   if (fields.author_note_depth !== undefined) {
     updates.push("author_note_depth = ?")
     values.push(fields.author_note_depth)
+  }
+  if (fields.story_modules !== undefined) {
+    updates.push("story_modules_json = ?")
+    values.push(JSON.stringify(fields.story_modules))
   }
   values.push(id)
   getDb()
@@ -1059,6 +1086,7 @@ export function getSettings(): SettingsState {
     return {
       ...DEFAULT_SETTINGS,
       ...stored,
+      storyDefaults: normalizeStoryModules(stored.storyDefaults, DEFAULT_SETTINGS.storyDefaults),
       connector: { ...DEFAULT_SETTINGS.connector, ...(stored.connector ?? {}) },
       generation: { ...DEFAULT_SETTINGS.generation, ...(stored.generation ?? {}) },
     }

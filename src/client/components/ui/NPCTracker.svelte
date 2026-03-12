@@ -1,7 +1,14 @@
 <script lang="ts">
   import { api, ApiError } from "../../api/client.js"
   import { showNPCTracker, showError, showQuietNotice, showConfirm } from "../../stores/ui.js"
-  import { currentStoryId, npcs, llmUpdateId, isGenerating, markLlmUpdate } from "../../stores/game.js"
+  import {
+    currentStoryId,
+    currentStoryModules,
+    npcs,
+    llmUpdateId,
+    isGenerating,
+    markLlmUpdate,
+  } from "../../stores/game.js"
   import type { NPCState } from "../../api/client.js"
   import { autoresize } from "../../utils/actions/autoresize.js"
   import { genderIcon, normalizeGender, splitCsv } from "../../utils/text.js"
@@ -19,6 +26,8 @@
 
   let { inline = false }: { inline?: boolean } = $props()
   let showBaselineDetails = $state(false)
+  const detailMode = $derived($currentStoryModules?.character_detail_mode ?? "detailed")
+  const trackLocations = $derived($currentStoryModules?.track_locations ?? true)
 
   function npcFieldId(npc: NPCState, field: string): string {
     const base = npc.name
@@ -43,7 +52,7 @@
   }
 
   function npcEditFields(npc: NPCState): EditField[] {
-    return [
+    const fields: EditField[] = [
       {
         id: npcFieldId(npc, "name"),
         label: "Name",
@@ -65,70 +74,89 @@
         value: draft.gender,
         onInput: (v) => (draft.gender = v),
       },
-      {
+    ]
+
+    if (trackLocations) {
+      fields.push({
         id: npcFieldId(npc, "location"),
         label: "Current Location",
         kind: "input",
         value: draft.location,
         onInput: (v) => (draft.location = v),
-      },
-      {
-        id: npcFieldId(npc, "baseline-appearance"),
-        label: "Baseline Appearance",
+      })
+    }
+
+    if (detailMode === "general") {
+      fields.push({
+        id: npcFieldId(npc, "general-description"),
+        label: "General Description",
         kind: "textarea",
-        value: draft.baselineAppearance,
-        onInput: (v) => (draft.baselineAppearance = v),
-      },
-      {
-        id: npcFieldId(npc, "current-appearance"),
-        label: "Current Appearance",
-        kind: "textarea",
-        value: draft.currentAppearance,
-        onInput: (v) => (draft.currentAppearance = v),
-      },
-      {
-        id: npcFieldId(npc, "clothing"),
-        label: "Current Clothing",
-        kind: "textarea",
-        value: draft.clothing,
-        onInput: (v) => (draft.clothing = v),
-      },
-      {
-        id: npcFieldId(npc, "current-activity"),
-        label: "Current Activity",
-        kind: "textarea",
-        value: draft.currentActivity,
-        onInput: (v) => (draft.currentActivity = v),
-      },
-      {
-        id: npcFieldId(npc, "traits"),
-        label: "Personality Traits (comma separated)",
-        kind: "input",
-        value: draft.traits,
-        onInput: (v) => (draft.traits = v),
-      },
-      {
-        id: npcFieldId(npc, "major-flaws"),
-        label: "Major Flaws (comma separated)",
-        kind: "input",
-        value: draft.majorFlaws,
-        onInput: (v) => (draft.majorFlaws = v),
-      },
-      {
-        id: npcFieldId(npc, "quirks"),
-        label: "Quirks (comma separated)",
-        kind: "input",
-        value: draft.quirks,
-        onInput: (v) => (draft.quirks = v),
-      },
-      {
-        id: npcFieldId(npc, "perks"),
-        label: "Perks (comma separated)",
-        kind: "input",
-        value: draft.perks,
-        onInput: (v) => (draft.perks = v),
-      },
-    ]
+        value: draft.generalDescription,
+        onInput: (v) => (draft.generalDescription = v),
+      })
+    } else {
+      fields.push(
+        {
+          id: npcFieldId(npc, "baseline-appearance"),
+          label: "Baseline Appearance",
+          kind: "textarea",
+          value: draft.baselineAppearance,
+          onInput: (v) => (draft.baselineAppearance = v),
+        },
+        {
+          id: npcFieldId(npc, "current-appearance"),
+          label: "Current Appearance",
+          kind: "textarea",
+          value: draft.currentAppearance,
+          onInput: (v) => (draft.currentAppearance = v),
+        },
+        {
+          id: npcFieldId(npc, "clothing"),
+          label: "Current Clothing",
+          kind: "textarea",
+          value: draft.clothing,
+          onInput: (v) => (draft.clothing = v),
+        },
+        {
+          id: npcFieldId(npc, "traits"),
+          label: "Personality Traits (comma separated)",
+          kind: "input",
+          value: draft.traits,
+          onInput: (v) => (draft.traits = v),
+        },
+        {
+          id: npcFieldId(npc, "major-flaws"),
+          label: "Major Flaws (comma separated)",
+          kind: "input",
+          value: draft.majorFlaws,
+          onInput: (v) => (draft.majorFlaws = v),
+        },
+        {
+          id: npcFieldId(npc, "quirks"),
+          label: "Quirks (comma separated)",
+          kind: "input",
+          value: draft.quirks,
+          onInput: (v) => (draft.quirks = v),
+        },
+        {
+          id: npcFieldId(npc, "perks"),
+          label: "Perks (comma separated)",
+          kind: "input",
+          value: draft.perks,
+          onInput: (v) => (draft.perks = v),
+        },
+      )
+    }
+
+    fields.push({
+      id: npcFieldId(npc, "current-activity"),
+      label: "Current Activity",
+      kind: "textarea",
+      value: draft.currentActivity,
+      onInput: (v) => (draft.currentActivity = v),
+    })
+
+    return fields
   }
 
   function startNpcEdit(npc: NPCState) {
@@ -137,6 +165,7 @@
       name: npc.name,
       race: npc.race,
       gender: npc.gender,
+      generalDescription: npc.general_description ?? "",
       location: npc.current_location,
       baselineAppearance: npc.appearance.baseline_appearance,
       currentAppearance: npc.appearance.current_appearance,
@@ -162,17 +191,18 @@
     const name = draft.name.trim()
     const race = draft.race.trim()
     const gender = normalizeGender(draft.gender, "")
+    const generalDescription = draft.generalDescription.trim()
     const location = draft.location.trim()
     const baselineAppearance = draft.baselineAppearance.trim()
     const currentAppearance = draft.currentAppearance.trim()
     const clothing = draft.clothing.trim()
     const currentActivity = draft.currentActivity.trim()
-    if (!name || !race || !gender || !location || !baselineAppearance || !currentAppearance || !clothing) {
-      showError("Name, race, gender, location, baseline appearance, current appearance, and clothing are required.")
+    if (!name || !race || !gender) {
+      showError("Name, race, and gender are required.")
       return
     }
-    if (!currentActivity) {
-      showError("Current activity is required.")
+    if (detailMode === "general" && !generalDescription) {
+      showError("General description is required.")
       return
     }
     const traits = splitCsv(draft.traits)
@@ -184,17 +214,40 @@
       name,
       race,
       gender,
-      current_location: location,
+      general_description: generalDescription || existingNpc?.general_description,
+      current_location: trackLocations
+        ? location || existingNpc?.current_location || ""
+        : (existingNpc?.current_location ?? ""),
       appearance: {
-        baseline_appearance: baselineAppearance,
-        current_appearance: currentAppearance,
-        current_clothing: clothing,
+        baseline_appearance: baselineAppearance || existingNpc?.appearance.baseline_appearance || "",
+        current_appearance: currentAppearance || existingNpc?.appearance.current_appearance || "",
+        current_clothing: clothing || existingNpc?.appearance.current_clothing || "",
       },
-      current_activity: currentActivity,
-      personality_traits: traits,
-      major_flaws: majorFlaws,
-      quirks,
-      perks,
+      current_activity: currentActivity || existingNpc?.current_activity || "",
+      personality_traits:
+        detailMode === "detailed"
+          ? traits.length > 0
+            ? traits
+            : (existingNpc?.personality_traits ?? [])
+          : (existingNpc?.personality_traits ?? []),
+      major_flaws:
+        detailMode === "detailed"
+          ? majorFlaws.length > 0
+            ? majorFlaws
+            : (existingNpc?.major_flaws ?? [])
+          : (existingNpc?.major_flaws ?? []),
+      quirks:
+        detailMode === "detailed"
+          ? quirks.length > 0
+            ? quirks
+            : (existingNpc?.quirks ?? [])
+          : (existingNpc?.quirks ?? []),
+      perks:
+        detailMode === "detailed"
+          ? perks.length > 0
+            ? perks
+            : (existingNpc?.perks ?? [])
+          : (existingNpc?.perks ?? []),
       inventory: existingNpc?.inventory ?? [],
     }
     const updatedList = $npcs.map((npc) => (npc.name === editingNpcName ? updatedNpc : npc))
@@ -268,6 +321,7 @@
     name: string
     race: string
     gender: string
+    generalDescription: string
     location: string
     baselineAppearance: string
     currentAppearance: string
@@ -282,6 +336,7 @@
     name: "",
     race: "",
     gender: "",
+    generalDescription: "",
     location: "",
     baselineAppearance: "",
     currentAppearance: "",
@@ -550,34 +605,43 @@
             </div>
           </div>
         {:else}
-          <div class="npc-detail-row">
-            <IconMapPin size={13} strokeWidth={1.5} className="npc-icon" />
-            <span>{npc.current_location}</span>
-          </div>
-
-          {#if showBaselineDetails}
+          {#if trackLocations}
             <div class="npc-detail-row">
-              <IconFace size={13} strokeWidth={1.5} className="npc-icon" />
-              <span>{npc.appearance.baseline_appearance}</span>
+              <IconMapPin size={13} strokeWidth={1.5} className="npc-icon" />
+              <span>{npc.current_location}</span>
             </div>
           {/if}
 
-          <div class="npc-detail-row">
-            <IconFace size={13} strokeWidth={1.5} className="npc-icon" />
-            <span>{npc.appearance.current_appearance}</span>
-          </div>
+          {#if detailMode === "general"}
+            <div class="npc-detail-row">
+              <IconDocument size={13} strokeWidth={1.5} className="npc-icon" />
+              <span>{npc.general_description || "Unknown description"}</span>
+            </div>
+          {:else}
+            {#if showBaselineDetails}
+              <div class="npc-detail-row">
+                <IconFace size={13} strokeWidth={1.5} className="npc-icon" />
+                <span>{npc.appearance.baseline_appearance}</span>
+              </div>
+            {/if}
 
-          <div class="npc-detail-row muted">
-            <IconShirt size={13} strokeWidth={1.5} className="npc-icon" />
-            <span>{npc.appearance.current_clothing}</span>
-          </div>
+            <div class="npc-detail-row">
+              <IconFace size={13} strokeWidth={1.5} className="npc-icon" />
+              <span>{npc.appearance.current_appearance}</span>
+            </div>
+
+            <div class="npc-detail-row muted">
+              <IconShirt size={13} strokeWidth={1.5} className="npc-icon" />
+              <span>{npc.appearance.current_clothing}</span>
+            </div>
+          {/if}
 
           <div class="npc-detail-row">
             <IconDocument size={13} strokeWidth={1.5} className="npc-icon" />
             <span>{npc.current_activity}</span>
           </div>
 
-          {#if npc.personality_traits.length > 0 || npc.major_flaws.length > 0 || npc.quirks.length > 0 || npc.perks.length > 0}
+          {#if detailMode === "detailed" && (npc.personality_traits.length > 0 || npc.major_flaws.length > 0 || npc.quirks.length > 0 || npc.perks.length > 0)}
             <div class="npc-traits">
               <IconStar size={13} strokeWidth={1.5} className="npc-icon npc-traits-icon" />
               <div class="chips">
@@ -607,13 +671,15 @@
     <div class="sidebar-header">
       <IconUsers size={16} strokeWidth={1.5} className="npc-header-icon" />
       <span>Known NPCs ({$npcs.length})</span>
-      <button
-        class="npc-toggle-btn"
-        onclick={() => (showBaselineDetails = !showBaselineDetails)}
-        disabled={$npcs.length === 0}
-      >
-        {showBaselineDetails ? "Hide Baseline" : "Show Baseline"}
-      </button>
+      {#if detailMode === "detailed"}
+        <button
+          class="npc-toggle-btn"
+          onclick={() => (showBaselineDetails = !showBaselineDetails)}
+          disabled={$npcs.length === 0}
+        >
+          {showBaselineDetails ? "Hide Baseline" : "Show Baseline"}
+        </button>
+      {/if}
     </div>
     <div class="sidebar-body" data-scroll-root="modal" bind:this={sidebarBodyEl}>
       {@render npcContent()}
@@ -627,13 +693,15 @@
     <div class="panel-header">
       <IconUsers size={16} strokeWidth={1.5} className="npc-header-icon" />
       <span>Known NPCs ({$npcs.length})</span>
-      <button
-        class="npc-toggle-btn"
-        onclick={() => (showBaselineDetails = !showBaselineDetails)}
-        disabled={$npcs.length === 0}
-      >
-        {showBaselineDetails ? "Hide Baseline" : "Show Baseline"}
-      </button>
+      {#if detailMode === "detailed"}
+        <button
+          class="npc-toggle-btn"
+          onclick={() => (showBaselineDetails = !showBaselineDetails)}
+          disabled={$npcs.length === 0}
+        >
+          {showBaselineDetails ? "Hide Baseline" : "Show Baseline"}
+        </button>
+      {/if}
       <button onclick={() => showNPCTracker.set(false)}>×</button>
     </div>
     <div class="panel-body" data-scroll-root="modal" bind:this={panelBodyEl}>

@@ -10,9 +10,11 @@ import {
   MainCharacterStateSchema,
   NPCStateSchema,
   NPCStateStoredSchema,
+  WorldStateUpdateSchema,
   WorldStateSchema,
   WorldStateStoredSchema,
 } from "../schemas/game-state.js"
+import { StoryModulesSchema } from "../schemas/story-modules.js"
 import { NPCStateUpdateBaseSchema } from "../schemas/npc-state-update-base.js"
 import {
   AppearanceChangeSection,
@@ -66,6 +68,8 @@ export {
   MainCharacterStateStoredSchema,
   NPCStateSchema,
   NPCStateStoredSchema,
+  StoryModulesSchema,
+  WorldStateUpdateSchema,
   WorldStateSchema,
   WorldStateStoredSchema,
   NPCStateUpdateBaseSchema,
@@ -112,6 +116,8 @@ export type CharacterAppearance = z.infer<typeof CharacterAppearanceSchema>
 export type CharacterState = z.infer<typeof CharacterStateSchema>
 export type MainCharacterState = z.infer<typeof MainCharacterStateSchema>
 export type NPCState = z.infer<typeof NPCStateSchema>
+export type StoryModules = z.infer<typeof StoryModulesSchema>
+export type WorldStateUpdate = z.infer<typeof WorldStateUpdateSchema>
 export type WorldState = z.infer<typeof WorldStateSchema>
 export type TurnResponse = z.infer<typeof TurnResponseSchema>
 export type NPCStateUpdate = z.infer<typeof NPCStateUpdateSchema>

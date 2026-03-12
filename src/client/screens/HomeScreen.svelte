@@ -25,6 +25,7 @@
     pendingStoryScenario,
     pendingStoryNPCs,
     pendingStoryLocation,
+    pendingStoryModules,
   } from "../stores/game.js"
   import { resetChat } from "../stores/chat.js"
   import { loadStoryById } from "../utils/storyLoader.js"
@@ -184,6 +185,7 @@
           pendingStoryScenario.set("")
           pendingStoryNPCs.set([])
           pendingStoryLocation.set("")
+          pendingStoryModules.set(null)
           navigate("char-create")
         } else {
           showError(`Character "${result.character.name}" imported`)

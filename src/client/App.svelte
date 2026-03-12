@@ -15,7 +15,7 @@
     showError,
   } from "./stores/ui.js"
   import { theme, design, textJustify, colorScheme, initSettings } from "./stores/settings.js"
-  import { currentStoryId } from "./stores/game.js"
+  import { currentStoryId, currentStoryModules } from "./stores/game.js"
   import { currentChatId } from "./stores/chat.js"
   import HomeScreen from "./screens/HomeScreen.svelte"
   import GameScreen from "./screens/GameScreen.svelte"
@@ -74,6 +74,8 @@
   let gameActive = $derived($activeScreen === "game")
   let gameReady = $derived(gameActive && !restoringStory && $currentStoryId !== null)
   let desktopGame = $derived(gameReady && $isDesktop)
+  let trackNpcs = $derived($currentStoryModules?.track_npcs ?? true)
+  let trackLocations = $derived($currentStoryModules?.track_locations ?? true)
 
   $effect(() => {
     if ($activeScreen !== "game") return
@@ -135,13 +137,13 @@
         <GameScreen />
       </div>
 
-      {#if $isDesktop && !$collapseNPCTracker}
+      {#if $isDesktop && !$collapseNPCTracker && trackNpcs}
         <div class="sidebar-slot right-1">
           <NPCTracker inline />
         </div>
       {/if}
 
-      {#if $isDesktop && !$collapseLocationsPanel}
+      {#if $isDesktop && !$collapseLocationsPanel && trackLocations}
         <div class="sidebar-slot right-2">
           <LocationsPanel inline />
         </div>
@@ -163,8 +165,12 @@
     {/if}
 
     <CharSheet />
-    <NPCTracker />
-    <LocationsPanel />
+    {#if trackNpcs}
+      <NPCTracker />
+    {/if}
+    {#if trackLocations}
+      <LocationsPanel />
+    {/if}
   {/if}
 
   {#if $errorMessage}
@@ -191,7 +197,8 @@
     --sidebar-right-1: var(--sidebar-width);
     --sidebar-right-2: var(--sidebar-width);
     display: grid;
-    grid-template-columns: var(--sidebar-left) minmax(var(--sidebar-width), 1fr) var(--sidebar-right-1)
+    grid-template-columns:
+      var(--sidebar-left) minmax(var(--sidebar-width), 1fr) var(--sidebar-right-1)
       var(--sidebar-right-2);
     grid-template-rows: 100dvh;
     max-width: 1800px;

@@ -167,13 +167,29 @@ export function collectLlmWarnings(world: WorldState, npcs: NPCState[], turnResp
   const warnings: string[] = []
 
   const worldUpdate = turnResponse.world_state_update
-  if (
-    worldUpdate.current_scene === world.current_scene &&
-    worldUpdate.time_of_day === world.time_of_day &&
-    worldUpdate.current_date === world.current_date &&
-    worldUpdate.memory === world.memory &&
-    JSON.stringify(worldUpdate.locations) === JSON.stringify(world.locations)
-  ) {
+  let provided = 0
+  let unchanged = 0
+  if (worldUpdate.current_scene !== undefined) {
+    provided += 1
+    if (worldUpdate.current_scene === world.current_scene) unchanged += 1
+  }
+  if (worldUpdate.time_of_day !== undefined) {
+    provided += 1
+    if (worldUpdate.time_of_day === world.time_of_day) unchanged += 1
+  }
+  if (worldUpdate.current_date !== undefined) {
+    provided += 1
+    if (worldUpdate.current_date === world.current_date) unchanged += 1
+  }
+  if (worldUpdate.memory !== undefined) {
+    provided += 1
+    if (worldUpdate.memory === world.memory) unchanged += 1
+  }
+  if (worldUpdate.locations !== undefined) {
+    provided += 1
+    if (JSON.stringify(worldUpdate.locations) === JSON.stringify(world.locations)) unchanged += 1
+  }
+  if (provided > 0 && unchanged === provided) {
     warnings.push("world_state_update matches existing world state")
   }
 

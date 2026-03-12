@@ -7,6 +7,7 @@ import { dirname, join } from "node:path"
 import * as db from "../core/db.js"
 import { getCtxLimitCached } from "../llm/index.js"
 import { desc } from "../schemas/field-descriptions.js"
+import { StoryModulesSchema } from "../schemas/story-modules.js"
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const PRESETS_DIR = join(__dirname, "../../../shared/config/presets")
@@ -52,6 +53,7 @@ const SettingsUpdateSchema = z
     colorScheme: z.enum(["gold", "emerald", "sapphire", "crimson"]).describe(desc("settings.update.colorScheme")),
     defaultAuthorNote: z.string().describe(desc("settings.update.defaultAuthorNote")),
     defaultAuthorNoteDepth: z.number().int().min(0).max(100).describe(desc("settings.update.defaultAuthorNoteDepth")),
+    storyDefaults: StoryModulesSchema.partial().describe(desc("settings.update.storyDefaults")),
     connector: ConnectorSchema.partial().describe(desc("settings.update.connector")),
     generation: GenerationParamsSchema.partial().describe(desc("settings.update.generation")),
   })
@@ -77,6 +79,9 @@ settings.put("/", zValidator("json", SettingsUpdateSchema), (c) => {
     ...(update.colorScheme !== undefined && { colorScheme: update.colorScheme }),
     ...(update.defaultAuthorNote !== undefined && { defaultAuthorNote: update.defaultAuthorNote }),
     ...(update.defaultAuthorNoteDepth !== undefined && { defaultAuthorNoteDepth: update.defaultAuthorNoteDepth }),
+    ...(update.storyDefaults && {
+      storyDefaults: { ...current.storyDefaults, ...update.storyDefaults },
+    }),
     ...(update.connector && { connector: { ...current.connector, ...update.connector } }),
     ...(update.generation && { generation: { ...current.generation, ...update.generation } }),
   }

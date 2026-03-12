@@ -5,6 +5,7 @@ import {
   NPCStateSchema,
   NPCStateStoredSchema,
 } from "./game-state.js"
+import { StoryModulesSchema } from "./story-modules.js"
 import { desc } from "./field-descriptions.js"
 import { DATE_REGEX, TIME_OF_DAY_REGEX } from "./constants.js"
 
@@ -12,12 +13,13 @@ export const CreateCharacterRequestSchema = z.object({
   name: z.string().min(1).describe(desc("state.character.name")),
   race: z.string().min(1).describe(desc("state.character.race")),
   gender: z.string().min(1).describe(desc("state.character.gender")),
-  current_location: z.string().min(1).describe(desc("state.character.current_location")),
-  appearance: CharacterAppearanceSchema.describe(desc("state.character.appearance")),
-  personality_traits: z.array(z.string()).describe(desc("traits.personality_traits")),
-  major_flaws: z.array(z.string()).describe(desc("traits.major_flaws")),
-  quirks: z.array(z.string()).describe(desc("traits.quirks")),
-  perks: z.array(z.string()).describe(desc("traits.perks")),
+  general_description: z.string().optional().describe(desc("state.character.general_description")),
+  current_location: z.string().min(1).optional().describe(desc("state.character.current_location")),
+  appearance: CharacterAppearanceSchema.optional().describe(desc("state.character.appearance")),
+  personality_traits: z.array(z.string()).optional().describe(desc("traits.personality_traits")),
+  major_flaws: z.array(z.string()).optional().describe(desc("traits.major_flaws")),
+  quirks: z.array(z.string()).optional().describe(desc("traits.quirks")),
+  perks: z.array(z.string()).optional().describe(desc("traits.perks")),
 })
 
 export const UpdateCharacterRequestSchema = CreateCharacterRequestSchema.partial()
@@ -42,21 +44,24 @@ export const CreateStoryRequestSchema = z.object({
       name: z.string().min(1).describe(desc("state.character.name")),
       race: z.string().min(1).describe(desc("state.character.race")),
       gender: z.string().min(1).describe(desc("state.character.gender")),
-      current_location: z.string().min(1).describe(desc("state.character.current_location")),
-      appearance: CharacterAppearanceSchema.describe(desc("state.character.appearance")),
-      personality_traits: z.array(z.string()).describe(desc("traits.personality_traits")),
-      major_flaws: z.array(z.string()).describe(desc("traits.major_flaws")),
-      quirks: z.array(z.string()).describe(desc("traits.quirks")),
-      perks: z.array(z.string()).describe(desc("traits.perks")),
+      general_description: z.string().optional().describe(desc("state.character.general_description")),
+      current_location: z.string().min(1).optional().describe(desc("state.character.current_location")),
+      appearance: CharacterAppearanceSchema.optional().describe(desc("state.character.appearance")),
+      personality_traits: z.array(z.string()).optional().describe(desc("traits.personality_traits")),
+      major_flaws: z.array(z.string()).optional().describe(desc("traits.major_flaws")),
+      quirks: z.array(z.string()).optional().describe(desc("traits.quirks")),
+      perks: z.array(z.string()).optional().describe(desc("traits.perks")),
     })
     .describe(desc("requests.create_story.character_data"))
     .optional(),
   npcs: z.array(NPCStateStoredSchema).optional().describe(desc("requests.create_story.npcs")),
+  story_modules: StoryModulesSchema.optional().describe(desc("requests.create_story.story_modules")),
 })
 
 export const UpdateStoryRequestSchema = z.object({
   title: z.string().min(1).optional().describe(desc("requests.update_story.title")),
   opening_scenario: z.string().min(1).optional().describe(desc("requests.update_story.opening_scenario")),
+  story_modules: StoryModulesSchema.optional().describe(desc("requests.update_story.story_modules")),
   author_note: z.string().optional().describe("Author's note text injected into prompt at specified depth."),
   author_note_depth: z
     .number()

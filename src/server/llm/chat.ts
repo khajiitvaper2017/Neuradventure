@@ -24,7 +24,11 @@ function formatMemberSummary(member: ChatMemberState): string {
   const name = member.name || defaults.unknown.value
   const race = member.race || defaults.unknown.value
   const gender = member.gender || defaults.unknown.value
-  const appearance = member.appearance?.baseline_appearance || defaults.unknown.appearance
+  const description =
+    member.general_description?.trim() ||
+    member.appearance?.baseline_appearance ||
+    defaults.unknown.generalDescription ||
+    defaults.unknown.appearance
   const traits = member.personality_traits?.join(", ") || defaults.unknown.value
   const quirks = member.quirks?.join(", ") || defaults.unknown.value
   const perks = member.perks?.join(", ") || defaults.unknown.value
@@ -34,7 +38,7 @@ function formatMemberSummary(member: ChatMemberState): string {
     `Name: ${name}`,
     `Race: ${race}`,
     `Gender: ${gender}`,
-    `Appearance: ${appearance}`,
+    `Description: ${description}`,
     `Personality: ${traits}`,
     `Quirks: ${quirks}`,
     `Perks: ${perks}`,

@@ -1,4 +1,5 @@
 import OpenAI from "openai"
+import { z } from "zod"
 import { buildJsonSchemaResponseFormat, derefJsonSchema, zodSchemaToJsonSchema } from "../utils/json-schema.js"
 import {
   GenerateCharacterResponseSchema,
@@ -7,10 +8,12 @@ import {
   GenerateCharacterTraitsResponseSchema,
   GenerateChatResponseSchema,
   GenerateStoryResponseSchema,
+  NPCStateSchema,
   NPCCreationSchema,
   type MainCharacterState,
   type NPCState,
   type NPCCreation,
+  type StoryModules,
   type TurnResponse,
   type WorldState,
   type GenerateCharacterResponse,
@@ -35,8 +38,9 @@ export { getCtxLimit, getCtxLimitCached, initCtxLimit } from "./client.js"
 export async function callLLM(
   messages: OpenAI.ChatCompletionMessageParam[],
   knownNpcs: NPCState[] = [],
+  storyModules?: StoryModules,
 ): Promise<TurnResponse> {
-  const turnSchema = buildTurnResponseSchema(knownNpcs)
+  const turnSchema = buildTurnResponseSchema(knownNpcs, storyModules)
   const schema = zodSchemaToJsonSchema(turnSchema, "TurnResponse")
   const result = await callLLMRaw<unknown>(messages, "TurnResponse", schema)
   return turnSchema.parse(result)
@@ -121,6 +125,7 @@ export async function generatePlayerAction(
   initialCharacter?: MainCharacterState,
   ctxLimitOverride?: number,
   authorNote?: { text: string; depth: number } | null,
+  storyModules?: StoryModules,
 ): Promise<string> {
   const messages = buildImpersonateMessages(
     character,
@@ -131,6 +136,7 @@ export async function generatePlayerAction(
     initialCharacter,
     ctxLimitOverride,
     authorNote,
+    storyModules,
   )
   const maxTokens = Math.min(getGenerationParams().max_tokens, 160)
   const raw = await callLLMText(messages, maxTokens, { disableRepetition: true, stop: ["\n"] })
@@ -296,28 +302,43 @@ export async function generateStory(
     name: string
     race: string
     gender: string
+    general_description?: string
     current_location?: string
-    appearance: { baseline_appearance: string; current_appearance: string; current_clothing: string }
-    personality_traits: string[]
-    major_flaws: string[]
-    quirks: string[]
-    perks: string[]
+    appearance?: { baseline_appearance: string; current_appearance: string; current_clothing: string }
+    personality_traits?: string[]
+    major_flaws?: string[]
+    quirks?: string[]
+    perks?: string[]
   },
+  storyModules?: StoryModules,
 ): Promise<GenerateStoryResponse> {
-  const schema = zodSchemaToJsonSchema(GenerateStoryResponseSchema, "GenerateStoryResponse")
+  const modules = storyModules ?? { track_npcs: true, track_locations: true, character_detail_mode: "detailed" }
+  const responseSchema = (() => {
+    if (modules.track_npcs) return GenerateStoryResponseSchema
+    return GenerateStoryResponseSchema.extend({
+      pregen_npcs: z.array(NPCStateSchema).max(0).optional(),
+    }).transform((value) => ({ ...value, pregen_npcs: value.pregen_npcs ?? [] }))
+  })()
+  const schema = zodSchemaToJsonSchema(responseSchema, "GenerateStoryResponse")
   const llmStrings = getLlmStrings()
   const defaults = getServerDefaults()
   const unknown = defaults.unknown.value
   const noneTitle = defaults.format.noneTitle
-  const traits = [...character.personality_traits, ...character.quirks, ...character.perks]
+  const traits = [...(character.personality_traits ?? []), ...(character.quirks ?? []), ...(character.perks ?? [])]
     .map((t) => t.trim())
     .filter(Boolean)
-  const baselineAppearance = character.appearance.baseline_appearance || unknown
-  const currentAppearance = character.appearance.current_appearance || baselineAppearance
+  const baselineAppearance = character.appearance?.baseline_appearance || unknown
+  const currentAppearance = character.appearance?.current_appearance || baselineAppearance
   const majorFlaws = character.major_flaws?.map((t) => t.trim()).filter(Boolean) ?? []
+  const generalDescription = character.general_description?.trim() || defaults.unknown.generalDescription
+  const useGeneral = modules.character_detail_mode === "general"
+  const promptLines = [...getConfig().generateStoryPrompt]
+  if (!modules.track_npcs) {
+    promptLines.push("NPC tracking is disabled. Do NOT output pregen_npcs or introduce NPCs.")
+  }
   const result = await callLLMRaw<unknown>(
     [
-      { role: "system", content: getConfig().generateStoryPrompt.join("\n") },
+      { role: "system", content: promptLines.join("\n") },
       {
         role: "user",
         content: [
@@ -325,17 +346,21 @@ export async function generateStory(
           formatTemplate(llmStrings.characterContextLabels.name, { value: character.name }),
           formatTemplate(llmStrings.characterContextLabels.race, { value: character.race || unknown }),
           formatTemplate(llmStrings.characterContextLabels.gender, { value: character.gender || unknown }),
-          formatTemplate(llmStrings.characterContextLabels.baselineAppearance, { value: baselineAppearance }),
-          formatTemplate(llmStrings.characterContextLabels.currentAppearance, { value: currentAppearance }),
-          formatTemplate(llmStrings.characterContextLabels.clothing, {
-            value: character.appearance.current_clothing || unknown,
-          }),
-          formatTemplate(llmStrings.characterContextLabels.majorFlaws, {
-            value: majorFlaws.length > 0 ? majorFlaws.join(", ") : noneTitle,
-          }),
-          formatTemplate(llmStrings.characterContextLabels.traits, {
-            value: traits.length > 0 ? traits.join(", ") : unknown,
-          }),
+          ...(useGeneral
+            ? [formatTemplate(llmStrings.characterContextLabels.generalDescription, { value: generalDescription })]
+            : [
+                formatTemplate(llmStrings.characterContextLabels.baselineAppearance, { value: baselineAppearance }),
+                formatTemplate(llmStrings.characterContextLabels.currentAppearance, { value: currentAppearance }),
+                formatTemplate(llmStrings.characterContextLabels.clothing, {
+                  value: character.appearance?.current_clothing || unknown,
+                }),
+                formatTemplate(llmStrings.characterContextLabels.majorFlaws, {
+                  value: majorFlaws.length > 0 ? majorFlaws.join(", ") : noneTitle,
+                }),
+                formatTemplate(llmStrings.characterContextLabels.traits, {
+                  value: traits.length > 0 ? traits.join(", ") : unknown,
+                }),
+              ]),
           formatTemplate(llmStrings.generateStory.storyDescription, { description }),
         ].join("\n"),
       },
@@ -345,7 +370,7 @@ export async function generateStory(
     undefined,
     { disableRepetition: true },
   )
-  return GenerateStoryResponseSchema.parse(result)
+  return responseSchema.parse(result)
 }
 
 export async function generateChat(description: string): Promise<GenerateChatResponse> {

@@ -1,11 +1,12 @@
 import { writable, derived } from "svelte/store"
-import type { MainCharacterState, NPCState, WorldState, TurnSummary } from "../api/client.js"
+import type { MainCharacterState, NPCState, StoryModules, WorldState, TurnSummary } from "../api/client.js"
 
 export const currentStoryId = writable<number | null>(null)
 export const currentStoryTitle = writable<string>("")
 export const currentStoryOpeningScenario = writable<string>("")
 export const currentStoryAuthorNote = writable<string>("")
 export const currentStoryAuthorNoteDepth = writable<number>(4)
+export const currentStoryModules = writable<StoryModules | null>(null)
 export const currentStoryInitialWorld = writable<WorldState | null>(null)
 export const character = writable<MainCharacterState | null>(null)
 export const worldState = writable<WorldState | null>(null)
@@ -27,6 +28,7 @@ export const pendingStoryLocation = writable("")
 export const pendingStoryDate = writable("")
 export const pendingStoryTime = writable("")
 export const pendingStoryGenerateDescription = writable("")
+export const pendingStoryModules = writable<StoryModules | null>(null)
 export const pendingCharacterGenerateDescription = writable("")
 
 export const characterName = derived(character, ($c) => $c?.name ?? "")
@@ -37,6 +39,7 @@ export function resetActiveStory() {
   currentStoryOpeningScenario.set("")
   currentStoryAuthorNote.set("")
   currentStoryAuthorNoteDepth.set(4)
+  currentStoryModules.set(null)
   currentStoryInitialWorld.set(null)
   character.set(null)
   worldState.set(null)
@@ -53,6 +56,7 @@ export function resetGame() {
   pendingStoryDate.set("")
   pendingStoryTime.set("")
   pendingStoryGenerateDescription.set("")
+  pendingStoryModules.set(null)
   pendingCharacterGenerateDescription.set("")
   pendingCharacterImportText.set("")
   pendingCharacterId.set(null)

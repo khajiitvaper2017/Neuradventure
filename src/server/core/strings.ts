@@ -18,6 +18,7 @@ type ServerDefaults = {
     locationDetails: string
     appearance: string
     baselineAppearance: string
+    generalDescription: string
     clothing: string
     activity: string
     item: string
@@ -38,6 +39,7 @@ type LlmStrings = {
     name: string
     race: string
     gender: string
+    generalDescription: string
     appearance: string
     personalityTraits: string
     traits: string
@@ -67,6 +69,7 @@ type LlmStrings = {
   contextLabels: {
     baselineAppearance: string
     currentAppearance: string
+    generalDescription: string
     wearing: string
     nameRaceGender: string
     personalityTraits: string

@@ -8,11 +8,12 @@
     colorScheme,
     defaultAuthorNote,
     defaultAuthorNoteDepth,
+    storyDefaults,
     connector,
     generation,
     ctxLimitDetected,
   } from "../../stores/settings.js"
-  import type { GenerationParams, SamplerPreset } from "../../api/client.js"
+  import type { GenerationParams, SamplerPreset, StoryModules } from "../../api/client.js"
   import { presets, loadPresets } from "../../utils/presets.js"
 
   type SettingsTab = "appearance" | "generation"
@@ -81,6 +82,10 @@
     if (nextDepth !== $defaultAuthorNoteDepth) {
       defaultAuthorNoteDepth.set(nextDepth)
     }
+  }
+
+  function updateStoryDefaults<K extends keyof StoryModules>(key: K, value: StoryModules[K]) {
+    storyDefaults.set({ ...$storyDefaults, [key]: value })
   }
 
   // ── Presets ──────────────────────────────────────────
@@ -469,6 +474,49 @@
           bind:value={authorNoteDepthDraft}
           onblur={commitAuthorNote}
         />
+      </label>
+
+      <label class="row">
+        <span class="row-text">
+          <span class="row-title">Track NPCs by default</span>
+          <span class="row-sub">New stories track NPC state and updates</span>
+        </span>
+        <input
+          type="checkbox"
+          checked={$storyDefaults.track_npcs}
+          onchange={(e) => updateStoryDefaults("track_npcs", (e.target as HTMLInputElement).checked)}
+        />
+      </label>
+
+      <label class="row">
+        <span class="row-text">
+          <span class="row-title">Track locations by default</span>
+          <span class="row-sub">New stories track location lists and presence</span>
+        </span>
+        <input
+          type="checkbox"
+          checked={$storyDefaults.track_locations}
+          onchange={(e) => updateStoryDefaults("track_locations", (e.target as HTMLInputElement).checked)}
+        />
+      </label>
+
+      <label class="row row-input">
+        <span class="row-text">
+          <span class="row-title">Character detail mode</span>
+          <span class="row-sub">Default character detail style for new stories</span>
+        </span>
+        <select
+          class="select-input"
+          value={$storyDefaults.character_detail_mode}
+          onchange={(e) =>
+            updateStoryDefaults(
+              "character_detail_mode",
+              (e.target as HTMLSelectElement).value as StoryModules["character_detail_mode"],
+            )}
+        >
+          <option value="detailed">Detailed (appearance + traits)</option>
+          <option value="general">General description only</option>
+        </select>
       </label>
 
       <div class="divider"></div>

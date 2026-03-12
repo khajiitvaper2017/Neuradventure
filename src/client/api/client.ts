@@ -27,6 +27,7 @@ export interface CharacterState {
   name: string
   race: string
   gender: string
+  general_description?: string
   current_location: string
   appearance: CharacterAppearance
   personality_traits: string[]
@@ -39,6 +40,12 @@ export interface CharacterState {
 export type MainCharacterState = CharacterState
 export interface NPCState extends CharacterState {
   current_activity: string
+}
+
+export interface StoryModules {
+  track_npcs: boolean
+  track_locations: boolean
+  character_detail_mode: "detailed" | "general"
 }
 
 export interface WorldState {
@@ -139,6 +146,7 @@ export interface StoryDetail {
   opening_scenario: string
   author_note: string
   author_note_depth: number
+  story_modules: StoryModules
   character: MainCharacterState
   world: WorldState
   initial_world: WorldState
@@ -323,6 +331,7 @@ export interface AppSettings {
   colorScheme: "gold" | "emerald" | "sapphire" | "crimson"
   defaultAuthorNote: string
   defaultAuthorNoteDepth: number
+  storyDefaults: StoryModules
   connector: LLMConnector
   generation: GenerationParams
   ctx_limit_detected?: number
@@ -403,10 +412,17 @@ export const api = {
       character_id?: number
       character_data?: Omit<MainCharacterState, "inventory">
       npcs?: NPCState[]
+      story_modules?: StoryModules
     }) => request<{ id: number }>("/api/stories", { method: "POST", body: JSON.stringify(data) }),
     update: (
       id: number,
-      data: { title?: string; opening_scenario?: string; author_note?: string; author_note_depth?: number },
+      data: {
+        title?: string
+        opening_scenario?: string
+        author_note?: string
+        author_note_depth?: number
+        story_modules?: StoryModules
+      },
     ) => request<{ ok: boolean }>(`/api/stories/${id}`, { method: "PUT", body: JSON.stringify(data) }),
     updateState: (
       id: number,
@@ -565,10 +581,10 @@ export const api = {
         method: "POST",
         body: JSON.stringify({ part: "traits", context }),
       }),
-    story: (description: string, character: Omit<MainCharacterState, "inventory">) =>
+    story: (description: string, character: Omit<MainCharacterState, "inventory">, storyModules?: StoryModules) =>
       request<GenerateStoryResponse>("/api/generate/story", {
         method: "POST",
-        body: JSON.stringify({ description, character }),
+        body: JSON.stringify({ description, character, story_modules: storyModules }),
       }),
     chat: (description: string) =>
       request<GenerateChatResponse>("/api/generate/chat", {

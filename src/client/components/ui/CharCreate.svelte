@@ -6,6 +6,7 @@
   import { autoresize } from "../../utils/actions/autoresize.js"
   import { pendingCharacter, pendingCharacterId, pendingCharacterImportText } from "../../stores/game.js"
   import { pendingCharacterGenerateDescription } from "../../stores/game.js"
+  import { storyDefaults } from "../../stores/settings.js"
   import personalityOptions from "../../../../shared/config/traits.json"
   import { loadPromptHistory, savePromptHistory, removePromptHistory } from "../../utils/promptHistory.js"
   import { normalizeGender } from "../../utils/text.js"
@@ -161,6 +162,8 @@
     const normalized = normalizeGender(val, "")
     gender = normalized || "Female"
   }
+  let detailMode: "detailed" | "general" = $storyDefaults.character_detail_mode
+  let generalDescription = existing?.general_description ?? ""
   let baselineAppearance = existing?.appearance.baseline_appearance ?? ""
   let currentAppearance = existing?.appearance.current_appearance ?? ""
   let currentClothing = existing?.appearance.current_clothing ?? ""
@@ -258,8 +261,8 @@
   function validate() {
     if (!name.trim()) return "Name is required"
     if (!race.trim()) return "Race is required"
-    if (!baselineAppearance.trim()) return "Baseline appearance is required"
-    if (!currentClothing.trim()) return "Current clothing is required"
+    if (!gender.trim()) return "Gender is required"
+    if (detailMode === "general" && !generalDescription.trim()) return "General description is required"
     return null
   }
 
@@ -281,6 +284,7 @@
       name: name.trim(),
       race: race.trim(),
       gender,
+      general_description: generalDescription.trim(),
       current_location: existing?.current_location ?? "Unknown location",
       appearance: {
         baseline_appearance: baselineAppearance.trim(),
@@ -463,166 +467,195 @@
     </div>
 
     <div class="field">
-      <div class="label-row">
-        <label for="char-baseline-appearance">Baseline Appearance</label>
-        <button
-          class="btn-ghost btn-mini"
-          onclick={regenerateAppearance}
-          disabled={generating || regeneratingAppearance}
-          >{regeneratingAppearance ? "Regenerating..." : "Regenerate"}</button
-        >
-      </div>
-      <textarea
-        id="char-baseline-appearance"
-        bind:value={baselineAppearance}
-        placeholder="Permanent, surgical baseline description..."
-        use:autoresize={baselineAppearance}
-      ></textarea>
-    </div>
-
-    <div class="field">
-      <div class="label-row">
-        <label for="char-clothing">Starting Clothing</label>
-        <button class="btn-ghost btn-mini" onclick={regenerateClothing} disabled={generating || regeneratingClothing}
-          >{regeneratingClothing ? "Regenerating..." : "Regenerate"}</button
-        >
-      </div>
-      <textarea
-        id="char-clothing"
-        bind:value={currentClothing}
-        placeholder="What are they wearing?"
-        use:autoresize={currentClothing}
-      ></textarea>
-    </div>
-
-    <div class="field">
-      <div class="label-row">
-        <!-- svelte-ignore a11y_label_has_associated_control -->
-        <label id="traits-label">Personality Traits <span class="hint">(pick up to 5)</span></label>
-        <button class="btn-ghost btn-mini" onclick={regenerateTraits} disabled={generating || regeneratingTraits}
-          >{regeneratingTraits ? "Regenerating..." : "Regenerate"}</button
-        >
-      </div>
-      <div class="chips">
-        {#each PERSONALITY_OPTIONS as trait}
-          <button
-            class="chip {selectedTraits.includes(trait) ? 'selected' : ''}"
-            onclick={() => toggleTrait(trait)}
-            disabled={!selectedTraits.includes(trait) && (totalPersonalityCount >= 5 || isBlocked(trait))}
-            >{trait}</button
-          >
-        {/each}
-      </div>
-    </div>
-
-    <div class="field">
-      <label for="custom-personality-input"
-        >Custom Personality Traits <span class="hint">(optional, counts toward 5)</span></label
-      >
-      <div class="custom-input">
-        <input
-          id="custom-personality-input"
-          type="text"
-          bind:value={customPersonalityInput}
-          placeholder="e.g. Recklessly brave"
-          disabled={totalPersonalityCount >= 5}
-          onkeydown={(e) => {
-            if (e.key === "Enter") {
-              e.preventDefault()
-              addCustomPersonalityTrait()
-            }
-          }}
-        />
-        <button class="btn-ghost" onclick={addCustomPersonalityTrait} disabled={totalPersonalityCount >= 5}>
-          + Add
+      <!-- svelte-ignore a11y_label_has_associated_control -->
+      <label>Character Detail Mode</label>
+      <div class="toggle-row">
+        <button class="toggle {detailMode === 'detailed' ? 'active' : ''}" onclick={() => (detailMode = "detailed")}>
+          Detailed
+        </button>
+        <button class="toggle {detailMode === 'general' ? 'active' : ''}" onclick={() => (detailMode = "general")}>
+          General Description
         </button>
       </div>
-      {#if customPersonalityTraits.length > 0}
-        <div class="chips">
-          {#each customPersonalityTraits as t}
-            <button class="chip selected" onclick={() => removeCustomPersonalityTrait(t)}>{t} ×</button>
-          {/each}
-        </div>
-      {/if}
     </div>
 
-    <div class="field">
-      <label for="major-flaw-input">Major Flaws <span class="hint">(optional)</span></label>
-      <div class="custom-input">
-        <input
-          id="major-flaw-input"
-          type="text"
-          bind:value={majorFlawInput}
-          placeholder="e.g. crippling fear of fire"
-          onkeydown={(e) => {
-            if (e.key === "Enter") {
-              e.preventDefault()
-              addMajorFlaw()
-            }
-          }}
-        />
-        <button class="btn-ghost" onclick={addMajorFlaw}>+ Add</button>
+    {#if detailMode === "general"}
+      <div class="field">
+        <label for="char-general-description">General Description</label>
+        <textarea
+          id="char-general-description"
+          bind:value={generalDescription}
+          placeholder="Describe personality, appearance, clothing, and overall vibe in a few sentences..."
+          use:autoresize={generalDescription}
+        ></textarea>
       </div>
-      {#if majorFlaws.length > 0}
-        <div class="chips">
-          {#each majorFlaws as t}
-            <button class="chip selected" onclick={() => removeMajorFlaw(t)}>{t} ×</button>
-          {/each}
-        </div>
-      {/if}
-    </div>
+    {/if}
 
-    <div class="field">
-      <label for="quirk-input">Quirks <span class="hint">(optional)</span></label>
-      <div class="custom-input">
-        <input
-          id="quirk-input"
-          type="text"
-          bind:value={quirkInput}
-          placeholder="e.g. counts exits on entry"
-          onkeydown={(e) => {
-            if (e.key === "Enter") {
-              e.preventDefault()
-              addQuirk()
-            }
-          }}
-        />
-        <button class="btn-ghost" onclick={addQuirk}>+ Add</button>
-      </div>
-      {#if quirks.length > 0}
-        <div class="chips">
-          {#each quirks as t}
-            <button class="chip selected" onclick={() => removeQuirk(t)}>{t} ×</button>
-          {/each}
+    {#if detailMode === "detailed"}
+      <div class="field">
+        <div class="label-row">
+          <label for="char-baseline-appearance">Baseline Appearance</label>
+          <button
+            class="btn-ghost btn-mini"
+            onclick={regenerateAppearance}
+            disabled={generating || regeneratingAppearance}
+            >{regeneratingAppearance ? "Regenerating..." : "Regenerate"}</button
+          >
         </div>
-      {/if}
-    </div>
+        <textarea
+          id="char-baseline-appearance"
+          bind:value={baselineAppearance}
+          placeholder="Permanent, surgical baseline description..."
+          use:autoresize={baselineAppearance}
+        ></textarea>
+      </div>
 
-    <div class="field">
-      <label for="perk-input">Perks <span class="hint">(optional)</span></label>
-      <div class="custom-input">
-        <input
-          id="perk-input"
-          type="text"
-          bind:value={perkInput}
-          placeholder="e.g. trained medic"
-          onkeydown={(e) => {
-            if (e.key === "Enter") {
-              e.preventDefault()
-              addPerk()
-            }
-          }}
-        />
-        <button class="btn-ghost" onclick={addPerk}>+ Add</button>
+      <div class="field">
+        <div class="label-row">
+          <label for="char-clothing">Starting Clothing</label>
+          <button class="btn-ghost btn-mini" onclick={regenerateClothing} disabled={generating || regeneratingClothing}
+            >{regeneratingClothing ? "Regenerating..." : "Regenerate"}</button
+          >
+        </div>
+        <textarea
+          id="char-clothing"
+          bind:value={currentClothing}
+          placeholder="What are they wearing?"
+          use:autoresize={currentClothing}
+        ></textarea>
       </div>
-      {#if perks.length > 0}
+
+      <div class="field">
+        <div class="label-row">
+          <!-- svelte-ignore a11y_label_has_associated_control -->
+          <label id="traits-label">Personality Traits <span class="hint">(pick up to 5)</span></label>
+          <button class="btn-ghost btn-mini" onclick={regenerateTraits} disabled={generating || regeneratingTraits}
+            >{regeneratingTraits ? "Regenerating..." : "Regenerate"}</button
+          >
+        </div>
         <div class="chips">
-          {#each perks as t}
-            <button class="chip selected" onclick={() => removePerk(t)}>{t} ×</button>
+          {#each PERSONALITY_OPTIONS as trait}
+            <button
+              class="chip {selectedTraits.includes(trait) ? 'selected' : ''}"
+              onclick={() => toggleTrait(trait)}
+              disabled={!selectedTraits.includes(trait) && (totalPersonalityCount >= 5 || isBlocked(trait))}
+              >{trait}</button
+            >
           {/each}
         </div>
-      {/if}
-    </div>
+      </div>
+    {/if}
+
+    {#if detailMode === "detailed"}
+      <div class="field">
+        <label for="custom-personality-input"
+          >Custom Personality Traits <span class="hint">(optional, counts toward 5)</span></label
+        >
+        <div class="custom-input">
+          <input
+            id="custom-personality-input"
+            type="text"
+            bind:value={customPersonalityInput}
+            placeholder="e.g. Recklessly brave"
+            disabled={totalPersonalityCount >= 5}
+            onkeydown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault()
+                addCustomPersonalityTrait()
+              }
+            }}
+          />
+          <button class="btn-ghost" onclick={addCustomPersonalityTrait} disabled={totalPersonalityCount >= 5}>
+            + Add
+          </button>
+        </div>
+        {#if customPersonalityTraits.length > 0}
+          <div class="chips">
+            {#each customPersonalityTraits as t}
+              <button class="chip selected" onclick={() => removeCustomPersonalityTrait(t)}>{t} ×</button>
+            {/each}
+          </div>
+        {/if}
+      </div>
+
+      <div class="field">
+        <label for="major-flaw-input">Major Flaws <span class="hint">(optional)</span></label>
+        <div class="custom-input">
+          <input
+            id="major-flaw-input"
+            type="text"
+            bind:value={majorFlawInput}
+            placeholder="e.g. crippling fear of fire"
+            onkeydown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault()
+                addMajorFlaw()
+              }
+            }}
+          />
+          <button class="btn-ghost" onclick={addMajorFlaw}>+ Add</button>
+        </div>
+        {#if majorFlaws.length > 0}
+          <div class="chips">
+            {#each majorFlaws as t}
+              <button class="chip selected" onclick={() => removeMajorFlaw(t)}>{t} ×</button>
+            {/each}
+          </div>
+        {/if}
+      </div>
+
+      <div class="field">
+        <label for="quirk-input">Quirks <span class="hint">(optional)</span></label>
+        <div class="custom-input">
+          <input
+            id="quirk-input"
+            type="text"
+            bind:value={quirkInput}
+            placeholder="e.g. counts exits on entry"
+            onkeydown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault()
+                addQuirk()
+              }
+            }}
+          />
+          <button class="btn-ghost" onclick={addQuirk}>+ Add</button>
+        </div>
+        {#if quirks.length > 0}
+          <div class="chips">
+            {#each quirks as t}
+              <button class="chip selected" onclick={() => removeQuirk(t)}>{t} ×</button>
+            {/each}
+          </div>
+        {/if}
+      </div>
+
+      <div class="field">
+        <label for="perk-input">Perks <span class="hint">(optional)</span></label>
+        <div class="custom-input">
+          <input
+            id="perk-input"
+            type="text"
+            bind:value={perkInput}
+            placeholder="e.g. trained medic"
+            onkeydown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault()
+                addPerk()
+              }
+            }}
+          />
+          <button class="btn-ghost" onclick={addPerk}>+ Add</button>
+        </div>
+        {#if perks.length > 0}
+          <div class="chips">
+            {#each perks as t}
+              <button class="chip selected" onclick={() => removePerk(t)}>{t} ×</button>
+            {/each}
+          </div>
+        {/if}
+      </div>
+    {/if}
   </div>
 
   <div class="actions">

@@ -7,6 +7,7 @@
     "name": "Name: {value}",
     "race": "Race: {value}",
     "gender": "Gender: {value}",
+    "generalDescription": "General description: {value}",
     "appearance": "Appearance: {value}",
     "personalityTraits": "Personality traits: {value}",
     "traits": "Traits: {value}",
@@ -36,6 +37,7 @@
   "contextLabels": {
     "baselineAppearance": "Baseline appearance: {value}",
     "currentAppearance": "Current appearance: {value}",
+    "generalDescription": "General description: {value}",
     "wearing": "Wearing: {value}",
     "nameRaceGender": "Name: {name} · {race} · {gender}",
     "personalityTraits": "Personality traits: {value}",

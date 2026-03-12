@@ -6,6 +6,7 @@
     type NPCState,
     type StoryCharacterGroup,
     type StoryNpcGroup,
+    type StoryModules,
   } from "../../api/client.js"
   import { navigate, showError } from "../../stores/ui.js"
   import { autoresize } from "../../utils/actions/autoresize.js"
@@ -22,7 +23,9 @@
     pendingStoryTime,
     pendingStoryGenerateDescription,
     pendingCharacterId,
+    pendingStoryModules,
   } from "../../stores/game.js"
+  import { storyDefaults } from "../../stores/settings.js"
 
   let submitting = false
   let generating = false
@@ -33,6 +36,7 @@
   let savedNpcs: StoryNpcGroup[] = []
   let selectedPlayableKey: string | null = null
   let storyPromptHistory: string[] = []
+  let activeModules: StoryModules = $pendingStoryModules ?? $storyDefaults
 
   const STORY_PROMPT_HISTORY_KEY = "na:prompt_history:story"
 
@@ -40,6 +44,7 @@
     loadCharacters()
     loadNpcs()
     storyPromptHistory = loadPromptHistory(STORY_PROMPT_HISTORY_KEY)
+    if (!$pendingStoryModules) pendingStoryModules.set($storyDefaults)
   })
 
   async function loadCharacters() {
@@ -77,6 +82,10 @@
     storyPromptHistory = removePromptHistory(STORY_PROMPT_HISTORY_KEY, value)
   }
 
+  function updateModules<K extends keyof StoryModules>(key: K, value: StoryModules[K]) {
+    pendingStoryModules.set({ ...activeModules, [key]: value })
+  }
+
   type StoryRef = { id: number; title: string; updated_at: string }
   type PlayableOption = {
     key: string
@@ -84,6 +93,8 @@
     name: string
     storyLabel: string
   }
+
+  $: activeModules = $pendingStoryModules ?? $storyDefaults
 
   function formatStoryLabel(stories: StoryRef[]): string {
     if (!stories || stories.length === 0) return "No story yet"
@@ -157,7 +168,7 @@
     generating = true
     try {
       storyPromptHistory = savePromptHistory(STORY_PROMPT_HISTORY_KEY, prompt)
-      const result = await api.generate.story(prompt, $pendingCharacter)
+      const result = await api.generate.story(prompt, $pendingCharacter, $pendingStoryModules ?? $storyDefaults)
       pendingStoryTitle.set(result.title)
       pendingStoryScenario.set(result.opening_scenario)
       pendingStoryLocation.set(result.starting_location)
@@ -196,7 +207,11 @@
     }
     if (charData) {
       const missing: string[] = []
-      if (!charData.appearance?.current_appearance?.trim()) missing.push("Current appearance")
+      if (($pendingStoryModules?.character_detail_mode ?? "detailed") === "detailed") {
+        if (!charData.appearance?.current_appearance?.trim()) missing.push("Current appearance")
+      } else if (!charData.general_description?.trim()) {
+        missing.push("General description")
+      }
       if (missing.length > 0) {
         showError(`Missing ${missing.join(", ")}. Generate the story or fill these fields.`)
         return
@@ -214,6 +229,7 @@
         character_id?: number
         character_data?: Omit<MainCharacterState, "inventory">
         npcs?: NPCState[]
+        story_modules?: StoryModules
       } = {
         title: $pendingStoryTitle.trim(),
         opening_scenario: $pendingStoryScenario.trim(),
@@ -221,6 +237,7 @@
         starting_date: $pendingStoryDate.trim() || undefined,
         starting_time: $pendingStoryTime.trim() || undefined,
         npcs: $pendingStoryNPCs,
+        story_modules: $pendingStoryModules ?? $storyDefaults,
       }
       if ($pendingCharacterId) {
         payload.character_id = $pendingCharacterId
@@ -322,6 +339,47 @@
         bind:value={$pendingStoryLocation}
         placeholder="e.g. The lower decks of the airship"
       />
+    </div>
+
+    <div class="field">
+      <!-- svelte-ignore a11y_label_has_associated_control -->
+      <label>Story Modules</label>
+      <div class="field-row module-row">
+        <label class="check-row">
+          <input
+            type="checkbox"
+            checked={activeModules.track_npcs}
+            onchange={(e) => updateModules("track_npcs", (e.target as HTMLInputElement).checked)}
+          />
+          <span>Track NPCs</span>
+        </label>
+        <label class="check-row">
+          <input
+            type="checkbox"
+            checked={activeModules.track_locations}
+            onchange={(e) => updateModules("track_locations", (e.target as HTMLInputElement).checked)}
+          />
+          <span>Track Locations</span>
+        </label>
+      </div>
+      <div class="field-row module-row">
+        <label class="check-row" for="story-modules-detail-mode">
+          <span>Character detail mode</span>
+        </label>
+        <select
+          id="story-modules-detail-mode"
+          class="select-input"
+          value={activeModules.character_detail_mode}
+          onchange={(e) =>
+            updateModules(
+              "character_detail_mode",
+              (e.target as HTMLSelectElement).value as StoryModules["character_detail_mode"],
+            )}
+        >
+          <option value="detailed">Detailed</option>
+          <option value="general">General description</option>
+        </select>
+      </div>
     </div>
 
     {#if $pendingStoryNPCs.length > 0}
@@ -628,5 +686,15 @@
   .char-details {
     font-size: 0.85rem;
     color: var(--text-dim);
+  }
+  .module-row {
+    align-items: center;
+  }
+  .check-row {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.9rem;
+    color: var(--text);
   }
 </style>
