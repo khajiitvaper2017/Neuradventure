@@ -21,13 +21,11 @@
       },
       "character_detail_mode": {
         "detailed": [
-          "When appearance/clothing fields are in use, fill them as follows:",
-          "- baseline_appearance: {state.appearance.baseline_appearance} 1 to 3 sentences of objective, anatomical detailing. Use the metric system exclusively. Provide numerical measurements for height (cm), weight (kg), and bodily proportions. For male genitalia: Note the flaccid length (cm) and erect length (cm), whether circumcised or uncircumcised, and testicle presence. For female genitalia: Note the general appearance of the labia (e.g., 'neat,' 'full,' 'prominent inner lips'), and pubic hair style (e.g., 'natural,' 'trimmed,' 'shaved').",
-          "- current_clothing: {state.appearance.current_clothing} Catalog exhaustively. Detail every layer, including outerwear, underwear, accessories, and medical dressings/bandages. If garments are sheer, mesh, or transparent, objectively detail the specific underlying anatomical structures visible through the fabric (e.g., 'areolae visible through unlined silk')."
+          "- baseline_appearance: {state.appearance.baseline_appearance}",
+          "- current_clothing: {state.appearance.current_clothing}"
         ],
         "general": [
-          "When general description is in use:",
-          "- general_description: {state.character.general_description} 2-4 sentences summarizing appearance, clothing, personality, and overall vibe."
+          "- general_description: {state.character.general_description}"
         ]
       },
       "character_personality_traits": {

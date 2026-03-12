@@ -54,12 +54,12 @@ type PromptConfig = {
 }
 
 const PROMPT_FILES = [
-  join(__dirname, "../../../shared/config/prompts/system.json"),
-  join(__dirname, "../../../shared/config/prompts/character.json"),
-  join(__dirname, "../../../shared/config/prompts/story.json"),
-  join(__dirname, "../../../shared/config/prompts/chat.json"),
-  join(__dirname, "../../../shared/config/prompts/npc.json"),
-  join(__dirname, "../../../shared/config/prompts/impersonate.json"),
+  join(__dirname, "../../../shared/config/prompts/narrative-turn.json"),
+  join(__dirname, "../../../shared/config/prompts/character-generation.json"),
+  join(__dirname, "../../../shared/config/prompts/story-setup.json"),
+  join(__dirname, "../../../shared/config/prompts/chat-mode.json"),
+  join(__dirname, "../../../shared/config/prompts/npc-creation.json"),
+  join(__dirname, "../../../shared/config/prompts/player-impersonation.json"),
 ]
 let cachedConfig: PromptConfig | null = null
 let cachedConfigMtime = 0

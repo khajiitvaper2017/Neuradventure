@@ -18,7 +18,7 @@
     "npc_update": {
       "name": "NPC name to update.",
       "current_location": "Updated current unique location name. Update only when changed.",
-      "current_appearance": "Precise, surgical description of current physical state based on baseline features plus current changes. Avoid temporal qualifiers (e.g., \"still\") and comparative phrases (e.g., \"otherwise unchanged\"). Never output 'None'; omit the field if unchanged."
+      "current_appearance": "Precise, surgical description of current physical state (full, not partial). All body parts should be mentioned. 1 to 3 sentences of objective, anatomical detailing. Use the metric system exclusively. Provide numerical measurements for height (cm), weight (kg), and bodily proportions. For male genitalia: Note the flaccid length (cm) or erect length (cm), whether circumcised or uncircumcised, and testicle presence. For female genitalia: Note the general appearance of the labia (e.g., 'neat,' 'full,' 'prominent inner lips'), and pubic hair style (e.g., 'natural,' 'trimmed,' 'shaved'). Only visible body parts should be mentioned. Clothing should not be mentioned. Don't set if nothing changed in appearance this turn."
     }
   },
   "state": {
@@ -37,9 +37,9 @@
       "entry": "Location entry."
     },
     "appearance": {
-      "baseline_appearance": "Precise, surgical description of baseline physical state (full, not partial). All body parts should be mentioned. Don't mention temporary appearance.",
-      "current_appearance": "Precise, surgical description of current physical state (full, not partial).  All visible body parts should be mentioned. Represent current appearance if changed from previous current_appearance. Do not describe clothing.",
-      "current_clothing": "Precise, surgical full current clothing description in the same style as baseline, including all layers and accessories (do not omit unchanged layers). Never output 'None'; omit the field if unchanged."
+      "baseline_appearance": "Precise, surgical description of baseline physical state (full, not partial). All body parts should be mentioned. Don't mention temporary appearance. 1 to 3 sentences of objective, anatomical detailing. Use the metric system exclusively. Provide numerical measurements for height (cm), weight (kg), and bodily proportions. For male genitalia: Note the flaccid length (cm) and erect length (cm), whether circumcised or uncircumcised, and testicle presence. For female genitalia: Note the general appearance of the labia (e.g., 'neat,' 'full,' 'prominent inner lips'), and pubic hair style (e.g., 'natural,' 'trimmed,' 'shaved').",
+      "current_appearance": "Precise, surgical description of current physical state (full, not partial). All body parts should be mentioned. 1 to 3 sentences of objective, anatomical detailing. Use the metric system exclusively. Provide numerical measurements for height (cm), weight (kg), and bodily proportions. For male genitalia: Note the flaccid length (cm) or erect length (cm), whether circumcised or uncircumcised, and testicle presence. For female genitalia: Note the general appearance of the labia (e.g., 'neat,' 'full,' 'prominent inner lips'), and pubic hair style (e.g., 'natural,' 'trimmed,' 'shaved'). Only visible body parts should be mentioned. Clothing should not be mentioned. Don't set if nothing changed in appearance this turn.",
+      "current_clothing": "Precise, surgical full current clothing description in the same style as baseline, including all layers and accessories (do not omit unchanged layers). Catalog exhaustively. Detail every layer, including outerwear, underwear, accessories, and medical dressings/bandages. If garments are sheer, mesh, or transparent, objectively detail the specific underlying anatomical structures visible through the fabric (e.g., 'areolae visible through unlined silk'). Never output 'None'; omit the field if unchanged."
     },
     "character": {
       "name": "Full legal name.",
