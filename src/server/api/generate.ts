@@ -15,12 +15,14 @@ generate.post(
     "json",
     z.object({
       description: z.string().min(1).describe(desc("requests.generate_character.description")),
+      story_modules: StoryModulesSchema.optional().describe(desc("requests.generate_character.story_modules")),
     }),
   ),
   async (c) => {
-    const { description } = c.req.valid("json")
+    const { description, story_modules } = c.req.valid("json")
     try {
-      return c.json(await generateCharacter(description))
+      const defaults = db.getSettings().storyDefaults
+      return c.json(await generateCharacter(description, story_modules ?? defaults))
     } catch (err) {
       return c.json({ error: err instanceof Error ? err.message : "Generation failed" }, 500)
     }
@@ -54,12 +56,18 @@ generate.post(
     z.object({
       part: z.enum(["appearance", "traits", "clothing"]).describe(desc("requests.generate_character_part.part")),
       context: characterContextSchema.describe(desc("requests.generate_character_part.context")),
+      story_modules: StoryModulesSchema.optional().describe(desc("requests.generate_character_part.story_modules")),
     }),
   ),
   async (c) => {
-    const { part, context } = c.req.valid("json")
+    const { part, context, story_modules } = c.req.valid("json")
     try {
-      return c.json(await generateCharacterPart(part, context))
+      const defaults = db.getSettings().storyDefaults
+      const modules = story_modules ?? defaults
+      if (modules.character_detail_mode === "general") {
+        return c.json({ error: "Character part generation is disabled in general mode." }, 400)
+      }
+      return c.json(await generateCharacterPart(part, context, modules))
     } catch (err) {
       return c.json({ error: err instanceof Error ? err.message : "Generation failed" }, 500)
     }

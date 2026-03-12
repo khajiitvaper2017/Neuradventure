@@ -190,12 +190,13 @@ export interface GenerateCharacterResponse {
   name: string
   race: string
   gender: string
-  baseline_appearance: string
-  current_clothing: string
-  personality_traits: string[]
-  major_flaws: string[]
-  quirks: string[]
-  perks: string[]
+  general_description?: string
+  baseline_appearance?: string
+  current_clothing?: string
+  personality_traits?: string[]
+  major_flaws?: string[]
+  quirks?: string[]
+  perks?: string[]
 }
 
 export interface GenerateCharacterAppearanceResponse {
@@ -220,8 +221,9 @@ export interface GenerateStoryResponse {
   starting_location: string
   starting_date: string
   starting_time: string
-  character_current_appearance: string
-  pregen_npcs: NPCState[]
+  character_current_appearance?: string
+  character_general_description?: string
+  pregen_npcs?: NPCState[]
 }
 
 export interface GenerateChatResponse {
@@ -561,25 +563,25 @@ export const api = {
   },
 
   generate: {
-    character: (description: string) =>
+    character: (description: string, storyModules?: StoryModules) =>
       request<GenerateCharacterResponse>("/api/generate/character", {
         method: "POST",
-        body: JSON.stringify({ description }),
+        body: JSON.stringify({ description, story_modules: storyModules }),
       }),
-    characterAppearance: (context: GenerateCharacterContext) =>
+    characterAppearance: (context: GenerateCharacterContext, storyModules?: StoryModules) =>
       request<GenerateCharacterAppearanceResponse>("/api/generate/character/part", {
         method: "POST",
-        body: JSON.stringify({ part: "appearance", context }),
+        body: JSON.stringify({ part: "appearance", context, story_modules: storyModules }),
       }),
-    characterClothing: (context: GenerateCharacterContext) =>
+    characterClothing: (context: GenerateCharacterContext, storyModules?: StoryModules) =>
       request<GenerateCharacterClothingResponse>("/api/generate/character/part", {
         method: "POST",
-        body: JSON.stringify({ part: "clothing", context }),
+        body: JSON.stringify({ part: "clothing", context, story_modules: storyModules }),
       }),
-    characterTraits: (context: GenerateCharacterContext) =>
+    characterTraits: (context: GenerateCharacterContext, storyModules?: StoryModules) =>
       request<GenerateCharacterTraitsResponse>("/api/generate/character/part", {
         method: "POST",
-        body: JSON.stringify({ part: "traits", context }),
+        body: JSON.stringify({ part: "traits", context, story_modules: storyModules }),
       }),
     story: (description: string, character: Omit<MainCharacterState, "inventory">, storyModules?: StoryModules) =>
       request<GenerateStoryResponse>("/api/generate/story", {

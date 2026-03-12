@@ -182,7 +182,7 @@ export function buildTurnMessages(
   })
 
   return [
-    { role: "system", content: getSystemPrompt() },
+    { role: "system", content: getSystemPrompt(modules) },
     { role: "user", content: contextBlock },
   ]
 }
@@ -216,7 +216,7 @@ export function buildNpcCreationMessages(
   })
 
   return [
-    { role: "system", content: getNpcCreationPrompt() },
+    { role: "system", content: getNpcCreationPrompt(modules) },
     { role: "user", content: contextBlock },
   ]
 }
@@ -253,7 +253,7 @@ export function buildImpersonateMessages(
   const prompt = `${contextBlock}\n\n${wrapSection(sections.playersAction, "")}`
 
   return [
-    { role: "system", content: getImpersonatePrompt() },
+    { role: "system", content: getImpersonatePrompt(modules) },
     { role: "user", content: prompt },
   ]
 }

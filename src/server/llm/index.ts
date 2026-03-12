@@ -1,14 +1,12 @@
 import OpenAI from "openai"
-import { z } from "zod"
 import { buildJsonSchemaResponseFormat, derefJsonSchema, zodSchemaToJsonSchema } from "../utils/json-schema.js"
 import {
-  GenerateCharacterResponseSchema,
   GenerateCharacterAppearanceResponseSchema,
   GenerateCharacterClothingResponseSchema,
   GenerateCharacterTraitsResponseSchema,
   GenerateChatResponseSchema,
-  GenerateStoryResponseSchema,
-  NPCStateSchema,
+  buildGenerateCharacterResponseSchema,
+  buildGenerateStoryResponseSchema,
   NPCCreationSchema,
   type MainCharacterState,
   type NPCState,
@@ -28,7 +26,7 @@ import { buildTurnResponseSchema } from "./schema.js"
 import { buildSamplingParams } from "./sampling.js"
 import { parseJsonFromContent } from "./parse.js"
 import { getClient, getGenerationParams, getConnector } from "./client.js"
-import { getConfig, npcTraits } from "./config.js"
+import { getGenerateCharacterPrompt, getGenerateChatPrompt, getGenerateStoryPrompt, npcTraits } from "./config.js"
 import { buildImpersonateMessages } from "./context.js"
 import { formatTemplate, getLlmStrings, getServerDefaults } from "../core/strings.js"
 
@@ -151,17 +149,23 @@ export async function generateChatReply(
   return callLLMText(messages, undefined, { disableRepetition: true, stop: cleanedStops })
 }
 
-export async function generateCharacter(description: string): Promise<GenerateCharacterResponse> {
-  const schema = zodSchemaToJsonSchema(GenerateCharacterResponseSchema, "GenerateCharacterResponse")
+export async function generateCharacter(
+  description: string,
+  storyModules?: StoryModules,
+): Promise<GenerateCharacterResponse> {
+  const modules = storyModules ?? { track_npcs: true, track_locations: true, character_detail_mode: "detailed" }
+  const responseSchema = buildGenerateCharacterResponseSchema(modules)
+  const schema = zodSchemaToJsonSchema(responseSchema, "GenerateCharacterResponse")
   const llmStrings = getLlmStrings()
   const availableTraitsLine = formatTemplate(llmStrings.generateCharacter.availableTraitsLine, {
     npcTraits: npcTraits.join(", "),
   })
+  const prompt = getGenerateCharacterPrompt(modules)
   const result = await callLLMRaw<unknown>(
     [
       {
         role: "system",
-        content: `${getConfig().generateCharacterPrompt.join("\n")}\n\n${availableTraitsLine}`,
+        content: `${prompt}\n\n${availableTraitsLine}`,
       },
       {
         role: "user",
@@ -173,7 +177,7 @@ export async function generateCharacter(description: string): Promise<GenerateCh
     undefined,
     { disableRepetition: true },
   )
-  return GenerateCharacterResponseSchema.parse(result)
+  return responseSchema.parse(result)
 }
 
 type CharacterGenerationContext = {
@@ -242,6 +246,7 @@ function formatCharacterContext(
 export async function generateCharacterPart(
   part: "appearance" | "traits" | "clothing",
   context: CharacterGenerationContext,
+  storyModules?: StoryModules,
 ): Promise<GenerateCharacterAppearanceResponse | GenerateCharacterTraitsResponse | GenerateCharacterClothingResponse> {
   const schema =
     part === "appearance"
@@ -250,18 +255,12 @@ export async function generateCharacterPart(
         ? zodSchemaToJsonSchema(GenerateCharacterTraitsResponseSchema, "GenerateCharacterTraitsResponse")
         : zodSchemaToJsonSchema(GenerateCharacterClothingResponseSchema, "GenerateCharacterClothingResponse")
 
-  const config = getConfig()
+  const modules = storyModules ?? { track_npcs: true, track_locations: true, character_detail_mode: "detailed" }
   const llmStrings = getLlmStrings()
   const availableTraitsLine = formatTemplate(llmStrings.generateCharacter.availableTraitsLine, {
     npcTraits: npcTraits.join(", "),
   })
-  const partPrompt =
-    part === "appearance"
-      ? config.generateCharacterAppearancePrompt
-      : part === "traits"
-        ? config.generateCharacterTraitsPrompt
-        : config.generateCharacterClothingPrompt
-  const prompt = [partPrompt.join("\n"), availableTraitsLine].filter(Boolean).join("\n\n")
+  const prompt = [getGenerateCharacterPrompt(modules), availableTraitsLine].filter(Boolean).join("\n\n")
   const userContent = [
     formatTemplate(llmStrings.generateCharacterPart.regenerate, { part }),
     llmStrings.generateCharacterPart.contextHeader,
@@ -313,12 +312,7 @@ export async function generateStory(
   storyModules?: StoryModules,
 ): Promise<GenerateStoryResponse> {
   const modules = storyModules ?? { track_npcs: true, track_locations: true, character_detail_mode: "detailed" }
-  const responseSchema = (() => {
-    if (modules.track_npcs) return GenerateStoryResponseSchema
-    return GenerateStoryResponseSchema.extend({
-      pregen_npcs: z.array(NPCStateSchema).max(0).optional(),
-    }).transform((value) => ({ ...value, pregen_npcs: value.pregen_npcs ?? [] }))
-  })()
+  const responseSchema = buildGenerateStoryResponseSchema(modules)
   const schema = zodSchemaToJsonSchema(responseSchema, "GenerateStoryResponse")
   const llmStrings = getLlmStrings()
   const defaults = getServerDefaults()
@@ -332,10 +326,7 @@ export async function generateStory(
   const majorFlaws = character.major_flaws?.map((t) => t.trim()).filter(Boolean) ?? []
   const generalDescription = character.general_description?.trim() || defaults.unknown.generalDescription
   const useGeneral = modules.character_detail_mode === "general"
-  const promptLines = [...getConfig().generateStoryPrompt]
-  if (!modules.track_npcs) {
-    promptLines.push("NPC tracking is disabled. Do NOT output pregen_npcs or introduce NPCs.")
-  }
+  const promptLines = getGenerateStoryPrompt(modules).split("\n")
   const result = await callLLMRaw<unknown>(
     [
       { role: "system", content: promptLines.join("\n") },
@@ -375,7 +366,7 @@ export async function generateStory(
 
 export async function generateChat(description: string): Promise<GenerateChatResponse> {
   const schema = zodSchemaToJsonSchema(GenerateChatResponseSchema, "GenerateChatResponse")
-  const prompt = getConfig().generateChatPrompt?.join("\n") ?? getConfig().generateStoryPrompt.join("\n")
+  const prompt = getGenerateChatPrompt()
   const result = await callLLMRaw<unknown>(
     [
       { role: "system", content: prompt },

@@ -168,20 +168,28 @@
     generating = true
     try {
       storyPromptHistory = savePromptHistory(STORY_PROMPT_HISTORY_KEY, prompt)
-      const result = await api.generate.story(prompt, $pendingCharacter, $pendingStoryModules ?? $storyDefaults)
+      const modules = $pendingStoryModules ?? $storyDefaults
+      const result = await api.generate.story(prompt, $pendingCharacter, modules)
       pendingStoryTitle.set(result.title)
       pendingStoryScenario.set(result.opening_scenario)
       pendingStoryLocation.set(result.starting_location)
       pendingStoryDate.set(result.starting_date)
       pendingStoryTime.set(result.starting_time)
       pendingStoryNPCs.set(result.pregen_npcs ?? [])
-      const updatedCharacter = {
-        ...$pendingCharacter,
-        appearance: {
-          ...$pendingCharacter.appearance,
-          current_appearance: result.character_current_appearance,
-        },
-      }
+      const updatedCharacter =
+        modules.character_detail_mode === "general"
+          ? {
+              ...$pendingCharacter,
+              general_description: result.character_general_description ?? $pendingCharacter.general_description ?? "",
+            }
+          : {
+              ...$pendingCharacter,
+              appearance: {
+                ...$pendingCharacter.appearance,
+                current_appearance:
+                  result.character_current_appearance ?? $pendingCharacter.appearance.current_appearance,
+              },
+            }
       pendingCharacter.set(updatedCharacter)
     } catch (err) {
       showError(err instanceof Error ? err.message : "Generation failed")

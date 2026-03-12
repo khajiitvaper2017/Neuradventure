@@ -26,8 +26,8 @@ function main() {
   assertNonEmpty(llmStrings.sections?.storySoFar, "llm-strings.sections.storySoFar")
 
   const promptConfig = getConfig()
-  assertNonEmptyArray(promptConfig.systemPromptLines, "prompts.systemPromptLines")
-  assertNonEmptyArray(promptConfig.generateStoryPrompt, "prompts.generateStoryPrompt")
+  assertNonEmptyArray(promptConfig.systemPromptLines?.base, "prompts.systemPromptLines.base")
+  assertNonEmptyArray(promptConfig.generateStoryPrompt?.base, "prompts.generateStoryPrompt.base")
   assertNonEmptyArray(npcTraits, "traits")
 
   const expectedDbPath = resolve(process.cwd(), "data", "neuradventure.db")

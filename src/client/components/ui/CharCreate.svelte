@@ -68,19 +68,36 @@
     generating = true
     try {
       promptHistory = savePromptHistory(CHARACTER_PROMPT_HISTORY_KEY, prompt)
-      const result = await api.generate.character(prompt)
+      const result = await api.generate.character(prompt, activeModules)
       name = result.name
       race = result.race
       gender = normalizeGender(result.gender)
-      baselineAppearance = result.baseline_appearance
-      currentAppearance = result.baseline_appearance
-      currentClothing = result.current_clothing
-      const split = splitPersonalityTraits(result.personality_traits)
-      selectedTraits = split.selected
-      customPersonalityTraits = split.custom
-      majorFlaws = result.major_flaws
-      quirks = result.quirks
-      perks = result.perks
+      if (detailMode === "general") {
+        generalDescription = result.general_description ?? generalDescription
+        if (result.baseline_appearance) baselineAppearance = result.baseline_appearance
+        if (result.baseline_appearance) currentAppearance = result.baseline_appearance
+        if (result.current_clothing) currentClothing = result.current_clothing
+        if (result.personality_traits) {
+          const split = splitPersonalityTraits(result.personality_traits)
+          selectedTraits = split.selected
+          customPersonalityTraits = split.custom
+        }
+        if (result.major_flaws) majorFlaws = result.major_flaws
+        if (result.quirks) quirks = result.quirks
+        if (result.perks) perks = result.perks
+      } else {
+        if (result.baseline_appearance) {
+          baselineAppearance = result.baseline_appearance
+          currentAppearance = result.baseline_appearance
+        }
+        if (result.current_clothing) currentClothing = result.current_clothing
+        const split = splitPersonalityTraits(result.personality_traits ?? [])
+        selectedTraits = split.selected
+        customPersonalityTraits = split.custom
+        if (result.major_flaws) majorFlaws = result.major_flaws
+        if (result.quirks) quirks = result.quirks
+        if (result.perks) perks = result.perks
+      }
     } catch (err) {
       showError(err instanceof Error ? err.message : "Generation failed")
     } finally {
@@ -120,19 +137,27 @@
         "Focus on race, gender, baseline appearance, clothing, personality traits, quirks, and perks.",
         seed,
       ].join("\n")
-      const result = await api.generate.character(prompt)
+      const result = await api.generate.character(prompt, activeModules)
 
       if (isMissingText(name)) name = result.name
       if (isMissingText(race)) race = result.race
       if (isMissingText(gender) || gender.toLowerCase() === "unknown") {
         gender = normalizeGender(result.gender, gender)
       }
-      if (isMissingText(baselineAppearance)) baselineAppearance = result.baseline_appearance
-      if (isMissingText(currentAppearance)) currentAppearance = result.baseline_appearance
-      if (isMissingText(currentClothing)) currentClothing = result.current_clothing
+      if (detailMode === "general") {
+        if (isMissingText(generalDescription) && result.general_description) {
+          generalDescription = result.general_description
+        }
+      } else {
+        if (isMissingText(baselineAppearance) && result.baseline_appearance)
+          baselineAppearance = result.baseline_appearance
+        if (isMissingText(currentAppearance) && result.baseline_appearance)
+          currentAppearance = result.baseline_appearance
+        if (isMissingText(currentClothing) && result.current_clothing) currentClothing = result.current_clothing
+      }
 
       const existingTraits = [...selectedTraits, ...customPersonalityTraits]
-      const generatedTraits = result.personality_traits
+      const generatedTraits = result.personality_traits ?? []
       if (existingTraits.length < 2) {
         const split = splitPersonalityTraits(generatedTraits)
         selectedTraits = split.selected
@@ -144,9 +169,9 @@
         customPersonalityTraits = split.custom
       }
 
-      if (quirks.length === 0) quirks = result.quirks
-      if (majorFlaws.length === 0) majorFlaws = result.major_flaws
-      if (perks.length === 0) perks = result.perks
+      if (quirks.length === 0 && result.quirks) quirks = result.quirks
+      if (majorFlaws.length === 0 && result.major_flaws) majorFlaws = result.major_flaws
+      if (perks.length === 0 && result.perks) perks = result.perks
     } catch (err) {
       showError(err instanceof Error ? err.message : "Autofill failed")
     } finally {
@@ -177,6 +202,7 @@
   let quirks: string[] = existing?.quirks ?? []
   let perks: string[] = existing?.perks ?? []
   $: totalPersonalityCount = selectedTraits.length + customPersonalityTraits.length
+  $: activeModules = { ...$storyDefaults, character_detail_mode: detailMode }
 
   function isBlocked(trait: string): boolean {
     const opp = OPPOSITES[trait]
@@ -304,9 +330,13 @@
 
   async function regenerateAppearance() {
     if (regeneratingAppearance) return
+    if (detailMode === "general") {
+      showError("Appearance regeneration is disabled in general mode")
+      return
+    }
     regeneratingAppearance = true
     try {
-      const result = await api.generate.characterAppearance(buildCharacterContext())
+      const result = await api.generate.characterAppearance(buildCharacterContext(), activeModules)
       baselineAppearance = result.baseline_appearance
       currentAppearance = result.current_appearance
     } catch (err) {
@@ -318,9 +348,13 @@
 
   async function regenerateTraits() {
     if (regeneratingTraits) return
+    if (detailMode === "general") {
+      showError("Trait regeneration is disabled in general mode")
+      return
+    }
     regeneratingTraits = true
     try {
-      const result = await api.generate.characterTraits(buildCharacterContext())
+      const result = await api.generate.characterTraits(buildCharacterContext(), activeModules)
       const split = splitPersonalityTraits(result.personality_traits)
       selectedTraits = split.selected
       customPersonalityTraits = split.custom
@@ -336,9 +370,13 @@
 
   async function regenerateClothing() {
     if (regeneratingClothing) return
+    if (detailMode === "general") {
+      showError("Clothing regeneration is disabled in general mode")
+      return
+    }
     regeneratingClothing = true
     try {
-      const result = await api.generate.characterClothing(buildCharacterContext())
+      const result = await api.generate.characterClothing(buildCharacterContext(), activeModules)
       currentClothing = result.current_clothing
     } catch (err) {
       showError(err instanceof Error ? err.message : "Regeneration failed")

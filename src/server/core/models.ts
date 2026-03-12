@@ -35,6 +35,8 @@ import {
   GenerateCharacterTraitsResponseSchema,
   GenerateChatResponseSchema,
   GenerateStoryResponseSchema,
+  buildGenerateCharacterResponseSchema,
+  buildGenerateStoryResponseSchema,
 } from "../schemas/generation-response.js"
 import {
   CancelLastRequestSchema,
@@ -89,6 +91,8 @@ export {
   GenerateCharacterTraitsResponseSchema,
   GenerateChatResponseSchema,
   GenerateStoryResponseSchema,
+  buildGenerateCharacterResponseSchema,
+  buildGenerateStoryResponseSchema,
   CreateCharacterRequestSchema,
   UpdateCharacterRequestSchema,
   CreateStoryRequestSchema,

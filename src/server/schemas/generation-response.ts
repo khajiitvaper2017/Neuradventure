@@ -3,6 +3,7 @@ import { NPCStateSchema } from "./game-state.js"
 import { DATE_REGEX, TIME_OF_DAY_REGEX } from "./constants.js"
 import { PersonalityTraitsSchema } from "./personality-traits.js"
 import { desc } from "./field-descriptions.js"
+import type { StoryModules } from "./story-modules.js"
 
 const MajorFlawSchema = z.string().min(1).describe(desc("traits.major_flaw"))
 const QuirkSchema = z.string().min(1).describe(desc("traits.quirk"))
@@ -11,7 +12,7 @@ const MajorFlawsStrictSchema = z.array(MajorFlawSchema).max(3).describe(desc("tr
 const QuirksStrictSchema = z.array(QuirkSchema).describe(desc("traits.quirks"))
 const PerksStrictSchema = z.array(PerkSchema).max(5).describe(desc("traits.perks"))
 
-export const GenerateCharacterResponseSchema = z
+const GenerateCharacterDetailedSchema = z
   .object({
     name: z.string().min(1).describe(desc("state.character.name")),
     race: z.string().min(1).describe(desc("state.character.race")),
@@ -24,6 +25,30 @@ export const GenerateCharacterResponseSchema = z
     perks: PerksStrictSchema.describe(desc("traits.perks")),
   })
   .strict()
+
+const GenerateCharacterGeneralSchema = z
+  .object({
+    name: z.string().min(1).describe(desc("state.character.name")),
+    race: z.string().min(1).describe(desc("state.character.race")),
+    gender: z.string().min(1).describe(desc("state.character.gender")),
+    general_description: z.string().min(1).describe(desc("state.character.general_description")),
+    baseline_appearance: z.string().min(1).optional().describe(desc("state.appearance.baseline_appearance")),
+    current_clothing: z.string().min(1).optional().describe(desc("state.appearance.current_clothing")),
+    personality_traits: PersonalityTraitsSchema.optional().describe(desc("traits.personality_traits")),
+    major_flaws: MajorFlawsStrictSchema.optional().describe(desc("traits.major_flaws")),
+    quirks: QuirksStrictSchema.optional().describe(desc("traits.quirks")),
+    perks: PerksStrictSchema.optional().describe(desc("traits.perks")),
+  })
+  .strict()
+
+export const GenerateCharacterResponseSchema = z.union([
+  GenerateCharacterDetailedSchema,
+  GenerateCharacterGeneralSchema,
+])
+
+export function buildGenerateCharacterResponseSchema(modules: StoryModules) {
+  return modules.character_detail_mode === "general" ? GenerateCharacterGeneralSchema : GenerateCharacterDetailedSchema
+}
 
 export const GenerateCharacterAppearanceResponseSchema = z
   .object({
@@ -47,7 +72,7 @@ export const GenerateCharacterTraitsResponseSchema = z
   })
   .strict()
 
-export const GenerateStoryResponseSchema = z
+const GenerateStoryDetailedSchema = z
   .object({
     title: z.string().min(1).describe(desc("generation.story.title")),
     opening_scenario: z.string().min(1).describe(desc("generation.story.opening_scenario")),
@@ -64,6 +89,37 @@ export const GenerateStoryResponseSchema = z
     pregen_npcs: z.array(NPCStateSchema).describe(desc("generation.story.pregen_npcs")),
   })
   .strict()
+
+const GenerateStoryGeneralSchema = z
+  .object({
+    title: z.string().min(1).describe(desc("generation.story.title")),
+    opening_scenario: z.string().min(1).describe(desc("generation.story.opening_scenario")),
+    starting_location: z.string().min(1).describe(desc("generation.story.starting_location")),
+    starting_date: z
+      .string()
+      .regex(DATE_REGEX, "starting_date must be YYYY-MM-DD")
+      .describe(desc("generation.story.starting_date")),
+    starting_time: z
+      .string()
+      .regex(TIME_OF_DAY_REGEX, "starting_time must be 24h HH:MM")
+      .describe(desc("generation.story.starting_time")),
+    character_general_description: z.string().min(1).describe(desc("generation.story.character_general_description")),
+    character_current_appearance: z.string().min(1).optional().describe(desc("state.appearance.current_appearance")),
+    pregen_npcs: z.array(NPCStateSchema).optional().describe(desc("generation.story.pregen_npcs")),
+  })
+  .strict()
+
+export const GenerateStoryResponseSchema = z.union([GenerateStoryDetailedSchema, GenerateStoryGeneralSchema])
+
+export function buildGenerateStoryResponseSchema(modules: StoryModules) {
+  const base = modules.character_detail_mode === "general" ? GenerateStoryGeneralSchema : GenerateStoryDetailedSchema
+  if (modules.track_npcs) return base
+  return base
+    .extend({
+      pregen_npcs: z.array(NPCStateSchema).max(0).optional(),
+    })
+    .transform((value) => ({ ...value, pregen_npcs: value.pregen_npcs ?? [] }))
+}
 
 export const GenerateChatResponseSchema = z
   .object({
