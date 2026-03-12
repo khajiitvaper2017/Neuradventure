@@ -6,9 +6,9 @@
       "Follow the schema exactly. If a field is present, fill it; if a field is absent, do not invent it.",
       "If input contains name of real life person, try to describe as close to reality as possible. Don't directly contradict something mentioned in input.",
       "Don't write like `Height: 183 cm.`, write like `He is 183 cm tall`.",
-      "- Name: the character's full legal name. If not specified, try to be creative.",
-      "- Race: Default to 'Human' unless an alternate race is explicitly provided in the source text.",
-      "- Gender: Define gender definitively. Directly and clinically specify any non-standard anatomical configurations if dictated by the prompt (e.g., 'Futanari','Intersex')."
+      "- name: {state.character.name} If not specified, try to be creative.",
+      "- race: {state.character.race} Default to 'Human' unless an alternate race is explicitly provided in the source text.",
+      "- gender: {state.character.gender} Define gender definitively. Directly and clinically specify any non-standard anatomical configurations if dictated by the prompt (e.g., 'Futanari','Intersex')."
     ],
     "modules": {
       "track_npcs": {
@@ -22,35 +22,35 @@
       "character_detail_mode": {
         "detailed": [
           "When appearance/clothing fields are in use, fill them as follows:",
-          "- Baseline Appearance: 1 to 3 sentences of objective, anatomical detailing. Use the metric system exclusively. Provide numerical measurements for height (cm), weight (kg), and bodily proportions. For male genitalia: Note the flaccid length (cm) and erect length (cm), whether circumcised or uncircumcised, and testicle presence. For female genitalia: Note the general appearance of the labia (e.g., 'neat,' 'full,' 'prominent inner lips'), and pubic hair style (e.g., 'natural,' 'trimmed,' 'shaved').",
-          "- Starting Clothing: Catalog exhaustively. Detail every layer, including outerwear, underwear, accessories, and medical dressings/bandages. If garments are sheer, mesh, or transparent, objectively detail the specific underlying anatomical structures visible through the fabric (e.g., 'areolae visible through unlined silk')."
+          "- baseline_appearance: {state.appearance.baseline_appearance} 1 to 3 sentences of objective, anatomical detailing. Use the metric system exclusively. Provide numerical measurements for height (cm), weight (kg), and bodily proportions. For male genitalia: Note the flaccid length (cm) and erect length (cm), whether circumcised or uncircumcised, and testicle presence. For female genitalia: Note the general appearance of the labia (e.g., 'neat,' 'full,' 'prominent inner lips'), and pubic hair style (e.g., 'natural,' 'trimmed,' 'shaved').",
+          "- current_clothing: {state.appearance.current_clothing} Catalog exhaustively. Detail every layer, including outerwear, underwear, accessories, and medical dressings/bandages. If garments are sheer, mesh, or transparent, objectively detail the specific underlying anatomical structures visible through the fabric (e.g., 'areolae visible through unlined silk')."
         ],
         "general": [
           "When general description is in use:",
-          "- general_description: 2-4 sentences summarizing appearance, clothing, personality, and overall vibe."
+          "- general_description: {state.character.general_description} 2-4 sentences summarizing appearance, clothing, personality, and overall vibe."
         ]
       },
       "character_personality_traits": {
         "on": [
-          "- Personality Traits: Prioritize the provided master list. Custom personality traits are 1-3 word adjective phrases."
+          "- personality_traits: {traits.personality_traits} Prioritize the provided master list. Custom personality traits are 1-3 word adjective phrases."
         ],
         "off": []
       },
       "character_major_flaws": {
         "on": [
-          "- Major Flaws: Output significant, enduring weaknesses or liabilities as concise, concrete phrases of 1 to 8 words each."
+          "- major_flaws: {traits.major_flaws} Output significant, enduring weaknesses or liabilities as concise, concrete phrases of 1 to 8 words each."
         ],
         "off": []
       },
       "character_quirks": {
         "on": [
-          "- Quirks: Encode unique baseline quirks or permanent mannerisms as concise, concrete phrases of 1 to 8 words each."
+          "- quirks: {traits.quirks} Encode unique baseline quirks or permanent mannerisms as concise, concrete phrases of 1 to 8 words each."
         ],
         "off": []
       },
       "character_perks": {
         "on": [
-          "- Perks: Encode enduring skills or advantages as concise, concrete phrases of 1 to 8 words each."
+          "- perks: {traits.perks} Encode enduring skills or advantages as concise, concrete phrases of 1 to 8 words each."
         ],
         "off": []
       }

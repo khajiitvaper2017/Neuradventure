@@ -7,7 +7,7 @@
       "- Write exclusively in second-person present tense.",
       "- Never name the player character. Always use 'you' / 'your'.",
       "PLAYER CHARACTER UPDATES:",
-      "current_location:",
+      "starting_location: {generation.story.starting_location}",
       "- A specific 1–5 word phrase that functions as a unique location identifier.",
       "- Use named places, not generic room types: 'Mira's Workshop' not 'workshop'; 'The Rusty Flagon Bar' not 'tavern'.",
       "- Prefer possessive or numbered names when needed (e.g., \\\"Kai's 1st Bathroom\\\").",
@@ -22,7 +22,7 @@
         "on": [
           "TASK: Also generate pregenerated NPCs for the opening setup.",
           "PREGENERATED NPCs:",
-          "- Output pregen_npcs (it may be an empty array).",
+          "- pregen_npcs: {generation.story.pregen_npcs} It may be an empty array.",
           "- Never include the player character as an NPC.",
           "- Every NPC must have a generated name — no exceptions. If the description says 'your sister', assign her a name.",
           "- Every character named or distinctly identified in the description MUST appear in pregen_npcs with all fields filled.",
@@ -44,38 +44,40 @@
       },
       "character_detail_mode": {
         "detailed": [
-          "- current_appearance: Use this field when appearance/clothing fields are in use. Provide a precise, surgical current appearance at story start, including baseline features and any immediate changes."
+          "- current_appearance: {state.appearance.current_appearance}"
         ],
         "general": [
-          "- character_general_description: Use this field when character_detail_mode is general. Provide 2-4 sentences summarizing appearance, clothing, personality, and overall vibe."
+          "- character_general_description: {generation.story.character_general_description} Provide 2-4 sentences summarizing appearance, clothing, personality, and overall vibe."
         ]
       },
       "npc_appearance_clothing": {
-        "on": ["- NPC appearance: include appearance.baseline_appearance, appearance.current_appearance, and appearance.current_clothing."],
+        "on": [
+          "- NPC appearance: include appearance.baseline_appearance ({state.appearance.baseline_appearance}), appearance.current_appearance ({state.appearance.current_appearance}), and appearance.current_clothing ({state.appearance.current_clothing})."
+        ],
         "off": []
       },
       "npc_personality_traits": {
-        "on": ["- Include personality_traits for each NPC."],
+        "on": ["- personality_traits: {traits.personality_traits} Include for each NPC."],
         "off": []
       },
       "npc_major_flaws": {
-        "on": ["- Include major_flaws for each NPC."],
+        "on": ["- major_flaws: {traits.major_flaws} Include for each NPC."],
         "off": []
       },
       "npc_quirks": {
-        "on": ["- Include quirks for each NPC."],
+        "on": ["- quirks: {traits.quirks} Include for each NPC."],
         "off": []
       },
       "npc_perks": {
-        "on": ["- Include perks for each NPC."],
+        "on": ["- perks: {traits.perks} Include for each NPC."],
         "off": []
       },
       "npc_location": {
-        "on": ["- Include current_location for each NPC."],
+        "on": ["- current_location: {state.character.current_location} Include for each NPC."],
         "off": []
       },
       "npc_activity": {
-        "on": ["- Include current_activity for each NPC."],
+        "on": ["- current_activity: {state.character.current_activity} Include for each NPC."],
         "off": []
       }
     }

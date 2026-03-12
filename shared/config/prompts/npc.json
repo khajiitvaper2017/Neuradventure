@@ -8,8 +8,8 @@
       "1. Do NOT write narrative text. Do NOT update world or player state. Output only the NPC creation fields required by the schema.",
       "2. The NPC name MUST exactly match the name provided in the introduce-new-NPC instruction and must be the full legal name.",
       "3. Base all details on the current story context. If details are not specified, infer plausibly without contradicting the world or known NPCs.",
-      "6. If current_location is included, it must be a specific 1–5 word unique location name consistent with the current scene and recent events (e.g., \\\"Undercroft Stairwell\\\"). Do not use generic room names.",
-      "10. If current_activity is included, it is a concise, factual description of what the NPC is doing right now."
+      "6. current_location: {state.character.current_location} If included, it must be a specific 1–5 word unique location name consistent with the current scene and recent events (e.g., \\\"Undercroft Stairwell\\\"). Do not use generic room names.",
+      "10. current_activity: {state.character.current_activity} If included, it is a concise, factual description of what the NPC is doing right now."
     ],
     "modules": {
       "track_npcs": {
@@ -27,34 +27,36 @@
       "npc_appearance_clothing": {
         "on": [
           "When NPC appearance/clothing is enabled:",
-          "7. appearance.baseline_appearance must be a complete, surgical baseline (permanent features only).",
-          "8. appearance.current_appearance must be a complete, surgical description of the CURRENT state that highlights differences from baseline and explicitly calls out changes (injuries, wetness, dirt, swelling, posture, fatigue, arousal, etc.). Do not copy baseline verbatim; accent the deltas.",
-          "9. appearance.current_clothing must be a complete, concrete description."
+          "7. appearance.baseline_appearance: {state.appearance.baseline_appearance} It must be a complete, surgical baseline (permanent features only).",
+          "8. appearance.current_appearance: {state.appearance.current_appearance} It must be a complete, surgical description of the CURRENT state that highlights differences from baseline and explicitly calls out changes (injuries, wetness, dirt, swelling, posture, fatigue, arousal, etc.). Do not copy baseline verbatim; accent the deltas.",
+          "9. appearance.current_clothing: {state.appearance.current_clothing} It must be a complete, concrete description."
         ],
         "off": []
       },
       "npc_personality_traits": {
-        "on": ["4. personality_traits selected from the allowed {npcTraits} list (e.g., [\\\"Shrewd\\\",\\\"Reserved\\\"])."],
+        "on": [
+          "4. personality_traits: {traits.personality_traits} Selected from the allowed {npcTraits} list (e.g., [\\\"Shrewd\\\",\\\"Reserved\\\"])."
+        ],
         "off": []
       },
       "npc_major_flaws": {
-        "on": ["5. major_flaws should be significant, enduring weaknesses or liabilities as concise, concrete phrases."],
+        "on": ["5. major_flaws: {traits.major_flaws} Should be significant, enduring weaknesses or liabilities as concise, concrete phrases."],
         "off": []
       },
       "npc_quirks": {
-        "on": ["11. quirks must be concrete, objective phrases."],
+        "on": ["11. quirks: {traits.quirks} Must be concrete, objective phrases."],
         "off": []
       },
       "npc_perks": {
-        "on": ["11. perks must be concrete, objective phrases."],
+        "on": ["11. perks: {traits.perks} Must be concrete, objective phrases."],
         "off": []
       },
       "npc_location": {
-        "on": ["Include current_location when enabled by the schema."],
+        "on": ["Include current_location ({state.character.current_location}) when enabled by the schema."],
         "off": []
       },
       "npc_activity": {
-        "on": ["Include current_activity when enabled by the schema."],
+        "on": ["Include current_activity ({state.character.current_activity}) when enabled by the schema."],
         "off": []
       }
     }

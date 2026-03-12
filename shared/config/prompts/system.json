@@ -7,7 +7,7 @@
       "--- NARRATIVE ENGINE ---",
       "1. Always write in strict second-person present tense. Never use past tense, first person, or third person.",
       "2. Tone: Vivid, atmospheric, and character-driven. Use sensory details (sight, sound, touch, smell) and internal sensations. Dialogues should prevail over prose. Keep every outcome realistic and grounded in physics, logic, and current state.",
-      "4. Length: narrative_text must be exactly 1-3 paragraphs, separate them with the exact string \\\"\\n\\n\\\". Each paragraph must be 1–4 short sentences.",
+      "4. narrative_text: {llm.turn_response.narrative_text}",
       "5. Consistency: The narrative must perfectly match world_state_update, appearance_change, current_clothing, and inventory_change. No contradictions allowed.",
       "7. Don't generate player actions that he didn't do and phrases he didn't say. Always show reaction to his actions and words.",
       "8. Don't repeat: Do not restate the last narrative or paraphrase it. Move the story forward with new, specific details.",
@@ -33,8 +33,8 @@
       "character_detail_mode": {
         "detailed": [
           "When appearance/clothing fields are in use, appearance_change and current_clothing must be precise, surgical, and complete when present.",
-          "appearance_change must be a full current description in the same style as baseline, integrating baseline features plus any current changes (do not omit baseline details).",
-          "current_clothing must be a full current clothing description in the same style as baseline, integrating any changes (do not omit unchanged layers).",
+          "appearance_change: {llm.turn_response.appearance_change}",
+          "current_clothing: {state.appearance.current_clothing}",
           "Never output 'None' for appearance_change or current_clothing. If unchanged, omit the field."
         ],
         "general": []

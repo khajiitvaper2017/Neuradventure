@@ -1,6 +1,7 @@
 import { readFileSync, statSync } from "fs"
 import { fileURLToPath } from "url"
 import { dirname, join } from "path"
+import { replaceFieldShortcuts } from "../schemas/field-descriptions.js"
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const DEFAULTS_PATH = join(__dirname, "../../../shared/config/server-defaults.json")
@@ -124,6 +125,23 @@ function readJson<T>(path: string): T {
   return JSON.parse(readFileSync(path, "utf-8")) as T
 }
 
+function replaceFieldShortcutsDeep<T>(value: T): T {
+  if (typeof value === "string") {
+    return replaceFieldShortcuts(value) as T
+  }
+  if (Array.isArray(value)) {
+    return value.map((entry) => replaceFieldShortcutsDeep(entry)) as T
+  }
+  if (value && typeof value === "object") {
+    const obj = value as Record<string, unknown>
+    for (const [key, entry] of Object.entries(obj)) {
+      obj[key] = replaceFieldShortcutsDeep(entry)
+    }
+    return value
+  }
+  return value
+}
+
 export function getServerDefaults(): ServerDefaults {
   const stat = statSync(DEFAULTS_PATH)
   if (!cachedDefaults || stat.mtimeMs !== cachedDefaultsMtime) {
@@ -136,7 +154,7 @@ export function getServerDefaults(): ServerDefaults {
 export function getLlmStrings(): LlmStrings {
   const stat = statSync(LLM_STRINGS_PATH)
   if (!cachedLlmStrings || stat.mtimeMs !== cachedLlmStringsMtime) {
-    cachedLlmStrings = readJson<LlmStrings>(LLM_STRINGS_PATH)
+    cachedLlmStrings = replaceFieldShortcutsDeep(readJson<LlmStrings>(LLM_STRINGS_PATH))
     cachedLlmStringsMtime = stat.mtimeMs
   }
   return cachedLlmStrings

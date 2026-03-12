@@ -3,6 +3,7 @@ import { fileURLToPath } from "url"
 import { dirname, join } from "path"
 import type { StoryModules } from "../core/models.js"
 import { DEFAULT_STORY_MODULES } from "../schemas/story-modules.js"
+import { replaceFieldShortcuts } from "../schemas/field-descriptions.js"
 // ─── Prompt config (hot-reloaded from shared/config/prompts/*.json) ──────────
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
@@ -94,74 +95,64 @@ export function getConfig(): PromptConfig {
 function resolvePrompt(prompt: ModularPrompt | undefined, modules?: StoryModules): string[] {
   if (!prompt) return []
   const active = modules ?? DEFAULT_MODULES
-  const lines = [...(prompt.base ?? [])]
+  const lines = [...(prompt.base ?? [])].map(replaceFieldShortcuts)
   const blocks = prompt.modules
+  const pushLines = (items?: string[]) => {
+    if (!items || items.length === 0) return
+    lines.push(...items.map(replaceFieldShortcuts))
+  }
   if (blocks?.track_npcs) {
-    lines.push(...(active.track_npcs ? (blocks.track_npcs.on ?? []) : (blocks.track_npcs.off ?? [])))
+    pushLines(active.track_npcs ? blocks.track_npcs.on : blocks.track_npcs.off)
   }
   if (blocks?.track_locations) {
-    lines.push(...(active.track_locations ? (blocks.track_locations.on ?? []) : (blocks.track_locations.off ?? [])))
+    pushLines(active.track_locations ? blocks.track_locations.on : blocks.track_locations.off)
   }
   if (blocks?.character_detail_mode) {
-    lines.push(
-      ...(active.character_detail_mode === "general"
-        ? (blocks.character_detail_mode.general ?? [])
-        : (blocks.character_detail_mode.detailed ?? [])),
+    pushLines(
+      active.character_detail_mode === "general"
+        ? blocks.character_detail_mode.general
+        : blocks.character_detail_mode.detailed,
     )
   }
   if (blocks?.character_personality_traits) {
-    lines.push(
-      ...(active.character_personality_traits
-        ? (blocks.character_personality_traits.on ?? [])
-        : (blocks.character_personality_traits.off ?? [])),
+    pushLines(
+      active.character_personality_traits
+        ? blocks.character_personality_traits.on
+        : blocks.character_personality_traits.off,
     )
   }
   if (blocks?.character_major_flaws) {
-    lines.push(
-      ...(active.character_major_flaws
-        ? (blocks.character_major_flaws.on ?? [])
-        : (blocks.character_major_flaws.off ?? [])),
-    )
+    pushLines(active.character_major_flaws ? blocks.character_major_flaws.on : blocks.character_major_flaws.off)
   }
   if (blocks?.character_quirks) {
-    lines.push(...(active.character_quirks ? (blocks.character_quirks.on ?? []) : (blocks.character_quirks.off ?? [])))
+    pushLines(active.character_quirks ? blocks.character_quirks.on : blocks.character_quirks.off)
   }
   if (blocks?.character_perks) {
-    lines.push(...(active.character_perks ? (blocks.character_perks.on ?? []) : (blocks.character_perks.off ?? [])))
+    pushLines(active.character_perks ? blocks.character_perks.on : blocks.character_perks.off)
   }
   if (blocks?.character_inventory) {
-    lines.push(
-      ...(active.character_inventory ? (blocks.character_inventory.on ?? []) : (blocks.character_inventory.off ?? [])),
-    )
+    pushLines(active.character_inventory ? blocks.character_inventory.on : blocks.character_inventory.off)
   }
   if (blocks?.npc_appearance_clothing) {
-    lines.push(
-      ...(active.npc_appearance_clothing
-        ? (blocks.npc_appearance_clothing.on ?? [])
-        : (blocks.npc_appearance_clothing.off ?? [])),
-    )
+    pushLines(active.npc_appearance_clothing ? blocks.npc_appearance_clothing.on : blocks.npc_appearance_clothing.off)
   }
   if (blocks?.npc_personality_traits) {
-    lines.push(
-      ...(active.npc_personality_traits
-        ? (blocks.npc_personality_traits.on ?? [])
-        : (blocks.npc_personality_traits.off ?? [])),
-    )
+    pushLines(active.npc_personality_traits ? blocks.npc_personality_traits.on : blocks.npc_personality_traits.off)
   }
   if (blocks?.npc_major_flaws) {
-    lines.push(...(active.npc_major_flaws ? (blocks.npc_major_flaws.on ?? []) : (blocks.npc_major_flaws.off ?? [])))
+    pushLines(active.npc_major_flaws ? blocks.npc_major_flaws.on : blocks.npc_major_flaws.off)
   }
   if (blocks?.npc_quirks) {
-    lines.push(...(active.npc_quirks ? (blocks.npc_quirks.on ?? []) : (blocks.npc_quirks.off ?? [])))
+    pushLines(active.npc_quirks ? blocks.npc_quirks.on : blocks.npc_quirks.off)
   }
   if (blocks?.npc_perks) {
-    lines.push(...(active.npc_perks ? (blocks.npc_perks.on ?? []) : (blocks.npc_perks.off ?? [])))
+    pushLines(active.npc_perks ? blocks.npc_perks.on : blocks.npc_perks.off)
   }
   if (blocks?.npc_location) {
-    lines.push(...(active.npc_location ? (blocks.npc_location.on ?? []) : (blocks.npc_location.off ?? [])))
+    pushLines(active.npc_location ? blocks.npc_location.on : blocks.npc_location.off)
   }
   if (blocks?.npc_activity) {
-    lines.push(...(active.npc_activity ? (blocks.npc_activity.on ?? []) : (blocks.npc_activity.off ?? [])))
+    pushLines(active.npc_activity ? blocks.npc_activity.on : blocks.npc_activity.off)
   }
   return lines
 }

@@ -1,0 +1,161 @@
+{
+  "llm": {
+    "turn_response": {
+      "narrative_text": "1-3 short paragraphs in second-person present tense. Separate paragraphs with a literal \\n\\n.",
+      "world_state_update": "Full world state update object.",
+      "appearance_change": "Precise, surgical full current description in the same style as baseline, integrating baseline features plus current changes (do not omit baseline details). Never output 'None'; omit the field if unchanged.",
+      "inventory_change": "Complete, updated inventory list (not a diff). Omit the field if inventory did not change.",
+      "npc_changes": "List of updates for existing NPCs whose state changed this turn.",
+      "npc_introductions": "List of newly introduced NPCs with full details. Omit the field if there are no new NPCs."
+    },
+    "world_state_update": {
+      "current_scene": "Unique 1-5 word name of the player's immediate location.",
+      "current_date": "Date in YYYY-MM-DD format. Date should reflect the date of events happening.",
+      "time_of_day": "24-hour HH:MM time of when events took place.",
+      "memory": "Running summary of key events and important facts.",
+      "locations": "List of all known locations in the story so far."
+    },
+    "npc_update": {
+      "name": "NPC name to update.",
+      "race": "Updated race.",
+      "gender": "Updated gender (male, female, futanari, intersex and so on).",
+      "set_current_location": "Updated current unique location name. Update only when changed.",
+      "set_current_appearance": "Precise, surgical description of current physical state based on baseline features plus current changes. Avoid temporal qualifiers (e.g., \"still\") and comparative phrases (e.g., \"otherwise unchanged\"). Never output 'None'; omit the field if unchanged.",
+      "set_current_activity": "Concise, factual description of what the NPC is doing right now."
+    }
+  },
+  "state": {
+    "inventory_item": {
+      "name": "Item name.",
+      "description": "Short item description.",
+      "entry": "Inventory item entry."
+    },
+    "location": {
+      "name": "Unique location name, describes concrete room, not abstract place like home or city.",
+      "description": "Very short description of how the location looks. Don't mention characters in room.",
+      "characters": "List of characters currently in this location.",
+      "character": "Character name present in this location.",
+      "available_items": "List of items available to use or take in this location.",
+      "available_item": "Item entry available at this location.",
+      "entry": "Location entry."
+    },
+    "appearance": {
+      "baseline_appearance": "Precise, surgical description of baseline physical state (full, not partial). All body parts should be mentioned. Don't mention temporary appearance.",
+      "current_appearance": "Precise, surgical description of current physical state (full, not partial).  All visible body parts should be mentioned. Represent current appearance if changed from previous current_appearance. Do not describe clothing.",
+      "current_clothing": "Precise, surgical full current clothing description in the same style as baseline, including all layers and accessories (do not omit unchanged layers). Never output 'None'; omit the field if unchanged."
+    },
+    "character": {
+      "name": "Full legal name.",
+      "race": "Character race.",
+      "gender": "Character gender (male, female, futanari, intersex and so on).",
+      "general_description": "General description for the character when detailed appearance/clothing is disabled.",
+      "current_location": "Character current unique location name.",
+      "appearance": "Character appearance object.",
+      "current_activity": "Concise, factual description of what the character is doing right now.",
+      "inventory": "Complete inventory list."
+    }
+  },
+  "story_modules": {
+    "track_npcs": "Whether to track NPC state and updates.",
+    "track_locations": "Whether to track locations list and presence.",
+    "character_detail_mode": "Character detail mode: detailed or general.",
+    "character_appearance_clothing": "Whether to include player appearance and clothing fields (detailed mode only).",
+    "character_personality_traits": "Whether to include player personality traits.",
+    "character_major_flaws": "Whether to include player major flaws.",
+    "character_quirks": "Whether to include player quirks.",
+    "character_perks": "Whether to include player perks.",
+    "character_inventory": "Whether to include player inventory.",
+    "npc_appearance_clothing": "Whether to include NPC appearance and clothing fields.",
+    "npc_personality_traits": "Whether to include NPC personality traits.",
+    "npc_major_flaws": "Whether to include NPC major flaws.",
+    "npc_quirks": "Whether to include NPC quirks.",
+    "npc_perks": "Whether to include NPC perks.",
+    "npc_location": "Whether to include NPC current_location.",
+    "npc_activity": "Whether to include NPC current_activity."
+  },
+  "generation": {
+    "chat": {
+      "title": "Generated chat title.",
+      "scenario": "Generated chat scenario."
+    },
+    "story": {
+      "title": "3-5 word title tied to the opening scenario.",
+      "opening_scenario": "1-3 paragraphs separated by a blank line.",
+      "starting_location": "1-3 word unique starting location name.",
+      "starting_date": "Starting date in YYYY-MM-DD format.",
+      "starting_time": "Starting time in 24h HH:MM format.",
+      "character_general_description": "General description for the player character at story start.",
+      "pregen_npcs": "List of pre-generated NPCs with full details."
+    }
+  },
+  "requests": {
+    "story_id": "Story ID.",
+    "chat_id": "Chat ID.",
+    "story_title": "Story title.",
+    "opening_scenario": "Opening scenario text.",
+    "action_mode": "Action mode: do, say, or story.",
+    "create_chat": {
+      "title": "Chat title.",
+      "scenario": "Optional chat scenario or setup.",
+      "members": "Chat members list (player + AI characters).",
+      "member": {
+        "role": "Member role: player or ai.",
+        "member_kind": "Member type: character or npc.",
+        "character_id": "Optional saved character ID.",
+        "state": "Member character state snapshot."
+      }
+    },
+    "chat_message": {
+      "content": "Chat message text."
+    },
+    "update_chat": {
+      "title": "Updated chat title.",
+      "scenario": "Updated chat scenario."
+    },
+    "chat_next_speaker": {
+      "speaker_member_id": "Chat member ID to speak next."
+    },
+    "create_story": {
+      "starting_scene": "Starting scene label.",
+      "starting_date": "Starting date (YYYY-MM-DD).",
+      "starting_time": "Starting time (HH:MM).",
+      "character_id": "Optional character ID to reuse.",
+      "character_data": "Inline character data when not using character_id.",
+      "npcs": "Optional list of NPCs.",
+      "story_modules": "Optional story module overrides."
+    },
+    "update_story": {
+      "title": "Updated story title.",
+      "opening_scenario": "Updated opening scenario text.",
+      "story_modules": "Updated story module overrides."
+    },
+    "update_story_state": {
+      "character": "Updated character state.",
+      "npcs": "Updated NPC state list."
+    },
+    "update_turn": {
+      "player_input": "Updated player input text.",
+      "narrative_text": "Updated narrative text."
+    },
+    "take_turn": {
+      "player_input": "Player input for this turn.",
+      "request_id": "Optional client request ID for idempotency."
+    },
+    "regenerate_last": {
+      "action_mode": "Optional action mode override."
+    },
+    "select_turn_variant": {
+      "variant_id": "Turn variant ID."
+    }
+  },
+  "traits": {
+    "personality_traits": "List of 2-5 personality traits describing stable temperament and behavior.",
+    "personality_trait": "Single personality trait: a concise temperament or behavior descriptor of 1-8 words.",
+    "major_flaws": "List of 0-3 major flaws describing significant, enduring weaknesses or liabilities.",
+    "major_flaw": "Single major flaw: a significant, enduring weakness or liability of 1-8 words.",
+    "quirks": "List of 0-5 quirks describing small, idiosyncratic habits or mannerisms.",
+    "quirk": "Single quirk: a small, specific habit or mannerisms of 1-8 words.",
+    "perks": "List of 0-5 perks describing practical advantages, talents, or resources.",
+    "perk": "Single perk: a concrete advantage, talent, or resource of 1-8 words."
+  }
+}
