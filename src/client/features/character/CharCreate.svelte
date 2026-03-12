@@ -16,6 +16,7 @@
   import { loadPromptHistory, savePromptHistory, removePromptHistory } from "../../utils/promptHistory.js"
   import { normalizeGender } from "../../utils/text.js"
   import PromptHistoryPanel from "../../components/ui/PromptHistoryPanel.svelte"
+  import StoryModulesPanel from "../../components/ui/StoryModulesPanel.svelte"
   import {
     generateCharacterFromDescription,
     generateCharacterAppearance,
@@ -23,7 +24,6 @@
     generateCharacterTraits,
     importCharacter,
   } from "./actions.js"
-  import StoryModulesPanel from "../../components/ui/StoryModulesPanel.svelte"
 
   const CHARACTER_PROMPT_HISTORY_KEY = "na:prompt_history:character"
 

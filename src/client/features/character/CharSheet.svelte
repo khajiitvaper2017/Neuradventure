@@ -5,7 +5,8 @@
   import { character, currentStoryId, currentStoryModules, llmUpdateId } from "../../stores/game.js"
   import type { MainCharacterState } from "../../api/client.js"
   import { genderIcon, normalizeGender, splitCsv } from "../../utils/text.js"
-  import EditableFieldList, { type EditField } from "../../components/ui/EditableFieldList.svelte"
+  import EditableFieldList from "../../components/ui/EditableFieldList.svelte"
+  import type { EditField } from "../../components/ui/editableFieldTypes.js"
   import IconMale from "../../components/icons/IconMale.svelte"
   import IconFemale from "../../components/icons/IconFemale.svelte"
   import IconIntersex from "../../components/icons/IconIntersex.svelte"
@@ -79,7 +80,6 @@
     perks: "",
     inventory: [],
   })
-
 
   function buildCharacterSigs(c: MainCharacterState): CharacterSigs {
     return {

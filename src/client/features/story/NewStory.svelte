@@ -1,6 +1,12 @@
 <script lang="ts">
   import { onMount } from "svelte"
-  import type { MainCharacterState, NPCState, StoryCharacterGroup, StoryNpcGroup, StoryModules } from "../../api/client.js"
+  import type {
+    MainCharacterState,
+    NPCState,
+    StoryCharacterGroup,
+    StoryNpcGroup,
+    StoryModules,
+  } from "../../api/client.js"
   import { api } from "../../api/client.js"
   import { navigate, showError } from "../../stores/ui.js"
   import { autoresize } from "../../utils/actions/autoresize.js"

@@ -1,5 +1,3 @@
-import type { TavernCardV2 } from "./card.js"
-
 export function detectImportFormat(data: unknown): "neuradventure" | "tavern-card" | "tavern-jsonl" | "unknown" {
   if (typeof data === "string") {
     // JSONL check (first line is JSON with chat/meta fields)
@@ -22,7 +20,8 @@ export function detectImportFormat(data: unknown): "neuradventure" | "tavern-car
 
   if (data && typeof data === "object") {
     const obj = data as Record<string, unknown>
-    if ((obj as TavernCardV2).spec === "chara_card_v2") return "tavern-card"
+    const spec = (obj as { spec?: string }).spec
+    if (spec === "chara_card_v2") return "tavern-card"
     if (obj.title && obj.character && obj.world) return "neuradventure"
   }
 

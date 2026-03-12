@@ -1,4 +1,9 @@
-import { MainCharacterStateStoredSchema, NPCStateStoredSchema, WorldStateStoredSchema, type NPCState } from "../core/models.js"
+import {
+  MainCharacterStateStoredSchema,
+  NPCStateStoredSchema,
+  WorldStateStoredSchema,
+  type NPCState,
+} from "../core/models.js"
 import * as db from "../core/db.js"
 import { buildNpcCreationMessages, generateNpcCreation, getCtxLimitCached } from "../llm/index.js"
 import { applyNPCCreations, buildNpcFromCreation, syncCharacterLocation, syncLocationCharacters } from "./state.js"

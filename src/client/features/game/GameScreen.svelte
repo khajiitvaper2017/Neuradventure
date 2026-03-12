@@ -162,7 +162,7 @@
     try {
       const result = await api.turns.take($currentStoryId, text, sendMode, requestId)
       handleLlmWarnings(result.llm_warnings)
-      applyTurnState(result, { markUpdate: false })
+      applyTurnState(result)
       appendTurnSummary({ result, actionMode: sendMode, playerInput: text })
       canUndoCancel = false
       await loadVariants(result.turn_id, true)
@@ -214,7 +214,7 @@
     try {
       const result = await api.turns.take($currentStoryId, pending.playerInput, pending.actionMode, pending.requestId)
       handleLlmWarnings(result.llm_warnings)
-      applyTurnState(result, { markUpdate: false })
+      applyTurnState(result)
       const exists = $turns.some((t) => t.id === result.turn_id)
       if (!exists) {
         appendTurnSummary({
@@ -293,7 +293,7 @@
     isGenerating.set(true)
     try {
       const result = await api.turns.cancelLast($currentStoryId)
-      applyTurnState(result)
+      applyTurnState(result, { markUpdate: false })
       let nextLastId: number | null = null
       turns.update((t) => {
         const remaining = t.filter((turn) => turn.id !== result.removed_turn_id)

@@ -13,6 +13,8 @@ type TurnAppendPayload = TurnStatePayload & {
   narrative_text: string
 }
 
+type ActionMode = TurnSummary["action_mode"]
+
 export function applyTurnState(result: TurnStatePayload, options: { markUpdate?: boolean } = {}) {
   character.set(result.character)
   worldState.set(result.world)
@@ -22,7 +24,7 @@ export function applyTurnState(result: TurnStatePayload, options: { markUpdate?:
 
 export function appendTurnSummary(params: {
   result: TurnAppendPayload
-  actionMode: string
+  actionMode: ActionMode
   playerInput: string
   activeVariantId?: number | null
 }) {

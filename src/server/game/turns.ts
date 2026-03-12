@@ -332,7 +332,13 @@ export async function regenerateLastTurn(storyId: number, actionMode?: string): 
   const updated = applyTurnResponse(snapshot, turnResponse, modules)
 
   db.updateStory(storyId, updated.character, updated.world, updated.npcs)
-  const variant = db.createTurnVariant(lastTurn.id, turnResponse.narrative_text, updated.character, updated.world, updated.npcs)
+  const variant = db.createTurnVariant(
+    lastTurn.id,
+    turnResponse.narrative_text,
+    updated.character,
+    updated.world,
+    updated.npcs,
+  )
   db.updateTurnSnapshot(lastTurn.id, {
     narrative_text: turnResponse.narrative_text,
     character: updated.character,

@@ -1,8 +1,10 @@
 import OpenAI from "openai"
 import type { MainCharacterState, NPCState } from "../core/models.js"
-import { getChatPrompt } from "./config.js"
+import { GenerateChatResponseSchema, type GenerateChatResponse } from "../core/models.js"
+import { zodSchemaToJsonSchema } from "../utils/json-schema.js"
+import { getChatPrompt, getGenerateChatPrompt } from "./config.js"
 import { getServerDefaults } from "../core/strings.js"
-import { callLLMText } from "./call.js"
+import { callLLMRaw, callLLMText } from "./call.js"
 
 export type ChatMemberState = Omit<MainCharacterState, "inventory"> | Omit<NPCState, "inventory">
 
@@ -113,4 +115,20 @@ export async function generateChatReply(
 ): Promise<string> {
   const cleanedStops = stopTokens.filter((token) => token.trim().length > 0)
   return callLLMText(messages, undefined, { disableRepetition: true, stop: cleanedStops })
+}
+
+export async function generateChat(description: string): Promise<GenerateChatResponse> {
+  const schema = zodSchemaToJsonSchema(GenerateChatResponseSchema, "GenerateChatResponse")
+  const prompt = getGenerateChatPrompt()
+  const result = await callLLMRaw<unknown>(
+    [
+      { role: "system", content: prompt },
+      { role: "user", content: description.trim() },
+    ],
+    "GenerateChatResponse",
+    schema,
+    undefined,
+    { disableRepetition: true },
+  )
+  return GenerateChatResponseSchema.parse(result)
 }

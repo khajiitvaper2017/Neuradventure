@@ -17,6 +17,6 @@ export async function generateCharacterClothing(context: GenerateCharacterContex
   return api.generate.characterClothing(context, modules)
 }
 
-export async function importCharacter(character: MainCharacterState) {
+export async function importCharacter(character: Omit<MainCharacterState, "inventory">) {
   return api.stories.importCharacter(character)
 }

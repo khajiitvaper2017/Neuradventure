@@ -1,14 +1,6 @@
 <script lang="ts">
   import { autoresize } from "../../utils/actions/autoresize.js"
-
-  export type FieldKind = "input" | "textarea"
-  export type EditField = {
-    id: string
-    label: string
-    kind: FieldKind
-    value: string
-    onInput: (value: string) => void
-  }
+  import type { EditField } from "./editableFieldTypes.js"
 
   export let fields: EditField[] = []
 
@@ -22,7 +14,8 @@
   <div class="field">
     <label for={field.id}>{field.label}</label>
     {#if field.kind === "textarea"}
-      <textarea id={field.id} value={field.value} oninput={(e) => updateField(field, e)} use:autoresize={field.value}></textarea>
+      <textarea id={field.id} value={field.value} oninput={(e) => updateField(field, e)} use:autoresize={field.value}
+      ></textarea>
     {:else}
       <input id={field.id} type="text" value={field.value} oninput={(e) => updateField(field, e)} />
     {/if}

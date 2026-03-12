@@ -1,9 +1,5 @@
 import { zodSchemaToJsonSchema } from "../utils/json-schema.js"
-import {
-  buildStoryResponseSchema,
-  type StoryModules,
-  type StoryResponse,
-} from "../core/models.js"
+import { buildStoryResponseSchema, type StoryModules, type StoryResponse } from "../core/models.js"
 import { callLLMRaw } from "./call.js"
 import { getGenerateStoryPrompt } from "./config.js"
 import { formatTemplate, getLlmStrings, getServerDefaults } from "../core/strings.js"
@@ -61,20 +57,25 @@ export async function generateStory(
             : [
                 formatTemplate(llmStrings.characterContextLabels.baselineAppearance, { value: baselineAppearance }),
                 formatTemplate(llmStrings.characterContextLabels.currentAppearance, { value: currentAppearance }),
-                formatTemplate(llmStrings.characterContextLabels.currentClothing, {
+                formatTemplate(llmStrings.characterContextLabels.clothing, {
                   value: character.appearance?.current_clothing || unknown,
                 }),
               ]),
-          formatTemplate(llmStrings.characterContextLabels.personalityTraits, { value: traits.join(", ") || unknown }),
-          formatTemplate(llmStrings.characterContextLabels.majorFlaws, { value: majorFlaws.join(", ") || noneTitle }),
-          formatTemplate(llmStrings.characterContextLabels.quirks, {
-            value: flags.useCharQuirks ? character.quirks?.join(", ") || noneTitle : noneTitle,
-          }),
-          formatTemplate(llmStrings.characterContextLabels.perks, {
-            value: flags.useCharPerks ? character.perks?.join(", ") || noneTitle : noneTitle,
-          }),
-          llmStrings.generateStory.promptHeader,
-          formatTemplate(llmStrings.generateStory.promptBody, { description }),
+          ...(flags.useCharMajorFlaws
+            ? [
+                formatTemplate(llmStrings.characterContextLabels.majorFlaws, {
+                  value: majorFlaws.length > 0 ? majorFlaws.join(", ") : noneTitle,
+                }),
+              ]
+            : []),
+          ...(flags.useCharPersonalityTraits || flags.useCharQuirks || flags.useCharPerks
+            ? [
+                formatTemplate(llmStrings.characterContextLabels.traits, {
+                  value: traits.length > 0 ? traits.join(", ") : unknown,
+                }),
+              ]
+            : []),
+          formatTemplate(llmStrings.generateStory.storyDescription, { description }),
         ].join("\n"),
       },
     ],
