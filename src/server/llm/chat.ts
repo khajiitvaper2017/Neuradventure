@@ -2,6 +2,7 @@ import OpenAI from "openai"
 import type { MainCharacterState, NPCState } from "../core/models.js"
 import { getChatPrompt } from "./config.js"
 import { getServerDefaults } from "../core/strings.js"
+import { callLLMText } from "./call.js"
 
 export type ChatMemberState = Omit<MainCharacterState, "inventory"> | Omit<NPCState, "inventory">
 
@@ -104,4 +105,12 @@ export function sanitizeChatReply(text: string, speakerName: string): string {
   const pattern = new RegExp(`^${escaped}:\\s*`, "i")
   value = value.replace(pattern, "")
   return value.trim()
+}
+
+export async function generateChatReply(
+  messages: OpenAI.ChatCompletionMessageParam[],
+  stopTokens: string[],
+): Promise<string> {
+  const cleanedStops = stopTokens.filter((token) => token.trim().length > 0)
+  return callLLMText(messages, undefined, { disableRepetition: true, stop: cleanedStops })
 }

@@ -1,0 +1,87 @@
+import { zodSchemaToJsonSchema } from "../utils/json-schema.js"
+import {
+  buildStoryResponseSchema,
+  type StoryModules,
+  type StoryResponse,
+} from "../core/models.js"
+import { callLLMRaw } from "./call.js"
+import { getGenerateStoryPrompt } from "./config.js"
+import { formatTemplate, getLlmStrings, getServerDefaults } from "../core/strings.js"
+import { DEFAULT_STORY_MODULES, resolveModuleFlags } from "../schemas/story-modules.js"
+
+export async function generateStory(
+  description: string,
+  character: {
+    name: string
+    race: string
+    gender: string
+    general_description?: string
+    current_location?: string
+    appearance?: { baseline_appearance: string; current_appearance: string; current_clothing: string }
+    personality_traits?: string[]
+    major_flaws?: string[]
+    quirks?: string[]
+    perks?: string[]
+  },
+  storyModules?: StoryModules,
+): Promise<StoryResponse> {
+  const modules = storyModules ?? DEFAULT_STORY_MODULES
+  const flags = resolveModuleFlags(modules)
+  const responseSchema = buildStoryResponseSchema(modules)
+  const schema = zodSchemaToJsonSchema(responseSchema, "StoryResponse")
+  const llmStrings = getLlmStrings()
+  const defaults = getServerDefaults()
+  const unknown = defaults.unknown.value
+  const noneTitle = defaults.format.noneTitle
+  const traits = [
+    ...(flags.useCharPersonalityTraits ? (character.personality_traits ?? []) : []),
+    ...(flags.useCharQuirks ? (character.quirks ?? []) : []),
+    ...(flags.useCharPerks ? (character.perks ?? []) : []),
+  ]
+    .map((t) => t.trim())
+    .filter(Boolean)
+  const baselineAppearance = character.appearance?.baseline_appearance || unknown
+  const currentAppearance = character.appearance?.current_appearance || baselineAppearance
+  const majorFlaws = flags.useCharMajorFlaws ? (character.major_flaws?.map((t) => t.trim()).filter(Boolean) ?? []) : []
+  const generalDescription = character.general_description?.trim() || defaults.unknown.generalDescription
+  const useGeneral = modules.character_detail_mode === "general"
+  const promptLines = getGenerateStoryPrompt(modules).split("\n")
+  const result = await callLLMRaw<unknown>(
+    [
+      { role: "system", content: promptLines.join("\n") },
+      {
+        role: "user",
+        content: [
+          llmStrings.generateStory.characterHeader,
+          formatTemplate(llmStrings.characterContextLabels.name, { value: character.name }),
+          formatTemplate(llmStrings.characterContextLabels.race, { value: character.race || unknown }),
+          formatTemplate(llmStrings.characterContextLabels.gender, { value: character.gender || unknown }),
+          ...(useGeneral
+            ? [formatTemplate(llmStrings.characterContextLabels.generalDescription, { value: generalDescription })]
+            : [
+                formatTemplate(llmStrings.characterContextLabels.baselineAppearance, { value: baselineAppearance }),
+                formatTemplate(llmStrings.characterContextLabels.currentAppearance, { value: currentAppearance }),
+                formatTemplate(llmStrings.characterContextLabels.currentClothing, {
+                  value: character.appearance?.current_clothing || unknown,
+                }),
+              ]),
+          formatTemplate(llmStrings.characterContextLabels.personalityTraits, { value: traits.join(", ") || unknown }),
+          formatTemplate(llmStrings.characterContextLabels.majorFlaws, { value: majorFlaws.join(", ") || noneTitle }),
+          formatTemplate(llmStrings.characterContextLabels.quirks, {
+            value: flags.useCharQuirks ? character.quirks?.join(", ") || noneTitle : noneTitle,
+          }),
+          formatTemplate(llmStrings.characterContextLabels.perks, {
+            value: flags.useCharPerks ? character.perks?.join(", ") || noneTitle : noneTitle,
+          }),
+          llmStrings.generateStory.promptHeader,
+          formatTemplate(llmStrings.generateStory.promptBody, { description }),
+        ].join("\n"),
+      },
+    ],
+    "StoryResponse",
+    schema,
+    undefined,
+    { disableRepetition: true },
+  )
+  return responseSchema.parse(result)
+}
