@@ -71,11 +71,13 @@ export const NPCCreationSchema = buildNpcCreationSchema({
   useNpcActivity: true,
 })
 
-export const AppearanceChangeSection = z.string().min(1).describe(desc("llm.turn_response.appearance_change"))
+export const SetCurrentAppearanceSection = z.string().min(1).describe(desc("llm.turn_response.set_current_appearance"))
 
 export const CurrentClothingSection = z.string().min(1).describe(desc("state.appearance.current_clothing"))
 
-export const InventoryChangeSection = z.array(InventoryItemSchema).describe(desc("llm.turn_response.inventory_change"))
+export const SetCurrentInventorySection = z
+  .array(InventoryItemSchema)
+  .describe(desc("llm.turn_response.set_current_inventory"))
 
 export const buildNPCChangesSection = (nameSchema: z.ZodType<string>, flags?: NPCUpdateFlags) => {
   const updateSchema = buildNPCStateUpdateSchema(nameSchema, flags)
@@ -89,9 +91,9 @@ export const TurnResponseSchema = z
   .object({
     narrative_text: z.string().min(1).describe(desc("llm.turn_response.narrative_text")),
     world_state_update: WorldStateUpdateSchema.describe(desc("llm.turn_response.world_state_update")),
-    appearance_change: AppearanceChangeSection.optional(),
+    set_current_appearance: SetCurrentAppearanceSection.optional(),
     current_clothing: CurrentClothingSection.optional(),
-    inventory_change: InventoryChangeSection.optional(),
+    set_current_inventory: SetCurrentInventorySection.optional(),
     npc_changes: NPCChangesSection.optional(),
     npc_introductions: NPCIntroductionsSection.optional(),
   })

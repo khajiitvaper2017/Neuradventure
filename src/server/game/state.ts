@@ -21,7 +21,7 @@ export function applyPlayerUpdate(
   const appearance = flags.useCharAppearance
     ? {
         ...character.appearance,
-        current_appearance: turnResponse.appearance_change ?? character.appearance.current_appearance,
+        current_appearance: turnResponse.set_current_appearance ?? character.appearance.current_appearance,
         current_clothing: turnResponse.current_clothing ?? character.appearance.current_clothing,
       }
     : character.appearance
@@ -29,7 +29,9 @@ export function applyPlayerUpdate(
   return {
     ...character,
     appearance,
-    inventory: flags.useCharInventory ? (turnResponse.inventory_change ?? character.inventory) : character.inventory,
+    inventory: flags.useCharInventory
+      ? (turnResponse.set_current_inventory ?? character.inventory)
+      : character.inventory,
   }
 }
 

@@ -8,7 +8,7 @@
       "1. Always write in strict second-person present tense. Never use past tense, first person, or third person.",
       "2. Tone: Vivid, atmospheric, and character-driven. Use sensory details (sight, sound, touch, smell) and internal sensations. Dialogues should prevail over prose. Keep every outcome realistic and grounded in physics, logic, and current state.",
       "4. narrative_text: {llm.turn_response.narrative_text}",
-      "5. Consistency: The narrative must perfectly match world_state_update, appearance_change, current_clothing, and inventory_change. No contradictions allowed.",
+      "5. Consistency: The narrative must perfectly match world_state_update, set_current_appearance, current_clothing, and set_current_inventory. No contradictions allowed.",
       "7. Don't generate player actions that he didn't do and phrases he didn't say. Always show reaction to his actions and words.",
       "8. Don't repeat: Do not restate the last narrative or paraphrase it. Move the story forward with new, specific details.",
       "9. Decision sequence (follow exactly):",
@@ -32,10 +32,10 @@
       },
       "character_detail_mode": {
         "detailed": [
-          "When appearance/clothing fields are in use, appearance_change and current_clothing must be precise, surgical, and complete when present.",
-          "appearance_change: {llm.turn_response.appearance_change}",
+          "When appearance/clothing fields are in use, set_current_appearance and current_clothing must be precise, surgical, and complete when present.",
+          "set_current_appearance: {llm.turn_response.set_current_appearance}",
           "current_clothing: {state.appearance.current_clothing}",
-          "Never output 'None' for appearance_change or current_clothing. If unchanged, omit the field."
+          "Never output 'None' for set_current_appearance or current_clothing. If unchanged, omit the field."
         ],
         "general": []
       },

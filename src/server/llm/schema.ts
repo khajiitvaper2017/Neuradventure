@@ -86,11 +86,11 @@ export function buildTurnResponseSchema(
   }
 
   if (!flags.useCharAppearance) {
-    schema = schema.omit({ appearance_change: true, current_clothing: true })
+    schema = schema.omit({ set_current_appearance: true, current_clothing: true })
   }
 
   if (!flags.useCharInventory) {
-    schema = schema.omit({ inventory_change: true })
+    schema = schema.omit({ set_current_inventory: true })
   }
 
   return schema as unknown as z.ZodType<TurnResponse, z.ZodTypeDef, unknown>

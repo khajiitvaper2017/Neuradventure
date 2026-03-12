@@ -3,8 +3,8 @@
     "turn_response": {
       "narrative_text": "1-3 short paragraphs in second-person present tense. Separate paragraphs with a literal \\n\\n.",
       "world_state_update": "Full world state update object.",
-      "appearance_change": "Precise, surgical full current description in the same style as baseline, integrating baseline features plus current changes (do not omit baseline details). Never output 'None'; omit the field if unchanged.",
-      "inventory_change": "Complete, updated inventory list (not a diff). Omit the field if inventory did not change.",
+      "set_current_appearance": "Precise, surgical full current description in the same style as baseline, integrating baseline features plus current changes (do not omit baseline details). Never output 'None'; omit the field if unchanged.",
+      "set_current_inventory": "Complete, updated inventory list (not a diff). Omit the field if inventory did not change.",
       "npc_changes": "List of updates for existing NPCs whose state changed this turn.",
       "npc_introductions": "List of newly introduced NPCs with full details. Omit the field if there are no new NPCs."
     },
