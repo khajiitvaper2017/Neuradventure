@@ -19,7 +19,6 @@ const character: MainCharacterState = {
 
 const world: WorldState = {
   current_scene: "The Rusted Flagon tavern",
-  current_date: "2026-03-11",
   time_of_day: "21:00",
   memory: "You arrived in the village of Ashford after a long journey through the rain.",
   locations: [

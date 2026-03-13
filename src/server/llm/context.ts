@@ -142,7 +142,6 @@ function buildContextBlock(opts: ContextBlockOpts): string {
   const storyContextSection = wrapSection(
     sections.storyContext,
     `${formatTemplate(labels.scene, { value: world.current_scene })}\n` +
-      `${formatTemplate(labels.date, { value: world.current_date })}\n` +
       `${formatTemplate(labels.time, { value: world.time_of_day })}`,
   )
 

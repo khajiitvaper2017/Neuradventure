@@ -170,7 +170,6 @@ export const NPCStateStoredSchema = CharacterStateStoredBaseSchema.transform((va
 export const WorldStateUpdateSchema = z
   .object({
     current_scene: z.string().min(1).optional(),
-    current_date: z.string().regex(DATE_REGEX, "current_date must be YYYY-MM-DD").optional(),
     time_of_day: z.string().regex(TIME_OF_DAY_REGEX, "time_of_day must be 24h HH:MM").optional(),
     locations: LocationsSchema.optional(),
   })
@@ -180,7 +179,6 @@ export const WorldStateUpdateSchema = z
 export const WorldStateSchema = z
   .object({
     current_scene: z.string().min(1),
-    current_date: z.string().regex(DATE_REGEX, "current_date must be YYYY-MM-DD"),
     time_of_day: z.string().regex(TIME_OF_DAY_REGEX, "time_of_day must be 24h HH:MM"),
     memory: z.preprocess((value) => (typeof value === "string" ? stripSummaryLeak(value) : value), z.string().min(1)),
     locations: LocationsSchema,
@@ -191,7 +189,6 @@ export const WorldStateSchema = z
 export const WorldStateStoredSchema = z
   .object({
     current_scene: z.string().optional(),
-    current_date: z.string().optional(),
     time_of_day: z.string().optional(),
     memory: z.string().optional(),
     locations: z.unknown().optional(),
@@ -201,7 +198,6 @@ export const WorldStateStoredSchema = z
     const currentScene = normalizeCurrentScene(value.current_scene)
     return {
       current_scene: currentScene,
-      current_date: normalizeCurrentDate(value.current_date),
       time_of_day: normalizeTimeOfDay(value.time_of_day),
       memory: normalizeMemory(value.memory),
       locations: normalizeLocations(value.locations, currentScene),

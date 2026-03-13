@@ -12,20 +12,13 @@
       "narrative_text: {llm.turn_response.narrative_text}",
       "Consistency: The narrative must perfectly match world_state_update, current_appearance, current_clothing, and set_current_inventory. No contradictions allowed.",
       "Don't generate player actions that he didn't do and phrases he didn't say. Always show reaction to his actions and words.",
+      "current_appearance describes player character's appearance, npc_changes.current_appearance describe npc's appearance",
       "Don't repeat: Do not restate the last narrative or paraphrase it. Move the story forward with new, specific details.",
       "Decision sequence (follow exactly):",
       "First evaluate story so far to write the narrative based on the current full state.",
       "Then evaluate every possible state change caused by the action."
     ],
     "modules": {
-      "track_npcs": {
-        "on": [
-          "If npc_changes or npc_introductions are present, the narrative must match them exactly.",
-          "NPC knowledge: NPCs can only act on information they have personally observed or been directly told in previous turns. They never have meta-knowledge.",
-          "Use npc_changes for existing NPCs. Use npc_introductions only for brand-new NPCs not in the known list."
-        ],
-        "off": []
-      },
       "track_locations": {
         "on": [
           "If world_state_update.locations is provided, keep it consistent with current_scene and character/NPC presence."
@@ -39,6 +32,14 @@
           "current_clothing: {state.character.current_clothing}",
           "current_appearance must describe visible anatomy only and never mention clothing, coverage, or exposure.",
           "Never output 'None' for current_appearance or current_clothing. If unchanged, omit the field."
+        ],
+        "off": []
+      },
+      "track_npcs": {
+        "on": [
+          "If npc_changes or npc_introductions are present, the narrative must match them exactly.",
+          "NPC knowledge: NPCs can only act on information they have personally observed or been directly told in previous turns. They never have meta-knowledge.",
+          "Use npc_changes for existing NPCs. Use npc_introductions only for brand-new NPCs not in the known list."
         ],
         "off": []
       },

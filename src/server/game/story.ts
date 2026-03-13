@@ -30,7 +30,6 @@ export function createNewStory(
   ]
   const world: WorldState = {
     current_scene: sceneName,
-    current_date: dateCandidate && DATE_REGEX.test(dateCandidate) ? dateCandidate : fallbackDate,
     time_of_day: timeCandidate && TIME_OF_DAY_REGEX.test(timeCandidate) ? timeCandidate : fallbackTime,
     memory: opening_scenario.trim(),
     locations: [

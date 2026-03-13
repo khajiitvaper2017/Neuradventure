@@ -87,10 +87,10 @@ export const NPCIntroductionsSection = z.array(NPCCreationSchema)
 export const TurnResponseSchema = z
   .object({
     narrative_text: z.string().min(1),
-    world_state_update: WorldStateUpdateSchema,
     current_clothing: CurrentClothingSection.optional(),
     current_appearance: SetCurrentAppearanceSection.optional(),
     set_current_inventory: SetCurrentInventorySection.optional(),
+    world_state_update: WorldStateUpdateSchema,
     npc_changes: NPCChangesSection.optional(),
     npc_introductions: NPCIntroductionsSection.optional(),
   })

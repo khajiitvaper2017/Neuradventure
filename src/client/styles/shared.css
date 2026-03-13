@@ -17,6 +17,21 @@
   --accent-hover: #ddbf85;
   --danger: #b54040;
 
+  /* Interaction */
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --focus-ring: var(--accent);
+  --focus-glow: var(--accent-dim);
+
+  /* Motion */
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-in: cubic-bezier(0.16, 1, 0.3, 1);
+
+  /* Elevation */
+  --shadow-sm: 0 10px 28px rgba(0, 0, 0, 0.28);
+  --shadow-md: 0 18px 50px rgba(0, 0, 0, 0.5);
+  --shadow-lg: 0 24px 70px rgba(0, 0, 0, 0.62);
+
   /* Typography — classic default */
   --font-story: "Spectral", Georgia, serif;
   --font-ui: "DM Sans", system-ui, sans-serif;
@@ -97,6 +112,7 @@ body {
   overflow: hidden;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  -webkit-tap-highlight-color: transparent;
 }
 
 .sr-only {
@@ -123,6 +139,22 @@ button {
 textarea,
 input {
   font-family: inherit;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+::selection {
+  background: var(--accent-dim);
+  color: var(--text);
 }
 
 input[type="checkbox"] {
@@ -241,7 +273,7 @@ input[type="checkbox"] {
   letter-spacing: 0.03em;
   min-height: 44px;
   border-radius: var(--radius-sm);
-  transition: background 0.15s;
+  transition: background 0.15s var(--ease-out);
 }
 .btn-primary:hover:not(:disabled),
 .btn-accent:hover:not(:disabled) {
@@ -264,12 +296,14 @@ input[type="checkbox"] {
   min-height: 44px;
   border-radius: var(--radius-sm);
   transition:
-    color 0.15s,
-    border-color 0.15s;
+    color 0.15s var(--ease-out),
+    border-color 0.15s var(--ease-out),
+    background 0.15s var(--ease-out);
 }
 .btn-ghost:hover:not(:disabled) {
   color: var(--text);
   border-color: var(--border-hover);
+  background: var(--bg-action);
 }
 .btn-ghost:disabled {
   opacity: 0.4;
@@ -804,7 +838,7 @@ button.btn-icon {
   z-index: 20;
   max-height: 220px;
   overflow-y: auto;
-  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.35);
+  box-shadow: var(--shadow-sm);
 }
 .shared-select-item {
   width: 100%;
@@ -1005,6 +1039,8 @@ button.chip:disabled {
   border: 1px solid var(--border);
   z-index: 50;
   min-width: 160px;
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-sm);
 }
 
 .dropdown button {
@@ -1230,16 +1266,16 @@ button.chip:disabled {
   border: 1px solid transparent;
   color: var(--text-dim);
   cursor: pointer;
-  min-width: 40px;
-  min-height: 40px;
+  min-width: 44px;
+  min-height: 44px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   border-radius: 8px;
   transition:
-    background 0.15s,
-    color 0.15s,
-    border-color 0.15s;
+    background 0.15s var(--ease-out),
+    color 0.15s var(--ease-out),
+    border-color 0.15s var(--ease-out);
 }
 
 .menu-btn:hover {
@@ -1249,7 +1285,7 @@ button.chip:disabled {
 }
 
 .menu-btn:focus-visible {
-  outline: 2px solid var(--accent-dim);
+  outline: 2px solid var(--focus-ring);
   outline-offset: 2px;
 }
 
@@ -1259,10 +1295,9 @@ button.chip:disabled {
   top: calc(100% + 0.25rem);
   z-index: 200;
   max-height: 320px;
-  overflow-y: auto;
+  overflow: auto;
   border-radius: var(--radius-md);
-  overflow: hidden;
-  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.35);
+  box-shadow: var(--shadow-sm);
 }
 
 .lib-dropdown--up {
@@ -1384,6 +1419,22 @@ button.chip:disabled {
 .lib-story-link:hover {
   border-color: var(--accent);
   color: var(--accent);
+}
+
+:where(
+  button,
+  a,
+  input,
+  textarea,
+  select,
+  summary,
+  [role="button"],
+  [role="tab"],
+  [role="menuitem"],
+  [role="option"]
+):focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
 }
 
 /* ── Overlay panels ─────────────────────────────────── */

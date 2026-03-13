@@ -9,7 +9,6 @@
     },
     "world_state_update": {
       "current_scene": "Unique 1-5 word name of the player's immediate location.",
-      "current_date": "Date in YYYY-MM-DD format. Date should reflect the date of events happening.",
       "time_of_day": "24-hour HH:MM time of when events took place.",
       "memory": "Running summary of key events and important facts.",
       "locations": "List of all known locations in the story so far."

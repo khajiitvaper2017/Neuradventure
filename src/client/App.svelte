@@ -235,7 +235,7 @@
   /* ── Toast ────────────────────────────────────────── */
   .toast {
     position: fixed;
-    bottom: 90px;
+    bottom: calc(90px + var(--safe-bottom));
     left: 50%;
     transform: translateX(-50%);
     background: var(--bg-raised);
@@ -266,7 +266,7 @@
   .corner-note {
     position: fixed;
     right: 16px;
-    bottom: 16px;
+    bottom: calc(16px + var(--safe-bottom));
     background: var(--bg-raised);
     border: 1px solid var(--border);
     color: var(--text-dim);

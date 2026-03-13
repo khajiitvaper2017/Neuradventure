@@ -621,7 +621,7 @@
     const opening = $currentStoryOpeningScenario
     untrack(() => {
       if (!baselineWorldSet && (ws || opening)) {
-        lastSceneText = ws ? `${ws.current_scene} · ${ws.current_date} · ${ws.time_of_day}` : ""
+        lastSceneText = ws ? `${ws.current_scene} · ${ws.time_of_day}` : ""
         lastOpeningText = opening || ws?.memory || ""
         baselineWorldSet = true
       }
@@ -634,7 +634,7 @@
     const opening = $currentStoryOpeningScenario
     untrack(() => {
       if (updateId !== lastLlmUpdateId) {
-        const sceneText = ws ? `${ws.current_scene} · ${ws.current_date} · ${ws.time_of_day}` : ""
+        const sceneText = ws ? `${ws.current_scene} · ${ws.time_of_day}` : ""
         const openingText = opening || ws?.memory || ""
         if (baselineWorldSet) {
           if (sceneText && sceneText !== lastSceneText) {
@@ -716,7 +716,7 @@
       <span class="story-name">{$currentStoryTitle}</span>
       {#if $worldState}
         <span class="header-scene" class:flash={flashScene}>
-          {$worldState.current_scene} · {$worldState.current_date} · {$worldState.time_of_day}
+          {$worldState.current_scene} · {$worldState.time_of_day}
         </span>
       {/if}
     </div>
@@ -863,7 +863,7 @@
     <!-- Opening scene context -->
     {#if $worldState}
       <p class="scene-crumb mobile-only" class:flash={flashScene}>
-        {$worldState.current_scene} · {$worldState.current_date} · {$worldState.time_of_day}
+        {$worldState.current_scene} · {$worldState.time_of_day}
       </p>
     {/if}
 
@@ -884,7 +884,7 @@
       </div>
       {#if $currentStoryInitialWorld}
         <p class="opening-scene">
-          {$currentStoryInitialWorld.current_scene} · {$currentStoryInitialWorld.current_date} · {$currentStoryInitialWorld.time_of_day}
+          {$currentStoryInitialWorld.current_scene} · {$currentStoryInitialWorld.time_of_day}
         </p>
       {/if}
       {#if editingOpening}
@@ -963,7 +963,7 @@
         <!-- Narrative paragraphs -->
         <div class="narrative-block" class:fresh={userActed && i === $turns.length - 1 && !$isGenerating}>
           {#if turn.world}
-            <p class="turn-scene">{turn.world.current_scene} · {turn.world.current_date} · {turn.world.time_of_day}</p>
+            <p class="turn-scene">{turn.world.current_scene} · {turn.world.time_of_day}</p>
           {/if}
           {#each paragraphs(turn.narrative_text) as para, j}
             <p class="para" style="animation-delay: {j * 0.06}s">

@@ -476,6 +476,7 @@
         </div>
       </div>
 
+        {#if showBaselineDetails}
       <div class="cs-section" class:flash={flashAppearance}>
         <div class="cs-section-header">
           <IconFace size={14} strokeWidth={1.5} className="cs-icon" />
@@ -483,6 +484,7 @@
         </div>
         <div class="cs-value">{displayCharacter.general_description || "Unknown description"}</div>
       </div>
+        {/if}
 
       {#if useAppearance}
         {#if showBaselineDetails}
@@ -580,15 +582,13 @@
         <span>Character Sheet</span>
       </div>
       <div class="cs-header-actions">
-        {#if useAppearance}
           <button
             class="cs-toggle-btn"
             onclick={() => (showBaselineDetails = !showBaselineDetails)}
             disabled={!displayCharacter}
           >
-            {showBaselineDetails ? "Hide Baseline" : "Show Baseline"}
+            {showBaselineDetails ? "Hide details" : "Show details"}
           </button>
-        {/if}
         <button
           class="cs-edit-btn"
           onclick={startEdit}
@@ -615,15 +615,13 @@
         <span>Character Sheet</span>
       </div>
       <div class="cs-header-actions">
-        {#if useAppearance}
           <button
             class="cs-toggle-btn"
             onclick={() => (showBaselineDetails = !showBaselineDetails)}
             disabled={!displayCharacter}
           >
-            {showBaselineDetails ? "Hide Baseline" : "Show Baseline"}
+            {showBaselineDetails ? "Hide details" : "Show details"}
           </button>
-        {/if}
         <button
           class="cs-edit-btn"
           onclick={startEdit}

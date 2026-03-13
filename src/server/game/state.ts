@@ -193,10 +193,6 @@ export function collectLlmWarnings(world: WorldState, npcs: NPCState[], turnResp
     provided += 1
     if (worldUpdate.time_of_day === world.time_of_day) unchanged += 1
   }
-  if (worldUpdate.current_date !== undefined) {
-    provided += 1
-    if (worldUpdate.current_date === world.current_date) unchanged += 1
-  }
   if (worldUpdate.locations !== undefined) {
     provided += 1
     if (JSON.stringify(worldUpdate.locations) === JSON.stringify(world.locations)) unchanged += 1

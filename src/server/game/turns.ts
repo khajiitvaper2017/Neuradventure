@@ -48,7 +48,6 @@ function buildWorldUpdate(baseWorld: WorldState, update: TurnResponse["world_sta
   return {
     ...baseWorld,
     ...(update.current_scene !== undefined && { current_scene: update.current_scene }),
-    ...(update.current_date !== undefined && { current_date: update.current_date }),
     ...(update.time_of_day !== undefined && { time_of_day: update.time_of_day }),
     locations:
       modules.track_locations && update.locations

@@ -57,7 +57,6 @@ export interface StoryModules {
 
 export interface WorldState {
   current_scene: string
-  current_date: string
   time_of_day: string
   memory: string
   locations: Location[]
