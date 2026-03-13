@@ -197,8 +197,7 @@ function formatOpenRouterRoutingDiagnostics(
     .filter((k) => k !== "messages")
     .sort()
 
-  const requestedKeys = safeKeys.slice(0, 40)
-  const extraKeyCount = safeKeys.length - requestedKeys.length
+  const requestedKeys = safeKeys
 
   const provider = asRecord(request.provider)
   const requireParameters = provider ? provider.require_parameters : undefined
@@ -251,16 +250,10 @@ function formatOpenRouterRoutingDiagnostics(
       )} strict=${strictStr}`,
     )
   }
-  parts.push(
-    `[openrouter-routing] requested_keys=${requestedKeys.join(", ")}${extraKeyCount > 0 ? `, …(+${extraKeyCount} more)` : ""}`,
-  )
+  parts.push(`[openrouter-routing] requested_keys=${requestedKeys.join(", ")}`)
   if (samplingParts.length > 0) parts.push(`[openrouter-routing] sampling=${samplingParts.join(", ")}`)
   if (supportedParams && supportedParams.length > 0) {
-    const preview = supportedParams.slice(0, 40)
-    const extra = supportedParams.length - preview.length
-    parts.push(
-      `[openrouter-routing] model_supported_parameters=${preview.join(", ")}${extra > 0 ? `, …(+${extra} more)` : ""}`,
-    )
+    parts.push(`[openrouter-routing] model_supported_parameters=${supportedParams.join(", ")}`)
   }
   if (notSupported.length > 0) {
     // Note: OpenRouter routing options like `provider` are not part of model supported_parameters.
@@ -357,13 +350,12 @@ async function extractContentFromUnknown(res: unknown): Promise<string | null> {
   return null
 }
 
-function formatZodIssues(error: z.ZodError, maxIssues = 12): string {
-  const issues = error.issues.slice(0, maxIssues).map((issue) => {
+function formatZodIssues(error: z.ZodError): string {
+  const issues = error.issues.map((issue) => {
     const path = issue.path.length > 0 ? issue.path.join(".") : "(root)"
     return `${path}: ${issue.message}`
   })
-  const extra = error.issues.length - issues.length
-  return `${issues.join("; ")}${extra > 0 ? `; …(+${extra} more)` : ""}`
+  return issues.join("; ")
 }
 
 export async function callLLM(
@@ -532,8 +524,7 @@ export async function callLLMRaw<TSchema extends z.ZodTypeAny>(
     const validated = zodSchema.safeParse(parsedCandidate)
     if (!validated.success) {
       const issues = formatZodIssues(validated.error)
-      const preview = responseContent.length > 420 ? `${responseContent.slice(0, 420)}...` : responseContent
-      throw new Error(`LLM returned JSON that failed validation for ${schemaName}: ${issues}. Preview: ${preview}`)
+      throw new Error(`LLM returned JSON that failed validation for ${schemaName}: ${issues}`)
     }
 
     const parsed = validated.data
