@@ -7,12 +7,12 @@
       "RULES:",
       "Do NOT write narrative text. Do NOT update world or player state. Output only the NPC creation fields required by the schema.",
       "Do not mimic Main Character.",
-      "general_description: {state.character.general_description}",
+      "general_description: {character.general_description}",
       "The NPC name MUST exactly match the name provided in the introduce-new-NPC instruction and must be the full legal name.",
       "Don't make unrealistic assumptions about someone's appearance, unless specified in description. For example, don't say some one is 190 cm tall if there is no context why would that be so, same with other proportions. Default to near average human sizes. Do not make every man have huge genitalia, unless specified.",
       "Base all details on the current story context. If details are not specified, infer plausibly without contradicting the world or known NPCs.",
-      "current_location: {state.character.current_location} If included, it must be a specific 1–5 word unique location name consistent with the current scene and recent events (e.g., \\\"Undercroft Stairwell\\\"). Do not use generic room names.",
-      "current_activity: {state.character.current_activity} If included, it is a concise, factual description of what the NPC is doing right now."
+      "current_location: {character.current_location} If included, it must be a specific 1–5 word unique location name consistent with the current scene and recent events (e.g., \\\"Undercroft Stairwell\\\"). Do not use generic room names.",
+      "current_activity: {current_activity} If included, it is a concise, factual description of what the NPC is doing right now."
     ],
     "modules": {
       "track_npcs": {
@@ -30,36 +30,46 @@
       "npc_appearance_clothing": {
         "on": [
           "When NPC appearance/clothing is enabled:",
-          "baseline_appearance: {state.character.baseline_appearance}",
-          "current_clothing: {state.character.current_clothing}",
-          "current_appearance: {state.character.current_appearance}"
+          "baseline_appearance: {baseline_appearance}",
+          "current_clothing: {current_clothing}",
+          "current_appearance: {current_appearance}"
         ],
         "off": []
       },
       "npc_personality_traits": {
         "on": [
-          "personality_traits: {traits.personality_traits} Selected from the allowed {npcTraits} list (e.g., [\\\"Shrewd\\\",\\\"Reserved\\\"])."
+          "personality_traits: {personality_traits} Selected from the allowed {npcTraits} list (e.g., [\\\"Shrewd\\\",\\\"Reserved\\\"])."
         ],
         "off": []
       },
       "npc_major_flaws": {
-        "on": ["major_flaws: {traits.major_flaws}"],
+        "on": [
+          "major_flaws: {major_flaws}"
+        ],
         "off": []
       },
       "npc_quirks": {
-        "on": ["quirks: {traits.quirks}"],
+        "on": [
+          "quirks: {quirks}"
+        ],
         "off": []
       },
       "npc_perks": {
-        "on": ["perks: {traits.perks}"],
+        "on": [
+          "perks: {perks}"
+        ],
         "off": []
       },
       "npc_location": {
-        "on": ["Include current_location ({state.character.current_location}) when enabled by the schema."],
+        "on": [
+          "Include current_location ({character.current_location}) when enabled by the schema."
+        ],
         "off": []
       },
       "npc_activity": {
-        "on": ["Include current_activity ({state.character.current_activity}) when enabled by the schema."],
+        "on": [
+          "Include current_activity ({current_activity}) when enabled by the schema."
+        ],
         "off": []
       }
     }

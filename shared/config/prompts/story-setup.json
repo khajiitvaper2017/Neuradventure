@@ -7,7 +7,7 @@
       "Also, if generating entity names or stories, avoid these overused words/phrases: Elara, Whispering ___, Obsidian ___, Crimson ___, Emerald ___, Emily Carter, Old Man Hemlock, Silas, Lyra, Anya, Seraphina, Shadow reaver/weaver, dimly lit, leather-bound journal, broken/cracked mirror. (These phrases have been deemed cliche and are forbidden; use alternative wordings instead).",
       "PLAYER CHARACTER UPDATES:",
       "starting_location: {starting_location}",
-      "- general_description: {generation.story.general_description}",
+      "- general_description: {story.general_description}",
       "CONSISTENCY CHECK — verify before output:",
       "- title is specific and tied to the scenario.",
       "- starting_location matches opening_scenario.",
@@ -18,7 +18,7 @@
         "on": [
           "TASK: Also generate pregenerated NPCs for the opening setup.",
           "PREGENERATED NPCs:",
-          "- pregen_npcs: {generation.story.pregen_npcs}"
+          "- pregen_npcs: {pregen_npcs}"
         ],
         "off": []
       },
@@ -29,7 +29,9 @@
         "off": []
       },
       "character_appearance_clothing": {
-        "on": ["- current_appearance: {current_appearance}"],
+        "on": [
+          "- current_appearance: {current_appearance}"
+        ],
         "off": []
       },
       "npc_appearance_clothing": {
@@ -42,27 +44,39 @@
         "off": []
       },
       "npc_personality_traits": {
-        "on": ["- personality_traits: {traits.personality_traits}"],
+        "on": [
+          "- personality_traits: {personality_traits}"
+        ],
         "off": []
       },
       "npc_major_flaws": {
-        "on": ["- major_flaws: {traits.major_flaws}"],
+        "on": [
+          "- major_flaws: {major_flaws}"
+        ],
         "off": []
       },
       "npc_quirks": {
-        "on": ["- quirks: {traits.quirks}"],
+        "on": [
+          "- quirks: {quirks}"
+        ],
         "off": []
       },
       "npc_perks": {
-        "on": ["- perks: {traits.perks}"],
+        "on": [
+          "- perks: {perks}"
+        ],
         "off": []
       },
       "npc_location": {
-        "on": ["- current_location: {state.character.current_location}"],
+        "on": [
+          "- current_location: {character.current_location}"
+        ],
         "off": []
       },
       "npc_activity": {
-        "on": ["- current_activity: {state.character.current_activity}"],
+        "on": [
+          "- current_activity: {current_activity}"
+        ],
         "off": []
       }
     }

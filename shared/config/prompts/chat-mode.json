@@ -9,8 +9,14 @@
       "Blend narration and spoken lines naturally from the character's perspective without using any structural templates."
     ],
     "modules": {
-      "track_npcs": { "on": [], "off": [] },
-      "track_locations": { "on": [], "off": [] }
+      "track_npcs": {
+        "on": [],
+        "off": []
+      },
+      "track_locations": {
+        "on": [],
+        "off": []
+      }
     }
   },
   "generateChatPrompt": {
@@ -24,8 +30,14 @@
       "Do NOT include speaker names or prefixes (no \"{{char}}:\" or \"Name:\"). Output message text only."
     ],
     "modules": {
-      "track_npcs": { "on": [], "off": [] },
-      "track_locations": { "on": [], "off": [] }
+      "track_npcs": {
+        "on": [],
+        "off": []
+      },
+      "track_locations": {
+        "on": [],
+        "off": []
+      }
     }
   }
 }

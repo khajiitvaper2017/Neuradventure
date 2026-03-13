@@ -5,7 +5,7 @@ import { zodSchemaToJsonSchema } from "../utils/json-schema.js"
 import { getChatPrompt, getGenerateChatPrompt } from "./config.js"
 import { getServerDefaults } from "../core/strings.js"
 import { callLLMRaw, callLLMText } from "./call.js"
-import type { TavernCardV2 } from "../utils/converters/tavern.js"
+import type { TavernCard } from "../utils/converters/tavern.js"
 import { renderCharacterBook } from "../utils/tavern/character-book.js"
 
 export type ChatMemberState = Omit<MainCharacterState, "inventory"> | Omit<NPCState, "inventory">
@@ -23,6 +23,16 @@ export type ChatMessage = {
 }
 
 const MAX_CHAT_HISTORY = 40
+
+function getExampleDialogText(card: TavernCard | null | undefined): string {
+  if (!card) return ""
+  const raw = card.data?.mes_example?.trim()
+  if (raw) return raw
+  const legacy =
+    (card.data as Record<string, unknown>)["example_dialogue"] ??
+    (card.data as Record<string, unknown>)["example_dialogs"]
+  return typeof legacy === "string" ? legacy.trim() : ""
+}
 
 function formatMemberSummary(member: ChatMemberState): string {
   const defaults = getServerDefaults()
@@ -55,7 +65,7 @@ export function buildChatMessages(
   members: ChatMember[],
   history: ChatMessage[],
   nextSpeakerName: string,
-  options: { continueWithoutPlayer?: boolean; speakerCard?: TavernCardV2 | null } = {},
+  options: { continueWithoutPlayer?: boolean; speakerCard?: TavernCard | null } = {},
 ): OpenAI.ChatCompletionMessageParam[] {
   const trimmedHistory = history.slice(-MAX_CHAT_HISTORY)
   const participantBlock = members
@@ -77,6 +87,8 @@ export function buildChatMessages(
       ? postHistoryRaw.replaceAll("{{original}}", "")
       : postHistoryRaw
     : ""
+
+  const exampleDialog = getExampleDialogText(options.speakerCard)
 
   const characterBook = options.speakerCard?.data?.character_book
   const scanDepth =
@@ -103,6 +115,9 @@ export function buildChatMessages(
     renderedBook.after_char ? "=== Character Book ===" : null,
     renderedBook.after_char ? renderedBook.after_char : null,
     renderedBook.after_char ? "" : null,
+    exampleDialog ? "=== Example Dialogs ===" : null,
+    exampleDialog ? exampleDialog : null,
+    exampleDialog ? "" : null,
     "=== Chat History ===",
     historyBlock,
     "",
@@ -147,7 +162,7 @@ export async function generateChatReply(
   stopTokens: string[],
 ): Promise<string> {
   const cleanedStops = stopTokens.filter((token) => token.trim().length > 0)
-  return callLLMText(messages, undefined, { disableRepetition: true, stop: cleanedStops })
+  return callLLMText(messages, undefined, { disableRepetition: true, stop: cleanedStops, requestName: "ChatReply" })
 }
 
 export async function generateChat(description: string): Promise<GenerateChatResponse> {

@@ -5,8 +5,14 @@
       "OUTPUT: Return ONLY the player's action text. No labels, no quotes, no extra commentary."
     ],
     "modules": {
-      "track_npcs": { "on": [], "off": [] },
-      "track_locations": { "on": [], "off": [] }
+      "track_npcs": {
+        "on": [],
+        "off": []
+      },
+      "track_locations": {
+        "on": [],
+        "off": []
+      }
     }
   }
 }

@@ -11,16 +11,28 @@ export let SCHEMA_FIELDS: Record<string, unknown> = {}
 
 type LeafLookup = {
   byKey: Map<string, string>
+  bySuffix: Map<string, string>
   ambiguous: Set<string>
+  ambiguousSuffix: Set<string>
 }
 
 const WATCH_DEBOUNCE_MS = 50
-let leafLookup: LeafLookup = { byKey: new Map(), ambiguous: new Set() }
+let leafLookup: LeafLookup = { byKey: new Map(), bySuffix: new Map(), ambiguous: new Set(), ambiguousSuffix: new Set() }
 let reloadTimer: NodeJS.Timeout | null = null
 let watchersStarted = false
 const activeWatchers: fs.FSWatcher[] = []
 
+function normalizeWrappedKey(raw: string): string {
+  const trimmed = raw.trim()
+  if (trimmed.startsWith("{") && trimmed.endsWith("}")) {
+    return trimmed.slice(1, -1).trim()
+  }
+  return trimmed
+}
+
 function getFieldByPath(pathKey: string, root: Record<string, unknown>): string | null {
+  const exact = root[pathKey]
+  if (typeof exact === "string") return exact
   const parts = pathKey.split(".")
   let current: unknown = root
   for (const part of parts) {
@@ -30,31 +42,62 @@ function getFieldByPath(pathKey: string, root: Record<string, unknown>): string 
   return typeof current === "string" ? current : null
 }
 
+type FlatEntry = { fullKey: string; value: string }
+
+function flattenLeafEntries(root: Record<string, unknown>): FlatEntry[] {
+  const out: FlatEntry[] = []
+  const walk = (node: unknown, prefix: string) => {
+    if (!node || typeof node !== "object") return
+    for (const [key, value] of Object.entries(node as Record<string, unknown>)) {
+      const fullKey = prefix ? `${prefix}.${key}` : key
+      if (value && typeof value === "object" && !Array.isArray(value)) {
+        walk(value, fullKey)
+        continue
+      }
+      if (typeof value === "string") out.push({ fullKey, value })
+    }
+  }
+  walk(root, "")
+  return out
+}
+
 function buildLeafLookup(schemaFields: Record<string, unknown>, settingsFields: Record<string, unknown>): LeafLookup {
   const byKey = new Map<string, string>()
   const ambiguous = new Set<string>()
+  const bySuffix = new Map<string, string>()
+  const ambiguousSuffix = new Set<string>()
 
-  const walk = (node: unknown) => {
-    if (!node || typeof node !== "object") return
-    for (const [key, value] of Object.entries(node as Record<string, unknown>)) {
-      if (value && typeof value === "object") {
-        walk(value)
+  const entries = [...flattenLeafEntries(schemaFields), ...flattenLeafEntries(settingsFields)]
+
+  for (const { fullKey, value } of entries) {
+    const parts = fullKey.split(".").filter(Boolean)
+    if (parts.length === 0) continue
+
+    const leaf = parts[parts.length - 1]!
+    if (!ambiguous.has(leaf)) {
+      if (byKey.has(leaf)) {
+        byKey.delete(leaf)
+        ambiguous.add(leaf)
+      } else {
+        byKey.set(leaf, value)
+      }
+    }
+
+    // Build a suffix lookup for dotted shortcuts like story.title or character.name.
+    // We only accept suffixes that map to exactly one full key across schema+settings.
+    for (let take = 2; take <= parts.length; take++) {
+      const suffix = parts.slice(parts.length - take).join(".")
+      if (ambiguousSuffix.has(suffix)) continue
+      if (bySuffix.has(suffix)) {
+        bySuffix.delete(suffix)
+        ambiguousSuffix.add(suffix)
         continue
       }
-      if (typeof value !== "string") continue
-      if (ambiguous.has(key)) continue
-      if (byKey.has(key)) {
-        byKey.delete(key)
-        ambiguous.add(key)
-        continue
-      }
-      byKey.set(key, value)
+      bySuffix.set(suffix, value)
     }
   }
 
-  walk(schemaFields)
-  walk(settingsFields)
-  return { byKey, ambiguous }
+  return { byKey, bySuffix, ambiguous, ambiguousSuffix }
 }
 
 function readJsonFile(pathKey: string): Record<string, unknown> {
@@ -107,10 +150,14 @@ startWatchers()
 
 export function resolveFieldShortcut(key: string): string | null {
   if (!key) return null
-  if (key.includes(".")) {
-    return getFieldByPath(key, SCHEMA_FIELDS) ?? getFieldByPath(key, SETTINGS_FIELDS)
+  const normalized = normalizeWrappedKey(key)
+  if (!normalized) return null
+  if (normalized.includes(".")) {
+    const exact = getFieldByPath(normalized, SCHEMA_FIELDS) ?? getFieldByPath(normalized, SETTINGS_FIELDS)
+    if (exact) return exact
+    return leafLookup.bySuffix.get(normalized) ?? null
   }
-  return leafLookup.byKey.get(key) ?? null
+  return leafLookup.byKey.get(normalized) ?? null
 }
 
 export function replaceFieldShortcuts(text: string): string {

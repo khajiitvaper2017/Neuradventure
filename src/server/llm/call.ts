@@ -8,6 +8,7 @@ import { buildSamplingParams } from "./sampling.js"
 import { parseJsonFromContent } from "./parse.js"
 import { createLlmLogBase, logLlmEntry } from "./logging.js"
 import { getClient, getConnector, getGenerationParams } from "./client.js"
+import { injectSchemaDescriptions } from "./inject-schema-descriptions.js"
 
 function isAsyncIterable(value: unknown): value is AsyncIterable<unknown> {
   if (!value || typeof value !== "object") return false
@@ -93,7 +94,7 @@ function repairTurnResponseShape(value: unknown): unknown {
     root.world_state_update = {}
   } else {
     const wsuObj = wsu as Record<string, unknown>
-    
+
     // Move npc_changes and npc_introductions from world_state_update to root
     if (wsuObj.npc_changes !== undefined && root.npc_changes === undefined) {
       root.npc_changes = wsuObj.npc_changes
@@ -103,7 +104,7 @@ function repairTurnResponseShape(value: unknown): unknown {
       root.npc_introductions = wsuObj.npc_introductions
       delete wsuObj.npc_introductions
     }
-    
+
     // Fix common field name mismatches
     if (wsuObj.location !== undefined && wsuObj.current_scene === undefined) {
       wsuObj.current_scene = wsuObj.location
@@ -113,7 +114,7 @@ function repairTurnResponseShape(value: unknown): unknown {
       wsuObj.time_of_day = wsuObj.time
       delete wsuObj.time
     }
-    
+
     // Remove invalid fields that LLMs sometimes hallucinate
     delete wsuObj.environment_changes
     delete wsuObj.inventory_changes
@@ -286,8 +287,18 @@ export async function callLLMRaw<T>(
   const gen = getGenerationParams()
   const connector = getConnector()
   const sampling = buildSamplingParams(connector, gen, maxTokensOverride, options)
-  const jsonSchema = derefJsonSchema(schema)
-  const logBase = createLlmLogBase("json", messages, sampling, schemaName, undefined, jsonSchema)
+  const deref = derefJsonSchema(schema)
+  const injected = injectSchemaDescriptions(schemaName, deref)
+  const jsonSchema = injected.schema
+  if (injected.missing.length > 0) {
+    const sample = injected.missing.slice(0, 12).map((m) => m.path)
+    console.warn(
+      `[llm-schema] Missing descriptions for ${schemaName}: ${injected.missing.length} field(s). Examples: ${sample.join(
+        ", ",
+      )}`,
+    )
+  }
+  const logBase = createLlmLogBase("json", schemaName, messages, sampling, schemaName, undefined, jsonSchema)
   let responseContent: string | undefined
 
   const model = connector.type === "openrouter" ? connector.model : "local"
@@ -298,14 +309,21 @@ export async function callLLMRaw<T>(
       NPCCreation: "NPC character creation data",
     }
     const responseFormat = buildJsonSchemaResponseFormat(schemaName, jsonSchema, {
-      strict: connector.type === "openrouter",
+      // Always request strict mode; some backends may ignore it, but providers that
+      // support JSON Schema should enforce it.
+      strict: true,
       description: schemaDescriptions[schemaName],
     }) as OpenAI.ResponseFormatJSONSchema
-    const baseReq: OpenAI.ChatCompletionCreateParams = {
+    const baseReq: OpenAI.ChatCompletionCreateParams & { provider?: unknown } = {
       model,
       messages,
       ...sampling,
       stream: false,
+    }
+    if (connector.type === "openrouter") {
+      // Ensure OpenRouter only routes to providers that support all specified parameters,
+      // especially `response_format` for structured outputs.
+      baseReq.provider = { require_parameters: true }
     }
 
     const initialReq =
@@ -332,8 +350,15 @@ export async function callLLMRaw<T>(
       res = await getClient().chat.completions.create(initialReq)
     } catch (err) {
       const msg = String(err)
-      if (connector.type === "openrouter" && (msg.includes("response_format") || msg.includes("json_schema"))) {
-        res = await getClient().chat.completions.create(baseReq)
+      if (
+        connector.type === "koboldcpp" &&
+        (msg.includes("response_format") || msg.includes("json_schema") || msg.includes("strict"))
+      ) {
+        // If the backend rejects `response_format`, fall back to grammar-only mode.
+        // KoboldCpp should still honor `json_schema` via grammar conversion.
+        const fallbackReq = { ...initialReq }
+        delete (fallbackReq as Record<string, unknown>).response_format
+        res = await getClient().chat.completions.create(fallbackReq as OpenAI.ChatCompletionCreateParams)
       } else {
         throw err
       }
@@ -367,13 +392,14 @@ export async function callLLMRaw<T>(
 export async function callLLMText(
   messages: OpenAI.ChatCompletionMessageParam[],
   maxTokensOverride?: number,
-  options: { disableRepetition?: boolean; stop?: string[] } = {},
+  options: { disableRepetition?: boolean; stop?: string[]; requestName?: string } = {},
 ): Promise<string> {
   const gen = getGenerationParams()
   const connector = getConnector()
   const sampling = buildSamplingParams(connector, gen, maxTokensOverride, options)
   const stop = options.stop && options.stop.length > 0 ? options.stop.slice(0, 4) : ["\n\n===", "\n==="]
-  const logBase = createLlmLogBase("text", messages, sampling, undefined, stop)
+  const requestName = options.requestName?.trim() || "Text"
+  const logBase = createLlmLogBase("text", requestName, messages, sampling, undefined, stop)
   let responseContent: string | undefined
 
   try {

@@ -3,8 +3,18 @@ import { DB_PATH } from "../src/server/core/db.js"
 import { resolve } from "node:path"
 import { getConfig, npcTraits } from "../src/server/llm/config.js"
 import { buildTurnResponseSchema } from "../src/server/llm/schema.js"
-import { DEFAULT_STORY_MODULES } from "../src/server/schemas/story-modules.js"
+import { DEFAULT_STORY_MODULES, resolveModuleFlags } from "../src/server/schemas/story-modules.js"
 import { derefJsonSchema, zodSchemaToJsonSchema } from "../src/server/utils/json-schema.js"
+import { injectSchemaDescriptions } from "../src/server/llm/inject-schema-descriptions.js"
+import {
+  GenerateChatResponseSchema,
+  GenerateCharacterAppearanceResponseSchema,
+  GenerateCharacterClothingResponseSchema,
+  GenerateCharacterTraitsResponseSchema,
+  buildGenerateCharacterResponseSchema,
+  buildStoryResponseSchema,
+} from "../src/server/core/models.js"
+import { buildNpcCreationSchema } from "../src/server/schemas/npc-creation.js"
 
 function assertNonEmpty(value: unknown, label: string): void {
   if (value === null || value === undefined || value === "") {
@@ -43,6 +53,50 @@ function assertNoLocationsInTurnSchema(): void {
   }
 }
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return !!value && typeof value === "object" && !Array.isArray(value)
+}
+
+function isPlaceholderDescription(value: unknown): value is string {
+  if (typeof value !== "string") return false
+  const trimmed = value.trim()
+  return trimmed.startsWith("{") && trimmed.endsWith("}") && trimmed.length >= 3
+}
+
+function assertNoMissingDescriptions(schemaName: string, schema: object): void {
+  const json = derefJsonSchema(schema) as Record<string, unknown>
+  const injected = injectSchemaDescriptions(schemaName, json)
+
+  if (injected.missing.length > 0) {
+    const sample = injected.missing.slice(0, 20)
+    throw new Error(
+      `[check-configs] Missing schema-field descriptions for ${schemaName}: ${injected.missing.length}. Examples: ${sample
+        .map((m) => m.path)
+        .join(", ")}`,
+    )
+  }
+
+  const walk = (node: unknown, path: string) => {
+    if (!isRecord(node)) return
+    if (isPlaceholderDescription(node.description)) {
+      throw new Error(`[check-configs] Unresolved {..} description in ${schemaName} at ${path}`)
+    }
+    const props = node.properties
+    if (isRecord(props)) {
+      for (const [k, v] of Object.entries(props)) walk(v, path ? `${path}.${k}` : k)
+    }
+    if (node.items) walk(node.items, path)
+    for (const key of ["anyOf", "oneOf", "allOf"] as const) {
+      const variants = node[key]
+      if (Array.isArray(variants)) {
+        for (let i = 0; i < variants.length; i++) walk(variants[i], path)
+      }
+    }
+  }
+
+  walk(injected.schema, "")
+}
+
 function main() {
   const defaults = getServerDefaults()
   assertNonEmpty(defaults.format?.noneLower, "server-defaults.format.noneLower")
@@ -64,6 +118,47 @@ function main() {
   }
 
   assertNoLocationsInTurnSchema()
+
+  // Ensure all LLM JSON schemas have per-field descriptions (resolved from schema-fields.json).
+  const modules = { ...DEFAULT_STORY_MODULES }
+  const flags = resolveModuleFlags(modules)
+
+  const turnZod = buildTurnResponseSchema([], modules)
+  assertNoMissingDescriptions("TurnResponse", zodSchemaToJsonSchema(turnZod, "TurnResponse"))
+
+  const storyZod = buildStoryResponseSchema(modules)
+  assertNoMissingDescriptions("StoryResponse", zodSchemaToJsonSchema(storyZod, "StoryResponse"))
+
+  const genCharZod = buildGenerateCharacterResponseSchema(modules)
+  assertNoMissingDescriptions("GenerateCharacterResponse", zodSchemaToJsonSchema(genCharZod, "GenerateCharacterResponse"))
+  assertNoMissingDescriptions(
+    "GenerateCharacterAppearanceResponse",
+    zodSchemaToJsonSchema(GenerateCharacterAppearanceResponseSchema, "GenerateCharacterAppearanceResponse"),
+  )
+  assertNoMissingDescriptions(
+    "GenerateCharacterClothingResponse",
+    zodSchemaToJsonSchema(GenerateCharacterClothingResponseSchema, "GenerateCharacterClothingResponse"),
+  )
+  assertNoMissingDescriptions(
+    "GenerateCharacterTraitsResponse",
+    zodSchemaToJsonSchema(GenerateCharacterTraitsResponseSchema, "GenerateCharacterTraitsResponse"),
+  )
+
+  const npcCreationZod = buildNpcCreationSchema({
+    useNpcAppearance: flags.useNpcAppearance,
+    useNpcPersonalityTraits: flags.useNpcPersonalityTraits,
+    useNpcMajorFlaws: flags.useNpcMajorFlaws,
+    useNpcQuirks: flags.useNpcQuirks,
+    useNpcPerks: flags.useNpcPerks,
+    useNpcLocation: flags.useNpcLocation,
+    useNpcActivity: flags.useNpcActivity,
+  })
+  assertNoMissingDescriptions("NPCCreation", zodSchemaToJsonSchema(npcCreationZod, "NPCCreation"))
+
+  assertNoMissingDescriptions(
+    "GenerateChatResponse",
+    zodSchemaToJsonSchema(GenerateChatResponseSchema, "GenerateChatResponse"),
+  )
 
   console.log("Config checks OK")
 }

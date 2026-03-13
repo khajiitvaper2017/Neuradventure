@@ -36,6 +36,10 @@ export async function generatePlayerAction(
     storyModules,
   )
   const maxTokens = Math.min(getGenerationParams().max_tokens, 160)
-  const raw = await callLLMText(messages, maxTokens, { disableRepetition: true, stop: ["\n"] })
+  const raw = await callLLMText(messages, maxTokens, {
+    disableRepetition: true,
+    stop: ["\n"],
+    requestName: "PlayerAction",
+  })
   return sanitizePlayerAction(raw)
 }

@@ -10,6 +10,7 @@ export type LlmLogEntry = {
   id: string
   timestamp: string
   mode: LlmLogMode
+  request_name: string
   schema_name?: string
   schema?: object
   messages: OpenAI.ChatCompletionMessageParam[]
@@ -28,10 +29,21 @@ export type LlmLogEntry = {
 const llmLogPath = join(LOG_DIR, "llm.log")
 const llmLastPath = join(LOG_DIR, "llm-last.json")
 
+function safeFilePart(raw: string): string {
+  const trimmed = raw.trim()
+  if (!trimmed) return "unknown"
+  const safe = trimmed.replace(/[^a-zA-Z0-9_-]+/g, "_")
+  return safe.length > 120 ? safe.slice(0, 120) : safe
+}
+
 async function writeEntry(entry: LlmLogEntry): Promise<void> {
   await mkdir(LOG_DIR, { recursive: true })
   await appendFile(llmLogPath, `${JSON.stringify(entry)}\n`)
   await writeFile(llmLastPath, JSON.stringify(entry, null, 2))
+
+  const requestName = safeFilePart(entry.request_name || entry.schema_name || entry.mode)
+  const byRequestPath = join(LOG_DIR, `llm-last-${requestName}.json`)
+  await writeFile(byRequestPath, JSON.stringify(entry, null, 2))
 }
 
 export function logLlmEntry(entry: LlmLogEntry): void {
@@ -42,6 +54,7 @@ export function logLlmEntry(entry: LlmLogEntry): void {
 
 export function createLlmLogBase(
   mode: LlmLogMode,
+  requestName: string,
   messages: OpenAI.ChatCompletionMessageParam[],
   sampling: Record<string, unknown>,
   schemaName?: string,
@@ -52,6 +65,7 @@ export function createLlmLogBase(
     id: randomUUID(),
     timestamp: new Date().toISOString(),
     mode,
+    request_name: requestName,
     schema_name: schemaName,
     schema,
     messages,

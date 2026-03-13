@@ -6,10 +6,10 @@
       "Follow the schema exactly. If a field is present, fill it; if a field is absent, do not invent it.",
       "If input contains name of real life person, try to describe as close to reality as possible. Don't directly contradict something mentioned in input.",
       "Don't write like `Height: 183 cm.`, write like `He is 183 cm tall`.",
-      "- name: {state.character.name} If not specified, try to be creative.",
-      "- race: {state.character.race} Default to 'Human' unless an alternate race is explicitly provided in the source text.",
-      "- gender: {state.character.gender} Define gender definitively. Directly and clinically specify any non-standard anatomical configurations if dictated by the prompt (e.g., 'Futanari','Intersex').",
-      "- general_description: {state.character.general_description}"
+      "- name: {character.name} If not specified, try to be creative.",
+      "- race: {race} Default to 'Human' unless an alternate race is explicitly provided in the source text.",
+      "- gender: {gender} Define gender definitively. Directly and clinically specify any non-standard anatomical configurations if dictated by the prompt (e.g., 'Futanari','Intersex').",
+      "- general_description: {character.general_description}"
     ],
     "modules": {
       "track_npcs": {
@@ -22,32 +22,32 @@
       },
       "character_appearance_clothing": {
         "on": [
-          "- baseline_appearance: {state.character.baseline_appearance}",
-          "- current_clothing: {state.character.current_clothing}"
+          "- baseline_appearance: {baseline_appearance}",
+          "- current_clothing: {current_clothing}"
         ],
         "off": []
       },
       "character_personality_traits": {
         "on": [
-          "- personality_traits: {traits.personality_traits} Prioritize the provided master list."
+          "- personality_traits: {personality_traits} Prioritize the provided master list."
         ],
         "off": []
       },
       "character_major_flaws": {
         "on": [
-          "- major_flaws: {traits.major_flaws}"
+          "- major_flaws: {major_flaws}"
         ],
         "off": []
       },
       "character_quirks": {
         "on": [
-          "- quirks: {traits.quirks}"
+          "- quirks: {quirks}"
         ],
         "off": []
       },
       "character_perks": {
         "on": [
-          "- perks: {traits.perks}"
+          "- perks: {perks}"
         ],
         "off": []
       }
