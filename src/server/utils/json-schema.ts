@@ -1,13 +1,14 @@
-import { zodToJsonSchema } from "zod-to-json-schema"
-import type { ZodTypeAny } from "zod"
+import { z } from "zod"
 
 type JsonSchemaResponseFormat = {
   type: "json_schema"
   json_schema: { name: string; description?: string; schema: object; strict?: boolean }
 }
 
-export function zodSchemaToJsonSchema(schema: ZodTypeAny, name: string): object {
-  return zodToJsonSchema(schema, { name })
+export function zodSchemaToJsonSchema(schema: z.ZodType, name: string): object {
+  const jsonSchema = z.toJSONSchema(schema, { target: "draft-07", io: "input" }) as Record<string, unknown>
+  if (!jsonSchema.title) jsonSchema.title = name
+  return jsonSchema as object
 }
 
 export function buildJsonSchemaResponseFormat(

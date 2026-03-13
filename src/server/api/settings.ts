@@ -49,7 +49,7 @@ const GenerationParamsSchema = z.object({
   ban_eos_token: z.boolean(),
   sampler_order: z.array(z.number().int()),
   banned_tokens: z.array(z.string()),
-  logit_bias: z.record(z.number()),
+  logit_bias: z.record(z.string(), z.number()),
   render_special: z.boolean(),
   seed: z.number().int(),
 })
@@ -110,7 +110,7 @@ const SettingsUpdateSchema = z
     generation: GenerationParamsSchema.partial(),
   })
   .partial()
-  .refine((v) => Object.keys(v).length > 0, { message: "At least one setting is required" })
+  .refine((v) => Object.keys(v).length > 0, { error: "At least one setting is required" })
 
 const PromptConfigNameSchema = z.enum(db.PROMPT_CONFIG_KEYS as unknown as [string, ...string[]])
 const PromptConfigUpdateSchema = z.object({

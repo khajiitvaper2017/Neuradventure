@@ -69,7 +69,7 @@ export const UpdateStoryStateRequestSchema = z
       .optional(),
   })
   .refine((value) => value.character || value.npcs || value.world, {
-    message: "Provide character, npcs, or world updates",
+    error: "Provide character, npcs, or world updates",
   })
 
 export const UpdateTurnRequestSchema = z.object({
@@ -85,7 +85,7 @@ export const TakeTurnRequestSchema = z
     request_id: z.string().min(1).optional(),
   })
   .refine((v) => v.action_mode === "story" || v.player_input.trim().length > 0, {
-    message: "player_input is required unless action_mode is story",
+    error: "player_input is required unless action_mode is story",
   })
 
 export const RegenerateLastRequestSchema = z.object({

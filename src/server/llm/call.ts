@@ -163,6 +163,95 @@ function describeResponseShape(value: unknown): string {
   return JSON.stringify({ ctor: typeof ctor === "string" ? ctor : undefined, keys })
 }
 
+function formatOpenRouterRoutingDiagnostics(
+  request: Record<string, unknown>,
+  schemaName: string,
+  model: string,
+  supportedParams: string[] | null,
+): string {
+  const safeKeys = Object.keys(request)
+    .filter((k) => k !== "messages")
+    .sort()
+
+  const requestedKeys = safeKeys.slice(0, 40)
+  const extraKeyCount = safeKeys.length - requestedKeys.length
+
+  const provider = asRecord(request.provider)
+  const requireParameters = provider ? provider.require_parameters : undefined
+
+  const responseFormat = asRecord(request.response_format)
+  const responseFormatType = responseFormat?.type
+  const jsonSchema = responseFormat ? asRecord(responseFormat.json_schema) : null
+  const jsonSchemaName = jsonSchema?.name
+  const jsonSchemaStrict = jsonSchema?.strict
+
+  const supportedParamSet = supportedParams && supportedParams.length > 0 ? new Set(supportedParams) : null
+  const supportsStructuredOutputs = supportedParamSet ? supportedParamSet.has("structured_outputs") : null
+  const supportsResponseFormat = supportedParamSet ? supportedParamSet.has("response_format") : null
+
+  const samplingKeys = [
+    "max_completion_tokens",
+    "max_tokens",
+    "temperature",
+    "top_p",
+    "min_p",
+    "top_k",
+    "top_a",
+    "seed",
+    "presence_penalty",
+    "frequency_penalty",
+    "repetition_penalty",
+  ] as const
+  const samplingParts: string[] = []
+  for (const key of samplingKeys) {
+    const value = request[key]
+    if (typeof value === "number" || typeof value === "boolean") samplingParts.push(`${key}=${value}`)
+  }
+  const logitBias = asRecord(request.logit_bias)
+  if (logitBias) samplingParts.push(`logit_bias_keys=${Object.keys(logitBias).length}`)
+
+  const notSupported =
+    supportedParams && supportedParams.length > 0
+      ? requestedKeys.filter((k) => k !== "model" && k !== "stream" && !supportedParams.includes(k))
+      : []
+
+  const parts: string[] = []
+  parts.push(`[openrouter-routing] model=${model} schema=${schemaName}`)
+  if (requireParameters !== undefined)
+    parts.push(`[openrouter-routing] provider.require_parameters=${String(requireParameters)}`)
+  if (responseFormatType || jsonSchemaName || jsonSchemaStrict !== undefined) {
+    const strictStr = jsonSchemaStrict === undefined ? "unknown" : String(jsonSchemaStrict)
+    parts.push(
+      `[openrouter-routing] response_format=${String(responseFormatType)} json_schema.name=${String(
+        jsonSchemaName,
+      )} strict=${strictStr}`,
+    )
+  }
+  parts.push(
+    `[openrouter-routing] requested_keys=${requestedKeys.join(", ")}${extraKeyCount > 0 ? `, …(+${extraKeyCount} more)` : ""}`,
+  )
+  if (samplingParts.length > 0) parts.push(`[openrouter-routing] sampling=${samplingParts.join(", ")}`)
+  if (supportedParams && supportedParams.length > 0) {
+    const preview = supportedParams.slice(0, 40)
+    const extra = supportedParams.length - preview.length
+    parts.push(
+      `[openrouter-routing] model_supported_parameters=${preview.join(", ")}${extra > 0 ? `, …(+${extra} more)` : ""}`,
+    )
+  }
+  if (notSupported.length > 0) {
+    // Note: OpenRouter routing options like `provider` are not part of model supported_parameters.
+    const filtered = notSupported.filter((k) => k !== "provider")
+    if (filtered.length > 0) parts.push(`[openrouter-routing] keys_not_in_supported_parameters=${filtered.join(", ")}`)
+  }
+
+  if (responseFormatType === "json_schema" && supportsResponseFormat === true && supportsStructuredOutputs === false) {
+    parts.push(
+      `[openrouter-routing] hint=model_advertises_response_format_but_not_structured_outputs; json_schema may be unsupported for this model/provider`,
+    )
+  }
+  return parts.join("\n")
+}
+
 type ReadableStreamLike = {
   getReader: () => { read: () => Promise<{ done: boolean; value?: Uint8Array }>; releaseLock?: () => void }
 }
@@ -354,7 +443,10 @@ export async function callLLMRaw<T>(
           ? ({
               ...baseReq,
               response_format: responseFormat,
-            } as OpenAI.ChatCompletionCreateParams)
+              // OpenRouter: ensure requests requiring structured output params only route to
+              // providers that explicitly support them (otherwise parameters may be ignored).
+              provider: { require_parameters: true },
+            } as OpenAI.ChatCompletionCreateParams & { provider: { require_parameters: true } })
           : (baseReq as OpenAI.ChatCompletionCreateParams)
 
     let res: unknown
@@ -363,13 +455,35 @@ export async function callLLMRaw<T>(
     } catch (err) {
       const msg = String(err)
       if (
+        connector.type === "openrouter" &&
+        err instanceof OpenAI.NotFoundError &&
+        typeof err.error === "object" &&
+        err.error !== null
+      ) {
+        const errObj = err.error as Record<string, unknown>
+        const errMessage = typeof errObj.message === "string" ? errObj.message : ""
+        if (!errMessage.includes("No endpoints found that can handle the requested parameters")) {
+          throw err
+        }
+        const diagnostics = formatOpenRouterRoutingDiagnostics(
+          initialReq as unknown as Record<string, unknown>,
+          schemaName,
+          model,
+          supportedParams,
+        )
+        const orMessage = String(errMessage)
+        throw new Error(`OpenRouter routing failed (404): ${orMessage}\n${diagnostics}`, {
+          cause: err,
+        })
+      }
+      if (
         connector.type === "koboldcpp" &&
         (msg.includes("response_format") || msg.includes("json_schema") || msg.includes("strict"))
       ) {
         // If the backend rejects `response_format`, fall back to grammar-only mode.
         // KoboldCpp should still honor `json_schema` via grammar conversion.
         const fallbackReq = { ...initialReq }
-        delete (fallbackReq as Record<string, unknown>).response_format
+        delete (fallbackReq as unknown as Record<string, unknown>).response_format
         res = await getClient().chat.completions.create(fallbackReq as OpenAI.ChatCompletionCreateParams)
       } else {
         throw err

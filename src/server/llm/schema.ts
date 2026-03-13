@@ -16,7 +16,7 @@ const DEFAULT_MODULES: StoryModules = { ...DEFAULT_STORY_MODULES }
 export function buildTurnResponseSchema(
   knownNpcs: NPCState[],
   modules: StoryModules = DEFAULT_MODULES,
-): z.ZodType<TurnResponse, z.ZodTypeDef, unknown> {
+): z.ZodType<TurnResponse, unknown> {
   const uniqueNames = Array.from(new Set(knownNpcs.map((npc) => npc.name.trim()).filter((name) => name.length > 0)))
   const flags = resolveModuleFlags(modules)
   const npcCreationSchema = buildNpcCreationSchema({
@@ -29,12 +29,11 @@ export function buildTurnResponseSchema(
     useNpcActivity: flags.useNpcActivity,
   })
 
-  let schema: z.AnyZodObject = TurnResponseSchema
+  let schema: z.ZodObject = TurnResponseSchema
 
-  let worldUpdateSchema: z.AnyZodObject = WorldStateUpdateSchema as z.AnyZodObject
-  if (!modules.track_locations) {
-    worldUpdateSchema = worldUpdateSchema.omit({ locations: true })
-  }
+  const worldUpdateSchema: z.ZodObject = modules.track_locations
+    ? WorldStateUpdateSchema
+    : WorldStateUpdateSchema.omit({ locations: true })
 
   schema = schema.extend({
     world_state_update: worldUpdateSchema,
@@ -88,5 +87,5 @@ export function buildTurnResponseSchema(
     schema = schema.omit({ set_current_inventory: true })
   }
 
-  return schema as unknown as z.ZodType<TurnResponse, z.ZodTypeDef, unknown>
+  return schema as unknown as z.ZodType<TurnResponse, unknown>
 }

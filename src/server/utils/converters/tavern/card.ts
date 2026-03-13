@@ -4,7 +4,7 @@ import { npcTraitLookup } from "../../../schemas/npc-traits.js"
 import { getServerDefaults } from "../../../core/strings.js"
 import { normalizeGender } from "../../../schemas/normalizers.js"
 
-const ExtensionsSchema = z.record(z.unknown()).optional().default({}).catch({})
+const ExtensionsSchema = z.record(z.string(), z.unknown()).optional().default({}).catch({})
 
 export const CharacterBookEntrySchema = z
   .object({
@@ -71,6 +71,7 @@ export const TavernCardV2Schema = z
   .passthrough()
 
 export type TavernCardV2 = z.infer<typeof TavernCardV2Schema>
+export type TavernCard = TavernCardV2
 export type CharacterBook = z.infer<typeof CharacterBookSchema>
 export type CharacterBookEntry = z.infer<typeof CharacterBookEntrySchema>
 

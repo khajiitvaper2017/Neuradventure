@@ -30,29 +30,21 @@ export const GenerateCharacterResponseSchema = z
 
 export function buildGenerateCharacterResponseSchema(modules: StoryModules): z.ZodType<GenerateCharacterResponse> {
   const flags = resolveModuleFlags(modules)
-  const shape: Record<string, z.ZodTypeAny> = {
+  const shape = {
     name: z.string().min(1),
     race: z.string().min(1),
     gender: z.string().min(1),
     general_description: z.string().min(1),
-  }
-
-  if (flags.useCharAppearance) {
-    shape.baseline_appearance = z.string().min(1)
-    shape.current_clothing = z.string().min(1)
-  }
-
-  if (flags.useCharPersonalityTraits) {
-    shape.personality_traits = PersonalityTraitsSchema
-  }
-  if (flags.useCharMajorFlaws) {
-    shape.major_flaws = MajorFlawsStrictSchema
-  }
-  if (flags.useCharQuirks) {
-    shape.quirks = QuirksStrictSchema
-  }
-  if (flags.useCharPerks) {
-    shape.perks = PerksStrictSchema
+    ...(flags.useCharAppearance
+      ? {
+          baseline_appearance: z.string().min(1),
+          current_clothing: z.string().min(1),
+        }
+      : {}),
+    ...(flags.useCharPersonalityTraits ? { personality_traits: PersonalityTraitsSchema } : {}),
+    ...(flags.useCharMajorFlaws ? { major_flaws: MajorFlawsStrictSchema } : {}),
+    ...(flags.useCharQuirks ? { quirks: QuirksStrictSchema } : {}),
+    ...(flags.useCharPerks ? { perks: PerksStrictSchema } : {}),
   }
 
   return z.object(shape).strict() as unknown as z.ZodType<GenerateCharacterResponse>
@@ -105,20 +97,17 @@ export function buildStoryResponseSchema(modules: StoryModules): z.ZodType<Story
     useNpcPerks: flags.useNpcPerks,
   })
 
-  const baseShape: Record<string, z.ZodTypeAny> = {
+  const baseShape = {
     title: z.string().min(1),
     opening_scenario: z.string().min(1),
     starting_location: z.string().min(1),
     starting_date: z.string().regex(DATE_REGEX, "starting_date must be YYYY-MM-DD"),
     starting_time: z.string().regex(TIME_OF_DAY_REGEX, "starting_time must be 24h HH:MM"),
     general_description: z.string().trim().min(1),
+    ...(flags.useCharAppearance ? { current_appearance: z.string().min(1) } : {}),
   }
 
-  if (flags.useCharAppearance) {
-    baseShape.current_appearance = z.string().min(1)
-  }
-
-  let schema: z.AnyZodObject = z.object(baseShape).strict()
+  let schema = z.object(baseShape).strict()
 
   if (modules.track_npcs) {
     schema = schema.extend({

@@ -157,14 +157,14 @@ const normalizeCharacterStoredBase = (value: z.input<typeof CharacterStateStored
 
 export const CharacterStateStoredSchema = CharacterStateStoredBaseSchema.transform((value) =>
   normalizeCharacterStoredBase(value),
-).pipe(CharacterStateSchema)
+).transform((value) => CharacterStateSchema.parse(value))
 
 export const MainCharacterStateStoredSchema = CharacterStateStoredSchema
 
 export const NPCStateStoredSchema = CharacterStateStoredBaseSchema.transform((value) => ({
   ...normalizeCharacterStoredBase(value),
   current_activity: normalizeNonEmptyString(value.current_activity, getServerDefaults().unknown.activity),
-})).pipe(NPCStateSchema)
+})).transform((value) => NPCStateSchema.parse(value))
 
 export const WorldStateUpdateSchema = z
   .object({
@@ -195,11 +195,11 @@ export const WorldStateStoredSchema = z
   .passthrough()
   .transform((value) => {
     const currentScene = normalizeCurrentScene(value.current_scene)
-    return {
+    const normalized = {
       current_scene: currentScene,
       time_of_day: normalizeTimeOfDay(value.time_of_day),
       memory: normalizeMemory(value.memory),
       locations: normalizeLocations(value.locations, currentScene),
     }
+    return WorldStateSchema.parse(normalized)
   })
-  .pipe(WorldStateSchema)
