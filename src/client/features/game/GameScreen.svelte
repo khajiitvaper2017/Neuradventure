@@ -1264,7 +1264,6 @@
   .game {
     position: relative;
     overflow: hidden;
-    max-width: none;
   }
 
   /* ── Header ─────────────────────────────────────────── */

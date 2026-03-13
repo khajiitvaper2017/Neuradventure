@@ -121,8 +121,8 @@
   class:scheme-crimson={$colorScheme === "crimson"}
   class:game-active={desktopGame}
   class:collapse-char={$collapseCharSheet}
-  class:collapse-npc={$collapseNPCTracker}
-  class:collapse-locations={$collapseLocationsPanel}
+  class:collapse-npc={$collapseNPCTracker || !trackNpcs}
+  class:collapse-locations={$collapseLocationsPanel || !trackLocations}
   bind:this={appEl}
 >
   {#if appReady}
@@ -196,9 +196,11 @@
     --sidebar-left: var(--sidebar-width);
     --sidebar-right-1: var(--sidebar-width);
     --sidebar-right-2: var(--sidebar-width);
+    --game-width: 800px;
     display: grid;
+    justify-content: center;
     grid-template-columns:
-      var(--sidebar-left) minmax(var(--sidebar-width), 1fr) var(--sidebar-right-1)
+      var(--sidebar-left) minmax(0, var(--game-width)) var(--sidebar-right-1)
       var(--sidebar-right-2);
     grid-template-rows: 100dvh;
     max-width: 1800px;

@@ -182,14 +182,6 @@ input[type="checkbox"] {
   .screen {
     max-width: 800px;
   }
-  .screen.game {
-    max-width: none;
-  }
-  /* Desktop game grid: let the center column stretch fully */
-  .app.game-active .screen.game {
-    margin: 0;
-    width: 100%;
-  }
 }
 
 /* ── Sidebars ─────────────────────────────────────── */
