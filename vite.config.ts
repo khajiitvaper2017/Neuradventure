@@ -1,18 +1,19 @@
 import { defineConfig } from "vite"
 import { svelte } from "@sveltejs/vite-plugin-svelte"
-import { consoleForwardPlugin } from "vite-console-forward-plugin"
 
 // https://vite.dev/config/
-export default defineConfig(({ command }) => ({
-  plugins: [
-    consoleForwardPlugin({
-      enabled: command === "serve",
-      endpoint: "/__console",
-    }),
-    svelte(),
-  ],
+export default defineConfig(() => ({
+  plugins: [svelte()],
+  devtools: true,
+  resolve: {
+    tsconfigPaths: true,
+  },
   server: {
     host: true,
+    forwardConsole: {
+      unhandledErrors: true,
+      logLevels: ["error", "warn", "info", "log", "debug"],
+    },
     proxy: {
       "/api": {
         target: "http://localhost:3001",
