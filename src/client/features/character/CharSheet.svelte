@@ -476,15 +476,15 @@
         </div>
       </div>
 
-        {#if showBaselineDetails}
-      <div class="cs-section" class:flash={flashAppearance}>
-        <div class="cs-section-header">
-          <IconFace size={14} strokeWidth={1.5} className="cs-icon" />
-          <span class="section-label">Description</span>
+      {#if showBaselineDetails}
+        <div class="cs-section" class:flash={flashAppearance}>
+          <div class="cs-section-header">
+            <IconFace size={14} strokeWidth={1.5} className="cs-icon" />
+            <span class="section-label">Description</span>
+          </div>
+          <div class="cs-value">{displayCharacter.general_description || "Unknown description"}</div>
         </div>
-        <div class="cs-value">{displayCharacter.general_description || "Unknown description"}</div>
-      </div>
-        {/if}
+      {/if}
 
       {#if useAppearance}
         {#if showBaselineDetails}
@@ -582,13 +582,13 @@
         <span>Character Sheet</span>
       </div>
       <div class="cs-header-actions">
-          <button
-            class="cs-toggle-btn"
-            onclick={() => (showBaselineDetails = !showBaselineDetails)}
-            disabled={!displayCharacter}
-          >
-            {showBaselineDetails ? "Hide details" : "Show details"}
-          </button>
+        <button
+          class="cs-toggle-btn"
+          onclick={() => (showBaselineDetails = !showBaselineDetails)}
+          disabled={!displayCharacter}
+        >
+          {showBaselineDetails ? "Hide details" : "Show details"}
+        </button>
         <button
           class="cs-edit-btn"
           onclick={startEdit}
@@ -615,13 +615,13 @@
         <span>Character Sheet</span>
       </div>
       <div class="cs-header-actions">
-          <button
-            class="cs-toggle-btn"
-            onclick={() => (showBaselineDetails = !showBaselineDetails)}
-            disabled={!displayCharacter}
-          >
-            {showBaselineDetails ? "Hide details" : "Show details"}
-          </button>
+        <button
+          class="cs-toggle-btn"
+          onclick={() => (showBaselineDetails = !showBaselineDetails)}
+          disabled={!displayCharacter}
+        >
+          {showBaselineDetails ? "Hide details" : "Show details"}
+        </button>
         <button
           class="cs-edit-btn"
           onclick={startEdit}

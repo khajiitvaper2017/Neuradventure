@@ -250,6 +250,20 @@ export interface AppSettings {
   ctx_limit_detected?: number
 }
 
+export type PromptConfigName =
+  | "narrative-turn"
+  | "character-generation"
+  | "story-setup"
+  | "chat-mode"
+  | "npc-creation"
+  | "player-impersonation"
+
+export interface PromptConfigFile {
+  name: PromptConfigName
+  config_json: string
+  updated_at: string
+}
+
 export interface CharacterImportResult {
   id?: number
   character: Omit<MainCharacterState, "inventory">

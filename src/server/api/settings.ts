@@ -8,6 +8,7 @@ import * as db from "../core/db.js"
 import { DEFAULT_GENERATION } from "../core/db/settings.js"
 import { getCtxLimitCached } from "../llm/index.js"
 import { StoryModulesSchema } from "../schemas/story-modules.js"
+import { badRequest } from "./handlers/http.js"
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const PRESETS_DIR = join(__dirname, "../../../shared/config/presets")
@@ -82,6 +83,11 @@ const SettingsUpdateSchema = z
   .partial()
   .refine((v) => Object.keys(v).length > 0, { message: "At least one setting is required" })
 
+const PromptConfigNameSchema = z.enum(db.PROMPT_CONFIG_KEYS as unknown as [string, ...string[]])
+const PromptConfigUpdateSchema = z.object({
+  config_json: z.string().min(1),
+})
+
 const settings = new Hono()
 
 settings.get("/", (c) => {
@@ -109,6 +115,73 @@ settings.put("/", zValidator("json", SettingsUpdateSchema), (c) => {
   }
   db.updateSettings(next)
   return c.json(next)
+})
+
+settings.get("/prompts", (c) => {
+  const rows = db.listPromptConfigFiles()
+  const out = rows.map((r) => {
+    try {
+      const parsed = JSON.parse(r.config_json) as unknown
+      return { ...r, config_json: JSON.stringify(parsed, null, 2) }
+    } catch {
+      return r
+    }
+  })
+  return c.json(out)
+})
+
+settings.put(
+  "/prompts/:name",
+  zValidator(
+    "param",
+    z.object({
+      name: PromptConfigNameSchema,
+    }),
+  ),
+  zValidator("json", PromptConfigUpdateSchema),
+  (c) => {
+    const { name } = c.req.valid("param")
+    const { config_json } = c.req.valid("json")
+    try {
+      const row = db.updatePromptConfigFile(name, config_json)
+      const parsed = JSON.parse(row.config_json) as unknown
+      return c.json({ ...row, config_json: JSON.stringify(parsed, null, 2) })
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Failed to update prompt config"
+      return badRequest(c, message)
+    }
+  },
+)
+
+settings.post(
+  "/prompts/:name/reset",
+  zValidator(
+    "param",
+    z.object({
+      name: PromptConfigNameSchema,
+    }),
+  ),
+  (c) => {
+    const { name } = c.req.valid("param")
+    try {
+      const row = db.resetPromptConfigFile(name)
+      const parsed = JSON.parse(row.config_json) as unknown
+      return c.json({ ...row, config_json: JSON.stringify(parsed, null, 2) })
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Failed to reset prompt config"
+      return badRequest(c, message)
+    }
+  },
+)
+
+settings.post("/prompts/reset", (c) => {
+  try {
+    const reset = db.resetAllPromptConfigFiles()
+    return c.json({ ok: true, reset })
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Failed to reset prompt configs"
+    return badRequest(c, message)
+  }
 })
 
 settings.get("/presets", (c) => {

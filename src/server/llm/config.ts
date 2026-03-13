@@ -1,90 +1,23 @@
-import { readFileSync, statSync } from "fs"
-import { fileURLToPath } from "url"
-import { dirname, join } from "path"
+import { readFileSync } from "node:fs"
+import { fileURLToPath } from "node:url"
+import { dirname, join } from "node:path"
 import type { StoryModules } from "../core/models.js"
 import { DEFAULT_STORY_MODULES } from "../schemas/story-modules.js"
 import { replaceFieldShortcuts } from "../schemas/field-descriptions.js"
-// ─── Prompt config (hot-reloaded from shared/config/prompts/*.json) ──────────
+import * as db from "../core/db.js"
+import type { ModularPrompt, PromptConfig, SectionFormat } from "./prompt-types.js"
+
+// ─── Prompt config (stored in SQLite, seeded from shared/config/prompts/*.json) ──────────
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
-export type SectionFormat = "xml" | "markdown" | "equals"
-
-type PromptModuleBlock = {
-  on?: string[]
-  off?: string[]
-}
-
-type PromptModules = {
-  track_npcs?: PromptModuleBlock
-  track_locations?: PromptModuleBlock
-  character_appearance_clothing?: PromptModuleBlock
-  character_personality_traits?: PromptModuleBlock
-  character_major_flaws?: PromptModuleBlock
-  character_quirks?: PromptModuleBlock
-  character_perks?: PromptModuleBlock
-  character_inventory?: PromptModuleBlock
-  npc_appearance_clothing?: PromptModuleBlock
-  npc_personality_traits?: PromptModuleBlock
-  npc_major_flaws?: PromptModuleBlock
-  npc_quirks?: PromptModuleBlock
-  npc_perks?: PromptModuleBlock
-  npc_location?: PromptModuleBlock
-  npc_activity?: PromptModuleBlock
-}
-
-type ModularPrompt = {
-  base: string[]
-  modules?: PromptModules
-}
-
-type PromptConfig = {
-  systemPromptLines: ModularPrompt
-  generateCharacterPrompt: ModularPrompt
-  generateStoryPrompt: ModularPrompt
-  generateChatPrompt?: ModularPrompt
-  chatPromptLines?: ModularPrompt
-  npcCreationPrompt?: ModularPrompt
-  impersonatePrompt?: ModularPrompt
-  sectionFormat?: SectionFormat
-}
-
-const PROMPT_FILES = [
-  join(__dirname, "../../../shared/config/prompts/narrative-turn.json"),
-  join(__dirname, "../../../shared/config/prompts/character-generation.json"),
-  join(__dirname, "../../../shared/config/prompts/story-setup.json"),
-  join(__dirname, "../../../shared/config/prompts/chat-mode.json"),
-  join(__dirname, "../../../shared/config/prompts/npc-creation.json"),
-  join(__dirname, "../../../shared/config/prompts/player-impersonation.json"),
-]
-let cachedConfig: PromptConfig | null = null
-let cachedConfigMtime = 0
-
 export const npcTraits: string[] = JSON.parse(
   readFileSync(join(__dirname, "../../../shared/config/traits.json"), "utf-8"),
 )
 
 const DEFAULT_MODULES: StoryModules = { ...DEFAULT_STORY_MODULES }
 
-function readPromptConfig(): PromptConfig {
-  const merged: Partial<PromptConfig> = {}
-  for (const file of PROMPT_FILES) {
-    const payload = JSON.parse(readFileSync(file, "utf-8")) as Partial<PromptConfig>
-    Object.assign(merged, payload)
-  }
-  return merged as PromptConfig
-}
-
 export function getConfig(): PromptConfig {
-  let latestMtime = 0
-  for (const file of PROMPT_FILES) {
-    const stat = statSync(file)
-    if (stat.mtimeMs > latestMtime) latestMtime = stat.mtimeMs
-  }
-  if (!cachedConfig || latestMtime !== cachedConfigMtime) {
-    cachedConfig = readPromptConfig()
-    cachedConfigMtime = latestMtime
-  }
-  return cachedConfig
+  return db.getMergedPromptConfig()
 }
 
 function resolvePrompt(prompt: ModularPrompt | undefined, modules?: StoryModules): string[] {

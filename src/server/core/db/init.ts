@@ -1,5 +1,6 @@
 import { getDb } from "./connection.js"
 import { DEFAULT_SETTINGS } from "./settings.js"
+import { ensurePromptConfigDefaults } from "./prompts.js"
 
 export function initDb() {
   const database = getDb()
@@ -87,6 +88,12 @@ export function initDb() {
       updated_at    TEXT NOT NULL DEFAULT (datetime('now'))
     );
 
+    CREATE TABLE IF NOT EXISTS prompt_configs (
+      name        TEXT PRIMARY KEY,
+      config_json TEXT NOT NULL,
+      updated_at  TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now'))
+    );
+
     CREATE TABLE IF NOT EXISTS sampler_presets (
       id          INTEGER PRIMARY KEY AUTOINCREMENT,
       name        TEXT NOT NULL UNIQUE,
@@ -145,6 +152,8 @@ export function initDb() {
   if (!settingsRow) {
     database.prepare("INSERT INTO settings (id, settings_json) VALUES (1, ?)").run(JSON.stringify(DEFAULT_SETTINGS))
   }
+
+  ensurePromptConfigDefaults()
 
   // Migrate legacy chat scenario into a system message at message_index = 0.
   // This keeps prior context while removing scenario from the chat API/UI.

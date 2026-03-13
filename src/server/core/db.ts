@@ -79,6 +79,16 @@ export {
 } from "./db/chats.js"
 export { getSettings, updateSettings } from "./db/settings.js"
 export {
+  PROMPT_CONFIG_KEYS,
+  getMergedPromptConfig,
+  listPromptConfigFiles,
+  resetAllPromptConfigFiles,
+  resetPromptConfigFile,
+  updatePromptConfigFile,
+  type PromptConfigKey,
+  type PromptConfigFileRow,
+} from "./db/prompts.js"
+export {
   listSamplerPresets,
   upsertSamplerPreset,
   deleteSamplerPreset,
