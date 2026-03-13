@@ -4,7 +4,6 @@ import {
   buildNPCChangesSection,
   TurnResponseSchema,
   WorldStateUpdateSchema,
-  LocationSchema,
   type StoryModules,
   type NPCState,
   type TurnResponse,
@@ -34,9 +33,7 @@ export function buildTurnResponseSchema(
 
   let worldUpdateSchema: z.AnyZodObject = WorldStateUpdateSchema as z.AnyZodObject
   if (!modules.track_locations) {
-    worldUpdateSchema = worldUpdateSchema.extend({
-      locations: z.array(LocationSchema).max(0).optional(),
-    })
+    worldUpdateSchema = worldUpdateSchema.omit({ locations: true })
   }
   worldUpdateSchema = worldUpdateSchema.required() as z.AnyZodObject
 
