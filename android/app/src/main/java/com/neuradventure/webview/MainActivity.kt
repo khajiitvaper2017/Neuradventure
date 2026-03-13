@@ -1,20 +1,25 @@
 package com.neuradventure.webview
 
+import android.content.ActivityNotFoundException
 import android.content.Context
 import android.content.Intent
 import android.graphics.Color
 import android.net.Uri
 import android.net.wifi.WifiManager
+import android.os.Build
 import android.os.Bundle
 import android.text.format.Formatter
 import android.view.View
 import android.webkit.WebChromeClient
 import android.webkit.WebResourceRequest
+import android.webkit.ValueCallback
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import android.widget.Toast
 import androidx.activity.addCallback
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.view.WindowInsetsControllerCompat
 import kotlinx.coroutines.*
 import java.net.InetSocketAddress
 import java.net.Socket
@@ -23,8 +28,18 @@ class MainActivity : AppCompatActivity() {
     private lateinit var webView: WebView
     private val serverPort = 3001
 
+    private var fileChooserCallback: ValueCallback<Array<Uri>>? = null
+    private val fileChooserLauncher =
+        registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+            val callback = fileChooserCallback ?: return@registerForActivityResult
+            fileChooserCallback = null
+            val uris = WebChromeClient.FileChooserParams.parseResult(result.resultCode, result.data)
+            callback.onReceiveValue(uris)
+        }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        configureSystemBars()
         setContentView(R.layout.activity_main)
 
         webView = findViewById(R.id.web_view)
@@ -38,6 +53,29 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    override fun onDestroy() {
+        fileChooserCallback?.onReceiveValue(null)
+        fileChooserCallback = null
+        super.onDestroy()
+    }
+
+    private fun configureSystemBars() {
+        window.statusBarColor = Color.BLACK
+        window.navigationBarColor = Color.TRANSPARENT
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+            window.navigationBarDividerColor = Color.TRANSPARENT
+        }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            window.isNavigationBarContrastEnforced = false
+            window.isStatusBarContrastEnforced = false
+        }
+
+        val controller = WindowInsetsControllerCompat(window, window.decorView)
+        controller.isAppearanceLightStatusBars = false
+        controller.isAppearanceLightNavigationBars = false
+    }
+
     private fun setupWebView() {
         webView.setBackgroundColor(Color.BLACK)
         webView.settings.apply {
@@ -45,9 +83,43 @@ class MainActivity : AppCompatActivity() {
             domStorageEnabled = true
             loadWithOverviewMode = true
             useWideViewPort = true
+            allowFileAccess = true
+            allowContentAccess = true
         }
 
-        webView.webChromeClient = WebChromeClient()
+        webView.webChromeClient =
+            object : WebChromeClient() {
+                override fun onShowFileChooser(
+                    webView: WebView?,
+                    filePathCallback: ValueCallback<Array<Uri>>?,
+                    fileChooserParams: FileChooserParams?,
+                ): Boolean {
+                    fileChooserCallback?.onReceiveValue(null)
+                    fileChooserCallback = filePathCallback
+
+                    val intent =
+                        try {
+                            fileChooserParams?.createIntent()
+                                ?: Intent(Intent.ACTION_GET_CONTENT).apply {
+                                    addCategory(Intent.CATEGORY_OPENABLE)
+                                    type = "*/*"
+                                }
+                        } catch (e: Exception) {
+                            fileChooserCallback = null
+                            return false
+                        }
+
+                    return try {
+                        fileChooserLauncher.launch(intent)
+                        true
+                    } catch (e: ActivityNotFoundException) {
+                        fileChooserCallback?.onReceiveValue(null)
+                        fileChooserCallback = null
+                        Toast.makeText(this@MainActivity, "No file picker found.", Toast.LENGTH_SHORT).show()
+                        false
+                    }
+                }
+            }
         webView.webViewClient = object : WebViewClient() {
             override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean {
                 val url = request.url.toString()
