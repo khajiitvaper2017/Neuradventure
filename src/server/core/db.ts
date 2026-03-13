@@ -3,6 +3,7 @@ export { initDb } from "./db/init.js"
 export type { CharacterBase, GenerationParams, LLMConnector, SettingsState } from "./db/types.js"
 export {
   createCharacter,
+  deleteCharacter,
   getCharacter,
   listCharacters,
   listStoryCharacterRefs,

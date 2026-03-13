@@ -51,6 +51,7 @@ export const stories = {
   },
   characters: () => request<StoryCharacterGroup[]>("/api/stories/characters"),
   getCharacter: (id: number) => request<MainCharacterState>(`/api/stories/characters/${id}`),
+  deleteCharacter: (id: number) => request<{ ok: boolean }>(`/api/stories/characters/${id}`, { method: "DELETE" }),
   npcs: () => request<StoryNpcGroup[]>("/api/stories/npcs"),
   exportCharacter: (charId: number, format?: "neuradventure" | "tavern-card") =>
     `/api/stories/characters/${charId}/export${format ? `?format=${format}` : ""}`,

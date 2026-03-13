@@ -510,6 +510,13 @@ stories.get("/characters/:id", (c) => {
   }
 })
 
+stories.delete("/characters/:id", (c) => {
+  const charId = Number(c.req.param("id"))
+  if (!Number.isFinite(charId) || charId <= 0) return badRequest(c, "Invalid character id")
+  db.deleteCharacter(charId)
+  return c.json({ ok: true })
+})
+
 stories.get("/characters/:id/card", (c) => {
   const charId = Number(c.req.param("id"))
   const charRow = db.getCharacter(charId)

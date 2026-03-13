@@ -70,3 +70,13 @@ export function listStoryCharacterRefs(): {
     character_id: number | null
   }[]
 }
+
+export function deleteCharacter(id: number): void {
+  const database = getDb()
+  const tx = database.transaction((characterId: number) => {
+    database.prepare("UPDATE stories SET character_id = NULL WHERE character_id = ?").run(characterId)
+    database.prepare("UPDATE chat_members SET character_id = NULL WHERE character_id = ?").run(characterId)
+    database.prepare("DELETE FROM characters WHERE id = ?").run(characterId)
+  })
+  tx(id)
+}

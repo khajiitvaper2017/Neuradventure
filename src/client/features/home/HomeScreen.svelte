@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { onMount } from "svelte"
+  import { onMount, tick } from "svelte"
   import {
     api,
     type StoryMeta,
@@ -14,7 +14,6 @@
   import IconGear from "../../components/icons/IconGear.svelte"
   import IconPlus from "../../components/icons/IconPlus.svelte"
   import IconUsers from "../../components/icons/IconUsers.svelte"
-  import IconUser from "../../components/icons/IconUser.svelte"
   import {
     resetActiveStory,
     resetGame,
@@ -37,11 +36,18 @@
   let loading = true
   let openStoryMenuId: number | null = null
   let openChatMenuId: number | null = null
+  let openCharacterMenuId: number | null = null
   let storyCharacters: StoryCharacterGroup[] = []
   let loadingCharacters = false
-  let showCharacters = false
   let chats: ChatSummary[] = []
   let loadingChats = false
+  let homeScroll: HTMLDivElement | null = null
+
+  type LibrarySection = "stories" | "chats" | "characters"
+  let section: LibrarySection = "stories"
+  let query = ""
+  let sort: "recent" | "az" = "recent"
+  let menuPlacement: Record<string, "up" | "down"> = {}
 
   onMount(() => {
     loadStories()
@@ -160,6 +166,24 @@
     openChatMenuId = null
   }
 
+  async function deleteCharacter(id: number) {
+    openCharacterMenuId = null
+    const confirmed = await showConfirm({
+      title: "Delete character",
+      message:
+        "Delete this character from your library? Stories and chats will keep their embedded character state, but you won't be able to reuse this character for new stories/chats.",
+      confirmLabel: "Delete",
+      danger: true,
+    })
+    if (!confirmed) return
+    try {
+      await api.stories.deleteCharacter(id)
+      storyCharacters = storyCharacters.filter((c) => c.id !== id)
+    } catch {
+      showError("Failed to delete character")
+    }
+  }
+
   async function importStory() {
     const input = document.createElement("input")
     input.type = "file"
@@ -238,8 +262,62 @@
     window.open(api.stories.exportCharacter(group.id, format), "_blank")
   }
 
+  function setSection(next: LibrarySection) {
+    section = next
+    openStoryMenuId = null
+    openChatMenuId = null
+    openCharacterMenuId = null
+    query = ""
+  }
+
+  function updatedAtMs(dateStr: string): number {
+    return new Date(dateStr.endsWith("Z") ? dateStr : dateStr + "Z").getTime()
+  }
+
+  function menuKey(kind: "story" | "chat" | "character", id: number): string {
+    return `${kind}:${id}`
+  }
+
+  function isMenuUp(kind: "story" | "chat" | "character", id: number): boolean {
+    return menuPlacement[menuKey(kind, id)] === "up"
+  }
+
+  async function updateMenuPlacement(kind: "story" | "chat" | "character", id: number, anchor: HTMLElement) {
+    await tick()
+    const wrap = anchor.closest(".lib-menu-wrap") as HTMLElement | null
+    const dropdown = wrap?.querySelector(".lib-dropdown") as HTMLElement | null
+    if (!dropdown) return
+
+    const dropdownRect = dropdown.getBoundingClientRect()
+    const anchorRect = anchor.getBoundingClientRect()
+    const scrollRect = homeScroll?.getBoundingClientRect()
+    const clipTop = scrollRect?.top ?? 0
+    const clipBottom = scrollRect?.bottom ?? window.innerHeight
+    const gutter = 10
+    const overflowsBottom = dropdownRect.bottom > clipBottom - gutter
+    const spaceAbove = anchorRect.top - clipTop
+    const spaceBelow = clipBottom - anchorRect.bottom
+
+    const openUp = overflowsBottom && spaceAbove > spaceBelow
+    const next: "up" | "down" = openUp ? "up" : "down"
+    const key = menuKey(kind, id)
+    if (menuPlacement[key] !== next) {
+      menuPlacement = { ...menuPlacement, [key]: next }
+    }
+  }
+
+  function matchesQuery(value: string, q: string): boolean {
+    return value.toLowerCase().includes(q)
+  }
+
+  function characterLastPlayedMs(group: StoryCharacterGroup): number {
+    let max = 0
+    for (const s of group.stories) max = Math.max(max, updatedAtMs(s.updated_at))
+    return max
+  }
+
   function relativeTime(dateStr: string): string {
-    const diff = Date.now() - new Date(dateStr + "Z").getTime()
+    const diff = Date.now() - updatedAtMs(dateStr)
     const m = Math.floor(diff / 60000)
     if (m < 1) return "just now"
     if (m < 60) return `${m}m ago`
@@ -247,6 +325,42 @@
     if (h < 24) return `${h}h ago`
     return `${Math.floor(h / 24)}d ago`
   }
+
+  $: q = query.trim().toLowerCase()
+
+  $: filteredStories = stories
+    .filter((s) => {
+      if (!q) return true
+      return matchesQuery(`${s.title} ${s.character_name}`, q)
+    })
+    .slice()
+    .sort((a, b) => {
+      if (sort === "az") return a.title.localeCompare(b.title)
+      return updatedAtMs(b.updated_at) - updatedAtMs(a.updated_at)
+    })
+
+  $: filteredChats = chats
+    .filter((c) => {
+      if (!q) return true
+      return matchesQuery(`${c.title} ${c.player_name} ${c.participants.join(" ")}`, q)
+    })
+    .slice()
+    .sort((a, b) => {
+      if (sort === "az") return (a.title || a.player_name || "").localeCompare(b.title || b.player_name || "")
+      return updatedAtMs(b.updated_at) - updatedAtMs(a.updated_at)
+    })
+
+  $: filteredCharacters = storyCharacters
+    .filter((g) => {
+      if (!q) return true
+      const traits = [...g.character.personality_traits, ...g.character.quirks, ...g.character.perks].join(" ")
+      return matchesQuery(`${g.character.name} ${g.character.gender} ${g.character.race} ${traits}`, q)
+    })
+    .slice()
+    .sort((a, b) => {
+      if (sort === "az") return a.character.name.localeCompare(b.character.name)
+      return characterLastPlayedMs(b) - characterLastPlayedMs(a)
+    })
 </script>
 
 <div class="screen home">
@@ -275,162 +389,322 @@
       <IconPlus size={13} strokeWidth={2.5} />
       New Character
     </button>
-    <button class="new-btn" onclick={() => (showCharacters = !showCharacters)}>
-      <IconUser size={13} strokeWidth={2.5} />
-      Characters
-    </button>
   </div>
 
-  <div class="home-scroll" data-scroll-root="screen">
-    {#if showCharacters}
-      <div class="character-panel">
-        {#if loadingCharacters}
-          <div class="empty">Loading characters...</div>
-        {:else if storyCharacters.length === 0}
+  <div class="home-scroll" data-scroll-root="screen" bind:this={homeScroll}>
+    <section class="lib-shell lib-shell--footer-safe" aria-label="Library">
+      <div class="lib-toolbar">
+        <div class="mode-group lib-tabs" role="tablist" aria-label="Library section">
+          <button
+            class="mode-pill {section === 'stories' ? 'active' : ''}"
+            role="tab"
+            aria-selected={section === "stories"}
+            onclick={() => setSection("stories")}
+          >
+            Stories <span class="lib-count">{stories.length}</span>
+          </button>
+          <button
+            class="mode-pill {section === 'chats' ? 'active' : ''}"
+            role="tab"
+            aria-selected={section === "chats"}
+            onclick={() => setSection("chats")}
+          >
+            Chats <span class="lib-count">{chats.length}</span>
+          </button>
+          <button
+            class="mode-pill {section === 'characters' ? 'active' : ''}"
+            role="tab"
+            aria-selected={section === "characters"}
+            onclick={() => setSection("characters")}
+          >
+            Characters <span class="lib-count">{storyCharacters.length}</span>
+          </button>
+        </div>
+
+        <div class="lib-controls">
+          <label class="lib-search">
+            <span class="sr-only">Search</span>
+            <input
+              class="text-input lib-search-input"
+              type="search"
+              placeholder={`Search ${section}...`}
+              bind:value={query}
+            />
+          </label>
+          <label class="lib-sort">
+            <span class="sr-only">Sort</span>
+            <select class="select-input lib-sort-input" bind:value={sort}>
+              <option value="recent">Recent</option>
+              <option value="az">A–Z</option>
+            </select>
+          </label>
+        </div>
+      </div>
+
+      {#if section === "stories"}
+        {#if loading}
+          <div class="empty">Loading stories...</div>
+        {:else if filteredStories.length === 0}
           <div class="empty">
-            <p>No characters from stories yet.</p>
-            <p class="empty-hint">Finish a story to reuse its character here.</p>
+            {#if stories.length === 0}
+              <p>No stories yet.</p>
+              <p class="empty-hint">Begin a new adventure above.</p>
+            {:else}
+              <p>No stories found.</p>
+              <p class="empty-hint">Try a different search.</p>
+            {/if}
           </div>
         {:else}
-          {#each storyCharacters as group}
-            <div class="char-card">
-              <div class="char-card-header">
-                {#if group.card?.avatar}
-                  <img class="char-avatar" src={group.card.avatar} alt="" />
-                {:else}
-                  <div class="char-avatar char-avatar--placeholder"></div>
-                {/if}
-                <div class="char-card-title">
-                  <div class="char-card-name">{group.character.name}</div>
-                  <div class="char-card-meta">
-                    {group.character.gender} · {group.character.race}
+          <div class="lib-grid" role="list">
+            {#each filteredStories as story (story.id)}
+              <div class="lib-card" role="listitem">
+                <button class="lib-card-main" onclick={() => openStory(story)}>
+                  <div class="lib-card-title">{story.title}</div>
+                  <div class="lib-card-meta">
+                    {story.character_name} · {story.turn_count} turns
+                  </div>
+                  <div class="lib-card-foot">Updated {relativeTime(story.updated_at)}</div>
+                </button>
+
+                <div class="lib-menu-wrap">
+                  <button
+                    class="menu-btn"
+                    aria-label="Story options"
+                    onclick={(e) => {
+                      e.stopPropagation()
+                      openChatMenuId = null
+                      openCharacterMenuId = null
+                      openStoryMenuId = openStoryMenuId === story.id ? null : story.id
+                      if (openStoryMenuId === story.id) {
+                        void updateMenuPlacement("story", story.id, e.currentTarget as HTMLElement)
+                      }
+                    }}
+                  >
+                    <IconDots size={14} strokeWidth={2} />
+                  </button>
+                  {#if openStoryMenuId === story.id}
+                    <div class="dropdown lib-dropdown" class:lib-dropdown--up={isMenuUp("story", story.id)}>
+                      <a href={api.stories.exportUrl(story.id, "neuradventure")} download class="dropdown-link">
+                        Export JSON
+                      </a>
+                      <a href={api.stories.exportUrl(story.id, "tavern")} download class="dropdown-link">
+                        Export ST Chat
+                      </a>
+                      <a href={api.stories.exportUrl(story.id, "plaintext")} download class="dropdown-link">
+                        Export Text
+                      </a>
+                      <button class="danger-item" onclick={() => deleteStory(story.id)}>Delete</button>
+                    </div>
+                  {/if}
+                </div>
+              </div>
+            {/each}
+          </div>
+        {/if}
+      {:else if section === "chats"}
+        {#if loadingChats}
+          <div class="empty">Loading chats...</div>
+        {:else if filteredChats.length === 0}
+          <div class="empty">
+            {#if chats.length === 0}
+              <p>No chats yet.</p>
+              <p class="empty-hint">Start a new group chat above.</p>
+            {:else}
+              <p>No chats found.</p>
+              <p class="empty-hint">Try a different search.</p>
+            {/if}
+          </div>
+        {:else}
+          <div class="lib-grid" role="list">
+            {#each filteredChats as chat (chat.id)}
+              <div class="lib-card" role="listitem">
+                <button class="lib-card-main" onclick={() => openChat(chat)}>
+                  <div class="lib-card-title">{chat.title || chat.player_name || "Chat"}</div>
+                  <div class="lib-chip-row" aria-label="Participants">
+                    {#each chat.participants.slice(0, 5) as p}
+                      <span class="lib-chip">{p}</span>
+                    {/each}
+                    {#if chat.participants.length > 5}
+                      <span class="lib-chip lib-chip--muted">+{chat.participants.length - 5}</span>
+                    {/if}
+                  </div>
+                  <div class="lib-card-foot">
+                    {chat.message_count} messages · Updated {relativeTime(chat.updated_at)}
+                  </div>
+                </button>
+
+                <div class="lib-menu-wrap">
+                  <button
+                    class="menu-btn"
+                    aria-label="Chat options"
+                    onclick={(e) => {
+                      e.stopPropagation()
+                      openStoryMenuId = null
+                      openCharacterMenuId = null
+                      openChatMenuId = openChatMenuId === chat.id ? null : chat.id
+                      if (openChatMenuId === chat.id) {
+                        void updateMenuPlacement("chat", chat.id, e.currentTarget as HTMLElement)
+                      }
+                    }}
+                  >
+                    <IconDots size={14} strokeWidth={2} />
+                  </button>
+                  {#if openChatMenuId === chat.id}
+                    <div class="dropdown lib-dropdown" class:lib-dropdown--up={isMenuUp("chat", chat.id)}>
+                      <a href={api.chats.exportUrl(chat.id, "neuradventure")} download class="dropdown-link">
+                        Export JSON
+                      </a>
+                      <a href={api.chats.exportUrl(chat.id, "tavern")} download class="dropdown-link">
+                        Export ST Chat
+                      </a>
+                      <a href={api.chats.exportUrl(chat.id, "plaintext")} download class="dropdown-link">
+                        Export Text
+                      </a>
+                      <button class="danger-item" onclick={() => deleteChat(chat.id)}>Delete</button>
+                    </div>
+                  {/if}
+                </div>
+              </div>
+            {/each}
+          </div>
+        {/if}
+      {:else if loadingCharacters}
+        <div class="empty">Loading characters...</div>
+      {:else if filteredCharacters.length === 0}
+        <div class="empty">
+          {#if storyCharacters.length === 0}
+            <p>No characters from stories yet.</p>
+            <p class="empty-hint">Finish a story to reuse its character here.</p>
+          {:else}
+            <p>No characters found.</p>
+            <p class="empty-hint">Try a different search.</p>
+          {/if}
+        </div>
+      {:else}
+        <div class="lib-grid" role="list">
+          {#each filteredCharacters as group (group.id)}
+            <div class="lib-card lib-card--character" role="listitem">
+              <button class="lib-card-main" onclick={() => openCharSheetForCharacter(group.id)}>
+                <div class="lib-char-head">
+                  {#if group.card?.avatar}
+                    <img class="lib-avatar" src={group.card.avatar} alt="" />
+                  {:else}
+                    <div class="lib-avatar lib-avatar--placeholder" aria-hidden="true"></div>
+                  {/if}
+                  <div class="lib-char-title">
+                    <div class="lib-card-title">{group.character.name}</div>
+                    <div class="lib-card-meta">{group.character.gender} · {group.character.race}</div>
                   </div>
                 </div>
-              </div>
-              <div class="char-card-traits">
-                {[...group.character.personality_traits, ...group.character.quirks, ...group.character.perks].join(
-                  ", ",
-                ) || "No traits"}
-              </div>
-              <div class="char-card-actions">
-                <button
-                  class="btn-ghost small btn-icon"
-                  onclick={() => openCharSheetForCharacter(group.id)}
-                  title="Details"
-                >
-                  <IconDocument size={14} strokeWidth={1.6} />
-                  Details
-                </button>
-                <button class="btn-ghost small" onclick={() => startNewWithCharacter(group)}>New Story</button>
-                <button class="btn-ghost small" onclick={() => exportCharacter(group, "tavern-card")}>Export ST</button>
-                <button class="btn-ghost small" onclick={() => exportCharacter(group, "neuradventure")}>Export</button>
-              </div>
-              <div class="char-card-stories">
-                <div class="char-card-label">Stories</div>
-                <div class="char-card-links">
-                  {#each group.stories as s}
-                    <button class="story-link" onclick={() => openStoryById(s.id)}>
-                      {s.title}
-                    </button>
-                  {/each}
+
+                <div class="lib-card-meta lib-card-meta--clamp">
+                  {[...group.character.personality_traits, ...group.character.quirks, ...group.character.perks].join(
+                    ", ",
+                  ) || "No traits"}
                 </div>
+
+                {#if group.stories.length > 0}
+                  <div class="lib-card-foot">
+                    {group.stories.length} stories · Last played
+                    {relativeTime(new Date(characterLastPlayedMs(group)).toISOString())}
+                  </div>
+                {:else}
+                  <div class="lib-card-foot">No stories yet</div>
+                {/if}
+
+                {#if group.stories.length > 0}
+                  <div class="lib-chip-row" aria-label="Recent stories">
+                    {#each group.stories
+                      .slice()
+                      .sort((a, b) => updatedAtMs(b.updated_at) - updatedAtMs(a.updated_at))
+                      .slice(0, 4) as s (s.id)}
+                      <span class="lib-chip lib-chip--button">{s.title}</span>
+                    {/each}
+                    {#if group.stories.length > 4}
+                      <span class="lib-chip lib-chip--muted">+{group.stories.length - 4}</span>
+                    {/if}
+                  </div>
+                {/if}
+              </button>
+
+              <div class="lib-menu-wrap">
+                <button
+                  class="menu-btn"
+                  aria-label="Character options"
+                  onclick={(e) => {
+                    e.stopPropagation()
+                    openStoryMenuId = null
+                    openChatMenuId = null
+                    openCharacterMenuId = openCharacterMenuId === group.id ? null : group.id
+                    if (openCharacterMenuId === group.id) {
+                      void updateMenuPlacement("character", group.id, e.currentTarget as HTMLElement)
+                    }
+                  }}
+                >
+                  <IconDots size={14} strokeWidth={2} />
+                </button>
+                {#if openCharacterMenuId === group.id}
+                  <div class="dropdown lib-dropdown" class:lib-dropdown--up={isMenuUp("character", group.id)}>
+                    <button
+                      class="btn-icon"
+                      onclick={() => {
+                        openCharacterMenuId = null
+                        openCharSheetForCharacter(group.id)
+                      }}
+                    >
+                      <IconDocument size={14} strokeWidth={1.6} />
+                      Details
+                    </button>
+                    <button
+                      onclick={() => {
+                        openCharacterMenuId = null
+                        startNewWithCharacter(group)
+                      }}
+                    >
+                      New Story
+                    </button>
+                    <button
+                      onclick={() => {
+                        openCharacterMenuId = null
+                        exportCharacter(group, "tavern-card")
+                      }}
+                    >
+                      Export ST
+                    </button>
+                    <button
+                      onclick={() => {
+                        openCharacterMenuId = null
+                        exportCharacter(group, "neuradventure")
+                      }}
+                    >
+                      Export JSON
+                    </button>
+                    <button class="danger-item" onclick={() => deleteCharacter(group.id)}>Delete</button>
+                  </div>
+                {/if}
               </div>
+
+              {#if group.stories.length > 0}
+                <div class="lib-card-sub">
+                  <details class="lib-details">
+                    <summary class="lib-details-summary">
+                      Stories <span class="lib-count">{group.stories.length}</span>
+                    </summary>
+                    <div class="lib-story-links">
+                      {#each group.stories
+                        .slice()
+                        .sort((a, b) => updatedAtMs(b.updated_at) - updatedAtMs(a.updated_at)) as s (s.id)}
+                        <button class="lib-story-link" onclick={() => openStoryById(s.id)}>{s.title}</button>
+                      {/each}
+                    </div>
+                  </details>
+                </div>
+              {/if}
             </div>
           {/each}
-        {/if}
-      </div>
-    {/if}
-
-    <!-- Story list -->
-    <div class="story-list">
-      <div class="list-header">Chats</div>
-      {#if loadingChats}
-        <div class="empty">Loading chats...</div>
-      {:else if chats.length === 0}
-        <div class="empty">
-          <p>No chats yet.</p>
-          <p class="empty-hint">Start a new group chat above.</p>
         </div>
-      {:else}
-        {#each chats as chat (chat.id)}
-          <div class="story-row">
-            <button class="story-btn" onclick={() => openChat(chat)}>
-              <span class="story-title">{chat.title || chat.player_name || "Chat"}</span>
-              <span class="story-meta">
-                {chat.participants.join(" · ")} &middot; {chat.message_count} messages &middot;
-                {relativeTime(chat.updated_at)}
-              </span>
-            </button>
-            <div class="story-menu-wrap">
-              <button
-                class="menu-btn"
-                aria-label="Chat options"
-                onclick={(e) => {
-                  e.stopPropagation()
-                  openChatMenuId = openChatMenuId === chat.id ? null : chat.id
-                }}
-              >
-                <IconDots size={14} strokeWidth={2} />
-              </button>
-              {#if openChatMenuId === chat.id}
-                <div class="dropdown">
-                  <a href={api.chats.exportUrl(chat.id, "neuradventure")} download class="dropdown-link">
-                    Export JSON
-                  </a>
-                  <a href={api.chats.exportUrl(chat.id, "tavern")} download class="dropdown-link">Export ST Chat</a>
-                  <a href={api.chats.exportUrl(chat.id, "plaintext")} download class="dropdown-link">Export Text</a>
-                  <button class="danger-item" onclick={() => deleteChat(chat.id)}>Delete</button>
-                </div>
-              {/if}
-            </div>
-          </div>
-        {/each}
       {/if}
-
-      <div class="list-header">Stories</div>
-      {#if loading}
-        <div class="empty">Loading...</div>
-      {:else if stories.length === 0}
-        <div class="empty">
-          <p>No stories yet.</p>
-          <p class="empty-hint">Begin a new adventure above.</p>
-        </div>
-      {:else}
-        {#each stories as story (story.id)}
-          <div class="story-row">
-            <button class="story-btn" onclick={() => openStory(story)}>
-              <span class="story-title">{story.title}</span>
-              <span class="story-meta">
-                {story.character_name} &middot; {story.turn_count} turns &middot; {relativeTime(story.updated_at)}
-              </span>
-            </button>
-
-            <div class="story-menu-wrap">
-              <button
-                class="menu-btn"
-                aria-label="Story options"
-                onclick={(e) => {
-                  e.stopPropagation()
-                  openStoryMenuId = openStoryMenuId === story.id ? null : story.id
-                }}
-              >
-                <IconDots size={14} strokeWidth={2} />
-              </button>
-              {#if openStoryMenuId === story.id}
-                <div class="dropdown">
-                  <a href={api.stories.exportUrl(story.id, "neuradventure")} download class="dropdown-link">
-                    Export JSON
-                  </a>
-                  <a href={api.stories.exportUrl(story.id, "tavern")} download class="dropdown-link">Export ST Chat</a>
-                  <a href={api.stories.exportUrl(story.id, "plaintext")} download class="dropdown-link">Export Text</a>
-                  <button class="danger-item" onclick={() => deleteStory(story.id)}>Delete</button>
-                </div>
-              {/if}
-            </div>
-          </div>
-        {/each}
-      {/if}
-    </div>
+    </section>
   </div>
 
   <footer>
@@ -453,30 +727,6 @@
     gap: 0.35rem;
     border-bottom: 1px solid var(--border);
     position: relative;
-  }
-
-  .char-card-header {
-    display: grid;
-    grid-template-columns: 44px 1fr;
-    gap: 0.75rem;
-    align-items: center;
-  }
-
-  .char-avatar {
-    width: 44px;
-    height: 44px;
-    border-radius: 12px;
-    object-fit: cover;
-    background: var(--bg-input);
-    border: 1px solid var(--border);
-  }
-
-  .char-avatar--placeholder {
-    background: linear-gradient(135deg, rgba(255, 255, 255, 0.04), rgba(255, 255, 255, 0.01));
-  }
-
-  .char-card-title {
-    min-width: 0;
   }
   .settings-btn {
     position: absolute;
@@ -530,8 +780,8 @@
   .new-row {
     padding: 0.85rem 1rem;
     border-bottom: 1px solid var(--border);
-    display: flex;
-    flex-direction: column;
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
     gap: 0.6rem;
   }
   .new-btn {
@@ -558,170 +808,15 @@
     border-color: var(--accent);
   }
 
-  .character-panel {
-    border-bottom: 1px solid var(--border);
-    padding: 0.75rem 1rem 1rem;
-    display: flex;
-    flex-direction: column;
-    gap: 0.75rem;
-  }
-
   .home-scroll {
     flex: 1;
     overflow-y: auto;
     min-height: 0;
   }
-  .char-card {
-    background: var(--bg-raised);
-    border: 1px solid var(--border);
-    border-radius: 6px;
-    padding: 0.9rem;
-    display: flex;
-    flex-direction: column;
-    gap: 0.5rem;
-  }
-  .char-card-header {
-    display: flex;
-    flex-direction: column;
-    gap: 0.15rem;
-  }
-  .char-card-name {
-    font-family: var(--font-story);
-    font-size: 1.05rem;
-    color: var(--text);
-  }
-  .char-card-meta {
-    font-size: 0.8rem;
-    color: var(--text-dim);
-  }
-  .char-card-traits {
-    font-size: 0.85rem;
-    color: var(--text-dim);
-  }
-  .char-card-actions {
-    display: flex;
-    gap: 0.5rem;
-    flex-wrap: wrap;
-  }
-  .char-card-stories {
-    border-top: 1px dashed var(--border);
-    padding-top: 0.5rem;
-    display: flex;
-    flex-direction: column;
-    gap: 0.5rem;
-  }
-  .char-card-label {
-    font-size: 0.7rem;
-    letter-spacing: 0.08em;
-    color: var(--text-dim);
-  }
-  .char-card-links {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.4rem;
-  }
-  .story-link {
-    background: var(--bg-input);
-    border: 1px solid var(--border);
-    border-radius: 999px;
-    padding: 0.25rem 0.6rem;
-    font-size: 0.75rem;
-    color: var(--text);
-    cursor: pointer;
-  }
-  .story-link:hover {
-    border-color: var(--accent);
-    color: var(--accent);
-  }
-
-  /* Story list */
-  .story-list {
-    display: flex;
-    flex-direction: column;
-  }
-  .list-header {
-    padding: 0.85rem 1rem 0.4rem;
-    font-size: 0.7rem;
-    letter-spacing: 0.08em;
-    color: var(--text-dim);
-  }
-  .story-row {
-    display: flex;
-    align-items: stretch;
-    border-bottom: 1px solid var(--border);
-    border-left: 2px solid transparent;
-    transition:
-      border-color 0.15s,
-      background 0.15s;
-  }
-  .story-row:hover {
-    border-left-color: var(--accent);
-    background: var(--bg-action);
-  }
-  .story-btn {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    align-items: flex-start;
-    padding: 0.9rem 1rem 0.9rem 1rem;
-    gap: 0.3rem;
-    background: none;
-    border: none;
-    cursor: pointer;
-    text-align: left;
-  }
-  .story-title {
-    font-family: var(--font-story);
-    font-size: 1rem;
-    color: var(--text);
-    font-weight: 400;
-  }
-  .story-meta {
-    font-family: var(--font-ui);
-    font-size: 0.75rem;
-    color: var(--text-dim);
-    letter-spacing: 0.01em;
-  }
-  .story-menu-wrap {
-    position: relative;
-    display: flex;
-    align-items: center;
-  }
-  .menu-btn {
-    background: none;
-    border: none;
-    color: var(--text-dim);
-    cursor: pointer;
-    min-width: 44px;
-    min-height: 44px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    transition: color 0.15s;
-  }
-  .menu-btn:hover {
-    color: var(--text);
-  }
-  .dropdown {
-    position: absolute;
-    right: 0;
-    top: 100%;
-  }
-  .dropdown-link {
-    display: block;
-    padding: 0.5rem 0.75rem;
-    font-size: 0.82rem;
-    color: var(--text);
-    text-decoration: none;
-    background: none;
-    border: none;
-    text-align: left;
-    cursor: pointer;
-    transition: background 0.1s;
-    white-space: nowrap;
-  }
-  .dropdown-link:hover {
-    background: var(--bg-action);
+  @media (max-width: 440px) {
+    .new-row {
+      grid-template-columns: 1fr;
+    }
   }
 
   footer {
