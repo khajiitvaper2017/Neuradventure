@@ -368,10 +368,8 @@
   <div class="brand">
     <span class="brand-flame">🕯</span>
     <h1>Neuradventure</h1>
-    <p class="brand-sub">your story, your way</p>
     <button class="settings-btn" onclick={() => navigate("settings")} aria-label="Settings">
       <IconGear size={17} strokeWidth={1.8} />
-      {#if $theme === "amoled"}<span class="theme-badge">AMOLED</span>{/if}
     </button>
   </div>
 
