@@ -1,4 +1,3 @@
-import { zodSchemaToJsonSchema } from "../utils/json-schema.js"
 import {
   GenerateCharacterAppearanceResponseSchema,
   GenerateCharacterClothingResponseSchema,
@@ -21,13 +20,12 @@ export async function generateCharacter(
 ): Promise<GenerateCharacterResponse> {
   const modules = storyModules ?? DEFAULT_STORY_MODULES
   const responseSchema = buildGenerateCharacterResponseSchema(modules)
-  const schema = zodSchemaToJsonSchema(responseSchema, "GenerateCharacterResponse")
   const llmStrings = getLlmStrings()
   const availableTraitsLine = formatTemplate(llmStrings.generateCharacter.availableTraitsLine, {
     npcTraits: npcTraits.join(", "),
   })
   const prompt = getGenerateCharacterPrompt(modules)
-  const result = await callLLMRaw<unknown>(
+  const result = await callLLMRaw(
     [
       {
         role: "system",
@@ -39,11 +37,11 @@ export async function generateCharacter(
       },
     ],
     "GenerateCharacterResponse",
-    schema,
+    responseSchema,
     undefined,
     { disableRepetition: true },
   )
-  return responseSchema.parse(result)
+  return result
 }
 
 type CharacterGenerationContext = {
@@ -103,12 +101,12 @@ export async function generateCharacterPart(
   context: CharacterGenerationContext,
   storyModules?: StoryModules,
 ): Promise<GenerateCharacterAppearanceResponse | GenerateCharacterTraitsResponse | GenerateCharacterClothingResponse> {
-  const schema =
+  const responseSchema =
     part === "appearance"
-      ? zodSchemaToJsonSchema(GenerateCharacterAppearanceResponseSchema, "GenerateCharacterAppearanceResponse")
+      ? GenerateCharacterAppearanceResponseSchema
       : part === "traits"
-        ? zodSchemaToJsonSchema(GenerateCharacterTraitsResponseSchema, "GenerateCharacterTraitsResponse")
-        : zodSchemaToJsonSchema(GenerateCharacterClothingResponseSchema, "GenerateCharacterClothingResponse")
+        ? GenerateCharacterTraitsResponseSchema
+        : GenerateCharacterClothingResponseSchema
 
   const modules = storyModules ?? DEFAULT_STORY_MODULES
   const llmStrings = getLlmStrings()
@@ -128,7 +126,7 @@ export async function generateCharacterPart(
         : llmStrings.generateCharacterPart.avoid.clothing,
   ].join("\n")
 
-  const result = await callLLMRaw<unknown>(
+  const result = await callLLMRaw(
     [
       { role: "system", content: prompt },
       { role: "user", content: userContent },
@@ -138,14 +136,10 @@ export async function generateCharacterPart(
       : part === "traits"
         ? "GenerateCharacterTraitsResponse"
         : "GenerateCharacterClothingResponse",
-    schema,
+    responseSchema,
     undefined,
     { disableRepetition: true },
   )
 
-  return part === "appearance"
-    ? GenerateCharacterAppearanceResponseSchema.parse(result)
-    : part === "traits"
-      ? GenerateCharacterTraitsResponseSchema.parse(result)
-      : GenerateCharacterClothingResponseSchema.parse(result)
+  return result
 }

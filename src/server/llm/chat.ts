@@ -1,7 +1,6 @@
 import OpenAI from "openai"
 import type { MainCharacterState, NPCState } from "../core/models.js"
 import { GenerateChatResponseSchema, type GenerateChatResponse } from "../core/models.js"
-import { zodSchemaToJsonSchema } from "../utils/json-schema.js"
 import { getChatPrompt, getGenerateChatPrompt } from "./config.js"
 import { getServerDefaults } from "../core/strings.js"
 import { callLLMRaw, callLLMText } from "./call.js"
@@ -166,17 +165,16 @@ export async function generateChatReply(
 }
 
 export async function generateChat(description: string): Promise<GenerateChatResponse> {
-  const schema = zodSchemaToJsonSchema(GenerateChatResponseSchema, "GenerateChatResponse")
   const prompt = getGenerateChatPrompt()
-  const result = await callLLMRaw<unknown>(
+  const result = await callLLMRaw(
     [
       { role: "system", content: prompt },
       { role: "user", content: description.trim() },
     ],
     "GenerateChatResponse",
-    schema,
+    GenerateChatResponseSchema,
     undefined,
     { disableRepetition: true },
   )
-  return GenerateChatResponseSchema.parse(result)
+  return result
 }

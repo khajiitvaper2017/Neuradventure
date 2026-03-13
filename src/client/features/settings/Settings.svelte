@@ -94,9 +94,7 @@
   // Local copies for text inputs (committed on blur/enter)
   let connectorUrl = $state($connector.url)
   let connectorApiKey = $state($connector.api_keys[$connector.type])
-  let openrouterModelDraft = $state(
-    $connector.type === "openrouter" ? $connector.model : OPENROUTER_DEFAULT_MODEL,
-  )
+  let openrouterModelDraft = $state($connector.type === "openrouter" ? $connector.model : OPENROUTER_DEFAULT_MODEL)
   let modelSearchQuery = $state("")
   let modelSearchLoading = $state(false)
   let modelSearchError = $state<string | null>(null)

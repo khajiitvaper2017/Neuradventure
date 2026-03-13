@@ -1,4 +1,5 @@
 import OpenAI from "openai"
+import { z } from "zod"
 import { buildJsonSchemaResponseFormat, derefJsonSchema, zodSchemaToJsonSchema } from "../utils/json-schema.js"
 import { buildNpcCreationSchema } from "../schemas/npc-creation.js"
 import { DEFAULT_STORY_MODULES, resolveModuleFlags } from "../schemas/story-modules.js"
@@ -161,6 +162,29 @@ function describeResponseShape(value: unknown): string {
   const ctor = (value as { constructor?: { name?: unknown } }).constructor?.name
   const keys = Object.keys(obj).slice(0, 40)
   return JSON.stringify({ ctor: typeof ctor === "string" ? ctor : undefined, keys })
+}
+
+function maybeLogOpenRouterResolvedModel(requestedModel: string, res: unknown): void {
+  const normalized = requestedModel.trim().toLowerCase()
+  if (normalized !== "openrouter/auto" && normalized !== "openrouter/free") return
+
+  const root = asRecord(res)
+  const model = root?.model
+  const resolvedModel = typeof model === "string" && model.trim() ? model.trim() : null
+
+  const provider = root?.provider
+  const providerStr = typeof provider === "string" ? provider.trim() : null
+  const providerObj = asRecord(provider)
+  const providerName =
+    providerStr ||
+    (providerObj && typeof providerObj.name === "string" && providerObj.name.trim() ? providerObj.name.trim() : null) ||
+    (providerObj && typeof providerObj.id === "string" && providerObj.id.trim() ? providerObj.id.trim() : null) ||
+    null
+
+  if (!resolvedModel && !providerName) return
+  console.info(
+    `[llm-openrouter] requested_model=${requestedModel}${resolvedModel ? ` resolved_model=${resolvedModel}` : ""}${providerName ? ` provider=${providerName}` : ""}`,
+  )
 }
 
 function formatOpenRouterRoutingDiagnostics(
@@ -333,15 +357,22 @@ async function extractContentFromUnknown(res: unknown): Promise<string | null> {
   return null
 }
 
+function formatZodIssues(error: z.ZodError, maxIssues = 12): string {
+  const issues = error.issues.slice(0, maxIssues).map((issue) => {
+    const path = issue.path.length > 0 ? issue.path.join(".") : "(root)"
+    return `${path}: ${issue.message}`
+  })
+  const extra = error.issues.length - issues.length
+  return `${issues.join("; ")}${extra > 0 ? `; …(+${extra} more)` : ""}`
+}
+
 export async function callLLM(
   messages: OpenAI.ChatCompletionMessageParam[],
   knownNpcs: NPCState[] = [],
   storyModules?: StoryModules,
 ): Promise<TurnResponse> {
   const turnSchema = buildTurnResponseSchema(knownNpcs, storyModules)
-  const schema = zodSchemaToJsonSchema(turnSchema, "TurnResponse")
-  const result = await callLLMRaw<unknown>(messages, "TurnResponse", schema)
-  return turnSchema.parse(result)
+  return await callLLMRaw(messages, "TurnResponse", turnSchema)
 }
 
 export async function generateNpcCreation(
@@ -360,19 +391,17 @@ export async function generateNpcCreation(
     useNpcLocation: flags.useNpcLocation,
     useNpcActivity: flags.useNpcActivity,
   })
-  const schema = zodSchemaToJsonSchema(creationSchema, "NPCCreation")
-  const result = await callLLMRaw<unknown>(messages, "NPCCreation", schema)
-  const parsed = creationSchema.parse(result)
+  const parsed = await callLLMRaw(messages, "NPCCreation", creationSchema)
   return forcedName ? { ...parsed, name: forcedName } : parsed
 }
 
-export async function callLLMRaw<T>(
+export async function callLLMRaw<TSchema extends z.ZodTypeAny>(
   messages: OpenAI.ChatCompletionMessageParam[],
   schemaName: string,
-  schema: object,
+  zodSchema: TSchema,
   maxTokensOverride?: number,
   options: { disableRepetition?: boolean } = {},
-): Promise<T> {
+): Promise<z.infer<TSchema>> {
   const gen = getGenerationParams()
   const connector = getConnector()
 
@@ -383,6 +412,7 @@ export async function callLLMRaw<T>(
     ...(supportedParams ? { supportedParameters: supportedParams } : {}),
   })
 
+  const schema = zodSchemaToJsonSchema(zodSchema, schemaName)
   const deref = derefJsonSchema(schema)
   const injected = injectSchemaDescriptions(schemaName, deref)
   const jsonSchema = injected.schema
@@ -396,6 +426,7 @@ export async function callLLMRaw<T>(
   }
   const logBase = createLlmLogBase("json", schemaName, messages, sampling, schemaName, undefined, jsonSchema)
   let responseContent: string | undefined
+  let parsedCandidate: unknown | undefined
 
   const model = connector.type === "openrouter" ? connector.model : "local"
 
@@ -406,11 +437,8 @@ export async function callLLMRaw<T>(
     }
 
     // Check if structured outputs are supported (for response_format)
-    const supportsStructuredOutputs =
-      connector.type !== "openrouter" ||
-      !supportedParams ||
-      supportedParams.includes("structured_outputs") ||
-      supportedParams.includes("response_format")
+    const shouldUseStructuredOutputs =
+      connector.type !== "openrouter" || supportedParams?.includes("structured_outputs")
 
     const responseFormat = buildJsonSchemaResponseFormat(schemaName, jsonSchema, {
       // Always request strict mode; some backends may ignore it, but providers that
@@ -439,15 +467,17 @@ export async function callLLMRaw<T>(
             grammar_lazy: boolean
             grammar_triggers: unknown[]
           })
-        : supportsStructuredOutputs
-          ? ({
+        : connector.type === "openrouter"
+          ? shouldUseStructuredOutputs
+            ? ({
+                ...baseReq,
+                response_format: responseFormat,
+              } as OpenAI.ChatCompletionCreateParams)
+            : (baseReq as OpenAI.ChatCompletionCreateParams)
+          : ({
               ...baseReq,
               response_format: responseFormat,
-              // OpenRouter: ensure requests requiring structured output params only route to
-              // providers that explicitly support them (otherwise parameters may be ignored).
-              provider: { require_parameters: true },
-            } as OpenAI.ChatCompletionCreateParams & { provider: { require_parameters: true } })
-          : (baseReq as OpenAI.ChatCompletionCreateParams)
+            } as OpenAI.ChatCompletionCreateParams)
 
     let res: unknown
     try {
@@ -490,12 +520,23 @@ export async function callLLMRaw<T>(
       }
     }
 
+    if (connector.type === "openrouter") maybeLogOpenRouterResolvedModel(model, res)
+
     const shape = describeResponseShape(res)
     responseContent = (await extractContentFromUnknown(res)) ?? undefined
 
     if (!responseContent) throw new Error(`LLM returned empty response. Shape: ${shape}`)
     const parsedRaw = parseJsonFromContent(responseContent, schemaName)
-    const parsed = (schemaName === "TurnResponse" ? repairTurnResponseShape(parsedRaw) : parsedRaw) as T
+    parsedCandidate = schemaName === "TurnResponse" ? repairTurnResponseShape(parsedRaw) : parsedRaw
+
+    const validated = zodSchema.safeParse(parsedCandidate)
+    if (!validated.success) {
+      const issues = formatZodIssues(validated.error)
+      const preview = responseContent.length > 420 ? `${responseContent.slice(0, 420)}...` : responseContent
+      throw new Error(`LLM returned JSON that failed validation for ${schemaName}: ${issues}. Preview: ${preview}`)
+    }
+
+    const parsed = validated.data
     logLlmEntry({
       ...logBase,
       response: {
@@ -508,7 +549,11 @@ export async function callLLMRaw<T>(
     const message = err instanceof Error ? err.message : "Unknown error"
     logLlmEntry({
       ...logBase,
-      response: responseContent ? { content: responseContent } : undefined,
+      response: responseContent
+        ? { content: responseContent, ...(parsedCandidate !== undefined ? { parsed: parsedCandidate } : {}) }
+        : parsedCandidate !== undefined
+          ? { parsed: parsedCandidate }
+          : undefined,
       error: err instanceof Error ? { message, stack: err.stack } : { message },
     })
     throw err

@@ -1,4 +1,3 @@
-import { zodSchemaToJsonSchema } from "../utils/json-schema.js"
 import { buildStoryResponseSchema, type StoryModules, type StoryResponse } from "../core/models.js"
 import { callLLMRaw } from "./call.js"
 import { getGenerateStoryPrompt } from "./config.js"
@@ -26,7 +25,6 @@ export async function generateStory(
   const modules = storyModules ?? DEFAULT_STORY_MODULES
   const flags = resolveModuleFlags(modules)
   const responseSchema = buildStoryResponseSchema(modules)
-  const schema = zodSchemaToJsonSchema(responseSchema, "StoryResponse")
   const llmStrings = getLlmStrings()
   const defaults = getServerDefaults()
   const unknown = defaults.unknown.value
@@ -41,7 +39,7 @@ export async function generateStory(
   const majorFlaws = flags.useCharMajorFlaws ? (character.major_flaws?.map((t) => t.trim()).filter(Boolean) ?? []) : []
   const generalDescription = character.general_description?.trim() || defaults.unknown.generalDescription
   const promptLines = getGenerateStoryPrompt(modules).split("\n")
-  const result = await callLLMRaw<unknown>(
+  const result = await callLLMRaw(
     [
       { role: "system", content: promptLines.join("\n") },
       {
@@ -84,9 +82,9 @@ export async function generateStory(
       },
     ],
     "StoryResponse",
-    schema,
+    responseSchema,
     undefined,
     { disableRepetition: true },
   )
-  return responseSchema.parse(result)
+  return result
 }
