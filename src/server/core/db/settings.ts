@@ -58,7 +58,7 @@ const DEFAULT_OPENROUTER_CONNECTOR: OpenRouterConnector = {
     koboldcpp: "kobold",
     openrouter: "",
   },
-  model: "openrouter/auto",
+  model: "openrouter/free",
 }
 
 export const DEFAULT_SETTINGS: SettingsState = {

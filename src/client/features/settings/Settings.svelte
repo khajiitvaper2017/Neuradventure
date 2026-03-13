@@ -29,6 +29,12 @@
   type SettingsTab = "appearance" | "generation" | "prompts" | "modules"
   const SETTINGS_TAB_KEY = "settings_active_tab"
 
+  const OPENROUTER_DEFAULT_MODEL = "openrouter/free"
+  const OPENROUTER_PINNED_MODELS: Array<{ id: string; label: string }> = [
+    { id: OPENROUTER_DEFAULT_MODEL, label: `${OPENROUTER_DEFAULT_MODEL} · default` },
+    { id: "openrouter/auto", label: "openrouter/auto · auto" },
+  ]
+
   // Map GenerationParams keys to OpenRouter supported_parameters names.
   // Parameters not in this map are KoboldCpp-only and won't be sent to OpenRouter.
   const PARAM_TO_OPENROUTER: Partial<Record<keyof GenerationParams, string>> = {
@@ -88,7 +94,9 @@
   // Local copies for text inputs (committed on blur/enter)
   let connectorUrl = $state($connector.url)
   let connectorApiKey = $state($connector.api_keys[$connector.type])
-  let openrouterModelDraft = $state($connector.type === "openrouter" ? $connector.model : "openrouter/auto")
+  let openrouterModelDraft = $state(
+    $connector.type === "openrouter" ? $connector.model : OPENROUTER_DEFAULT_MODEL,
+  )
   let modelSearchQuery = $state("")
   let modelSearchLoading = $state(false)
   let modelSearchError = $state<string | null>(null)
@@ -170,7 +178,7 @@
           koboldcpp: $connector.api_keys.koboldcpp.trim() ? $connector.api_keys.koboldcpp.trim() : "kobold",
           openrouter: $connector.api_keys.openrouter.trim(),
         },
-        model: "openrouter/auto",
+        model: OPENROUTER_DEFAULT_MODEL,
       })
       return
     }
@@ -230,6 +238,7 @@
       out.push({ value: id, label })
     }
     if (currentModel) push(currentModel, currentModel)
+    for (const pinned of OPENROUTER_PINNED_MODELS) push(pinned.id, pinned.label)
     for (const m of models) {
       const id = m.id
       if (!id) continue
@@ -1153,7 +1162,7 @@
         <label class="row row-input">
           <span class="row-text">
             <span class="row-title">Model ID</span>
-            <span class="row-sub">Example: openrouter/auto</span>
+            <span class="row-sub">Example: openrouter/free</span>
           </span>
           <input
             class="text-input model-id-input"
