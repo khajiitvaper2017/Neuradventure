@@ -4,6 +4,7 @@ export type UpstreamModelInfo = {
   id: string
   name?: string
   context_length?: number
+  supported_parameters?: string[]
 }
 
 type ModelsCacheEntry = {
@@ -48,7 +49,15 @@ function pickModelInfo(raw: unknown): UpstreamModelInfo | null {
       : typeof obj.max_context_length === "number"
         ? obj.max_context_length
         : undefined
-  return { id, ...(name ? { name } : {}), ...(ctx ? { context_length: ctx } : {}) }
+  const supportedParams = Array.isArray(obj.supported_parameters)
+    ? obj.supported_parameters.filter((p): p is string => typeof p === "string")
+    : undefined
+  return {
+    id,
+    ...(name ? { name } : {}),
+    ...(ctx ? { context_length: ctx } : {}),
+    ...(supportedParams && supportedParams.length > 0 ? { supported_parameters: supportedParams } : {}),
+  }
 }
 
 function parseModelsPayload(payload: unknown): UpstreamModelInfo[] {
@@ -96,4 +105,10 @@ export function findContextLength(models: UpstreamModelInfo[], modelId: string):
   const match = models.find((m) => m.id === modelId)
   const val = match?.context_length
   return typeof val === "number" && Number.isFinite(val) && val > 0 ? val : null
+}
+
+export function getModelSupportedParameters(models: UpstreamModelInfo[], modelId: string): string[] | null {
+  const match = models.find((m) => m.id === modelId)
+  const params = match?.supported_parameters
+  return Array.isArray(params) && params.length > 0 ? params : null
 }

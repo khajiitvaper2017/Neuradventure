@@ -1,16 +1,35 @@
 import type { GenerationParams, LLMConnector } from "../core/db.js"
 import { getCtxLimitCached } from "./client.js"
 
+/**
+ * Filter a params object to only include keys present in the supported list.
+ * Always keeps essential keys (model, messages, stream) if present.
+ */
+export function filterParamsBySupported(
+  params: Record<string, unknown>,
+  supportedParams: string[],
+): Record<string, unknown> {
+  const supportedSet = new Set(supportedParams)
+  const essentialKeys = new Set(["model", "messages", "stream"])
+  const result: Record<string, unknown> = {}
+  for (const [key, value] of Object.entries(params)) {
+    if (essentialKeys.has(key) || supportedSet.has(key)) {
+      result[key] = value
+    }
+  }
+  return result
+}
+
 export function buildSamplingParams(
   connector: LLMConnector,
   gen: GenerationParams,
   maxTokensOverride?: number,
-  options: { disableRepetition?: boolean } = {},
+  options: { disableRepetition?: boolean; supportedParameters?: string[] } = {},
 ): Record<string, unknown> {
   const repeatPenalty = options.disableRepetition ? 1.0 : gen.repeat_penalty
   if (connector.type === "openrouter") {
     const maxTokens = maxTokensOverride ?? gen.max_tokens
-    return {
+    const params: Record<string, unknown> = {
       // OpenRouter: max_tokens is deprecated, but still widely supported.
       max_completion_tokens: maxTokens,
       max_tokens: maxTokens,
@@ -25,6 +44,11 @@ export function buildSamplingParams(
       repetition_penalty: repeatPenalty,
       logit_bias: gen.logit_bias,
     }
+    // Filter to only supported parameters if the model's supported list is known
+    if (options.supportedParameters && options.supportedParameters.length > 0) {
+      return filterParamsBySupported(params, options.supportedParameters)
+    }
+    return params
   }
 
   const ctxLimit = getCtxLimitCached()

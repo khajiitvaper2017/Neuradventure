@@ -1,6 +1,6 @@
 import OpenAI from "openai"
 import { type GenerationParams, type LLMConnector, getSettings } from "../core/db.js"
-import { findContextLength, getCachedUpstreamModels } from "./models.js"
+import { findContextLength, getCachedUpstreamModels, getModelSupportedParameters } from "./models.js"
 
 // ─── OpenAI client (re-created when connector settings change) ───────────────
 
@@ -9,6 +9,36 @@ let cachedClientKey = ""
 let cachedCtxLimit = 0
 let cachedCtxLimitAt = 0
 let cachedCtxLimitKey = ""
+
+// ─── Supported parameters cache (OpenRouter only) ───────────────────────────
+
+let cachedSupportedParams: string[] | null = null
+let cachedSupportedParamsKey = ""
+let cachedSupportedParamsAt = 0
+
+export async function getCachedSupportedParameters(): Promise<string[] | null> {
+  const connector = getConnector()
+  if (connector.type !== "openrouter") return null
+
+  const key = `${connector.type}|${connector.url}|${connector.model}`
+  const now = Date.now()
+  if (cachedSupportedParamsKey === key && cachedSupportedParams && now - cachedSupportedParamsAt < 5 * 60 * 1000) {
+    return cachedSupportedParams
+  }
+
+  try {
+    const models = await getCachedUpstreamModels(connector)
+    const params = getModelSupportedParameters(models, connector.model)
+    cachedSupportedParams = params
+    cachedSupportedParamsKey = key
+    cachedSupportedParamsAt = now
+    return params
+  } catch {
+    // On error, return cached value if key matches, otherwise null
+    if (cachedSupportedParamsKey === key) return cachedSupportedParams
+    return null
+  }
+}
 
 export function getClient(): OpenAI {
   const { connector } = getSettings()

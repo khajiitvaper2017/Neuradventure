@@ -256,6 +256,7 @@ export interface ModelInfo {
   id: string
   name?: string
   context_length?: number
+  supported_parameters?: string[]
 }
 
 export interface AppSettings {

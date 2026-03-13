@@ -7,7 +7,7 @@ import { buildTurnResponseSchema } from "./schema.js"
 import { buildSamplingParams } from "./sampling.js"
 import { parseJsonFromContent } from "./parse.js"
 import { createLlmLogBase, logLlmEntry } from "./logging.js"
-import { getClient, getConnector, getGenerationParams } from "./client.js"
+import { getClient, getConnector, getGenerationParams, getCachedSupportedParameters } from "./client.js"
 import { injectSchemaDescriptions } from "./inject-schema-descriptions.js"
 
 function isAsyncIterable(value: unknown): value is AsyncIterable<unknown> {
@@ -286,7 +286,14 @@ export async function callLLMRaw<T>(
 ): Promise<T> {
   const gen = getGenerationParams()
   const connector = getConnector()
-  const sampling = buildSamplingParams(connector, gen, maxTokensOverride, options)
+
+  // Fetch supported parameters for OpenRouter to filter sampling params
+  const supportedParams = connector.type === "openrouter" ? await getCachedSupportedParameters() : null
+  const sampling = buildSamplingParams(connector, gen, maxTokensOverride, {
+    ...options,
+    ...(supportedParams ? { supportedParameters: supportedParams } : {}),
+  })
+
   const deref = derefJsonSchema(schema)
   const injected = injectSchemaDescriptions(schemaName, deref)
   const jsonSchema = injected.schema
@@ -308,22 +315,25 @@ export async function callLLMRaw<T>(
       TurnResponse: "Game turn response with narrative text and state updates",
       NPCCreation: "NPC character creation data",
     }
+
+    // Check if structured outputs are supported (for response_format)
+    const supportsStructuredOutputs =
+      connector.type !== "openrouter" ||
+      !supportedParams ||
+      supportedParams.includes("structured_outputs") ||
+      supportedParams.includes("response_format")
+
     const responseFormat = buildJsonSchemaResponseFormat(schemaName, jsonSchema, {
       // Always request strict mode; some backends may ignore it, but providers that
       // support JSON Schema should enforce it.
       strict: true,
       description: schemaDescriptions[schemaName],
     }) as OpenAI.ResponseFormatJSONSchema
-    const baseReq: OpenAI.ChatCompletionCreateParams & { provider?: unknown } = {
+    const baseReq: OpenAI.ChatCompletionCreateParams = {
       model,
       messages,
       ...sampling,
       stream: false,
-    }
-    if (connector.type === "openrouter") {
-      // Ensure OpenRouter only routes to providers that support all specified parameters,
-      // especially `response_format` for structured outputs.
-      baseReq.provider = { require_parameters: true }
     }
 
     const initialReq =
@@ -340,10 +350,12 @@ export async function callLLMRaw<T>(
             grammar_lazy: boolean
             grammar_triggers: unknown[]
           })
-        : ({
-            ...baseReq,
-            response_format: responseFormat,
-          } as OpenAI.ChatCompletionCreateParams)
+        : supportsStructuredOutputs
+          ? ({
+              ...baseReq,
+              response_format: responseFormat,
+            } as OpenAI.ChatCompletionCreateParams)
+          : (baseReq as OpenAI.ChatCompletionCreateParams)
 
     let res: unknown
     try {
@@ -396,7 +408,14 @@ export async function callLLMText(
 ): Promise<string> {
   const gen = getGenerationParams()
   const connector = getConnector()
-  const sampling = buildSamplingParams(connector, gen, maxTokensOverride, options)
+
+  // Fetch supported parameters for OpenRouter to filter sampling params
+  const supportedParams = connector.type === "openrouter" ? await getCachedSupportedParameters() : null
+  const sampling = buildSamplingParams(connector, gen, maxTokensOverride, {
+    ...options,
+    ...(supportedParams ? { supportedParameters: supportedParams } : {}),
+  })
+
   const stop = options.stop && options.stop.length > 0 ? options.stop.slice(0, 4) : ["\n\n===", "\n==="]
   const requestName = options.requestName?.trim() || "Text"
   const logBase = createLlmLogBase("text", requestName, messages, sampling, undefined, stop)

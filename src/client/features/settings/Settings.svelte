@@ -29,6 +29,29 @@
   type SettingsTab = "appearance" | "generation" | "prompts" | "modules"
   const SETTINGS_TAB_KEY = "settings_active_tab"
 
+  // Map GenerationParams keys to OpenRouter supported_parameters names.
+  // Parameters not in this map are KoboldCpp-only and won't be sent to OpenRouter.
+  const PARAM_TO_OPENROUTER: Partial<Record<keyof GenerationParams, string>> = {
+    max_tokens: "max_tokens",
+    temperature: "temperature",
+    top_p: "top_p",
+    seed: "seed",
+    presence_penalty: "presence_penalty",
+    frequency_penalty: "frequency_penalty",
+    repeat_penalty: "repetition_penalty",
+    logit_bias: "logit_bias",
+  }
+
+  // Check if a parameter will be ignored by the selected OpenRouter model
+  function isParamUnsupported(key: keyof GenerationParams): boolean {
+    if ($connector.type !== "openrouter") return false
+    const orParam = PARAM_TO_OPENROUTER[key]
+    if (!orParam) return false // Not sent to OpenRouter, so not "unsupported"
+    const model = modelSearchResults.find((m) => m.id === $connector.model)
+    if (!model?.supported_parameters) return false // Unknown support, assume OK
+    return !model.supported_parameters.includes(orParam)
+  }
+
   function loadInitialTab(): SettingsTab {
     if (typeof window === "undefined") return "appearance"
     try {
@@ -252,6 +275,20 @@
   }
 
   let activePreset = $derived(detectPreset($generation, $presets))
+
+  // List of parameter labels that will be ignored by the selected OpenRouter model
+  let unsupportedParamLabels = $derived.by(() => {
+    if ($connector.type !== "openrouter") return []
+    const model = modelSearchResults.find((m) => m.id === $connector.model)
+    if (!model?.supported_parameters) return []
+    const allParams = [...samplingParams, ...repetitionParams]
+    return allParams
+      .filter((p) => {
+        const orParam = PARAM_TO_OPENROUTER[p.key]
+        return orParam && !model.supported_parameters!.includes(orParam)
+      })
+      .map((p) => p.label)
+  })
 
   function applyPreset(name: string) {
     const preset = $presets.find((p: SamplerPreset) => p.name === name)
@@ -1041,6 +1078,17 @@
         <input type="checkbox" bind:checked={$textJustify} />
       </label>
     {:else if activeTab === "generation"}
+      {#if unsupportedParamLabels.length > 0}
+        <div class="unsupported-banner">
+          <span class="unsupported-banner-icon">⚠</span>
+          <span class="unsupported-banner-text">
+            <strong>{$connector.type === "openrouter" ? $connector.model : ""}</strong> does not support: {unsupportedParamLabels.join(
+              ", ",
+            )}. These parameters will be ignored.
+          </span>
+        </div>
+      {/if}
+
       <!-- Connection -->
       <div class="section-label">Connection</div>
 
@@ -1226,9 +1274,17 @@
       <!-- Sampling -->
       <div class="section-label">Sampling</div>
       {#each samplingParams as p}
-        <label class="row row-input">
+        {@const unsupported = isParamUnsupported(p.key)}
+        <label class="row row-input" class:param-unsupported={unsupported}>
           <span class="row-text">
-            <span class="row-title">{p.label}</span>
+            <span class="row-title">
+              {p.label}
+              {#if unsupported}
+                <span class="unsupported-badge" title="This parameter is not supported by the selected model"
+                  >ignored</span
+                >
+              {/if}
+            </span>
             <span class="row-sub">{p.sub}</span>
           </span>
           <input
@@ -1248,9 +1304,17 @@
       <!-- Repetition Penalties -->
       <div class="section-label">Repetition Penalties</div>
       {#each repetitionParams as p}
-        <label class="row row-input">
+        {@const unsupported = isParamUnsupported(p.key)}
+        <label class="row row-input" class:param-unsupported={unsupported}>
           <span class="row-text">
-            <span class="row-title">{p.label}</span>
+            <span class="row-title">
+              {p.label}
+              {#if unsupported}
+                <span class="unsupported-badge" title="This parameter is not supported by the selected model"
+                  >ignored</span
+                >
+              {/if}
+            </span>
             <span class="row-sub">{p.sub}</span>
           </span>
           <input
@@ -1699,6 +1763,55 @@
     font-size: 0.78rem;
     color: var(--text-dim);
     line-height: 1.4;
+  }
+
+  /* ── Unsupported parameter indicator ──────────────── */
+  .param-unsupported {
+    opacity: 0.55;
+  }
+  .param-unsupported .num-input {
+    text-decoration: line-through;
+    text-decoration-color: var(--text-dim);
+  }
+  .unsupported-badge {
+    display: inline-block;
+    font-family: var(--font-ui);
+    font-size: 0.65rem;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--warning, #c27a1a);
+    background: var(--warning-bg, rgba(194, 122, 26, 0.12));
+    border: 1px solid var(--warning-border, rgba(194, 122, 26, 0.25));
+    border-radius: 3px;
+    padding: 0.1em 0.4em;
+    margin-left: 0.5em;
+    vertical-align: middle;
+    line-height: 1.4;
+  }
+
+  .unsupported-banner {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.6rem;
+    margin: 0.75rem 1rem 0;
+    padding: 0.7rem 0.9rem;
+    background: var(--warning-bg, rgba(194, 122, 26, 0.08));
+    border: 1px solid var(--warning-border, rgba(194, 122, 26, 0.2));
+    border-radius: 6px;
+    font-family: var(--font-ui);
+    font-size: 0.82rem;
+    color: var(--text);
+    line-height: 1.45;
+  }
+  .unsupported-banner-icon {
+    flex-shrink: 0;
+    font-size: 1rem;
+    line-height: 1.3;
+  }
+  .unsupported-banner-text strong {
+    font-weight: 600;
+    word-break: break-all;
   }
 
   /* ── Input fields ─────────────────────────────────── */
