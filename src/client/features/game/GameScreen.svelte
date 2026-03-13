@@ -28,6 +28,7 @@
   import IconUsers from "../../components/icons/IconUsers.svelte"
   import ConversationInput from "../../components/ui/ConversationInput.svelte"
   import InlineTokens from "../../components/ui/InlineTokens.svelte"
+  import StoryModulesPanel from "../../components/ui/StoryModulesPanel.svelte"
   import ThinkingDots from "../../components/ui/ThinkingDots.svelte"
   import {
     currentStoryId,
@@ -838,188 +839,13 @@
   <!-- ── Story Modules editor overlay ──────────────────── -->
   {#if showModulesEditor}
     <div class="editor-overlay">
-      <div class="editor-panel">
+      <div class="editor-panel editor-panel--modules">
         <div class="editor-header">
           <span>Story Modules</span>
           <span class="editor-hint">Control which mechanics are tracked for this story</span>
         </div>
-        <div class="editor-body">
-          <label class="row">
-            <span class="row-text">
-              <span class="row-title">Track NPCs</span>
-              <span class="row-sub">Enable NPC state and updates</span>
-            </span>
-            <input
-              type="checkbox"
-              checked={modulesDraft.track_npcs}
-              onchange={(e) => (modulesDraft.track_npcs = (e.target as HTMLInputElement).checked)}
-            />
-          </label>
-          <label class="row">
-            <span class="row-text">
-              <span class="row-title">Track Locations</span>
-              <span class="row-sub">Enable location list tracking</span>
-            </span>
-            <input
-              type="checkbox"
-              checked={modulesDraft.track_locations}
-              onchange={(e) => (modulesDraft.track_locations = (e.target as HTMLInputElement).checked)}
-            />
-          </label>
-          <label class="row row-input">
-            <span class="row-text">
-              <span class="row-title">Character Detail Mode</span>
-              <span class="row-sub">Choose detailed fields or general description</span>
-            </span>
-            <select
-              class="select-input"
-              value={modulesDraft.character_detail_mode}
-              onchange={(e) => {
-                const next = (e.target as HTMLSelectElement).value as StoryModules["character_detail_mode"]
-                modulesDraft.character_detail_mode = next
-                if (next === "detailed") modulesDraft.character_appearance_clothing = true
-              }}
-            >
-              <option value="detailed">Detailed</option>
-              <option value="general">General description</option>
-            </select>
-          </label>
-          {#if modulesDraft.character_detail_mode === "detailed"}
-            <label class="row">
-              <span class="row-text">
-                <span class="row-title">Player appearance + clothing</span>
-                <span class="row-sub">Always enabled in detailed mode</span>
-              </span>
-              <input type="checkbox" checked={true} disabled />
-            </label>
-          {/if}
-          <label class="row">
-            <span class="row-text">
-              <span class="row-title">Player personality traits</span>
-            </span>
-            <input
-              type="checkbox"
-              checked={modulesDraft.character_personality_traits}
-              onchange={(e) => (modulesDraft.character_personality_traits = (e.target as HTMLInputElement).checked)}
-            />
-          </label>
-          <label class="row">
-            <span class="row-text">
-              <span class="row-title">Player major flaws</span>
-            </span>
-            <input
-              type="checkbox"
-              checked={modulesDraft.character_major_flaws}
-              onchange={(e) => (modulesDraft.character_major_flaws = (e.target as HTMLInputElement).checked)}
-            />
-          </label>
-          <label class="row">
-            <span class="row-text">
-              <span class="row-title">Player quirks</span>
-            </span>
-            <input
-              type="checkbox"
-              checked={modulesDraft.character_quirks}
-              onchange={(e) => (modulesDraft.character_quirks = (e.target as HTMLInputElement).checked)}
-            />
-          </label>
-          <label class="row">
-            <span class="row-text">
-              <span class="row-title">Player perks</span>
-            </span>
-            <input
-              type="checkbox"
-              checked={modulesDraft.character_perks}
-              onchange={(e) => (modulesDraft.character_perks = (e.target as HTMLInputElement).checked)}
-            />
-          </label>
-          <label class="row">
-            <span class="row-text">
-              <span class="row-title">Player inventory</span>
-            </span>
-            <input
-              type="checkbox"
-              checked={modulesDraft.character_inventory}
-              onchange={(e) => (modulesDraft.character_inventory = (e.target as HTMLInputElement).checked)}
-            />
-          </label>
-          <label class="row">
-            <span class="row-text">
-              <span class="row-title">NPC appearance + clothing</span>
-            </span>
-            <input
-              type="checkbox"
-              checked={modulesDraft.npc_appearance_clothing}
-              disabled={!modulesDraft.track_npcs}
-              onchange={(e) => (modulesDraft.npc_appearance_clothing = (e.target as HTMLInputElement).checked)}
-            />
-          </label>
-          <label class="row">
-            <span class="row-text">
-              <span class="row-title">NPC personality traits</span>
-            </span>
-            <input
-              type="checkbox"
-              checked={modulesDraft.npc_personality_traits}
-              disabled={!modulesDraft.track_npcs}
-              onchange={(e) => (modulesDraft.npc_personality_traits = (e.target as HTMLInputElement).checked)}
-            />
-          </label>
-          <label class="row">
-            <span class="row-text">
-              <span class="row-title">NPC major flaws</span>
-            </span>
-            <input
-              type="checkbox"
-              checked={modulesDraft.npc_major_flaws}
-              disabled={!modulesDraft.track_npcs}
-              onchange={(e) => (modulesDraft.npc_major_flaws = (e.target as HTMLInputElement).checked)}
-            />
-          </label>
-          <label class="row">
-            <span class="row-text">
-              <span class="row-title">NPC quirks</span>
-            </span>
-            <input
-              type="checkbox"
-              checked={modulesDraft.npc_quirks}
-              disabled={!modulesDraft.track_npcs}
-              onchange={(e) => (modulesDraft.npc_quirks = (e.target as HTMLInputElement).checked)}
-            />
-          </label>
-          <label class="row">
-            <span class="row-text">
-              <span class="row-title">NPC perks</span>
-            </span>
-            <input
-              type="checkbox"
-              checked={modulesDraft.npc_perks}
-              disabled={!modulesDraft.track_npcs}
-              onchange={(e) => (modulesDraft.npc_perks = (e.target as HTMLInputElement).checked)}
-            />
-          </label>
-          <label class="row">
-            <span class="row-text">
-              <span class="row-title">NPC location</span>
-            </span>
-            <input
-              type="checkbox"
-              checked={modulesDraft.npc_location}
-              disabled={!modulesDraft.track_npcs}
-              onchange={(e) => (modulesDraft.npc_location = (e.target as HTMLInputElement).checked)}
-            />
-          </label>
-          <label class="row">
-            <span class="row-text">
-              <span class="row-title">NPC activity</span>
-            </span>
-            <input
-              type="checkbox"
-              checked={modulesDraft.npc_activity}
-              disabled={!modulesDraft.track_npcs}
-              onchange={(e) => (modulesDraft.npc_activity = (e.target as HTMLInputElement).checked)}
-            />
-          </label>
+        <div class="editor-body editor-body--modules" data-scroll-root="modal">
+          <StoryModulesPanel modules={modulesDraft} setModules={(next) => (modulesDraft = next)} bare />
         </div>
         <div class="edit-actions">
           <button class="btn-ghost" onclick={() => (showModulesEditor = false)}>Cancel</button>
@@ -1654,6 +1480,20 @@
     flex-direction: column;
     gap: 0.75rem;
   }
+  .editor-panel--modules {
+    background: var(--bg-raised);
+    box-shadow: 0 18px 50px rgba(0, 0, 0, 0.55);
+    max-width: 560px;
+    max-height: min(86dvh, 760px);
+    padding: 1.1rem 1.25rem;
+  }
+  .editor-panel--modules .editor-header > span:first-child {
+    font-family: var(--font-brand);
+    font-size: 0.8rem;
+    font-weight: 400;
+    letter-spacing: 0.1em;
+    color: var(--accent);
+  }
   .editor-header {
     display: flex;
     flex-direction: column;
@@ -1669,6 +1509,18 @@
   .editor-hint {
     font-size: 0.75rem;
     color: var(--text-dim);
+  }
+  .editor-body {
+    min-height: 0;
+  }
+  .editor-body--modules {
+    overflow-y: auto;
+    padding: 0.3rem 0.8rem;
+    border-top: 1px solid var(--border);
+    border-bottom: 1px solid var(--border);
+  }
+  .editor-panel--modules .edit-actions {
+    padding-top: 0.25rem;
   }
   .depth-row {
     display: flex;

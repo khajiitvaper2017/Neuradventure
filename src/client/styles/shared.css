@@ -604,6 +604,72 @@ button.btn-icon {
   border-color: var(--accent);
 }
 
+/* ── Shared control rows (labels + toggles) ────────── */
+.control-section-label {
+  padding: 1.25rem 1rem 0.4rem;
+  font-size: 0.7rem;
+  letter-spacing: 0.1em;
+  color: var(--accent);
+}
+
+.control-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.9rem 1rem;
+  border-bottom: 1px solid var(--border);
+  cursor: pointer;
+  transition: background 0.12s ease;
+  gap: 1rem;
+}
+.control-row:hover {
+  background: var(--bg-action);
+}
+
+.control-row-text {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  flex: 1;
+  min-width: 0;
+}
+.control-row-title {
+  font-family: var(--font-ui);
+  font-size: 0.95rem;
+  font-weight: 400;
+  color: var(--text);
+}
+.control-row-sub {
+  font-family: var(--font-ui);
+  font-size: 0.78rem;
+  color: var(--text-dim);
+  line-height: 1.4;
+}
+
+.control-row--input {
+  cursor: default;
+}
+
+.control-row--stack {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0.6rem;
+}
+.control-row--stack .text-input {
+  width: 100%;
+}
+
+.control-row--disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+.control-row--disabled:hover {
+  background: transparent;
+}
+.control-row--disabled input[type="checkbox"] {
+  cursor: not-allowed;
+}
+
 /* Hide spin buttons */
 .num-input::-webkit-inner-spin-button,
 .num-input::-webkit-outer-spin-button {
@@ -968,6 +1034,52 @@ button.chip:disabled {
   padding: 1rem;
 }
 
+.modules-shell-action {
+  background: none;
+  border: 1px solid var(--border);
+  color: var(--text-dim);
+  font-family: var(--font-ui);
+  font-size: 0.72rem;
+  letter-spacing: 0.02em;
+  padding: 0.3rem 0.7rem;
+  border-radius: var(--radius-pill);
+  cursor: pointer;
+  min-height: 34px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition:
+    color 0.15s,
+    border-color 0.15s,
+    background 0.15s;
+}
+.modules-shell-action:hover:not(:disabled) {
+  color: var(--text);
+  border-color: var(--border-hover);
+  background: var(--bg-action);
+}
+.modules-shell-action:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.modules-shell-summary {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+.modules-shell-line {
+  font-family: var(--font-ui);
+  font-size: 0.82rem;
+  color: var(--text-dim);
+  line-height: 1.35;
+  text-wrap: balance;
+}
+.modules-shell-line strong {
+  color: var(--text-action);
+  font-weight: 600;
+}
+
 .panel {
   position: fixed;
   top: 0;
@@ -980,6 +1092,10 @@ button.chip:disabled {
   display: flex;
   flex-direction: column;
   overflow: hidden;
+}
+
+.panel.panel--wide {
+  width: min(420px, 92vw);
 }
 
 .panel-header {

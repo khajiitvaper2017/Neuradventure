@@ -17,12 +17,12 @@
 </script>
 
 <div class="modules-panel" class:bare>
-  <div class="group">
-    <div class="section-label">Core</div>
-    <label class="row">
-      <span class="row-text">
-        <span class="row-title">Track NPCs</span>
-        <span class="row-sub">New stories track NPC state and updates</span>
+  <div class="modules-group">
+    <div class="control-section-label">Core</div>
+    <label class="control-row">
+      <span class="control-row-text">
+        <span class="control-row-title">Track NPCs</span>
+        <span class="control-row-sub">New stories track NPC state and updates</span>
       </span>
       <input
         type="checkbox"
@@ -31,10 +31,10 @@
       />
     </label>
 
-    <label class="row">
-      <span class="row-text">
-        <span class="row-title">Track locations</span>
-        <span class="row-sub">New stories track location lists and presence</span>
+    <label class="control-row">
+      <span class="control-row-text">
+        <span class="control-row-title">Track locations</span>
+        <span class="control-row-sub">New stories track location lists and presence</span>
       </span>
       <input
         type="checkbox"
@@ -43,10 +43,10 @@
       />
     </label>
 
-    <label class="row row-input">
-      <span class="row-text">
-        <span class="row-title">Character detail mode</span>
-        <span class="row-sub">Default character detail style for new stories</span>
+    <label class="control-row control-row--input modules-detail-row">
+      <span class="control-row-text">
+        <span class="control-row-title">Character detail mode</span>
+        <span class="control-row-sub">Default character detail style for new stories</span>
       </span>
       <select
         class="select-input"
@@ -60,21 +60,21 @@
     </label>
   </div>
 
-  <div class="group">
-    <div class="section-label">Player</div>
+  <div class="modules-group">
+    <div class="control-section-label">Player</div>
     {#if modules.character_detail_mode === "detailed"}
-      <label class="row">
-        <span class="row-text">
-          <span class="row-title">Player appearance + clothing</span>
-          <span class="row-sub">Always enabled in detailed mode</span>
+      <label class="control-row">
+        <span class="control-row-text">
+          <span class="control-row-title">Player appearance + clothing</span>
+          <span class="control-row-sub">Always enabled in detailed mode</span>
         </span>
         <input type="checkbox" checked={true} disabled />
       </label>
     {/if}
 
-    <label class="row">
-      <span class="row-text">
-        <span class="row-title">Player personality traits</span>
+    <label class="control-row">
+      <span class="control-row-text">
+        <span class="control-row-title">Player personality traits</span>
       </span>
       <input
         type="checkbox"
@@ -83,9 +83,9 @@
       />
     </label>
 
-    <label class="row">
-      <span class="row-text">
-        <span class="row-title">Player major flaws</span>
+    <label class="control-row">
+      <span class="control-row-text">
+        <span class="control-row-title">Player major flaws</span>
       </span>
       <input
         type="checkbox"
@@ -94,9 +94,9 @@
       />
     </label>
 
-    <label class="row">
-      <span class="row-text">
-        <span class="row-title">Player quirks</span>
+    <label class="control-row">
+      <span class="control-row-text">
+        <span class="control-row-title">Player quirks</span>
       </span>
       <input
         type="checkbox"
@@ -105,9 +105,9 @@
       />
     </label>
 
-    <label class="row">
-      <span class="row-text">
-        <span class="row-title">Player perks</span>
+    <label class="control-row">
+      <span class="control-row-text">
+        <span class="control-row-title">Player perks</span>
       </span>
       <input
         type="checkbox"
@@ -116,9 +116,9 @@
       />
     </label>
 
-    <label class="row">
-      <span class="row-text">
-        <span class="row-title">Player inventory</span>
+    <label class="control-row">
+      <span class="control-row-text">
+        <span class="control-row-title">Player inventory</span>
       </span>
       <input
         type="checkbox"
@@ -128,11 +128,14 @@
     </label>
   </div>
 
-  <div class="group">
-    <div class="section-label">NPCs</div>
-    <label class="row" class:is-disabled={!modules.track_npcs} aria-disabled={!modules.track_npcs}>
-      <span class="row-text">
-        <span class="row-title">NPC appearance + clothing</span>
+  <div class="modules-group">
+    <div class="control-section-label">NPCs</div>
+    <label
+      class={"control-row" + (modules.track_npcs ? "" : " control-row--disabled")}
+      aria-disabled={!modules.track_npcs}
+    >
+      <span class="control-row-text">
+        <span class="control-row-title">NPC appearance + clothing</span>
       </span>
       <input
         type="checkbox"
@@ -142,9 +145,12 @@
       />
     </label>
 
-    <label class="row" class:is-disabled={!modules.track_npcs} aria-disabled={!modules.track_npcs}>
-      <span class="row-text">
-        <span class="row-title">NPC personality traits</span>
+    <label
+      class={"control-row" + (modules.track_npcs ? "" : " control-row--disabled")}
+      aria-disabled={!modules.track_npcs}
+    >
+      <span class="control-row-text">
+        <span class="control-row-title">NPC personality traits</span>
       </span>
       <input
         type="checkbox"
@@ -154,9 +160,12 @@
       />
     </label>
 
-    <label class="row" class:is-disabled={!modules.track_npcs} aria-disabled={!modules.track_npcs}>
-      <span class="row-text">
-        <span class="row-title">NPC major flaws</span>
+    <label
+      class={"control-row" + (modules.track_npcs ? "" : " control-row--disabled")}
+      aria-disabled={!modules.track_npcs}
+    >
+      <span class="control-row-text">
+        <span class="control-row-title">NPC major flaws</span>
       </span>
       <input
         type="checkbox"
@@ -166,9 +175,12 @@
       />
     </label>
 
-    <label class="row" class:is-disabled={!modules.track_npcs} aria-disabled={!modules.track_npcs}>
-      <span class="row-text">
-        <span class="row-title">NPC quirks</span>
+    <label
+      class={"control-row" + (modules.track_npcs ? "" : " control-row--disabled")}
+      aria-disabled={!modules.track_npcs}
+    >
+      <span class="control-row-text">
+        <span class="control-row-title">NPC quirks</span>
       </span>
       <input
         type="checkbox"
@@ -178,9 +190,12 @@
       />
     </label>
 
-    <label class="row" class:is-disabled={!modules.track_npcs} aria-disabled={!modules.track_npcs}>
-      <span class="row-text">
-        <span class="row-title">NPC perks</span>
+    <label
+      class={"control-row" + (modules.track_npcs ? "" : " control-row--disabled")}
+      aria-disabled={!modules.track_npcs}
+    >
+      <span class="control-row-text">
+        <span class="control-row-title">NPC perks</span>
       </span>
       <input
         type="checkbox"
@@ -190,9 +205,12 @@
       />
     </label>
 
-    <label class="row" class:is-disabled={!modules.track_npcs} aria-disabled={!modules.track_npcs}>
-      <span class="row-text">
-        <span class="row-title">NPC location</span>
+    <label
+      class={"control-row" + (modules.track_npcs ? "" : " control-row--disabled")}
+      aria-disabled={!modules.track_npcs}
+    >
+      <span class="control-row-text">
+        <span class="control-row-title">NPC location</span>
       </span>
       <input
         type="checkbox"
@@ -202,9 +220,12 @@
       />
     </label>
 
-    <label class="row" class:is-disabled={!modules.track_npcs} aria-disabled={!modules.track_npcs}>
-      <span class="row-text">
-        <span class="row-title">NPC activity</span>
+    <label
+      class={"control-row" + (modules.track_npcs ? "" : " control-row--disabled")}
+      aria-disabled={!modules.track_npcs}
+    >
+      <span class="control-row-text">
+        <span class="control-row-title">NPC activity</span>
       </span>
       <input
         type="checkbox"
@@ -220,7 +241,7 @@
   .modules-panel {
     background: var(--bg-raised);
     border: 1px solid var(--border);
-    border-radius: 6px;
+    border-radius: var(--radius-md);
     overflow: hidden;
   }
   .modules-panel.bare {
@@ -229,63 +250,36 @@
     border-radius: 0;
     overflow: visible;
   }
-  .section-label {
-    padding: 1.25rem 1rem 0.4rem;
-    font-size: 0.7rem;
-    letter-spacing: 0.1em;
-    color: var(--accent);
-    text-transform: none;
+
+  .modules-group + .modules-group {
+    border-top: 1px solid var(--border);
   }
-  .row {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 0.9rem 1rem;
-    border-bottom: 1px solid var(--border);
-    cursor: pointer;
-    transition: background 0.12s ease;
-    gap: 1rem;
+
+  .modules-group :global(.control-row:last-child) {
+    border-bottom: none;
   }
-  .row:hover {
-    background: var(--bg-action);
-  }
-  .row-input {
-    cursor: default;
-  }
-  .row.is-disabled {
-    opacity: 0.6;
-    cursor: not-allowed;
-  }
-  .row.is-disabled:hover {
-    background: transparent;
-  }
-  .row-text {
-    display: flex;
-    flex-direction: column;
-    gap: 0.2rem;
-    flex: 1;
-    min-width: 0;
-  }
-  .row-title {
-    font-family: var(--font-ui);
-    font-size: 0.95rem;
-    font-weight: 400;
-    color: var(--text);
-  }
-  .row-sub {
-    font-family: var(--font-ui);
-    font-size: 0.78rem;
+
+  .modules-panel.bare :global(.control-section-label) {
+    padding: 0.9rem 0 0.35rem;
     color: var(--text-dim);
-    line-height: 1.4;
   }
-  input[type="checkbox"] {
-    width: 18px;
-    height: 18px;
-    accent-color: var(--accent);
-    flex-shrink: 0;
-    cursor: pointer;
+
+  .modules-panel.bare :global(.control-row) {
+    padding: 0.75rem 0;
   }
-  .row.is-disabled input[type="checkbox"] {
-    cursor: not-allowed;
+
+  .modules-panel.bare .modules-group:first-child :global(.control-section-label) {
+    padding-top: 0;
+  }
+
+  @media (max-width: 560px) {
+    .modules-detail-row {
+      flex-direction: column;
+      align-items: stretch;
+      gap: 0.6rem;
+    }
+    .modules-detail-row :global(.select-input) {
+      width: 100%;
+    }
   }
 </style>

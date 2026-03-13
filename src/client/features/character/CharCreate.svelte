@@ -70,6 +70,7 @@
   let regeneratingAppearance = false
   let regeneratingClothing = false
   let regeneratingTraits = false
+  let showModulesPanel = false
   let promptHistory: string[] = []
 
   onMount(() => {
@@ -234,6 +235,35 @@
   function setModules(next: StoryModules) {
     pendingStoryModules.set(next)
   }
+
+  const PLAYER_MODULE_KEYS: (keyof StoryModules)[] = [
+    "character_personality_traits",
+    "character_major_flaws",
+    "character_quirks",
+    "character_perks",
+    "character_inventory",
+  ]
+  const NPC_MODULE_KEYS: (keyof StoryModules)[] = [
+    "npc_appearance_clothing",
+    "npc_personality_traits",
+    "npc_major_flaws",
+    "npc_quirks",
+    "npc_perks",
+    "npc_location",
+    "npc_activity",
+  ]
+
+  function countEnabled(modules: StoryModules, keys: (keyof StoryModules)[]): number {
+    return keys.reduce((acc, k) => acc + (modules[k] === true ? 1 : 0), 0)
+  }
+
+  $: modulesPreviewCore = `Core: ${activeModules.track_npcs ? "NPCs on" : "NPCs off"} · ${
+    activeModules.track_locations ? "Locations on" : "Locations off"
+  } · Detail: ${activeModules.character_detail_mode === "detailed" ? "Detailed" : "General"}`
+  $: modulesPreviewPlayer = `Player fields: ${countEnabled(activeModules, PLAYER_MODULE_KEYS)}/${PLAYER_MODULE_KEYS.length}`
+  $: modulesPreviewNpc = activeModules.track_npcs
+    ? `NPC fields: ${countEnabled(activeModules, NPC_MODULE_KEYS)}/${NPC_MODULE_KEYS.length}`
+    : "NPC fields: — (tracking off)"
 
   function isBlocked(trait: string): boolean {
     const opp = OPPOSITES[trait]
@@ -522,9 +552,16 @@
 
     <div class="field">
       <div class="modules-shell">
-        <div class="modules-shell-header">Story Modules</div>
+        <div class="modules-shell-header">
+          <span>Story Modules</span>
+          <button class="modules-shell-action" onclick={() => (showModulesPanel = true)}>Edit</button>
+        </div>
         <div class="modules-shell-body">
-          <StoryModulesPanel modules={activeModules} {setModules} bare />
+          <div class="modules-shell-summary">
+            <div class="modules-shell-line">{modulesPreviewCore}</div>
+            <div class="modules-shell-line">{modulesPreviewPlayer}</div>
+            <div class="modules-shell-line">{modulesPreviewNpc}</div>
+          </div>
         </div>
       </div>
     </div>
@@ -717,6 +754,21 @@
       </div>
     {/if}
   </div>
+
+  {#if showModulesPanel}
+    <!-- svelte-ignore a11y_click_events_have_key_events -->
+    <!-- svelte-ignore a11y_no_static_element_interactions -->
+    <div class="overlay" onclick={() => (showModulesPanel = false)}></div>
+    <div class="panel panel--wide">
+      <div class="panel-header">
+        <span>Story Modules</span>
+        <button onclick={() => (showModulesPanel = false)}>×</button>
+      </div>
+      <div class="panel-body" data-scroll-root="modal">
+        <StoryModulesPanel modules={activeModules} {setModules} bare />
+      </div>
+    </div>
+  {/if}
 
   <div class="actions">
     <button class="btn-ghost" onclick={saveCharacter} disabled={savingCharacter}>
