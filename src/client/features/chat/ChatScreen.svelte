@@ -42,10 +42,11 @@
   let showTitleEditor = $state(false)
   let titleDraft = $state("")
   let showSpeakerPicker = $state(false)
-  let showGreetingPicker = $state(false)
   let greetingLoading = $state(false)
+  let greetingApplying = $state(false)
   let greetingOptions = $state<string[]>([])
   let greetingFetchNonce = 0
+  let greetingApplyNonce = 0
   let greetingIndex = $state<number>(0)
   let lastGreetingCharId: number | null = null
 
@@ -122,6 +123,9 @@
     return assistants[0] ?? null
   }
 
+  let seededGreetingMessageId = $derived(seededGreetingMessage()?.id ?? null)
+  let hasSingleAiCharacter = $derived(singleAiCharacter() !== null)
+
   function renderGreeting(template: string) {
     const ai = singleAiCharacter()
     if (!ai) return template
@@ -131,7 +135,12 @@
   async function refreshGreetingOptions() {
     const ai = singleAiCharacter()
     if (!ai) return
-    if (ai.character_id === lastGreetingCharId && greetingOptions.length > 0) return
+    const prevCharId = lastGreetingCharId
+    if (ai.character_id !== prevCharId) {
+      greetingOptions = []
+      greetingIndex = -1
+    }
+    if (ai.character_id === prevCharId && greetingOptions.length > 0) return
     lastGreetingCharId = ai.character_id
 
     const nonce = ++greetingFetchNonce
@@ -156,31 +165,40 @@
       const matchIndex = current ? rendered.findIndex((t) => t === current) : -1
       greetingIndex = matchIndex >= 0 ? matchIndex : -1
     } catch {
-      // no stored card or invalid card
+      if (nonce !== greetingFetchNonce) return
+      greetingOptions = []
+      greetingIndex = -1
     } finally {
       if (nonce === greetingFetchNonce) greetingLoading = false
     }
   }
 
-  async function applyGreetingSelection() {
-    if (!$currentChatId || $isChatGenerating) return
+  async function applyGreetingSelection(nextIndex: number) {
+    if (!$currentChatId || $isChatGenerating || greetingApplying) return
     const target = seededGreetingMessage()
     if (!target) return
-    if (greetingIndex < 0) {
-      showGreetingPicker = false
-      return
-    }
-    const template = greetingOptions[greetingIndex]
+    if (nextIndex < 0) return
+    const template = greetingOptions[nextIndex]
     const next = template ? renderGreeting(template).trim() : ""
     if (!next) return
+    const nonce = ++greetingApplyNonce
+    greetingApplying = true
     try {
       const result = await api.chats.updateMessage($currentChatId, target.id, next)
+      if (nonce !== greetingApplyNonce) return
       chatMessages.update((list) => list.map((m) => (m.id === target.id ? result.message : m)))
-      showGreetingPicker = false
+      greetingIndex = nextIndex
       canUndoChatCancel.set(false)
     } catch (err) {
       showError(err instanceof Error ? err.message : "Failed to update greeting")
+    } finally {
+      if (nonce === greetingApplyNonce) greetingApplying = false
     }
+  }
+
+  function selectGreeting(nextIndex: number) {
+    if (nextIndex === greetingIndex) return
+    void applyGreetingSelection(nextIndex)
   }
 
   $effect(() => {
@@ -189,7 +207,7 @@
     if (!ai || !target) {
       greetingOptions = []
       greetingLoading = false
-      showGreetingPicker = false
+      greetingApplying = false
       lastGreetingCharId = null
       return
     }
@@ -359,16 +377,6 @@
           Next: {nextSpeakerName()}
         </button>
       {/if}
-      {#if seededGreetingMessage() && singleAiCharacter() && (greetingLoading || greetingOptions.length > 0)}
-        <button
-          class="next-speaker"
-          onclick={() => (showGreetingPicker = true)}
-          disabled={greetingLoading || $isChatGenerating}
-          title="Switch greeting"
-        >
-          Greeting
-        </button>
-      {/if}
     </div>
   </header>
 
@@ -425,61 +433,6 @@
     </div>
   {/if}
 
-  {#if showGreetingPicker}
-    <div
-      class="editor-overlay"
-      role="button"
-      tabindex="0"
-      aria-label="Close greeting picker"
-      onclick={(e) => {
-        if (e.currentTarget !== e.target) return
-        showGreetingPicker = false
-      }}
-      onkeydown={(e) => {
-        if (e.key === "Escape" || e.key === "Enter" || e.key === " ") {
-          e.preventDefault()
-          showGreetingPicker = false
-        }
-      }}
-    >
-      <div class="editor-panel">
-        <div class="editor-header">
-          <span>Greeting</span>
-          <span class="editor-hint">Switch the seeded greeting before your first message</span>
-        </div>
-
-        {#if greetingLoading}
-          <div class="empty">Loading greetings...</div>
-        {:else if greetingOptions.length === 0}
-          <div class="empty">No greetings available.</div>
-        {:else}
-          <label class="edit-label" for="greeting-select">Greeting</label>
-          <select
-            id="greeting-select"
-            class="edit-input"
-            value={greetingIndex}
-            onchange={(e) => (greetingIndex = Number((e.target as HTMLSelectElement).value))}
-            disabled={$isChatGenerating}
-          >
-            {#if greetingIndex === -1}
-              <option value={-1}>Current (custom)</option>
-            {/if}
-            {#each greetingOptions as _, i}
-              <option value={i}>{i === 0 ? "Greeting 1 (first_mes)" : `Greeting ${i + 1}`}</option>
-            {/each}
-          </select>
-        {/if}
-
-        <div class="edit-actions">
-          <button class="btn-ghost" onclick={() => (showGreetingPicker = false)}>Close</button>
-          <button class="btn-accent" onclick={applyGreetingSelection} disabled={$isChatGenerating || greetingIndex < 0}>
-            Apply
-          </button>
-        </div>
-      </div>
-    </div>
-  {/if}
-
   <div class="chat-log" bind:this={logEl} data-scroll-root="screen">
     {#if visibleMessages.length === 0}
       <div class="empty">No messages yet.</div>
@@ -525,6 +478,27 @@
             </div>
           {:else}
             <div class="chat-text"><InlineTokens text={message.content} /></div>
+            {#if message.id === seededGreetingMessageId && hasSingleAiCharacter && (greetingOptions.length > 1 || greetingIndex < 0)}
+              <div class="variant-row" role="group" aria-label="Greeting options">
+                <span class="variant-label">Greetings</span>
+                {#if greetingIndex < 0}
+                  <button class="variant-pill active" disabled title="Current greeting is custom">custom</button>
+                {/if}
+                {#each greetingOptions as _, i}
+                  <button
+                    class="variant-pill {greetingIndex === i ? 'active' : ''}"
+                    onclick={() => selectGreeting(i)}
+                    disabled={$isChatGenerating || greetingApplying}
+                    title={i === 0 ? "Greeting 1 (first_mes)" : `Greeting ${i + 1}`}
+                  >
+                    {i + 1}
+                  </button>
+                {/each}
+              </div>
+              {#if greetingApplying}
+                <div class="editor-hint" aria-live="polite">Applying greeting...</div>
+              {/if}
+            {/if}
           {/if}
         </div>
       {/each}

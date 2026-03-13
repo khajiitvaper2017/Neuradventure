@@ -1,9 +1,8 @@
 import { z } from "zod"
 import { PersonalityTraitSchema } from "./personality-traits.js"
-import { DATE_REGEX, TIME_OF_DAY_REGEX } from "./constants.js"
+import { TIME_OF_DAY_REGEX } from "./constants.js"
 import {
   normalizeCurrentScene,
-  normalizeCurrentDate,
   normalizeLocations,
   normalizeNonEmptyString,
   normalizeGender,

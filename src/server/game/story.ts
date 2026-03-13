@@ -1,6 +1,6 @@
 import type { MainCharacterState, NPCState, StoryModules, WorldState } from "../core/models.js"
 import * as db from "../core/db.js"
-import { DATE_REGEX, TIME_OF_DAY_REGEX } from "../schemas/constants.js"
+import { TIME_OF_DAY_REGEX } from "../schemas/constants.js"
 import { getServerDefaults } from "../core/strings.js"
 
 export function createNewStory(
@@ -16,9 +16,7 @@ export function createNewStory(
 ): number {
   const settings = db.getSettings()
   const now = new Date()
-  const fallbackDate = now.toISOString().slice(0, 10)
   const fallbackTime = `${now.getHours().toString().padStart(2, "0")}:${now.getMinutes().toString().padStart(2, "0")}`
-  const dateCandidate = startingDate?.trim()
   const timeCandidate = startingTime?.trim()
   const sceneName = startingScene?.trim() || getServerDefaults().unknown.location
   const locationSyncedCharacter = { ...character, current_location: sceneName }
