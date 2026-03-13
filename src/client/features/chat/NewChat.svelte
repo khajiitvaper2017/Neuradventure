@@ -1,10 +1,11 @@
 <script lang="ts">
   import { onMount } from "svelte"
   import { api, type StoryCharacterGroup, type StoryNpcGroup } from "../../api/client.js"
-  import { goBack, navigate, showError } from "../../stores/ui.js"
+  import { goBack, navigate, openCharSheetForCharacter, showError } from "../../stores/ui.js"
   import { resetChat } from "../../stores/chat.js"
   import { autoresize } from "../../utils/actions/autoresize.js"
   import { loadPromptHistory, savePromptHistory, removePromptHistory } from "../../utils/promptHistory.js"
+  import IconDocument from "../../components/icons/IconDocument.svelte"
   import PromptHistoryPanel from "../../components/ui/PromptHistoryPanel.svelte"
   import { generateChatFromDescription } from "./actions.js"
 
@@ -143,6 +144,7 @@
   let canGenerate = $derived(!!description.trim() && !generating)
 
   let selectedPlayerOption = $derived(optionByKey(playerKey))
+  let selectedPlayerCharId = $derived(selectedPlayerOption?.character_id ?? null)
   let selectedPlayerLabel = $derived(
     selectedPlayerOption ? `${selectedPlayerOption.name} — ${selectedPlayerOption.description}` : "Select a character",
   )
@@ -381,26 +383,55 @@
           {#if showPlayerDropdown}
             <div class="shared-select-menu" role="listbox" tabindex="-1">
               {#each playableOptions as option}
-                <button
-                  class="shared-select-item"
-                  role="option"
-                  aria-selected={playerKey === option.key}
-                  onclick={(e) => {
-                    e.stopPropagation()
-                    selectPlayer(option.key)
-                  }}
-                >
-                  <span class="shared-select-name">
-                    {option.name}
-                    {option.kind === "npc" ? " (NPC)" : ""}
-                  </span>
-                  <span class="shared-select-meta">{option.description}</span>
-                </button>
+                <div class="shared-select-item-row">
+                  <button
+                    class="shared-select-item"
+                    role="option"
+                    aria-selected={playerKey === option.key}
+                    onclick={(e) => {
+                      e.stopPropagation()
+                      selectPlayer(option.key)
+                    }}
+                  >
+                    <span class="shared-select-name">
+                      {option.name}
+                      {option.kind === "npc" ? " (NPC)" : ""}
+                    </span>
+                    <span class="shared-select-meta">{option.description}</span>
+                  </button>
+                  {#if option.kind === "character" && option.character_id}
+                    <button
+                      class="shared-select-item-action"
+                      title="Details"
+                      aria-label="Character details"
+                      onclick={(e) => {
+                        e.stopPropagation()
+                        showPlayerDropdown = false
+                        openCharSheetForCharacter(option.character_id)
+                      }}
+                    >
+                      <IconDocument size={16} strokeWidth={1.6} />
+                    </button>
+                  {/if}
+                </div>
               {/each}
             </div>
           {/if}
         </div>
         <button class="btn-ghost" onclick={() => navigate("char-create")}>New</button>
+        <button
+          class="btn-ghost btn-icon"
+          onclick={() => {
+            if (!selectedPlayerCharId) return
+            showPlayerDropdown = false
+            openCharSheetForCharacter(selectedPlayerCharId)
+          }}
+          disabled={!selectedPlayerCharId}
+          title={selectedPlayerCharId ? "Character details" : "Details available for story characters only"}
+        >
+          <IconDocument size={16} strokeWidth={1.6} />
+          Details
+        </button>
         <button class="btn-ghost" onclick={refreshPlayable} disabled={loading}>Refresh</button>
       </div>
     </div>
@@ -449,6 +480,20 @@
                 </span>
                 <span class="ai-meta">{option.description}</span>
               </span>
+              {#if option.kind === "character" && option.character_id}
+                <button
+                  class="shared-select-item-action ai-expand"
+                  title="Details"
+                  aria-label="Character details"
+                  onclick={(e) => {
+                    e.preventDefault()
+                    e.stopPropagation()
+                    openCharSheetForCharacter(option.character_id)
+                  }}
+                >
+                  <IconDocument size={16} strokeWidth={1.6} />
+                </button>
+              {/if}
             </label>
           {/each}
         </div>
@@ -542,7 +587,7 @@
   }
   .ai-row {
     display: grid;
-    grid-template-columns: auto 1fr;
+    grid-template-columns: auto 1fr auto;
     gap: 0.6rem;
     align-items: center;
     padding: 0.45rem 0.6rem;
@@ -565,6 +610,11 @@
     display: flex;
     flex-direction: column;
     gap: 0.15rem;
+  }
+  .ai-expand {
+    margin: 0;
+    min-width: 36px;
+    min-height: 36px;
   }
   .ai-name {
     font-size: 0.9rem;

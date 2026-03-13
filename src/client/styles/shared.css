@@ -278,6 +278,12 @@ input[type="checkbox"] {
   min-height: 32px;
 }
 
+button.btn-icon {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
 .full,
 .btn-full {
   width: 100%;
@@ -735,6 +741,32 @@ input[type="checkbox"] {
   display: flex;
   flex-direction: column;
   gap: 0.15rem;
+}
+.shared-select-item-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: stretch;
+}
+.shared-select-item-action {
+  background: none;
+  border: none;
+  color: var(--text-dim);
+  cursor: pointer;
+  min-width: 44px;
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+  margin: 2px 6px 2px 0;
+}
+.shared-select-item-action:hover:not(:disabled) {
+  background: var(--bg-action);
+  color: var(--text);
+}
+.shared-select-item-action:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
 }
 .shared-select-item:hover {
   background: var(--bg-action);

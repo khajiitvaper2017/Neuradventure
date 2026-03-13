@@ -1,7 +1,14 @@
 <script lang="ts">
   import { onDestroy } from "svelte"
   import { api, ApiError } from "../../api/client.js"
-  import { showCharSheet, showError, showQuietNotice } from "../../stores/ui.js"
+  import {
+    activeScreen,
+    charSheetCharacterId,
+    closeCharSheet,
+    showCharSheet,
+    showError,
+    showQuietNotice,
+  } from "../../stores/ui.js"
   import { character, currentStoryId, currentStoryModules, llmUpdateId } from "../../stores/game.js"
   import type { MainCharacterState } from "../../api/client.js"
   import { genderIcon, normalizeGender, splitCsv } from "../../utils/text.js"
@@ -20,6 +27,22 @@
   import IconPencilSquare from "../../components/icons/IconPencilSquare.svelte"
 
   let { inline = false }: { inline?: boolean } = $props()
+
+  const isGameScreen = $derived($activeScreen === "game")
+  const canEdit = $derived((inline || isGameScreen) && $currentStoryId !== null)
+
+  let inspectCharacter = $state<MainCharacterState | null>(null)
+  let inspectLoading = $state(false)
+  let inspectError = $state<string | null>(null)
+  let inspectRefresh = $state(0)
+  let inspectFetchNonce = 0
+
+  const isInspectMode = $derived(!inline && !isGameScreen && $showCharSheet && $charSheetCharacterId !== null)
+  const displayCharacter = $derived(inline || isGameScreen ? $character : inspectCharacter)
+
+  function retryInspect() {
+    inspectRefresh += 1
+  }
 
   type CharacterSigs = {
     identity: string
@@ -195,6 +218,7 @@
   }
 
   function startEdit() {
+    if (!canEdit) return
     if (!$character) return
     draft = {
       name: $character.name,
@@ -319,6 +343,39 @@
   })
 
   $effect(() => {
+    if (!isInspectMode) {
+      inspectCharacter = null
+      inspectLoading = false
+      inspectError = null
+      return
+    }
+    const id = $charSheetCharacterId
+    if (!id) return
+    void inspectRefresh
+    const nonce = ++inspectFetchNonce
+    inspectLoading = true
+    inspectError = null
+    inspectCharacter = null
+    ;(async () => {
+      try {
+        const result = await api.stories.getCharacter(id)
+        if (nonce !== inspectFetchNonce) return
+        inspectCharacter = result
+      } catch (err) {
+        if (nonce !== inspectFetchNonce) return
+        if (err instanceof ApiError) {
+          inspectError = err.message
+        } else {
+          inspectError = "Failed to load character."
+        }
+      } finally {
+        if (nonce !== inspectFetchNonce) return
+        inspectLoading = false
+      }
+    })()
+  })
+
+  $effect(() => {
     if ($llmUpdateId !== lastLlmUpdateId) {
       if ($character) {
         const nextSigs = buildCharacterSigs($character)
@@ -358,7 +415,7 @@
 </script>
 
 {#snippet charContent()}
-  {#if $character}
+  {#if displayCharacter}
     {#if editing}
       <div class="cs-edit">
         <EditableFieldList fields={characterFields()} />
@@ -404,18 +461,20 @@
     {:else}
       <div class="cs-section cs-identity" class:flash={flashIdentity}>
         <div class="cs-identity-name">
-          {$character.name}
-          {#if genderIcon($character.gender) === "male"}
+          {displayCharacter.name}
+          {#if genderIcon(displayCharacter.gender) === "male"}
             <IconMale size={14} strokeWidth={2} className="gender-icon" />
-          {:else if genderIcon($character.gender) === "female"}
+          {:else if genderIcon(displayCharacter.gender) === "female"}
             <IconFemale size={14} strokeWidth={2} className="gender-icon" />
-          {:else if genderIcon($character.gender) === "intersex"}
+          {:else if genderIcon(displayCharacter.gender) === "intersex"}
             <IconIntersex size={14} strokeWidth={2} className="gender-icon" />
-          {:else if genderIcon($character.gender) === "transgender"}
+          {:else if genderIcon(displayCharacter.gender) === "transgender"}
             <IconTransgender size={14} strokeWidth={2} className="gender-icon" />
           {/if}
         </div>
-        <div class="cs-identity-detail">{$character.race}{$character.gender ? ` · ${$character.gender}` : ""}</div>
+        <div class="cs-identity-detail">
+          {displayCharacter.race}{displayCharacter.gender ? ` · ${displayCharacter.gender}` : ""}
+        </div>
       </div>
 
       {#if detailMode === "general"}
@@ -424,9 +483,9 @@
             <IconFace size={14} strokeWidth={1.5} className="cs-icon" />
             <span class="section-label">General Description</span>
           </div>
-          <div class="cs-value">{$character.general_description || "Unknown description"}</div>
+          <div class="cs-value">{displayCharacter.general_description || "Unknown description"}</div>
         </div>
-        {#if showTraitSection && ((usePersonalityTraits && $character.personality_traits.length > 0) || (useMajorFlaws && $character.major_flaws.length > 0) || (useQuirks && $character.quirks.length > 0) || (usePerks && $character.perks.length > 0))}
+        {#if showTraitSection && ((usePersonalityTraits && displayCharacter.personality_traits.length > 0) || (useMajorFlaws && displayCharacter.major_flaws.length > 0) || (useQuirks && displayCharacter.quirks.length > 0) || (usePerks && displayCharacter.perks.length > 0))}
           <div class="cs-section">
             <div class="cs-section-header">
               <IconStar size={14} strokeWidth={1.5} className="cs-icon" />
@@ -434,22 +493,22 @@
             </div>
             <div class="chips">
               {#if usePersonalityTraits}
-                {#each $character.personality_traits as t}
+                {#each displayCharacter.personality_traits as t}
                   <span class="chip">{t}</span>
                 {/each}
               {/if}
               {#if useMajorFlaws}
-                {#each $character.major_flaws as t}
+                {#each displayCharacter.major_flaws as t}
                   <span class="chip">{t}</span>
                 {/each}
               {/if}
               {#if useQuirks}
-                {#each $character.quirks as t}
+                {#each displayCharacter.quirks as t}
                   <span class="chip">{t}</span>
                 {/each}
               {/if}
               {#if usePerks}
-                {#each $character.perks as t}
+                {#each displayCharacter.perks as t}
                   <span class="chip">{t}</span>
                 {/each}
               {/if}
@@ -463,7 +522,7 @@
               <IconFace size={14} strokeWidth={1.5} className="cs-icon" />
               <span class="section-label">Baseline Appearance</span>
             </div>
-            <div class="cs-value">{$character.baseline_appearance}</div>
+            <div class="cs-value">{displayCharacter.baseline_appearance}</div>
           </div>
         {/if}
 
@@ -472,7 +531,7 @@
             <IconFace size={14} strokeWidth={1.5} className="cs-icon" />
             <span class="section-label">Current Appearance</span>
           </div>
-          <div class="cs-value">{$character.current_appearance}</div>
+          <div class="cs-value">{displayCharacter.current_appearance}</div>
         </div>
 
         <div class="cs-section" class:flash={flashClothing}>
@@ -480,10 +539,10 @@
             <IconShirt size={14} strokeWidth={1.5} className="cs-icon" />
             <span class="section-label">Wearing</span>
           </div>
-          <div class="cs-value">{$character.current_clothing}</div>
+          <div class="cs-value">{displayCharacter.current_clothing}</div>
         </div>
 
-        {#if showTraitSection && ((usePersonalityTraits && $character.personality_traits.length > 0) || (useMajorFlaws && $character.major_flaws.length > 0) || (useQuirks && $character.quirks.length > 0) || (usePerks && $character.perks.length > 0))}
+        {#if showTraitSection && ((usePersonalityTraits && displayCharacter.personality_traits.length > 0) || (useMajorFlaws && displayCharacter.major_flaws.length > 0) || (useQuirks && displayCharacter.quirks.length > 0) || (usePerks && displayCharacter.perks.length > 0))}
           <div class="cs-section">
             <div class="cs-section-header">
               <IconStar size={14} strokeWidth={1.5} className="cs-icon" />
@@ -491,22 +550,22 @@
             </div>
             <div class="chips">
               {#if usePersonalityTraits}
-                {#each $character.personality_traits as t}
+                {#each displayCharacter.personality_traits as t}
                   <span class="chip">{t}</span>
                 {/each}
               {/if}
               {#if useMajorFlaws}
-                {#each $character.major_flaws as t}
+                {#each displayCharacter.major_flaws as t}
                   <span class="chip">{t}</span>
                 {/each}
               {/if}
               {#if useQuirks}
-                {#each $character.quirks as t}
+                {#each displayCharacter.quirks as t}
                   <span class="chip">{t}</span>
                 {/each}
               {/if}
               {#if usePerks}
-                {#each $character.perks as t}
+                {#each displayCharacter.perks as t}
                   <span class="chip">{t}</span>
                 {/each}
               {/if}
@@ -519,13 +578,13 @@
         <div class="cs-section" class:flash={flashInventory}>
           <div class="cs-section-header">
             <IconCube size={14} strokeWidth={1.5} className="cs-icon" />
-            <span class="section-label">Inventory ({$character.inventory.length})</span>
+            <span class="section-label">Inventory ({displayCharacter.inventory.length})</span>
           </div>
-          {#if $character.inventory.length === 0}
+          {#if displayCharacter.inventory.length === 0}
             <div class="cs-value muted">Nothing</div>
           {:else}
             <ul class="cs-inventory">
-              {#each $character.inventory as item}
+              {#each displayCharacter.inventory as item}
                 <li>
                   <IconDotSmall size={12} strokeWidth={1.5} className="cs-item-icon" />
                   <div class="cs-item-text">
@@ -556,7 +615,7 @@
           <button
             class="cs-toggle-btn"
             onclick={() => (showBaselineDetails = !showBaselineDetails)}
-            disabled={!$character}
+            disabled={!displayCharacter}
           >
             {showBaselineDetails ? "Hide Baseline" : "Show Baseline"}
           </button>
@@ -564,7 +623,7 @@
         <button
           class="cs-edit-btn"
           onclick={startEdit}
-          disabled={editing || !$character || !$currentStoryId || saving}
+          disabled={editing || !canEdit || !displayCharacter || saving}
           title="Edit character sheet"
           aria-label="Edit character sheet"
         >
@@ -579,7 +638,7 @@
 {:else if $showCharSheet}
   <!-- svelte-ignore a11y_click_events_have_key_events -->
   <!-- svelte-ignore a11y_no_static_element_interactions -->
-  <div class="overlay" onclick={() => showCharSheet.set(false)}></div>
+  <div class="overlay" onclick={closeCharSheet}></div>
   <div class="panel">
     <div class="panel-header">
       <div class="cs-header-title">
@@ -591,7 +650,7 @@
           <button
             class="cs-toggle-btn"
             onclick={() => (showBaselineDetails = !showBaselineDetails)}
-            disabled={!$character}
+            disabled={!displayCharacter}
           >
             {showBaselineDetails ? "Hide Baseline" : "Show Baseline"}
           </button>
@@ -599,17 +658,30 @@
         <button
           class="cs-edit-btn"
           onclick={startEdit}
-          disabled={editing || !$character || !$currentStoryId || saving}
+          disabled={editing || !canEdit || !displayCharacter || saving}
           title="Edit character sheet"
           aria-label="Edit character sheet"
         >
           <IconPencilSquare size={12} strokeWidth={2} />
         </button>
-        <button class="cs-close-btn" onclick={() => showCharSheet.set(false)}>×</button>
+        <button class="cs-close-btn" onclick={closeCharSheet}>×</button>
       </div>
     </div>
     <div class="panel-body" data-scroll-root="modal">
-      {@render charContent()}
+      {#if isInspectMode}
+        {#if inspectLoading}
+          <div class="empty">Loading character...</div>
+        {:else if inspectError}
+          <div class="empty">
+            <div>{inspectError}</div>
+            <button class="btn-ghost small" onclick={retryInspect}>Retry</button>
+          </div>
+        {:else}
+          {@render charContent()}
+        {/if}
+      {:else}
+        {@render charContent()}
+      {/if}
     </div>
   </div>
 {/if}

@@ -47,6 +47,7 @@ let ignoreNextHashChange = false
 
 function syncFromLocation(resetHistory: boolean) {
   if (typeof window === "undefined") return
+  closeCharSheet()
   const route = parseHash(window.location.hash)
   activeScreen.set(route.screen)
   routeStoryId.set(route.storyId)
@@ -86,6 +87,7 @@ export function navigate(
   screen: Screen,
   options: { replace?: boolean; reset?: boolean; params?: { storyId?: number; chatId?: number } } = {},
 ) {
+  closeCharSheet()
   const current = get(activeScreen)
   const nextStoryId = screen === "game" ? (options.params?.storyId ?? get(routeStoryId)) : null
   const nextChatId = screen === "chat" ? (options.params?.chatId ?? get(routeChatId)) : null
@@ -103,10 +105,22 @@ export function goBack(fallback: Screen = "home") {
   navigate(previous, { replace: true })
 }
 export const showCharSheet = writable(false)
+export const charSheetCharacterId = writable<number | null>(null)
 export const showNPCTracker = writable(false)
 export const showLocations = writable(false)
 export const errorMessage = writable<string | null>(null)
 export const quietNotice = writable<string | null>(null)
+
+export function openCharSheetForCharacter(id: number) {
+  if (!Number.isFinite(id) || id <= 0) return
+  charSheetCharacterId.set(id)
+  showCharSheet.set(true)
+}
+
+export function closeCharSheet() {
+  showCharSheet.set(false)
+  charSheetCharacterId.set(null)
+}
 
 export function showError(msg: string, durationMs = 4000) {
   errorMessage.set(msg)

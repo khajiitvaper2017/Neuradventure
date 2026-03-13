@@ -7,9 +7,10 @@
     type CharacterImportResult,
     type ChatSummary,
   } from "../../api/client.js"
-  import { navigate, showError, showConfirm } from "../../stores/ui.js"
+  import { navigate, openCharSheetForCharacter, showError, showConfirm } from "../../stores/ui.js"
   import { theme } from "../../stores/settings.js"
   import IconDots from "../../components/icons/IconDots.svelte"
+  import IconDocument from "../../components/icons/IconDocument.svelte"
   import IconGear from "../../components/icons/IconGear.svelte"
   import IconPlus from "../../components/icons/IconPlus.svelte"
   import IconUsers from "../../components/icons/IconUsers.svelte"
@@ -312,6 +313,14 @@
                 ) || "No traits"}
               </div>
               <div class="char-card-actions">
+                <button
+                  class="btn-ghost small btn-icon"
+                  onclick={() => openCharSheetForCharacter(group.id)}
+                  title="Details"
+                >
+                  <IconDocument size={14} strokeWidth={1.6} />
+                  Details
+                </button>
                 <button class="btn-ghost small" onclick={() => startNewWithCharacter(group)}>New Story</button>
                 <button class="btn-ghost small" onclick={() => exportCharacter(group, "tavern-card")}>Export ST</button>
                 <button class="btn-ghost small" onclick={() => exportCharacter(group, "neuradventure")}>Export</button>
@@ -592,6 +601,7 @@
   .char-card-actions {
     display: flex;
     gap: 0.5rem;
+    flex-wrap: wrap;
   }
   .char-card-stories {
     border-top: 1px dashed var(--border);

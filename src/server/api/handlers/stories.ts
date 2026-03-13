@@ -497,6 +497,19 @@ stories.get("/characters/:id/export", (c) => {
   })
 })
 
+stories.get("/characters/:id", (c) => {
+  const charId = Number(c.req.param("id"))
+  if (!Number.isFinite(charId) || charId <= 0) return badRequest(c, "Invalid character id")
+  const charRow = db.getCharacter(charId)
+  if (!charRow) return notFound(c, "Character not found")
+  try {
+    const parsed = MainCharacterStateStoredSchema.parse(JSON.parse(charRow.state_json))
+    return c.json(parsed)
+  } catch {
+    return badRequest(c, "Stored character state is invalid JSON")
+  }
+})
+
 stories.get("/characters/:id/card", (c) => {
   const charId = Number(c.req.param("id"))
   const charRow = db.getCharacter(charId)

@@ -50,6 +50,7 @@ export const stories = {
     return request<{ id: number }>("/api/stories/import", options)
   },
   characters: () => request<StoryCharacterGroup[]>("/api/stories/characters"),
+  getCharacter: (id: number) => request<MainCharacterState>(`/api/stories/characters/${id}`),
   npcs: () => request<StoryNpcGroup[]>("/api/stories/npcs"),
   exportCharacter: (charId: number, format?: "neuradventure" | "tavern-card") =>
     `/api/stories/characters/${charId}/export${format ? `?format=${format}` : ""}`,

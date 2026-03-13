@@ -8,10 +8,11 @@
     StoryModules,
   } from "../../api/client.js"
   import { api } from "../../api/client.js"
-  import { navigate, showError } from "../../stores/ui.js"
+  import { navigate, openCharSheetForCharacter, showError } from "../../stores/ui.js"
   import { autoresize } from "../../utils/actions/autoresize.js"
   import { loadStoryById } from "../../utils/storyLoader.js"
   import { loadPromptHistory, savePromptHistory, removePromptHistory } from "../../utils/promptHistory.js"
+  import IconDocument from "../../components/icons/IconDocument.svelte"
   import IconPencilSquare from "../../components/icons/IconPencilSquare.svelte"
   import PromptHistoryPanel from "../../components/ui/PromptHistoryPanel.svelte"
   import StoryModulesPanel from "../../components/ui/StoryModulesPanel.svelte"
@@ -40,6 +41,7 @@
   let showCharacterDropdown = false
   let savedNpcs: StoryNpcGroup[] = []
   let selectedPlayableKey: string | null = null
+  let selectedCharacterIdForSheet: number | null = null
   let storyPromptHistory: string[] = []
   let activeModules: StoryModules = $pendingStoryModules ?? $storyDefaults
 
@@ -153,11 +155,20 @@
     showCharacterDropdown = false
   }
 
+  function characterIdFromKey(key: string | null): number | null {
+    if (!key || !key.startsWith("char_")) return null
+    const id = Number(key.slice(5))
+    if (!Number.isFinite(id) || id <= 0) return null
+    return id
+  }
+
   $: if ($pendingCharacterId) {
     selectedPlayableKey = `char_${$pendingCharacterId}`
   } else if (!$pendingCharacter && selectedPlayableKey?.startsWith("char_")) {
     selectedPlayableKey = null
   }
+
+  $: selectedCharacterIdForSheet = characterIdFromKey(selectedPlayableKey)
 
   $: selectedOption = playableOptions.find((o) => o.key === selectedPlayableKey) ?? null
   $: selectedCharacterLabel = selectedOption
@@ -388,23 +399,54 @@
           {#if showCharacterDropdown}
             <div class="shared-select-menu" role="listbox">
               {#each playableOptions as option}
-                <button
-                  class="shared-select-item"
-                  role="option"
-                  aria-selected={selectedPlayableKey === option.key}
-                  onclick={() => selectPlayable(option.key)}
-                >
-                  <span class="shared-select-name">
-                    {option.name}
-                    {option.kind === "npc" ? " (NPC)" : ""}
-                  </span>
-                  <span class="shared-select-meta">{option.storyLabel}</span>
-                </button>
+                <div class="shared-select-item-row">
+                  <button
+                    class="shared-select-item"
+                    role="option"
+                    aria-selected={selectedPlayableKey === option.key}
+                    onclick={() => selectPlayable(option.key)}
+                  >
+                    <span class="shared-select-name">
+                      {option.name}
+                      {option.kind === "npc" ? " (NPC)" : ""}
+                    </span>
+                    <span class="shared-select-meta">{option.storyLabel}</span>
+                  </button>
+                  {#if option.kind === "character"}
+                    <button
+                      class="shared-select-item-action"
+                      title="Details"
+                      aria-label="Character details"
+                      onclick={(e) => {
+                        e.stopPropagation()
+                        const id = characterIdFromKey(option.key)
+                        if (!id) return
+                        showCharacterDropdown = false
+                        openCharSheetForCharacter(id)
+                      }}
+                    >
+                      <IconDocument size={16} strokeWidth={1.6} />
+                    </button>
+                  {/if}
+                </div>
               {/each}
             </div>
           {/if}
         </div>
         <button class="btn-ghost" onclick={() => navigate("char-create")}> New </button>
+        <button
+          class="btn-ghost btn-icon"
+          onclick={() => {
+            if (!selectedCharacterIdForSheet) return
+            showCharacterDropdown = false
+            openCharSheetForCharacter(selectedCharacterIdForSheet)
+          }}
+          disabled={!selectedCharacterIdForSheet}
+          title={selectedCharacterIdForSheet ? "Character details" : "Details available for story characters only"}
+        >
+          <IconDocument size={16} strokeWidth={1.6} />
+          Details
+        </button>
         <button class="btn-ghost" onclick={refreshPlayable} disabled={loadingCharacters || loadingNpcs}>
           Refresh
         </button>
