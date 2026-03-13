@@ -3,17 +3,26 @@ import type { ZodTypeAny } from "zod"
 
 type JsonSchemaResponseFormat = {
   type: "json_schema"
-  json_schema: { name: string; schema: object }
+  json_schema: { name: string; description?: string; schema: object; strict?: boolean }
 }
 
 export function zodSchemaToJsonSchema(schema: ZodTypeAny, name: string): object {
   return zodToJsonSchema(schema, { name })
 }
 
-export function buildJsonSchemaResponseFormat(schemaName: string, schema: object): JsonSchemaResponseFormat {
+export function buildJsonSchemaResponseFormat(
+  schemaName: string,
+  schema: object,
+  options: { strict?: boolean; description?: string } = {},
+): JsonSchemaResponseFormat {
   return {
     type: "json_schema",
-    json_schema: { name: schemaName, schema: derefJsonSchema(schema) },
+    json_schema: {
+      name: schemaName,
+      ...(options.description ? { description: options.description } : {}),
+      schema: derefJsonSchema(schema),
+      ...(options.strict ? { strict: true } : {}),
+    },
   }
 }
 

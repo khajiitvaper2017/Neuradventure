@@ -1,14 +1,34 @@
-import type { GenerationParams } from "../core/db.js"
+import type { GenerationParams, LLMConnector } from "../core/db.js"
 import { getCtxLimitCached } from "./client.js"
 
 export function buildSamplingParams(
+  connector: LLMConnector,
   gen: GenerationParams,
   maxTokensOverride?: number,
   options: { disableRepetition?: boolean } = {},
 ): Record<string, unknown> {
+  const repeatPenalty = options.disableRepetition ? 1.0 : gen.repeat_penalty
+  if (connector.type === "openrouter") {
+    const maxTokens = maxTokensOverride ?? gen.max_tokens
+    return {
+      // OpenRouter: max_tokens is deprecated, but still widely supported.
+      max_completion_tokens: maxTokens,
+      max_tokens: maxTokens,
+      temperature: gen.temperature,
+      top_k: gen.top_k,
+      top_p: gen.top_p,
+      min_p: gen.min_p,
+      top_a: gen.top_a,
+      seed: gen.seed,
+      presence_penalty: gen.presence_penalty,
+      frequency_penalty: gen.frequency_penalty,
+      repetition_penalty: repeatPenalty,
+      logit_bias: gen.logit_bias,
+    }
+  }
+
   const ctxLimit = getCtxLimitCached()
 
-  const repeatPenalty = options.disableRepetition ? 1.0 : gen.repeat_penalty
   const repeatLastN = options.disableRepetition ? 0 : gen.repeat_last_n
   const repPenRange = repeatLastN === -1 ? (ctxLimit > 0 ? ctxLimit : null) : Math.max(0, Math.floor(repeatLastN))
 

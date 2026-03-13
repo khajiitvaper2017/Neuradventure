@@ -35,7 +35,6 @@ export function buildTurnResponseSchema(
   if (!modules.track_locations) {
     worldUpdateSchema = worldUpdateSchema.omit({ locations: true })
   }
-  worldUpdateSchema = worldUpdateSchema.required() as z.AnyZodObject
 
   schema = schema.extend({
     world_state_update: worldUpdateSchema,

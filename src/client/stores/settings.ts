@@ -1,14 +1,26 @@
 import { writable } from "svelte/store"
-import { api, type AppSettings, type LLMConnector, type GenerationParams, type StoryModules } from "../api/client.js"
+import {
+  api,
+  type AppSettings,
+  type GenerationParams,
+  type KoboldCppConnector,
+  type LLMConnector,
+  type StoryModules,
+} from "../api/client.js"
 
 export type Theme = "default" | "amoled"
 export type Design = "classic" | "roboto"
 
-const DEFAULT_CONNECTOR: LLMConnector = {
+const DEFAULT_KOBOLD_CONNECTOR: KoboldCppConnector = {
   type: "koboldcpp",
   url: "http://localhost:5001/v1",
-  api_key: "kobold",
+  api_keys: {
+    koboldcpp: "kobold",
+    openrouter: "",
+  },
 }
+
+const DEFAULT_CONNECTOR: LLMConnector = { ...DEFAULT_KOBOLD_CONNECTOR }
 
 const DEFAULT_GENERATION: GenerationParams = {
   max_tokens: 1500,

@@ -14,7 +14,14 @@
     generation,
     ctxLimitDetected,
   } from "../../stores/settings.js"
-  import type { GenerationParams, PromptConfigFile, SamplerPreset, StoryModules } from "../../api/client.js"
+  import type {
+    GenerationParams,
+    LLMConnector,
+    ModelInfo,
+    PromptConfigFile,
+    SamplerPreset,
+    StoryModules,
+  } from "../../api/client.js"
   import { presets, loadPresets, refreshPresets } from "../../utils/presets.js"
   import StoryModulesPanel from "../../components/ui/StoryModulesPanel.svelte"
   import Select from "../../components/ui/Select.svelte"
@@ -37,6 +44,11 @@
 
   let activeTab: SettingsTab = $state(loadInitialTab())
 
+  const connectorTypeOptions = [
+    { value: "koboldcpp", label: "KoboldCpp" },
+    { value: "openrouter", label: "OpenRouter" },
+  ]
+
   onMount(() => {
     void loadPresets()
   })
@@ -52,7 +64,12 @@
 
   // Local copies for text inputs (committed on blur/enter)
   let connectorUrl = $state($connector.url)
-  let connectorApiKey = $state($connector.api_key)
+  let connectorApiKey = $state($connector.api_keys[$connector.type])
+  let openrouterModelDraft = $state($connector.type === "openrouter" ? $connector.model : "openrouter/auto")
+  let modelSearchQuery = $state("")
+  let modelSearchLoading = $state(false)
+  let modelSearchError = $state<string | null>(null)
+  let modelSearchResults = $state<ModelInfo[]>([])
   let authorNoteDraft = $state($defaultAuthorNote)
   let authorNoteDepthDraft = $state($defaultAuthorNoteDepth)
   let samplerOrderDraft = $state(formatSamplerOrder($generation.sampler_order))
@@ -67,7 +84,12 @@
     connectorUrl = $connector.url
   })
   $effect(() => {
-    connectorApiKey = $connector.api_key
+    connectorApiKey = $connector.api_keys[$connector.type]
+  })
+  $effect(() => {
+    if ($connector.type === "openrouter") {
+      openrouterModelDraft = $connector.model
+    }
   })
   $effect(() => {
     authorNoteDraft = $defaultAuthorNote
@@ -91,8 +113,116 @@
   function commitConnector() {
     const trimmedUrl = connectorUrl.trim()
     const trimmedKey = connectorApiKey.trim()
-    if (trimmedUrl !== $connector.url || trimmedKey !== $connector.api_key) {
-      connector.set({ ...$connector, url: trimmedUrl, api_key: trimmedKey })
+    if (!trimmedUrl) return
+
+    if ($connector.type === "openrouter") {
+      if (!trimmedKey) return
+      if (trimmedUrl !== $connector.url || trimmedKey !== $connector.api_keys.openrouter) {
+        connector.set({
+          ...$connector,
+          url: trimmedUrl,
+          api_keys: { ...$connector.api_keys, openrouter: trimmedKey },
+        })
+      }
+      return
+    }
+
+    if (trimmedUrl !== $connector.url || trimmedKey !== $connector.api_keys.koboldcpp) {
+      connector.set({
+        ...$connector,
+        url: trimmedUrl,
+        api_keys: { ...$connector.api_keys, koboldcpp: trimmedKey },
+      })
+    }
+  }
+
+  function setConnectorType(nextType: LLMConnector["type"]) {
+    if (nextType === $connector.type) return
+    if (nextType === "openrouter") {
+      connector.set({
+        type: "openrouter",
+        url: "https://openrouter.ai/api/v1",
+        api_keys: {
+          ...$connector.api_keys,
+          koboldcpp: $connector.api_keys.koboldcpp.trim() ? $connector.api_keys.koboldcpp.trim() : "kobold",
+          openrouter: $connector.api_keys.openrouter.trim(),
+        },
+        model: "openrouter/auto",
+      })
+      return
+    }
+    connector.set({
+      type: "koboldcpp",
+      url: "http://localhost:5001/v1",
+      api_keys: {
+        ...$connector.api_keys,
+        koboldcpp: $connector.api_keys.koboldcpp.trim() ? $connector.api_keys.koboldcpp.trim() : "kobold",
+        openrouter: $connector.api_keys.openrouter.trim(),
+      },
+    })
+  }
+
+  function commitOpenRouterModel() {
+    if ($connector.type !== "openrouter") return
+    const trimmed = openrouterModelDraft.trim()
+    if (!trimmed) return
+    if (trimmed !== $connector.model) {
+      connector.set({ ...$connector, model: trimmed })
+    }
+  }
+
+  async function searchModels() {
+    modelSearchLoading = true
+    modelSearchError = null
+    try {
+      const res = await api.settings.models(modelSearchQuery, 200)
+      modelSearchResults = Array.isArray(res.models) ? res.models : []
+    } catch (err) {
+      modelSearchResults = []
+      modelSearchError = err instanceof Error ? err.message : String(err)
+    } finally {
+      modelSearchLoading = false
+    }
+  }
+
+  let ctxRefreshLoading = $state(false)
+  async function refreshCtxLimitDetected() {
+    ctxRefreshLoading = true
+    try {
+      const res = await api.settings.get()
+      ctxLimitDetected.set(res.ctx_limit_detected ?? 0)
+    } catch {
+      // ignore
+    } finally {
+      ctxRefreshLoading = false
+    }
+  }
+
+  function buildModelSelectOptions(models: ModelInfo[], currentModel: string) {
+    const out: Array<{ value: string; label: string }> = []
+    const seen = new Set<string>()
+    const push = (id: string, label: string) => {
+      if (!id || seen.has(id)) return
+      seen.add(id)
+      out.push({ value: id, label })
+    }
+    if (currentModel) push(currentModel, currentModel)
+    for (const m of models) {
+      const id = m.id
+      if (!id) continue
+      const ctx = typeof m.context_length === "number" && Number.isFinite(m.context_length) ? m.context_length : null
+      push(id, ctx ? `${id} · ${ctx.toLocaleString()} ctx` : id)
+    }
+    return out
+  }
+
+  function pickOpenRouterModel(nextId: string) {
+    if ($connector.type !== "openrouter") return
+    const trimmed = nextId.trim()
+    if (!trimmed) return
+    openrouterModelDraft = trimmed
+    if (trimmed !== $connector.model) {
+      connector.set({ ...$connector, model: trimmed })
     }
   }
 
@@ -917,17 +1047,28 @@
       <div class="row row-input">
         <span class="row-text">
           <span class="row-title">Backend</span>
-          <span class="row-sub">KoboldCpp (OpenAI-compatible)</span>
+          <span class="row-sub">Provider for the OpenAI-compatible API endpoint</span>
         </span>
-        <span class="connector-badge">{$connector.type}</span>
+        <Select
+          value={$connector.type}
+          options={connectorTypeOptions}
+          ariaLabel="Backend"
+          width="200px"
+          onChange={setConnectorType}
+        />
       </div>
 
       <div class="row row-input">
         <span class="row-text">
           <span class="row-title">Ctx Limit (Detected)</span>
-          <span class="row-sub">Fetched from KoboldCpp on server start</span>
+          <span class="row-sub">Fetched from the current provider (cached)</span>
         </span>
-        <span class="connector-badge">{$ctxLimitDetected > 0 ? $ctxLimitDetected : "Unknown"}</span>
+        <div class="ctx-limit-actions">
+          <span class="connector-badge">{$ctxLimitDetected > 0 ? $ctxLimitDetected : "Unknown"}</span>
+          <button class="preset-btn ctx-refresh" disabled={ctxRefreshLoading} onclick={refreshCtxLimitDetected}>
+            {ctxRefreshLoading ? "Refreshing…" : "Refresh"}
+          </button>
+        </div>
       </div>
 
       <label class="row row-input">
@@ -959,6 +1100,59 @@
           }}
         />
       </label>
+
+      {#if $connector.type === "openrouter"}
+        <label class="row row-input">
+          <span class="row-text">
+            <span class="row-title">Model ID</span>
+            <span class="row-sub">Example: openrouter/auto</span>
+          </span>
+          <input
+            class="text-input model-id-input"
+            type="text"
+            bind:value={openrouterModelDraft}
+            onblur={commitOpenRouterModel}
+            onkeydown={(e) => {
+              if (e.key === "Enter") (e.target as HTMLInputElement).blur()
+            }}
+          />
+        </label>
+
+        <div class="row row-input row-stack">
+          <span class="row-text">
+            <span class="row-title">Search Models</span>
+            <span class="row-sub">Queries /models via server proxy (cached)</span>
+          </span>
+
+          <div class="model-search">
+            <input
+              class="text-input"
+              type="text"
+              placeholder="Search model id…"
+              bind:value={modelSearchQuery}
+              onkeydown={(e) => {
+                if (e.key === "Enter") void searchModels()
+              }}
+            />
+            <button class="preset-btn" disabled={modelSearchLoading} onclick={searchModels}>
+              {modelSearchLoading ? "Searching…" : "Search"}
+            </button>
+          </div>
+
+          <Select
+            value={$connector.model}
+            width="100%"
+            placeholder={modelSearchResults.length ? "Select model…" : "No results yet"}
+            options={buildModelSelectOptions(modelSearchResults, $connector.model)}
+            ariaLabel="OpenRouter model"
+            onChange={(v) => pickOpenRouterModel(String(v))}
+          />
+
+          {#if modelSearchError}
+            <div class="conn-error">{modelSearchError}</div>
+          {/if}
+        </div>
+      {/if}
 
       <div class="divider"></div>
 
@@ -1520,6 +1714,39 @@
     width: 100%;
   }
 
+  .model-search {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+  }
+  .model-search .text-input {
+    flex: 1;
+    min-width: 0;
+  }
+  .model-id-input {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+    letter-spacing: 0.01em;
+  }
+
+  .preset-btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+
+  @media (max-width: 520px) {
+    .model-search {
+      flex-direction: column;
+      align-items: stretch;
+    }
+  }
+
+  .conn-error {
+    color: var(--danger);
+    font-family: var(--font-ui);
+    font-size: 0.85rem;
+    line-height: 1.35;
+  }
+
   .modules-settings {
     padding: 0.4rem 1rem 1rem;
   }
@@ -1616,6 +1843,15 @@
     background: var(--accent-dim);
     padding: 0.25rem 0.6rem;
     letter-spacing: 0.03em;
+  }
+
+  .ctx-limit-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+  .ctx-refresh {
+    padding: 0.3rem 0.6rem;
   }
 
   /* ── Presets ──────────────────────────────────────── */

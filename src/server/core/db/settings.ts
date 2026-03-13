@@ -1,5 +1,5 @@
 import { getDb } from "./connection.js"
-import type { SettingsState, GenerationParams } from "./types.js"
+import type { SettingsState, GenerationParams, LLMConnector, OpenRouterConnector, KoboldCppConnector } from "./types.js"
 import { DEFAULT_STORY_MODULES, normalizeStoryModules } from "../../schemas/story-modules.js"
 
 export const DEFAULT_GENERATION: GenerationParams = {
@@ -42,6 +42,25 @@ export const DEFAULT_GENERATION: GenerationParams = {
   seed: -1,
 }
 
+const DEFAULT_KOBOLD_CONNECTOR: KoboldCppConnector = {
+  type: "koboldcpp",
+  url: "http://localhost:5001/v1",
+  api_keys: {
+    koboldcpp: "kobold",
+    openrouter: "",
+  },
+}
+
+const DEFAULT_OPENROUTER_CONNECTOR: OpenRouterConnector = {
+  type: "openrouter",
+  url: "https://openrouter.ai/api/v1",
+  api_keys: {
+    koboldcpp: "kobold",
+    openrouter: "",
+  },
+  model: "openrouter/auto",
+}
+
 export const DEFAULT_SETTINGS: SettingsState = {
   theme: "default",
   design: "classic",
@@ -51,11 +70,54 @@ export const DEFAULT_SETTINGS: SettingsState = {
   defaultAuthorNoteDepth: 4,
   storyDefaults: { ...DEFAULT_STORY_MODULES },
   connector: {
-    type: "koboldcpp",
-    url: "http://localhost:5001/v1",
-    api_key: "kobold",
+    ...DEFAULT_KOBOLD_CONNECTOR,
   },
   generation: { ...DEFAULT_GENERATION },
+}
+
+function coerceConnector(raw: unknown): LLMConnector {
+  if (!raw || typeof raw !== "object") return { ...DEFAULT_KOBOLD_CONNECTOR }
+  const obj = raw as Record<string, unknown>
+  const type = obj.type
+  const url = typeof obj.url === "string" && obj.url.trim() ? obj.url : undefined
+
+  const legacyKey = typeof obj.api_key === "string" ? obj.api_key : undefined
+  const apiKeysRaw = obj.api_keys
+  const apiKeys =
+    apiKeysRaw && typeof apiKeysRaw === "object"
+      ? {
+          koboldcpp:
+            typeof (apiKeysRaw as Record<string, unknown>).koboldcpp === "string"
+              ? String((apiKeysRaw as Record<string, unknown>).koboldcpp)
+              : undefined,
+          openrouter:
+            typeof (apiKeysRaw as Record<string, unknown>).openrouter === "string"
+              ? String((apiKeysRaw as Record<string, unknown>).openrouter)
+              : undefined,
+        }
+      : { koboldcpp: undefined, openrouter: undefined }
+  const mergedApiKeys = {
+    koboldcpp: apiKeys.koboldcpp ?? DEFAULT_KOBOLD_CONNECTOR.api_keys.koboldcpp,
+    openrouter: apiKeys.openrouter ?? DEFAULT_KOBOLD_CONNECTOR.api_keys.openrouter,
+  }
+
+  if (type === "openrouter") {
+    const model = typeof obj.model === "string" && obj.model.trim() ? obj.model : undefined
+    if (legacyKey !== undefined) mergedApiKeys.openrouter = legacyKey
+    return {
+      ...DEFAULT_OPENROUTER_CONNECTOR,
+      ...(url ? { url } : {}),
+      api_keys: mergedApiKeys,
+      ...(model ? { model } : {}),
+    }
+  }
+
+  if (legacyKey !== undefined) mergedApiKeys.koboldcpp = legacyKey
+  return {
+    ...DEFAULT_KOBOLD_CONNECTOR,
+    ...(url ? { url } : {}),
+    api_keys: mergedApiKeys,
+  }
 }
 
 export function getSettings(): SettingsState {
@@ -69,7 +131,7 @@ export function getSettings(): SettingsState {
       ...DEFAULT_SETTINGS,
       ...stored,
       storyDefaults: normalizeStoryModules(stored.storyDefaults, DEFAULT_SETTINGS.storyDefaults),
-      connector: { ...DEFAULT_SETTINGS.connector, ...(stored.connector ?? {}) },
+      connector: coerceConnector(stored.connector),
       generation: { ...DEFAULT_SETTINGS.generation, ...(stored.generation ?? {}) },
     }
   } catch {

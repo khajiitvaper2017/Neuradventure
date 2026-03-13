@@ -11,6 +11,7 @@ export type LlmLogEntry = {
   timestamp: string
   mode: LlmLogMode
   schema_name?: string
+  schema?: object
   messages: OpenAI.ChatCompletionMessageParam[]
   sampling: Record<string, unknown>
   stop?: string[]
@@ -45,12 +46,14 @@ export function createLlmLogBase(
   sampling: Record<string, unknown>,
   schemaName?: string,
   stop?: string[],
+  schema?: object,
 ): LlmLogEntry {
   return {
     id: randomUUID(),
     timestamp: new Date().toISOString(),
     mode,
     schema_name: schemaName,
+    schema,
     messages,
     sampling,
     stop,

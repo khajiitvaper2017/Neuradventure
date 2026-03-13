@@ -6,7 +6,8 @@ import { fileURLToPath } from "node:url"
 import { dirname, join } from "node:path"
 import * as db from "../core/db.js"
 import { DEFAULT_GENERATION } from "../core/db/settings.js"
-import { getCtxLimitCached } from "../llm/index.js"
+import { getCtxLimitCached, initCtxLimit } from "../llm/index.js"
+import { getCachedUpstreamModels } from "../llm/models.js"
 import { StoryModulesSchema } from "../schemas/story-modules.js"
 import { badRequest } from "./handlers/http.js"
 
@@ -54,10 +55,38 @@ const GenerationParamsSchema = z.object({
 })
 
 const ConnectorSchema = z.object({
-  type: z.enum(["koboldcpp"]),
+  type: z.enum(["koboldcpp", "openrouter"]),
   url: z.string().min(1),
-  api_key: z.string(),
+  api_key: z.string().optional(),
+  api_keys: z
+    .object({
+      koboldcpp: z.string(),
+      openrouter: z.string(),
+    })
+    .partial()
+    .optional(),
+  model: z.string().min(1).optional(),
 })
+
+const ConnectorFullSchema = z.discriminatedUnion("type", [
+  z.object({
+    type: z.literal("koboldcpp"),
+    url: z.string().min(1),
+    api_keys: z.object({
+      koboldcpp: z.string().min(1),
+      openrouter: z.string(),
+    }),
+  }),
+  z.object({
+    type: z.literal("openrouter"),
+    url: z.string().min(1),
+    api_keys: z.object({
+      koboldcpp: z.string(),
+      openrouter: z.string().min(1),
+    }),
+    model: z.string().min(1),
+  }),
+])
 
 const SamplerPresetSchema = z.object({
   id: z.number().int().optional(),
@@ -96,9 +125,49 @@ settings.get("/", (c) => {
   return c.json({ ...settings, ctx_limit_detected })
 })
 
+settings.get("/models", async (c) => {
+  const url = new URL(c.req.url)
+  const q = (url.searchParams.get("q") ?? "").trim()
+  const limitRaw = url.searchParams.get("limit")
+  const limitParsed = limitRaw ? Number(limitRaw) : NaN
+  const limit = Number.isFinite(limitParsed) ? Math.max(1, Math.min(500, Math.floor(limitParsed))) : 200
+
+  try {
+    const { connector } = db.getSettings()
+    const models = await getCachedUpstreamModels(connector)
+    const needle = q.toLowerCase()
+    const filtered = needle
+      ? models.filter((m) => m.id.toLowerCase().includes(needle) || (m.name ?? "").toLowerCase().includes(needle))
+      : models
+    return c.json({ models: filtered.slice(0, limit) })
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Failed to fetch models"
+    return badRequest(c, message)
+  }
+})
+
 settings.put("/", zValidator("json", SettingsUpdateSchema), (c) => {
   const update = c.req.valid("json")
   const current = db.getSettings()
+
+  const nextConnectorRaw = update.connector
+    ? ({
+        ...current.connector,
+        ...update.connector,
+        api_keys: {
+          ...current.connector.api_keys,
+          ...(update.connector.api_keys ?? {}),
+        },
+      } as unknown)
+    : current.connector
+  let nextConnector: db.LLMConnector
+  try {
+    nextConnector = ConnectorFullSchema.parse(nextConnectorRaw) as db.LLMConnector
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Invalid connector settings"
+    return badRequest(c, message)
+  }
+
   const next: db.SettingsState = {
     ...current,
     ...(update.theme !== undefined && { theme: update.theme }),
@@ -110,10 +179,14 @@ settings.put("/", zValidator("json", SettingsUpdateSchema), (c) => {
     ...(update.storyDefaults && {
       storyDefaults: { ...current.storyDefaults, ...update.storyDefaults },
     }),
-    ...(update.connector && { connector: { ...current.connector, ...update.connector } }),
+    connector: nextConnector,
     ...(update.generation && { generation: { ...current.generation, ...update.generation } }),
   }
+
   db.updateSettings(next)
+  initCtxLimit().catch((err) => {
+    console.error("[ctx_limit] Failed to refresh context limit", err)
+  })
   return c.json(next)
 })
 

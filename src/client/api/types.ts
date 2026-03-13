@@ -231,10 +231,31 @@ export interface GenerationParams {
   seed: number
 }
 
-export interface LLMConnector {
+export type KoboldCppConnector = {
   type: "koboldcpp"
   url: string
-  api_key: string
+  api_keys: {
+    koboldcpp: string
+    openrouter: string
+  }
+}
+
+export type OpenRouterConnector = {
+  type: "openrouter"
+  url: string
+  api_keys: {
+    koboldcpp: string
+    openrouter: string
+  }
+  model: string
+}
+
+export type LLMConnector = KoboldCppConnector | OpenRouterConnector
+
+export interface ModelInfo {
+  id: string
+  name?: string
+  context_length?: number
 }
 
 export interface AppSettings {
