@@ -77,3 +77,10 @@ export {
   type CanceledChatExchangePayload,
 } from "./db/chats.js"
 export { getSettings, updateSettings } from "./db/settings.js"
+export {
+  listSamplerPresets,
+  upsertSamplerPreset,
+  deleteSamplerPreset,
+  type SamplerPreset,
+  type SamplerPresetRow,
+} from "./db/presets.js"

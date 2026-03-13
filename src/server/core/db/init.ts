@@ -87,6 +87,15 @@ export function initDb() {
       updated_at    TEXT NOT NULL DEFAULT (datetime('now'))
     );
 
+    CREATE TABLE IF NOT EXISTS sampler_presets (
+      id          INTEGER PRIMARY KEY AUTOINCREMENT,
+      name        TEXT NOT NULL UNIQUE,
+      description TEXT NOT NULL DEFAULT '',
+      params_json TEXT NOT NULL,
+      created_at  TEXT NOT NULL DEFAULT (datetime('now')),
+      updated_at  TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+
     CREATE TABLE IF NOT EXISTS chats (
       id                  INTEGER PRIMARY KEY AUTOINCREMENT,
       title               TEXT NOT NULL DEFAULT '',
@@ -135,5 +144,44 @@ export function initDb() {
     | undefined
   if (!settingsRow) {
     database.prepare("INSERT INTO settings (id, settings_json) VALUES (1, ?)").run(JSON.stringify(DEFAULT_SETTINGS))
+  }
+
+  // Migrate legacy chat scenario into a system message at message_index = 0.
+  // This keeps prior context while removing scenario from the chat API/UI.
+  try {
+    const chatsWithScenario = database
+      .prepare("SELECT id, scenario, created_at FROM chats WHERE TRIM(scenario) != ''")
+      .all() as Array<{ id: number; scenario: string; created_at: string }>
+
+    if (chatsWithScenario.length > 0) {
+      const getMinIndex = database.prepare(
+        "SELECT MIN(message_index) as min_index FROM chat_messages WHERE chat_id = ?",
+      )
+      const getPlayerMember = database.prepare(
+        "SELECT id FROM chat_members WHERE chat_id = ? AND role = 'player' ORDER BY sort_order ASC, id ASC LIMIT 1",
+      )
+      const insertSystem = database.prepare(
+        `INSERT INTO chat_messages (chat_id, message_index, speaker_member_id, role, content, created_at)
+         VALUES (?, 0, ?, 'system', ?, ?)`,
+      )
+      const clearScenario = database.prepare("UPDATE chats SET scenario = '' WHERE id = ?")
+
+      const tx = database.transaction((rows: Array<{ id: number; scenario: string; created_at: string }>) => {
+        for (const row of rows) {
+          const player = getPlayerMember.get(row.id) as { id: number } | undefined
+          if (!player) continue
+          const minRow = getMinIndex.get(row.id) as { min_index: number | null } | undefined
+          const minIndex = minRow?.min_index ?? null
+          if (minIndex !== 0) {
+            insertSystem.run(row.id, player.id, row.scenario.trim(), row.created_at || new Date().toISOString())
+          }
+          clearScenario.run(row.id)
+        }
+      })
+      tx(chatsWithScenario)
+    }
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error)
+    console.warn(`[db] Failed to migrate legacy chat scenario: ${message}`)
   }
 }

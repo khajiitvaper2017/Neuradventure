@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount } from "svelte"
   import { navigate } from "../../stores/ui.js"
+  import { api } from "../../api/client.js"
   import {
     theme,
     design,
@@ -14,7 +15,7 @@
     ctxLimitDetected,
   } from "../../stores/settings.js"
   import type { GenerationParams, SamplerPreset, StoryModules } from "../../api/client.js"
-  import { presets, loadPresets } from "../../utils/presets.js"
+  import { presets, loadPresets, refreshPresets } from "../../utils/presets.js"
   import StoryModulesPanel from "../../components/ui/StoryModulesPanel.svelte"
 
   type SettingsTab = "appearance" | "generation" | "modules"
@@ -52,6 +53,12 @@
   let connectorApiKey = $state($connector.api_key)
   let authorNoteDraft = $state($defaultAuthorNote)
   let authorNoteDepthDraft = $state($defaultAuthorNoteDepth)
+  let samplerOrderDraft = $state(formatSamplerOrder($generation.sampler_order))
+  let dryBreakersDraft = $state(JSON.stringify($generation.dry_sequence_breakers, null, 2))
+  let bannedTokensDraft = $state($generation.banned_tokens.join("\n"))
+  let logitBiasDraft = $state(JSON.stringify($generation.logit_bias, null, 2))
+
+  let importFileInput: HTMLInputElement | null = $state(null)
 
   // Sync local copies when store changes externally
   $effect(() => {
@@ -65,6 +72,18 @@
   })
   $effect(() => {
     authorNoteDepthDraft = $defaultAuthorNoteDepth
+  })
+  $effect(() => {
+    samplerOrderDraft = formatSamplerOrder($generation.sampler_order)
+  })
+  $effect(() => {
+    dryBreakersDraft = JSON.stringify($generation.dry_sequence_breakers, null, 2)
+  })
+  $effect(() => {
+    bannedTokensDraft = $generation.banned_tokens.join("\n")
+  })
+  $effect(() => {
+    logitBiasDraft = JSON.stringify($generation.logit_bias, null, 2)
   })
 
   function commitConnector() {
@@ -119,6 +138,325 @@
     if (!isNaN(val)) setGen(key, val)
   }
 
+  function formatSamplerOrder(order: GenerationParams["sampler_order"]): string {
+    if (!Array.isArray(order)) return ""
+    return order.join(", ")
+  }
+
+  function parseSamplerOrder(text: string): number[] | null {
+    const trimmed = text.trim()
+    if (!trimmed) return []
+    const parts = trimmed
+      .split(",")
+      .map((p) => p.trim())
+      .filter(Boolean)
+    const out: number[] = []
+    for (const p of parts) {
+      const n = Number(p)
+      if (!Number.isFinite(n)) return null
+      out.push(Math.trunc(n))
+    }
+    return out
+  }
+
+  function commitSamplerOrder() {
+    const parsed = parseSamplerOrder(samplerOrderDraft)
+    if (!parsed) {
+      samplerOrderDraft = formatSamplerOrder($generation.sampler_order)
+      return
+    }
+    if (JSON.stringify(parsed) !== JSON.stringify($generation.sampler_order)) {
+      setGen("sampler_order", parsed)
+    }
+  }
+
+  function commitDryBreakers() {
+    const trimmed = dryBreakersDraft.trim()
+    if (!trimmed) {
+      setGen("dry_sequence_breakers", [])
+      return
+    }
+    try {
+      const parsed = JSON.parse(trimmed) as unknown
+      if (!Array.isArray(parsed) || !parsed.every((v) => typeof v === "string")) throw new Error("Invalid array")
+      setGen("dry_sequence_breakers", parsed)
+    } catch {
+      dryBreakersDraft = JSON.stringify($generation.dry_sequence_breakers, null, 2)
+    }
+  }
+
+  function commitBannedTokens() {
+    const list = bannedTokensDraft
+      .split("\n")
+      .map((l) => l.trim())
+      .filter((l) => l.length > 0)
+    setGen("banned_tokens", list)
+  }
+
+  function commitLogitBias() {
+    const trimmed = logitBiasDraft.trim()
+    if (!trimmed) {
+      setGen("logit_bias", {})
+      return
+    }
+    try {
+      const parsed = JSON.parse(trimmed) as unknown
+      if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) throw new Error("Invalid object")
+      const obj = parsed as Record<string, unknown>
+      const out: Record<string, number> = {}
+      for (const [k, v] of Object.entries(obj)) {
+        const n = typeof v === "number" ? v : typeof v === "string" ? Number(v.trim()) : NaN
+        if (!Number.isFinite(n)) continue
+        out[k] = n
+      }
+      setGen("logit_bias", out)
+    } catch {
+      logitBiasDraft = JSON.stringify($generation.logit_bias, null, 2)
+    }
+  }
+
+  function filenameToPresetName(file: File): string {
+    const name = file.name.replace(/\.[^.]+$/, "").trim()
+    return name || "Imported Preset"
+  }
+
+  function isRecord(value: unknown): value is Record<string, unknown> {
+    return !!value && typeof value === "object" && !Array.isArray(value)
+  }
+
+  function asNumber(value: unknown): number | undefined {
+    if (typeof value === "number" && Number.isFinite(value)) return value
+    if (typeof value === "string") {
+      const n = Number(value.trim())
+      return Number.isFinite(n) ? n : undefined
+    }
+    return undefined
+  }
+
+  function asInt(value: unknown): number | undefined {
+    const n = asNumber(value)
+    return n === undefined ? undefined : Math.trunc(n)
+  }
+
+  function asBool(value: unknown): boolean | undefined {
+    if (typeof value === "boolean") return value
+    if (value === 0) return false
+    if (value === 1) return true
+    if (typeof value === "string") {
+      const v = value.trim().toLowerCase()
+      if (v === "true") return true
+      if (v === "false") return false
+    }
+    return undefined
+  }
+
+  function parseStringArray(value: unknown): string[] | undefined {
+    if (Array.isArray(value) && value.every((v) => typeof v === "string")) return value
+    if (typeof value === "string") {
+      try {
+        const parsed = JSON.parse(value) as unknown
+        if (Array.isArray(parsed) && parsed.every((v) => typeof v === "string")) return parsed
+      } catch {
+        // ignore
+      }
+    }
+    return undefined
+  }
+
+  function parseLogitBias(value: unknown): Record<string, number> | undefined {
+    if (isRecord(value)) {
+      const out: Record<string, number> = {}
+      for (const [k, v] of Object.entries(value)) {
+        const n = asNumber(v)
+        if (n === undefined) continue
+        out[k] = n
+      }
+      return out
+    }
+    if (Array.isArray(value)) {
+      const out: Record<string, number> = {}
+      for (const item of value) {
+        if (!isRecord(item)) continue
+        const id = item.id ?? item.token_id ?? item.tokenId ?? item.key
+        const bias = item.bias ?? item.value
+        const idStr = typeof id === "string" ? id : typeof id === "number" ? String(Math.trunc(id)) : null
+        const n = asNumber(bias)
+        if (!idStr || n === undefined) continue
+        out[idStr] = n
+      }
+      return out
+    }
+    return undefined
+  }
+
+  function coercePresetFromJson(raw: unknown, fallbackName: string): Omit<SamplerPreset, "id"> | null {
+    if (isRecord(raw) && typeof raw.name === "string" && isRecord(raw.params)) {
+      const base: GenerationParams = { ...$generation }
+      const params = { ...base, ...(raw.params as Partial<GenerationParams>) }
+      return {
+        name: raw.name.trim() || fallbackName,
+        description: typeof raw.description === "string" ? raw.description : "",
+        params,
+      }
+    }
+
+    if (!isRecord(raw)) return null
+
+    const temp = asNumber(raw.temp)
+    const repPen = asNumber(raw.rep_pen)
+    const isSillyTavernish = temp !== undefined || repPen !== undefined || asNumber(raw.top_p) !== undefined
+    if (!isSillyTavernish) return null
+
+    const params: GenerationParams = { ...$generation }
+
+    const genamt = asInt(raw.genamt)
+    if (genamt !== undefined && genamt > 0) params.max_tokens = genamt
+    const maxTokens = asInt(raw.max_tokens)
+    if (maxTokens !== undefined && maxTokens > 0) params.max_tokens = maxTokens
+
+    if (temp !== undefined) params.temperature = temp
+    const topK = asInt(raw.top_k)
+    if (topK !== undefined) params.top_k = topK
+    const topP = asNumber(raw.top_p)
+    if (topP !== undefined) params.top_p = topP
+    const topA = asNumber(raw.top_a)
+    if (topA !== undefined) params.top_a = topA
+    const minP = asNumber(raw.min_p)
+    if (minP !== undefined) params.min_p = minP
+
+    const typical = asNumber(raw.typical_p ?? raw.typical)
+    if (typical !== undefined) params.typical_p = typical
+    const tfs = asNumber(raw.tfs)
+    if (tfs !== undefined) params.tfs = tfs
+    const nsigma = asNumber(raw.nsigma)
+    if (nsigma !== undefined) params.top_n_sigma = nsigma <= 0 ? -1.0 : nsigma
+
+    if (repPen !== undefined) params.repeat_penalty = repPen
+    const repPenRange = asInt(raw.rep_pen_range)
+    if (repPenRange !== undefined) params.repeat_last_n = repPenRange
+    const repPenSlope = asNumber(raw.rep_pen_slope)
+    if (repPenSlope !== undefined) params.rep_pen_slope = repPenSlope
+
+    const presence = asNumber(raw.presence_pen ?? raw.presence_penalty)
+    if (presence !== undefined) params.presence_penalty = presence
+    const freq = asNumber(raw.freq_pen ?? raw.frequency_penalty)
+    if (freq !== undefined) params.frequency_penalty = freq
+
+    const mirostatMode = asInt(raw.mirostat_mode ?? raw.mirostat)
+    if (mirostatMode !== undefined) params.mirostat = mirostatMode
+    const miroTau = asNumber(raw.mirostat_tau)
+    if (miroTau !== undefined) params.mirostat_tau = miroTau
+    const miroEta = asNumber(raw.mirostat_eta)
+    if (miroEta !== undefined) params.mirostat_eta = miroEta
+
+    const dynRange = asNumber(raw.dynatemp_range)
+    if (dynRange !== undefined) {
+      params.dynatemp_range = dynRange
+    } else {
+      const dynatemp = asBool(raw.dynatemp)
+      const minTemp = asNumber(raw.min_temp)
+      const maxTemp = asNumber(raw.max_temp)
+      if (dynatemp && minTemp !== undefined && maxTemp !== undefined)
+        params.dynatemp_range = Math.max(0.0, maxTemp - minTemp)
+      if (dynatemp === false) params.dynatemp_range = 0.0
+    }
+    const dynExp = asNumber(raw.dynatemp_exponent)
+    if (dynExp !== undefined) params.dynatemp_exponent = dynExp
+
+    const smoothingFactor = asNumber(raw.smoothing_factor)
+    if (smoothingFactor !== undefined) params.smoothing_factor = smoothingFactor
+    const smoothingCurve = asNumber(raw.smoothing_curve)
+    if (smoothingCurve !== undefined) params.smoothing_curve = smoothingCurve
+
+    const adaptiveTarget = asNumber(raw.adaptive_target)
+    if (adaptiveTarget !== undefined) params.adaptive_target = adaptiveTarget
+    const adaptiveDecay = asNumber(raw.adaptive_decay)
+    if (adaptiveDecay !== undefined) params.adaptive_decay = adaptiveDecay
+
+    const dryMult = asNumber(raw.dry_multiplier)
+    if (dryMult !== undefined) params.dry_multiplier = dryMult
+    const dryBase = asNumber(raw.dry_base)
+    if (dryBase !== undefined) params.dry_base = dryBase
+    const dryAllowed = asInt(raw.dry_allowed_length)
+    if (dryAllowed !== undefined) params.dry_allowed_length = dryAllowed
+    const dryPenalty = asInt(raw.dry_penalty_last_n)
+    if (dryPenalty !== undefined) params.dry_penalty_last_n = dryPenalty
+    const breakers = parseStringArray(raw.dry_sequence_breakers)
+    if (breakers) params.dry_sequence_breakers = breakers
+
+    const xtcProb = asNumber(raw.xtc_probability)
+    if (xtcProb !== undefined) params.xtc_probability = xtcProb
+    const xtcThr = asNumber(raw.xtc_threshold)
+    if (xtcThr !== undefined) params.xtc_threshold = xtcThr
+
+    const banEos = asBool(raw.ban_eos_token)
+    if (banEos !== undefined) params.ban_eos_token = banEos
+    const renderSpecial = asBool(raw.render_special)
+    if (renderSpecial !== undefined) params.render_special = renderSpecial
+
+    const order = raw.sampler_order
+    if (Array.isArray(order) && order.every((v) => typeof v === "number" && Number.isFinite(v))) {
+      params.sampler_order = order.map((n) => Math.trunc(n))
+    }
+
+    const bannedTokens = parseStringArray(raw.banned_tokens ?? raw.banned_strings)
+    if (bannedTokens) params.banned_tokens = bannedTokens
+
+    const logitBias = parseLogitBias(raw.logit_bias)
+    if (logitBias) params.logit_bias = logitBias
+
+    const seed = asInt(raw.seed ?? raw.sampler_seed)
+    if (seed !== undefined) params.seed = seed
+
+    return {
+      name: typeof raw.preset === "string" && raw.preset.trim() ? raw.preset.trim() : fallbackName,
+      description: typeof raw.description === "string" ? raw.description : "Imported preset",
+      params,
+    }
+  }
+
+  async function handleImportPresetJson(e: Event) {
+    const input = e.target as HTMLInputElement
+    const file = input.files?.[0]
+    input.value = ""
+    if (!file) return
+    try {
+      const text = await file.text()
+      const raw = JSON.parse(text) as unknown
+      const fallbackName = filenameToPresetName(file)
+      const preset = coercePresetFromJson(raw, fallbackName)
+      if (!preset) throw new Error("Unrecognized preset JSON format")
+
+      generation.set({ ...preset.params })
+      await api.settings.upsertPreset({
+        name: preset.name,
+        description: preset.description,
+        params: preset.params,
+      })
+      await refreshPresets()
+    } catch (err) {
+      console.error("[presets] Failed to import preset JSON", err)
+    }
+  }
+
+  function openImportPreset() {
+    importFileInput?.click()
+  }
+
+  async function deletePreset(preset: SamplerPreset) {
+    if (!preset.id) return
+    if (typeof window !== "undefined") {
+      const ok = window.confirm(`Delete preset "${preset.name}"?`)
+      if (!ok) return
+    }
+    try {
+      await api.settings.deletePreset(preset.id)
+      await refreshPresets()
+    } catch (err) {
+      console.error("[presets] Failed to delete preset", err)
+    }
+  }
+
   type ParamDef = {
     key: keyof GenerationParams
     label: string
@@ -147,6 +485,7 @@
       max: 5,
       step: 0.05,
     },
+    { key: "tfs", label: "TFS", sub: "Tail free sampling (1.0 = disabled)", min: 0, max: 1, step: 0.01 },
     { key: "top_p", label: "Top-P (Nucleus)", sub: "Cumulative probability threshold", min: 0, max: 1, step: 0.01 },
     {
       key: "top_k",
@@ -157,6 +496,7 @@
       step: 1,
       int: true,
     },
+    { key: "top_a", label: "Top-A", sub: "Top-a sampling (0 = disabled)", min: 0, max: 1, step: 0.01 },
     {
       key: "min_p",
       label: "Min-P",
@@ -216,6 +556,14 @@
       max: 4096,
       step: 1,
       int: true,
+    },
+    {
+      key: "rep_pen_slope",
+      label: "Repeat Penalty Slope",
+      sub: "Scales penalty on older tokens (1.0 = full, 0 = near-only)",
+      min: 0,
+      max: 1,
+      step: 0.01,
     },
   ]
 
@@ -487,15 +835,34 @@
       <!-- Preset -->
       <div class="section-label">Sampler Preset</div>
       <div class="preset-row">
+        <input
+          class="hidden-input"
+          type="file"
+          accept="application/json,.json"
+          bind:this={importFileInput}
+          onchange={handleImportPresetJson}
+        />
+
+        <button class="preset-btn preset-import" onclick={openImportPreset} title="Import a JSON preset file">
+          Import JSON
+        </button>
+
         {#each $presets as preset}
-          <button
-            class="preset-btn"
-            class:active={activePreset === preset.name}
-            onclick={() => applyPreset(preset.name)}
-            title={preset.description}
-          >
-            {preset.name}
-          </button>
+          <div class="preset-item">
+            <button
+              class="preset-btn"
+              class:active={activePreset === preset.name}
+              onclick={() => applyPreset(preset.name)}
+              title={preset.description}
+            >
+              {preset.name}
+            </button>
+            {#if preset.id}
+              <button class="preset-btn preset-del" onclick={() => deletePreset(preset)} title="Delete custom preset">
+                ×
+              </button>
+            {/if}
+          </div>
         {/each}
         {#if activePreset === "Custom"}
           <span class="preset-btn custom-badge">Custom</span>
@@ -656,6 +1023,149 @@
         </label>
       {/each}
 
+      <div class="divider"></div>
+
+      <!-- Advanced -->
+      <div class="section-label">Advanced</div>
+
+      <label class="row row-input">
+        <span class="row-text">
+          <span class="row-title">Ban EOS Token</span>
+          <span class="row-sub">Prevent the model from ending early</span>
+        </span>
+        <input
+          type="checkbox"
+          checked={$generation.ban_eos_token}
+          onchange={(e) => setGen("ban_eos_token", (e.target as HTMLInputElement).checked)}
+        />
+      </label>
+
+      <label class="row row-input">
+        <span class="row-text">
+          <span class="row-title">Render Special Tokens</span>
+          <span class="row-sub">Show special tokens in output (debug)</span>
+        </span>
+        <input
+          type="checkbox"
+          checked={$generation.render_special}
+          onchange={(e) => setGen("render_special", (e.target as HTMLInputElement).checked)}
+        />
+      </label>
+
+      <label class="row row-input">
+        <span class="row-text">
+          <span class="row-title">Sampler Order</span>
+          <span class="row-sub">Comma-separated list (Kobold default: 6,0,1,3,4,2,5)</span>
+        </span>
+        <input
+          class="text-input"
+          type="text"
+          bind:value={samplerOrderDraft}
+          onblur={commitSamplerOrder}
+          onkeydown={(e) => {
+            if (e.key === "Enter") (e.target as HTMLInputElement).blur()
+          }}
+        />
+      </label>
+
+      <div class="divider"></div>
+
+      <div class="section-label">Smooth Sampling</div>
+      <label class="row row-input">
+        <span class="row-text">
+          <span class="row-title">Smoothing Factor</span>
+          <span class="row-sub">0 = off</span>
+        </span>
+        <input
+          class="num-input"
+          type="number"
+          value={$generation.smoothing_factor}
+          min="0"
+          max="1"
+          step="0.01"
+          onchange={(e) => handleNumInput("smoothing_factor", e)}
+        />
+      </label>
+
+      <label class="row row-input">
+        <span class="row-text">
+          <span class="row-title">Smoothing Curve</span>
+          <span class="row-sub">Curve shaping for smoothing</span>
+        </span>
+        <input
+          class="num-input"
+          type="number"
+          value={$generation.smoothing_curve}
+          min="0.1"
+          max="5"
+          step="0.1"
+          onchange={(e) => handleNumInput("smoothing_curve", e)}
+        />
+      </label>
+
+      <div class="divider"></div>
+
+      <div class="section-label">Adaptive Sampling</div>
+      <label class="row row-input">
+        <span class="row-text">
+          <span class="row-title">Adaptive Target</span>
+          <span class="row-sub">-1 = off</span>
+        </span>
+        <input
+          class="num-input"
+          type="number"
+          value={$generation.adaptive_target}
+          min="-1"
+          max="1"
+          step="0.01"
+          onchange={(e) => handleNumInput("adaptive_target", e)}
+        />
+      </label>
+
+      <label class="row row-input">
+        <span class="row-text">
+          <span class="row-title">Adaptive Decay</span>
+          <span class="row-sub">0.01–0.99 (higher = slower adaptation)</span>
+        </span>
+        <input
+          class="num-input"
+          type="number"
+          value={$generation.adaptive_decay}
+          min="0.01"
+          max="0.99"
+          step="0.01"
+          onchange={(e) => handleNumInput("adaptive_decay", e)}
+        />
+      </label>
+
+      <div class="divider"></div>
+
+      <div class="section-label">Bans & Bias</div>
+
+      <label class="row row-input row-stack">
+        <span class="row-text">
+          <span class="row-title">Banned Tokens</span>
+          <span class="row-sub">One per line</span>
+        </span>
+        <textarea class="text-input" rows="4" bind:value={bannedTokensDraft} onblur={commitBannedTokens}></textarea>
+      </label>
+
+      <label class="row row-input row-stack">
+        <span class="row-text">
+          <span class="row-title">Logit Bias</span>
+          <span class="row-sub">JSON object: &#123;"token_id": -100, ...&#125;</span>
+        </span>
+        <textarea class="text-input" rows="4" bind:value={logitBiasDraft} onblur={commitLogitBias}></textarea>
+      </label>
+
+      <label class="row row-input row-stack">
+        <span class="row-text">
+          <span class="row-title">DRY Sequence Breakers</span>
+          <span class="row-sub">JSON array of strings (used when DRY Multiplier &gt; 0)</span>
+        </span>
+        <textarea class="text-input" rows="4" bind:value={dryBreakersDraft} onblur={commitDryBreakers}></textarea>
+      </label>
+
       <div class="bottom-pad"></div>
     {:else if activeTab === "modules"}
       <div class="section-label">Defaults</div>
@@ -785,11 +1295,19 @@
   }
 
   /* ── Presets ──────────────────────────────────────── */
+  .hidden-input {
+    display: none;
+  }
   .preset-row {
     display: flex;
     flex-wrap: wrap;
     gap: 0.5rem;
     padding: 0.6rem 1rem 0.8rem;
+  }
+  .preset-item {
+    display: flex;
+    gap: 0.35rem;
+    align-items: center;
   }
   .preset-btn {
     background: var(--bg-input);
@@ -813,6 +1331,19 @@
     color: var(--accent);
     border-color: var(--accent);
     background: var(--accent-dim);
+  }
+  .preset-btn.preset-import {
+    color: var(--accent);
+    border-color: var(--accent-dim);
+  }
+  .preset-btn.preset-del {
+    padding: 0.4rem 0.55rem;
+    color: var(--danger);
+    border-color: rgba(181, 64, 64, 0.5);
+  }
+  .preset-btn.preset-del:hover {
+    border-color: var(--danger);
+    color: var(--danger);
   }
   .custom-badge {
     cursor: default;

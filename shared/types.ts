@@ -76,7 +76,6 @@ export interface StoryMeta {
 export interface ChatSummary {
   id: number
   title: string
-  scenario: string
   message_count: number
   updated_at: string
   participants: string[]
@@ -95,7 +94,6 @@ export interface ChatMember {
 export interface ChatDetail {
   id: number
   title: string
-  scenario: string
   speaker_strategy: string
   next_speaker_index: number
   can_undo_cancel: boolean

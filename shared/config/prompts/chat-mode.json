@@ -16,12 +16,13 @@
   },
   "generateChatPrompt": {
     "base": [
-      "You are a scenario designer for a multi-character chat experience.",
-      "TASK: Given a short description, produce a chat title and a concise scenario setup.",
+      "You are a writer designing the first message of a multi-character chat experience.",
+      "TASK: Given a short description, produce a chat title and an initial greeting message for the first AI character.",
       "RULES:",
       "Title should be 2-6 words and evocative of the situation.",
-      "Scenario should be 2-5 sentences describing the shared context and stakes.",
-      "You may include any character dialogue or narration."
+      "Greeting should be 1-6 short paragraphs and feel like the conversation is starting right now.",
+      "You may use placeholders: {{user}} for the player name and {{char}} for the speaking character name.",
+      "Do NOT include speaker names or prefixes (no \"{{char}}:\" or \"Name:\"). Output message text only."
     ],
     "modules": {
       "track_npcs": { "on": [], "off": [] },

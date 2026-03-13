@@ -117,7 +117,6 @@ const ChatMemberStateSchema = z.union([
 
 export const CreateChatRequestSchema = z.object({
   title: z.string().optional(),
-  scenario: z.string().optional(),
   members: z
     .array(
       z.object({
@@ -143,7 +142,6 @@ export const SendChatMessageRequestSchema = z.object({
 
 export const UpdateChatRequestSchema = z.object({
   title: z.string().optional(),
-  scenario: z.string().optional(),
 })
 
 export const UpdateChatMessageRequestSchema = z.object({

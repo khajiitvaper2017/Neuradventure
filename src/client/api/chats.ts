@@ -15,7 +15,7 @@ export const chats = {
   list: () => request<ChatSummary[]>("/api/chats"),
   get: (id: number) => request<ChatDetail>(`/api/chats/${id}`),
   messages: (id: number) => request<ChatMessage[]>(`/api/chats/${id}/messages`),
-  update: (id: number, data: { title?: string; scenario?: string }) =>
+  update: (id: number, data: { title?: string }) =>
     request<ChatUpdateResult>(`/api/chats/${id}`, { method: "PUT", body: JSON.stringify(data) }),
   delete: (id: number) => request<{ ok: boolean }>(`/api/chats/${id}`, { method: "DELETE" }),
   exportUrl: (id: number, format?: "neuradventure" | "tavern" | "plaintext") =>
@@ -29,7 +29,6 @@ export const chats = {
     request<{ ok: boolean }>(`/api/chats/${chatId}/messages/${messageId}`, { method: "DELETE" }),
   create: (data: {
     title?: string
-    scenario?: string
     members: Array<{
       role: "player" | "ai"
       member_kind: "character" | "npc"

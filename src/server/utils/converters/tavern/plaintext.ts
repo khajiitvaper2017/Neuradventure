@@ -15,13 +15,9 @@ export function storyToPlaintext(title: string, openingScenario: string, turns: 
   return parts.join("\n")
 }
 
-export function chatToPlaintext(chat: Pick<ChatRow, "title" | "scenario">, messages: ChatExportMessage[]): string {
+export function chatToPlaintext(chat: Pick<ChatRow, "title">, messages: ChatExportMessage[]): string {
   const safeTitle = chat.title?.trim() || "Chat"
   const parts: string[] = [`# ${safeTitle}`]
-
-  if (chat.scenario?.trim()) {
-    parts.push("", chat.scenario.trim())
-  }
 
   for (const message of messages) {
     parts.push("")

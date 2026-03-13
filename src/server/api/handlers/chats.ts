@@ -63,6 +63,17 @@ function buildMessagePayload(
   content: string
   created_at: string
 } {
+  if (message.role === "system") {
+    return {
+      id: message.id,
+      message_index: message.message_index,
+      speaker_member_id: message.speaker_member_id,
+      speaker_name: "System",
+      role: message.role,
+      content: message.content,
+      created_at: message.created_at,
+    }
+  }
   const member = members.find((m) => m.id === message.speaker_member_id)
   const state = member ? parseMemberState(member.state_json) : null
   return {
@@ -78,6 +89,12 @@ function buildMessagePayload(
 
 function buildChatHistory(members: db.ChatMemberRow[], messages: db.ChatMessageRow[]) {
   return messages.map((m) => {
+    if (m.role === "system") {
+      return {
+        speakerName: "System",
+        content: m.content,
+      }
+    }
     const member = members.find((memberRow) => memberRow.id === m.speaker_member_id)
     const state = member ? parseMemberState(member.state_json) : null
     return {
@@ -136,7 +153,6 @@ chats.get("/", (c) => {
     return {
       id: row.id,
       title: row.title,
-      scenario: row.scenario,
       message_count: row.message_count,
       updated_at: row.updated_at,
       participants: names,
@@ -155,7 +171,6 @@ chats.get("/:id", (c) => {
   return c.json({
     id: chat.id,
     title: chat.title,
-    scenario: chat.scenario,
     speaker_strategy: chat.speaker_strategy,
     next_speaker_index: chat.next_speaker_index,
     can_undo_cancel: !!canceled,
@@ -189,7 +204,7 @@ chats.put("/:id", zValidator("json", UpdateChatRequestSchema), (c) => {
   const chat = db.getChat(id)
   if (!chat) return notFound(c, "Chat not found")
   const body = c.req.valid("json")
-  db.updateChat(id, { title: body.title?.trim(), scenario: body.scenario?.trim() })
+  db.updateChat(id, { title: body.title?.trim() })
   return c.json({ ok: true })
 })
 
@@ -261,7 +276,6 @@ chats.get("/:id/export", (c) => {
   const data = JSON.stringify(
     {
       title: chat.title,
-      scenario: chat.scenario,
       speaker_strategy: chat.speaker_strategy,
       next_speaker_index: chat.next_speaker_index,
       created_at: chat.created_at,
@@ -342,7 +356,6 @@ chats.post("/", zValidator("json", CreateChatRequestSchema), (c) => {
 
   const chatId = db.createChat(
     body.title?.trim() ?? "",
-    body.scenario?.trim() ?? "",
     "round_robin",
     0,
     members.map((member, index) => ({
@@ -402,7 +415,7 @@ chats.post("/:id/messages", zValidator("json", SendChatMessageRequestSchema), as
 
   const stopTokens = buildChatStopTokens(chatMembersForPrompt.map((member) => member.state.name))
   const speakerCard = resolveSpeakerCard(nextSpeaker)
-  const messages = buildChatMessages(chat.scenario, chatMembersForPrompt, history, nextSpeakerName, { speakerCard })
+  const messages = buildChatMessages(chatMembersForPrompt, history, nextSpeakerName, { speakerCard })
 
   try {
     const rawReply = await generateChatReply(messages, stopTokens)
@@ -459,7 +472,7 @@ chats.post("/:id/continue", zValidator("json", ChatIdRequestSchema), async (c) =
   const chatMembersForPrompt = buildChatMembersForPrompt(members)
   const stopTokens = buildChatStopTokens(chatMembersForPrompt.map((member) => member.state.name))
   const speakerCard = resolveSpeakerCard(nextSpeaker)
-  const messages = buildChatMessages(chat.scenario, chatMembersForPrompt, history, nextSpeakerName, {
+  const messages = buildChatMessages(chatMembersForPrompt, history, nextSpeakerName, {
     continueWithoutPlayer: true,
     speakerCard,
   })
@@ -531,15 +544,9 @@ chats.post("/:id/regenerate", zValidator("json", ChatIdRequestSchema), async (c)
   const chatMembersForPrompt = buildChatMembersForPrompt(members)
   const stopTokens = buildChatStopTokens(chatMembersForPrompt.map((member) => member.state.name))
   const speakerCard = resolveSpeakerCard(speakerMember)
-  const prompt = buildChatMessages(
-    chat.scenario,
-    chatMembersForPrompt,
-    buildChatHistory(members, history),
-    speakerName,
-    {
-      speakerCard,
-    },
-  )
+  const prompt = buildChatMessages(chatMembersForPrompt, buildChatHistory(members, history), speakerName, {
+    speakerCard,
+  })
 
   try {
     const rawReply = await generateChatReply(prompt, stopTokens)

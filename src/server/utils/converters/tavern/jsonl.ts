@@ -61,7 +61,7 @@ export function storyToTavernJSONL(
 }
 
 export function chatToTavernJSONL(
-  chat: Pick<ChatRow, "title" | "created_at" | "scenario">,
+  chat: Pick<ChatRow, "title" | "created_at">,
   messages: ChatExportMessage[],
   playerName?: string,
 ) {
@@ -76,15 +76,6 @@ export function chatToTavernJSONL(
     character_name: safeTitle,
     create_date: createdAt,
   })
-
-  if (chat.scenario?.trim()) {
-    lines.push({
-      name: "System",
-      is_user: false,
-      send_date: createdAt,
-      mes: chat.scenario.trim(),
-    })
-  }
 
   for (const message of messages) {
     lines.push({

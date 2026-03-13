@@ -141,6 +141,6 @@ export function buildStoryResponseSchema(modules: StoryModules): z.ZodType<Story
 export const GenerateChatResponseSchema = z
   .object({
     title: z.string().min(1),
-    scenario: z.string().min(1),
+    greeting: z.string().min(1),
   })
   .strict()

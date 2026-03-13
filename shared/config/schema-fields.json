@@ -68,7 +68,7 @@
   "generation": {
     "chat": {
       "title": "Generated chat title.",
-      "scenario": "Generated chat scenario."
+      "greeting": "Generated chat greeting."
     },
     "story": {
       "title": "3-5 word title tied to the opening scenario.",
@@ -88,7 +88,6 @@
     "action_mode": "Action mode: do, say, or story.",
     "create_chat": {
       "title": "Chat title.",
-      "scenario": "Optional chat scenario or setup.",
       "members": "Chat members list (player + AI characters).",
       "member": {
         "role": "Member role: player or ai.",
@@ -101,8 +100,7 @@
       "content": "Chat message text."
     },
     "update_chat": {
-      "title": "Updated chat title.",
-      "scenario": "Updated chat scenario."
+      "title": "Updated chat title."
     },
     "chat_next_speaker": {
       "speaker_member_id": "Chat member ID to speak next."

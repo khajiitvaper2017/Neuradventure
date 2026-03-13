@@ -54,22 +54,21 @@ export type CanceledChatExchangePayload = {
 
 export function createChat(
   title: string,
-  scenario: string,
   speaker_strategy: string,
   next_speaker_index: number,
   members: ChatMemberInput[],
 ): number {
   const database = getDb()
   const insertChat = database.prepare(
-    `INSERT INTO chats (title, scenario, speaker_strategy, next_speaker_index)
-     VALUES (?, ?, ?, ?)`,
+    `INSERT INTO chats (title, speaker_strategy, next_speaker_index)
+     VALUES (?, ?, ?)`,
   )
   const insertMember = database.prepare(
     `INSERT INTO chat_members (chat_id, role, member_kind, character_id, state_json, sort_order)
      VALUES (?, ?, ?, ?, ?, ?)`,
   )
   const tx = database.transaction(() => {
-    const result = insertChat.run(title, scenario, speaker_strategy, next_speaker_index)
+    const result = insertChat.run(title, speaker_strategy, next_speaker_index)
     const chatId = result.lastInsertRowid as number
     for (const member of members) {
       insertMember.run(
@@ -102,18 +101,16 @@ export function getChat(id: number): ChatRow | undefined {
   return getDb().prepare("SELECT * FROM chats WHERE id = ?").get(id) as ChatRow | undefined
 }
 
-export function updateChat(id: number, data: { title?: string; scenario?: string }): void {
+export function updateChat(id: number, data: { title?: string }): void {
   const nextTitle = data.title ?? null
-  const nextScenario = data.scenario ?? null
   getDb()
     .prepare(
       `UPDATE chats
        SET title = COALESCE(?, title),
-           scenario = COALESCE(?, scenario),
            updated_at = datetime('now')
        WHERE id = ?`,
     )
-    .run(nextTitle, nextScenario, id)
+    .run(nextTitle, id)
 }
 
 export function deleteChat(id: number): void {

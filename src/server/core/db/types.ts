@@ -7,12 +7,15 @@ export interface GenerationParams {
   ctx_limit: number
   temperature: number
   top_k: number
+  top_a: number
   top_p: number
   min_p: number
   typical_p: number
+  tfs: number
   top_n_sigma: number
   repeat_penalty: number
   repeat_last_n: number
+  rep_pen_slope: number
   presence_penalty: number
   frequency_penalty: number
   mirostat: number
@@ -20,12 +23,22 @@ export interface GenerationParams {
   mirostat_eta: number
   dynatemp_range: number
   dynatemp_exponent: number
+  smoothing_factor: number
+  smoothing_curve: number
+  adaptive_target: number
+  adaptive_decay: number
   dry_multiplier: number
   dry_base: number
   dry_allowed_length: number
   dry_penalty_last_n: number
+  dry_sequence_breakers: string[]
   xtc_probability: number
   xtc_threshold: number
+  ban_eos_token: boolean
+  sampler_order: number[]
+  banned_tokens: string[]
+  logit_bias: Record<string, number>
+  render_special: boolean
   seed: number
 }
 

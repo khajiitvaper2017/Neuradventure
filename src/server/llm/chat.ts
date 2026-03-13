@@ -52,7 +52,6 @@ function formatMemberSummary(member: ChatMemberState): string {
 }
 
 export function buildChatMessages(
-  scenario: string,
   members: ChatMember[],
   history: ChatMessage[],
   nextSpeakerName: string,
@@ -85,7 +84,7 @@ export function buildChatMessages(
       ? Math.min(characterBook.scan_depth, trimmedHistory.length)
       : trimmedHistory.length
   const scannedHistory = scanDepth > 0 ? trimmedHistory.slice(-scanDepth) : []
-  const scanText = [scenario, scannedHistory.map((m) => `${m.speakerName}: ${m.content}`).join("\n")].join("\n\n")
+  const scanText = scannedHistory.map((m) => `${m.speakerName}: ${m.content}`).join("\n")
   const renderedBook = characterBook
     ? renderCharacterBook(characterBook, scanText)
     : { before_char: null, after_char: null }
@@ -95,9 +94,6 @@ export function buildChatMessages(
     : "(no messages yet)"
 
   const promptSections = [
-    "=== Scenario ===",
-    scenario?.trim() || "(none)",
-    "",
     renderedBook.before_char ? "=== Character Book (Before Participants) ===" : null,
     renderedBook.before_char ? renderedBook.before_char : null,
     renderedBook.before_char ? "" : null,

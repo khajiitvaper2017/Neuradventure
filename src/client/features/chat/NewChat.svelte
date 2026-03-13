@@ -9,8 +9,8 @@
   import { generateChatFromDescription } from "./actions.js"
 
   let title = $state("")
-  let scenario = $state("")
   let description = $state("")
+  let greeting = $state("")
   let loading = $state(false)
   let submitting = $state(false)
   let generating = $state(false)
@@ -28,6 +28,7 @@
   let seedGreetingEnabled = $state(false)
   let seedGreetingIndex = $state(0)
   let greetingFetchNonce = 0
+  let seedGreetingManual = false
 
   const CHAT_PROMPT_HISTORY_KEY = "na:prompt_history:chat"
 
@@ -44,6 +45,11 @@
     resetChat()
     void loadOptions()
     chatPromptHistory = loadPromptHistory(CHAT_PROMPT_HISTORY_KEY)
+  })
+
+  $effect(() => {
+    if (seedGreetingManual) return
+    seedGreetingEnabled = greeting.trim().length > 0
   })
 
   async function loadOptions() {
@@ -146,7 +152,6 @@
 
   async function refreshGreeting() {
     greetingOptions = []
-    seedGreetingEnabled = false
     seedGreetingIndex = 0
 
     if (aiKeys.length !== 1) return
@@ -170,8 +175,9 @@
         : []
       const greetings = [first, ...alts].filter((v) => v.trim().length > 0)
       greetingOptions = greetings
-      seedGreetingEnabled = greetings.length > 0
       seedGreetingIndex = 0
+      if (!greeting.trim() && greetings[0]) greeting = greetings[0]
+      if (!seedGreetingManual) seedGreetingEnabled = greeting.trim().length > 0 || greetings.length > 0
     } catch {
       // no stored card or invalid card
     } finally {
@@ -191,7 +197,8 @@
       chatPromptHistory = savePromptHistory(CHAT_PROMPT_HISTORY_KEY, prompt)
       const result = await generateChatFromDescription(prompt)
       title = result.title
-      scenario = result.scenario
+      greeting = result.greeting
+      if (!seedGreetingManual) seedGreetingEnabled = greeting.trim().length > 0
     } catch (err) {
       showError(err instanceof Error ? err.message : "Generation failed")
     } finally {
@@ -239,16 +246,15 @@
       ]
 
       const seedGreeting =
-        seedGreetingEnabled && greetingOptions.length > 0 && greetingOptions[seedGreetingIndex]?.trim()
+        seedGreetingEnabled && greeting.trim()
           ? {
               speaker_sort_order: 1,
-              content: greetingOptions[seedGreetingIndex],
+              content: greeting,
             }
           : undefined
 
       const { id } = await api.chats.create({
         title: title.trim() || undefined,
-        scenario: scenario.trim() || undefined,
         members,
         ...(seedGreeting ? { seed_greeting: seedGreeting } : {}),
       })
@@ -292,45 +298,61 @@
       <input id="chat-title" class="text-input" type="text" bind:value={title} placeholder="e.g. Fireside Council" />
     </div>
 
-    <div class="field">
-      <label for="chat-scenario">Scenario (optional)</label>
-      <textarea
-        id="chat-scenario"
-        class="text-input"
-        rows="3"
-        bind:value={scenario}
-        placeholder="Describe the chat setup or shared context."
-      ></textarea>
-    </div>
-
     {#if greetingLoading}
       <div class="field">
-        <div class="empty">Loading character greeting...</div>
+        <div class="empty">Loading character greetings...</div>
       </div>
     {:else if greetingOptions.length > 0}
       <div class="field">
-        <label for="seed-greeting-select">Seed Greeting (SillyTavern)</label>
-        <div class="field-row">
-          <button
-            class="toggle {seedGreetingEnabled ? 'active' : ''}"
-            onclick={() => (seedGreetingEnabled = !seedGreetingEnabled)}
-          >
-            {seedGreetingEnabled ? "On" : "Off"}
-          </button>
-          <select
-            id="seed-greeting-select"
-            class="text-input"
-            value={seedGreetingIndex}
-            disabled={!seedGreetingEnabled}
-            onchange={(e) => (seedGreetingIndex = Number((e.target as HTMLSelectElement).value))}
-          >
-            {#each greetingOptions as _, i}
-              <option value={i}>{i === 0 ? "Greeting 1 (first_mes)" : `Greeting ${i + 1}`}</option>
-            {/each}
-          </select>
-        </div>
+        <label for="greeting-template-select">Greeting Template (SillyTavern)</label>
+        <select
+          id="greeting-template-select"
+          class="text-input"
+          value={seedGreetingIndex}
+          onchange={(e) => {
+            seedGreetingIndex = Number((e.target as HTMLSelectElement).value)
+            greeting = greetingOptions[seedGreetingIndex] ?? greeting
+            if (!seedGreetingManual) seedGreetingEnabled = greeting.trim().length > 0
+          }}
+        >
+          {#each greetingOptions as _, i}
+            <option value={i}>{i === 0 ? "Greeting 1 (first_mes)" : `Greeting ${i + 1}`}</option>
+          {/each}
+        </select>
+        <div class="hint">Selecting a template fills the greeting text below.</div>
       </div>
     {/if}
+
+    <div class="field">
+      <label for="chat-greeting">Greeting (optional)</label>
+      <textarea
+        id="chat-greeting"
+        class="text-input"
+        rows="4"
+        bind:value={greeting}
+        placeholder="Optional: seed the first AI message to start the chat."
+        use:autoresize={greeting}
+      ></textarea>
+      <div class="hint">Supports placeholders: {"{{user}}"} (player), {"{{char}}"} (AI speaker).</div>
+    </div>
+
+    <div class="field">
+      <div class="field-label">Seed Greeting</div>
+      <div class="field-row">
+        <button
+          class="toggle {seedGreetingEnabled ? 'active' : ''}"
+          onclick={() => {
+            seedGreetingManual = true
+            seedGreetingEnabled = !seedGreetingEnabled
+          }}
+        >
+          {seedGreetingEnabled ? "On" : "Off"}
+        </button>
+        <div class="hint">
+          {seedGreetingEnabled ? "Adds the greeting as the first AI message." : "Starts with no greeting."}
+        </div>
+      </div>
+    </div>
 
     <div class="field">
       <label for="saved-player">Use Character From Stories</label>

@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount, tick } from "svelte"
-  import { api, type ChatMessage } from "../../api/client.js"
+  import { api, type ChatMember, type ChatMessage } from "../../api/client.js"
   import { normalizeChatInput } from "../../utils/inputNormalize.js"
   import { scrollToBottom } from "../../utils/scroll.js"
   import { showConfirm, showError, goBack } from "../../stores/ui.js"
@@ -9,7 +9,6 @@
     chatMembers,
     chatMessages,
     currentChatId,
-    currentChatScenario,
     currentChatTitle,
     isChatGenerating,
     nextSpeakerIndex,
@@ -40,10 +39,17 @@
   let logEl: HTMLDivElement | null = null
   let editingMessageId = $state<number | null>(null)
   let editMessageContent = $state("")
-  let showScenarioEditor = $state(false)
+  let showTitleEditor = $state(false)
   let titleDraft = $state("")
-  let scenarioDraft = $state("")
   let showSpeakerPicker = $state(false)
+  let showGreetingPicker = $state(false)
+  let greetingLoading = $state(false)
+  let greetingOptions = $state<string[]>([])
+  let greetingFetchNonce = 0
+  let greetingIndex = $state<number>(0)
+  let lastGreetingCharId: number | null = null
+
+  let visibleMessages = $derived($chatMessages.filter((m) => m.role !== "system"))
 
   function participantLabel() {
     return $chatMembers.map((m) => m.name).join(" · ")
@@ -65,7 +71,7 @@
   }
 
   $effect(() => {
-    if ($chatMessages.length === 0) return
+    if (visibleMessages.length === 0) return
     tick().then(() => scrollToBottom(logEl))
   })
 
@@ -73,30 +79,122 @@
     tick().then(() => scrollToBottom(logEl))
   })
 
-  function startEditScenario() {
+  function startEditTitle() {
     titleDraft = $currentChatTitle
-    scenarioDraft = $currentChatScenario
-    showScenarioEditor = true
+    showTitleEditor = true
   }
 
-  function cancelEditScenario() {
-    showScenarioEditor = false
+  function cancelEditTitle() {
+    showTitleEditor = false
   }
 
-  async function saveScenario() {
+  async function saveTitle() {
     if (!$currentChatId) return
     try {
       await api.chats.update($currentChatId, {
         title: titleDraft.trim(),
-        scenario: scenarioDraft.trim(),
       })
       currentChatTitle.set(titleDraft.trim())
-      currentChatScenario.set(scenarioDraft.trim())
-      showScenarioEditor = false
+      showTitleEditor = false
     } catch (err) {
       showError(err instanceof Error ? err.message : "Failed to update chat")
     }
   }
+
+  type SingleAiCharacter = ChatMember & { role: "ai"; member_kind: "character"; character_id: number }
+  function singleAiCharacter(): SingleAiCharacter | null {
+    const ai = $chatMembers.filter((m) => m.role === "ai")
+    if (ai.length !== 1) return null
+    const member = ai[0]
+    if (!member || member.member_kind !== "character" || member.character_id == null) return null
+    return member as SingleAiCharacter
+  }
+
+  function playerName() {
+    return $chatMembers.find((m) => m.role === "player")?.name?.trim() || "Player"
+  }
+
+  function seededGreetingMessage() {
+    const hasAnyUser = visibleMessages.some((m) => m.role === "user")
+    if (hasAnyUser) return null
+    const assistants = visibleMessages.filter((m) => m.role === "assistant")
+    if (assistants.length !== 1) return null
+    return assistants[0] ?? null
+  }
+
+  function renderGreeting(template: string) {
+    const ai = singleAiCharacter()
+    if (!ai) return template
+    return template.replaceAll("{{user}}", playerName()).replaceAll("{{char}}", ai.name || "")
+  }
+
+  async function refreshGreetingOptions() {
+    const ai = singleAiCharacter()
+    if (!ai) return
+    if (ai.character_id === lastGreetingCharId && greetingOptions.length > 0) return
+    lastGreetingCharId = ai.character_id
+
+    const nonce = ++greetingFetchNonce
+    greetingLoading = true
+    try {
+      const card = (await api.stories.getCharacterCard(ai.character_id)) as {
+        spec?: unknown
+        data?: { first_mes?: unknown; alternate_greetings?: unknown }
+      }
+      if (nonce !== greetingFetchNonce) return
+      if (card.spec !== "chara_card_v2" || !card.data) return
+      const first = typeof card.data.first_mes === "string" ? card.data.first_mes.trim() : ""
+      const alts = Array.isArray(card.data.alternate_greetings)
+        ? (card.data.alternate_greetings as unknown[])
+            .filter((v): v is string => typeof v === "string")
+            .map((v) => v.trim())
+        : []
+      const nextOptions = [first, ...alts].filter((v) => v.trim().length > 0)
+      greetingOptions = nextOptions
+      const current = seededGreetingMessage()?.content?.trim() ?? ""
+      const rendered = nextOptions.map((t) => renderGreeting(t).trim())
+      const matchIndex = current ? rendered.findIndex((t) => t === current) : -1
+      greetingIndex = matchIndex >= 0 ? matchIndex : -1
+    } catch {
+      // no stored card or invalid card
+    } finally {
+      if (nonce === greetingFetchNonce) greetingLoading = false
+    }
+  }
+
+  async function applyGreetingSelection() {
+    if (!$currentChatId || $isChatGenerating) return
+    const target = seededGreetingMessage()
+    if (!target) return
+    if (greetingIndex < 0) {
+      showGreetingPicker = false
+      return
+    }
+    const template = greetingOptions[greetingIndex]
+    const next = template ? renderGreeting(template).trim() : ""
+    if (!next) return
+    try {
+      const result = await api.chats.updateMessage($currentChatId, target.id, next)
+      chatMessages.update((list) => list.map((m) => (m.id === target.id ? result.message : m)))
+      showGreetingPicker = false
+      canUndoChatCancel.set(false)
+    } catch (err) {
+      showError(err instanceof Error ? err.message : "Failed to update greeting")
+    }
+  }
+
+  $effect(() => {
+    const ai = singleAiCharacter()
+    const target = seededGreetingMessage()
+    if (!ai || !target) {
+      greetingOptions = []
+      greetingLoading = false
+      showGreetingPicker = false
+      lastGreetingCharId = null
+      return
+    }
+    void refreshGreetingOptions()
+  })
 
   async function setNextSpeaker(memberId: number) {
     if (!$currentChatId || $isChatGenerating) return
@@ -135,7 +233,7 @@
   }
 
   async function regenerateLast() {
-    if (!$currentChatId || $isChatGenerating || $chatMessages.length === 0) return
+    if (!$currentChatId || $isChatGenerating || visibleMessages.length === 0) return
     isChatGenerating.set(true)
     try {
       const result = await api.chats.regenerateLast($currentChatId)
@@ -150,7 +248,7 @@
   }
 
   async function cancelLastExchange() {
-    if (!$currentChatId || $isChatGenerating || $chatMessages.length === 0) return
+    if (!$currentChatId || $isChatGenerating || visibleMessages.length === 0) return
     isChatGenerating.set(true)
     try {
       const result = await api.chats.cancelLast($currentChatId)
@@ -246,35 +344,46 @@
     </div>
 
     <div class="header-actions">
-      <span class="turn-badge">{$chatMessages.length}</span>
+      <span class="turn-badge">{visibleMessages.length}</span>
+      <button
+        class="edit-btn header"
+        onclick={startEditTitle}
+        disabled={$isChatGenerating}
+        title="Edit title"
+        aria-label="Edit title"
+      >
+        <IconPencilSquare size={12} strokeWidth={2} />
+      </button>
       {#if showNextSpeakerControl()}
         <button class="next-speaker" onclick={() => (showSpeakerPicker = true)} title="Pick next speaker">
           Next: {nextSpeakerName()}
         </button>
       {/if}
+      {#if seededGreetingMessage() && singleAiCharacter() && (greetingLoading || greetingOptions.length > 0)}
+        <button
+          class="next-speaker"
+          onclick={() => (showGreetingPicker = true)}
+          disabled={greetingLoading || $isChatGenerating}
+          title="Switch greeting"
+        >
+          Greeting
+        </button>
+      {/if}
     </div>
   </header>
 
-  {#if showScenarioEditor}
+  {#if showTitleEditor}
     <div class="editor-overlay">
       <div class="editor-panel">
         <div class="editor-header">
-          <span>Chat Setup</span>
-          <span class="editor-hint">Edit the title and scenario for this chat</span>
+          <span>Chat Title</span>
+          <span class="editor-hint">Rename this chat</span>
         </div>
         <label class="edit-label" for="chat-title">Title</label>
         <input id="chat-title" class="edit-input" type="text" bind:value={titleDraft} />
-        <label class="edit-label" for="chat-scenario">Scenario</label>
-        <textarea
-          id="chat-scenario"
-          class="edit-textarea"
-          bind:value={scenarioDraft}
-          rows="5"
-          use:autoresize={scenarioDraft}
-        ></textarea>
         <div class="edit-actions">
-          <button class="btn-ghost" onclick={cancelEditScenario}>Cancel</button>
-          <button class="btn-accent" onclick={saveScenario}>Save</button>
+          <button class="btn-ghost" onclick={cancelEditTitle}>Cancel</button>
+          <button class="btn-accent" onclick={saveTitle}>Save</button>
         </div>
       </div>
     </div>
@@ -316,36 +425,66 @@
     </div>
   {/if}
 
-  <div class="chat-log" bind:this={logEl} data-scroll-root="screen">
-    {#if $currentChatScenario.trim() || $chatMembers.length > 0}
-      <div class="opening-block">
-        <div class="opening-header">
-          <span>Scenario</span>
-          <button
-            class="edit-btn"
-            onclick={startEditScenario}
+  {#if showGreetingPicker}
+    <div
+      class="editor-overlay"
+      role="button"
+      tabindex="0"
+      aria-label="Close greeting picker"
+      onclick={(e) => {
+        if (e.currentTarget !== e.target) return
+        showGreetingPicker = false
+      }}
+      onkeydown={(e) => {
+        if (e.key === "Escape" || e.key === "Enter" || e.key === " ") {
+          e.preventDefault()
+          showGreetingPicker = false
+        }
+      }}
+    >
+      <div class="editor-panel">
+        <div class="editor-header">
+          <span>Greeting</span>
+          <span class="editor-hint">Switch the seeded greeting before your first message</span>
+        </div>
+
+        {#if greetingLoading}
+          <div class="empty">Loading greetings...</div>
+        {:else if greetingOptions.length === 0}
+          <div class="empty">No greetings available.</div>
+        {:else}
+          <label class="edit-label" for="greeting-select">Greeting</label>
+          <select
+            id="greeting-select"
+            class="edit-input"
+            value={greetingIndex}
+            onchange={(e) => (greetingIndex = Number((e.target as HTMLSelectElement).value))}
             disabled={$isChatGenerating}
-            title="Edit scenario"
-            aria-label="Edit scenario"
           >
-            <IconPencilSquare size={12} strokeWidth={2} />
+            {#if greetingIndex === -1}
+              <option value={-1}>Current (custom)</option>
+            {/if}
+            {#each greetingOptions as _, i}
+              <option value={i}>{i === 0 ? "Greeting 1 (first_mes)" : `Greeting ${i + 1}`}</option>
+            {/each}
+          </select>
+        {/if}
+
+        <div class="edit-actions">
+          <button class="btn-ghost" onclick={() => (showGreetingPicker = false)}>Close</button>
+          <button class="btn-accent" onclick={applyGreetingSelection} disabled={$isChatGenerating || greetingIndex < 0}>
+            Apply
           </button>
         </div>
-        {#if $currentChatScenario.trim()}
-          <p class="opening-text">
-            <InlineTokens text={$currentChatScenario} />
-          </p>
-        {/if}
-        {#if $chatMembers.length > 0}
-          <p class="chat-participants">{participantLabel()}</p>
-        {/if}
       </div>
-    {/if}
+    </div>
+  {/if}
 
-    {#if $chatMessages.length === 0}
+  <div class="chat-log" bind:this={logEl} data-scroll-root="screen">
+    {#if visibleMessages.length === 0}
       <div class="empty">No messages yet.</div>
     {:else}
-      {#each $chatMessages as message (message.id)}
+      {#each visibleMessages as message (message.id)}
         <div class="chat-message {message.role === 'user' ? 'from-user' : 'from-ai'}">
           <div class="chat-speaker">
             <span>{message.speaker_name}</span>
@@ -418,7 +557,7 @@
       <button
         class="mode-undo"
         onclick={cancelLastExchange}
-        disabled={$isChatGenerating || $chatMessages.length === 0}
+        disabled={$isChatGenerating || visibleMessages.length === 0}
         title="Cancel last exchange"
         aria-label="Cancel last exchange"
       >
@@ -438,7 +577,7 @@
       <button
         class="mode-regen"
         onclick={regenerateLast}
-        disabled={$isChatGenerating || $chatMessages.length === 0}
+        disabled={$isChatGenerating || visibleMessages.length === 0}
         title="Regenerate last reply"
         aria-label="Regenerate last reply"
       >
@@ -563,39 +702,6 @@
     }
   }
 
-  .opening-block {
-    background: var(--bg-raised);
-    border: 1px solid var(--border);
-    border-radius: 6px;
-    padding: 0.9rem;
-    display: flex;
-    flex-direction: column;
-    gap: 0.6rem;
-    margin-bottom: 1.25rem;
-  }
-  .opening-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    font-size: 0.72rem;
-    letter-spacing: 0.1em;
-    color: var(--text-dim);
-  }
-  .opening-text {
-    font-family: var(--font-story);
-    font-size: var(--story-size);
-    line-height: var(--story-line);
-    color: var(--text);
-    font-style: italic;
-    opacity: 0.75;
-    white-space: pre-line;
-  }
-  .chat-participants {
-    font-size: 0.7rem;
-    color: var(--text-dim);
-    letter-spacing: 0.08em;
-  }
-
   .chat-message {
     display: flex;
     flex-direction: column;
@@ -681,6 +787,10 @@
   }
   .edit-btn:hover {
     color: var(--text);
+  }
+  .edit-btn.header {
+    padding: 0.25rem 0.5rem;
+    min-height: 28px;
   }
   .edit-btn.inline {
     margin-left: auto;

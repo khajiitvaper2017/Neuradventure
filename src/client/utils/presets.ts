@@ -8,6 +8,12 @@ let loaded = false
 
 export async function loadPresets() {
   if (loaded) return
+  await refreshPresets()
+}
+
+export const presets = presetsStore
+
+export async function refreshPresets() {
   try {
     const list = await api.settings.presets()
     presetsStore.set(list)
@@ -16,5 +22,3 @@ export async function loadPresets() {
     console.error("[presets] Failed to load presets.", err)
   }
 }
-
-export const presets = presetsStore
