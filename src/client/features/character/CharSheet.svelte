@@ -66,7 +66,7 @@
   let editing = $state(false)
   let saving = $state(false)
   let showBaselineDetails = $state(false)
-  const detailMode = $derived($currentStoryModules?.character_detail_mode ?? "detailed")
+  const useAppearance = $derived($currentStoryModules?.character_appearance_clothing ?? true)
   const usePersonalityTraits = $derived($currentStoryModules?.character_personality_traits ?? true)
   const useMajorFlaws = $derived($currentStoryModules?.character_major_flaws ?? true)
   const useQuirks = $derived($currentStoryModules?.character_quirks ?? true)
@@ -107,10 +107,10 @@
   function buildCharacterSigs(c: MainCharacterState): CharacterSigs {
     return {
       identity: `${c.name}|${c.race}|${c.gender}`,
-      generalDescription: c.general_description?.trim() ?? "",
-      baselineAppearance: c.baseline_appearance ?? "",
-      currentAppearance: c.current_appearance ?? "",
-      clothing: c.current_clothing ?? "",
+      generalDescription: c.general_description.trim(),
+      baselineAppearance: c.baseline_appearance,
+      currentAppearance: c.current_appearance,
+      clothing: c.current_clothing,
       inventory: c.inventory.map((item) => `${item.name}:${item.description}`).join("|"),
     }
   }
@@ -145,15 +145,15 @@
       { id: "cs-race", label: "Race", kind: "input", value: draft.race, onInput: (v) => (draft.race = v) },
       { id: "cs-gender", label: "Gender", kind: "input", value: draft.gender, onInput: (v) => (draft.gender = v) },
     ]
-    if (detailMode === "general") {
-      fields.push({
-        id: "cs-general-description",
-        label: "General Description",
-        kind: "textarea",
-        value: draft.generalDescription,
-        onInput: (v) => (draft.generalDescription = v),
-      })
-    } else {
+    fields.push({
+      id: "cs-description",
+      label: "Description",
+      kind: "textarea",
+      value: draft.generalDescription,
+      onInput: (v) => (draft.generalDescription = v),
+    })
+
+    if (useAppearance) {
       fields.push(
         {
           id: "cs-baseline-appearance",
@@ -269,8 +269,8 @@
       showError("Name, race, and gender are required.")
       return
     }
-    if (detailMode === "general" && !generalDescription) {
-      showError("General description is required.")
+    if (!generalDescription) {
+      showError("Description is required.")
       return
     }
     const existing = $character
@@ -297,22 +297,21 @@
       name,
       race,
       gender,
-      general_description: generalDescription || existing?.general_description,
+      general_description: generalDescription,
       current_location: existing?.current_location ?? "",
-      baseline_appearance:
-        detailMode === "general"
-          ? (existing?.baseline_appearance ?? "")
-          : baselineAppearance || existing?.baseline_appearance || "",
-      current_appearance:
-        detailMode === "general"
-          ? (existing?.current_appearance ?? "")
-          : currentAppearance ||
-            existing?.current_appearance ||
-            baselineAppearance ||
-            existing?.baseline_appearance ||
-            "",
-      current_clothing:
-        detailMode === "general" ? (existing?.current_clothing ?? "") : clothing || existing?.current_clothing || "",
+      baseline_appearance: !useAppearance
+        ? (existing?.baseline_appearance ?? "")
+        : baselineAppearance || existing?.baseline_appearance || "",
+      current_appearance: !useAppearance
+        ? (existing?.current_appearance ?? "")
+        : currentAppearance ||
+          existing?.current_appearance ||
+          baselineAppearance ||
+          existing?.baseline_appearance ||
+          "",
+      current_clothing: !useAppearance
+        ? (existing?.current_clothing ?? "")
+        : clothing || existing?.current_clothing || "",
       personality_traits: personalityTraits.length > 0 ? personalityTraits : (existing?.personality_traits ?? []),
       major_flaws: majorFlaws.length > 0 ? majorFlaws : (existing?.major_flaws ?? []),
       quirks: quirks.length > 0 ? quirks : (existing?.quirks ?? []),
@@ -381,15 +380,15 @@
         const nextSigs = buildCharacterSigs($character)
         if (lastSigs) {
           if (nextSigs.identity !== lastSigs.identity) triggerFlash("identity")
-          if (detailMode === "general") {
-            if (nextSigs.generalDescription !== lastSigs.generalDescription) triggerFlash("appearance")
-          } else if (
-            nextSigs.baselineAppearance !== lastSigs.baselineAppearance ||
-            nextSigs.currentAppearance !== lastSigs.currentAppearance
+          if (nextSigs.generalDescription !== lastSigs.generalDescription) triggerFlash("appearance")
+          if (
+            useAppearance &&
+            (nextSigs.baselineAppearance !== lastSigs.baselineAppearance ||
+              nextSigs.currentAppearance !== lastSigs.currentAppearance)
           ) {
             triggerFlash("appearance")
           }
-          if (detailMode === "detailed" && nextSigs.clothing !== lastSigs.clothing) triggerFlash("clothing")
+          if (useAppearance && nextSigs.clothing !== lastSigs.clothing) triggerFlash("clothing")
           if (useInventory && nextSigs.inventory !== lastSigs.inventory) triggerFlash("inventory")
         }
         lastSigs = nextSigs
@@ -477,45 +476,15 @@
         </div>
       </div>
 
-      {#if detailMode === "general"}
-        <div class="cs-section" class:flash={flashAppearance}>
-          <div class="cs-section-header">
-            <IconFace size={14} strokeWidth={1.5} className="cs-icon" />
-            <span class="section-label">General Description</span>
-          </div>
-          <div class="cs-value">{displayCharacter.general_description || "Unknown description"}</div>
+      <div class="cs-section" class:flash={flashAppearance}>
+        <div class="cs-section-header">
+          <IconFace size={14} strokeWidth={1.5} className="cs-icon" />
+          <span class="section-label">Description</span>
         </div>
-        {#if showTraitSection && ((usePersonalityTraits && displayCharacter.personality_traits.length > 0) || (useMajorFlaws && displayCharacter.major_flaws.length > 0) || (useQuirks && displayCharacter.quirks.length > 0) || (usePerks && displayCharacter.perks.length > 0))}
-          <div class="cs-section">
-            <div class="cs-section-header">
-              <IconStar size={14} strokeWidth={1.5} className="cs-icon" />
-              <span class="section-label">Traits · Flaws · Quirks · Perks</span>
-            </div>
-            <div class="chips">
-              {#if usePersonalityTraits}
-                {#each displayCharacter.personality_traits as t}
-                  <span class="chip">{t}</span>
-                {/each}
-              {/if}
-              {#if useMajorFlaws}
-                {#each displayCharacter.major_flaws as t}
-                  <span class="chip">{t}</span>
-                {/each}
-              {/if}
-              {#if useQuirks}
-                {#each displayCharacter.quirks as t}
-                  <span class="chip">{t}</span>
-                {/each}
-              {/if}
-              {#if usePerks}
-                {#each displayCharacter.perks as t}
-                  <span class="chip">{t}</span>
-                {/each}
-              {/if}
-            </div>
-          </div>
-        {/if}
-      {:else}
+        <div class="cs-value">{displayCharacter.general_description || "Unknown description"}</div>
+      </div>
+
+      {#if useAppearance}
         {#if showBaselineDetails}
           <div class="cs-section" class:flash={flashAppearance}>
             <div class="cs-section-header">
@@ -541,37 +510,37 @@
           </div>
           <div class="cs-value">{displayCharacter.current_clothing}</div>
         </div>
+      {/if}
 
-        {#if showTraitSection && ((usePersonalityTraits && displayCharacter.personality_traits.length > 0) || (useMajorFlaws && displayCharacter.major_flaws.length > 0) || (useQuirks && displayCharacter.quirks.length > 0) || (usePerks && displayCharacter.perks.length > 0))}
-          <div class="cs-section">
-            <div class="cs-section-header">
-              <IconStar size={14} strokeWidth={1.5} className="cs-icon" />
-              <span class="section-label">Traits · Flaws · Quirks · Perks</span>
-            </div>
-            <div class="chips">
-              {#if usePersonalityTraits}
-                {#each displayCharacter.personality_traits as t}
-                  <span class="chip">{t}</span>
-                {/each}
-              {/if}
-              {#if useMajorFlaws}
-                {#each displayCharacter.major_flaws as t}
-                  <span class="chip">{t}</span>
-                {/each}
-              {/if}
-              {#if useQuirks}
-                {#each displayCharacter.quirks as t}
-                  <span class="chip">{t}</span>
-                {/each}
-              {/if}
-              {#if usePerks}
-                {#each displayCharacter.perks as t}
-                  <span class="chip">{t}</span>
-                {/each}
-              {/if}
-            </div>
+      {#if showTraitSection && ((usePersonalityTraits && displayCharacter.personality_traits.length > 0) || (useMajorFlaws && displayCharacter.major_flaws.length > 0) || (useQuirks && displayCharacter.quirks.length > 0) || (usePerks && displayCharacter.perks.length > 0))}
+        <div class="cs-section">
+          <div class="cs-section-header">
+            <IconStar size={14} strokeWidth={1.5} className="cs-icon" />
+            <span class="section-label">Traits · Flaws · Quirks · Perks</span>
           </div>
-        {/if}
+          <div class="chips">
+            {#if usePersonalityTraits}
+              {#each displayCharacter.personality_traits as t}
+                <span class="chip">{t}</span>
+              {/each}
+            {/if}
+            {#if useMajorFlaws}
+              {#each displayCharacter.major_flaws as t}
+                <span class="chip">{t}</span>
+              {/each}
+            {/if}
+            {#if useQuirks}
+              {#each displayCharacter.quirks as t}
+                <span class="chip">{t}</span>
+              {/each}
+            {/if}
+            {#if usePerks}
+              {#each displayCharacter.perks as t}
+                <span class="chip">{t}</span>
+              {/each}
+            {/if}
+          </div>
+        </div>
       {/if}
 
       {#if useInventory}
@@ -611,7 +580,7 @@
         <span>Character Sheet</span>
       </div>
       <div class="cs-header-actions">
-        {#if detailMode === "detailed"}
+        {#if useAppearance}
           <button
             class="cs-toggle-btn"
             onclick={() => (showBaselineDetails = !showBaselineDetails)}
@@ -646,7 +615,7 @@
         <span>Character Sheet</span>
       </div>
       <div class="cs-header-actions">
-        {#if detailMode === "detailed"}
+        {#if useAppearance}
           <button
             class="cs-toggle-btn"
             onclick={() => (showBaselineDetails = !showBaselineDetails)}

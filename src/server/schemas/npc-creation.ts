@@ -23,6 +23,7 @@ export function buildNpcCreationSchema(flags: NpcCreationFlags) {
     name: z.string().min(1),
     race: z.string().min(1),
     gender: z.string().min(1),
+    general_description: z.string().min(1),
   }
 
   if (flags.useNpcPersonalityTraits) {
@@ -47,8 +48,6 @@ export function buildNpcCreationSchema(flags: NpcCreationFlags) {
     shape.baseline_appearance = z.string().min(1)
     shape.current_clothing = z.string().min(1)
     shape.current_appearance = z.string().min(1)
-  } else {
-    shape.general_description = z.string().min(1)
   }
   return z.object(shape).strict()
 }

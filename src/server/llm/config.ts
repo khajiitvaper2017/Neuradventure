@@ -14,15 +14,10 @@ type PromptModuleBlock = {
   off?: string[]
 }
 
-type PromptDetailBlock = {
-  detailed?: string[]
-  general?: string[]
-}
-
 type PromptModules = {
   track_npcs?: PromptModuleBlock
   track_locations?: PromptModuleBlock
-  character_detail_mode?: PromptDetailBlock
+  character_appearance_clothing?: PromptModuleBlock
   character_personality_traits?: PromptModuleBlock
   character_major_flaws?: PromptModuleBlock
   character_quirks?: PromptModuleBlock
@@ -107,11 +102,11 @@ function resolvePrompt(prompt: ModularPrompt | undefined, modules?: StoryModules
   if (blocks?.track_locations) {
     pushLines(active.track_locations ? blocks.track_locations.on : blocks.track_locations.off)
   }
-  if (blocks?.character_detail_mode) {
+  if (blocks?.character_appearance_clothing) {
     pushLines(
-      active.character_detail_mode === "general"
-        ? blocks.character_detail_mode.general
-        : blocks.character_detail_mode.detailed,
+      active.character_appearance_clothing
+        ? blocks.character_appearance_clothing.on
+        : blocks.character_appearance_clothing.off,
     )
   }
   if (blocks?.character_personality_traits) {

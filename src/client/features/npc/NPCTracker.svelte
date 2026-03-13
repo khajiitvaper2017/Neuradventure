@@ -82,15 +82,15 @@
       })
     }
 
-    if (!useNpcAppearance) {
-      fields.push({
-        id: npcFieldId(npc, "general-description"),
-        label: "General Description",
-        kind: "textarea",
-        value: draft.generalDescription,
-        onInput: (v) => (draft.generalDescription = v),
-      })
-    } else {
+    fields.push({
+      id: npcFieldId(npc, "description"),
+      label: "Description",
+      kind: "textarea",
+      value: draft.generalDescription,
+      onInput: (v) => (draft.generalDescription = v),
+    })
+
+    if (useNpcAppearance) {
       fields.push(
         {
           id: npcFieldId(npc, "baseline-appearance"),
@@ -207,8 +207,8 @@
       showError("Name, race, and gender are required.")
       return
     }
-    if (!useNpcAppearance && !generalDescription) {
-      showError("General description is required.")
+    if (!generalDescription) {
+      showError("Description is required.")
       return
     }
     const traits = useNpcPersonalityTraits ? splitCsv(draft.traits) : []
@@ -229,9 +229,7 @@
       name,
       race,
       gender,
-      general_description: useNpcAppearance
-        ? (existingNpc?.general_description ?? generalDescription)
-        : generalDescription || existingNpc?.general_description,
+      general_description: generalDescription,
       current_location: useNpcLocation
         ? location || existingNpc?.current_location || ""
         : (existingNpc?.current_location ?? ""),
@@ -603,6 +601,11 @@
             </div>
           {/if}
 
+          <div class="npc-detail-row">
+            <IconDocument size={13} strokeWidth={1.5} className="npc-icon" />
+            <span>{npc.general_description || "Unknown description"}</span>
+          </div>
+
           {#if useNpcAppearance}
             {#if showBaselineDetails}
               <div class="npc-detail-row">
@@ -623,11 +626,6 @@
             <div class="npc-detail-row muted">
               <IconShirt size={13} strokeWidth={1.5} className="npc-icon" />
               <span>{npc.current_clothing}</span>
-            </div>
-          {:else}
-            <div class="npc-detail-row">
-              <IconDocument size={13} strokeWidth={1.5} className="npc-icon" />
-              <span>{npc.general_description || "Unknown description"}</span>
             </div>
           {/if}
 

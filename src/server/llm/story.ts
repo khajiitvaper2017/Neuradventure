@@ -38,11 +38,8 @@ export async function generateStory(
   ]
     .map((t) => t.trim())
     .filter(Boolean)
-  const baselineAppearance = character.baseline_appearance || unknown
-  const currentAppearance = character.current_appearance || baselineAppearance
   const majorFlaws = flags.useCharMajorFlaws ? (character.major_flaws?.map((t) => t.trim()).filter(Boolean) ?? []) : []
   const generalDescription = character.general_description?.trim() || defaults.unknown.generalDescription
-  const useGeneral = modules.character_detail_mode === "general"
   const promptLines = getGenerateStoryPrompt(modules).split("\n")
   const result = await callLLMRaw<unknown>(
     [
@@ -54,15 +51,20 @@ export async function generateStory(
           formatTemplate(llmStrings.characterContextLabels.name, { value: character.name }),
           formatTemplate(llmStrings.characterContextLabels.race, { value: character.race || unknown }),
           formatTemplate(llmStrings.characterContextLabels.gender, { value: character.gender || unknown }),
-          ...(useGeneral
-            ? [formatTemplate(llmStrings.characterContextLabels.generalDescription, { value: generalDescription })]
-            : [
-                formatTemplate(llmStrings.characterContextLabels.baselineAppearance, { value: baselineAppearance }),
-                formatTemplate(llmStrings.characterContextLabels.currentAppearance, { value: currentAppearance }),
+          formatTemplate(llmStrings.characterContextLabels.generalDescription, { value: generalDescription }),
+          ...(flags.useCharAppearance
+            ? [
+                formatTemplate(llmStrings.characterContextLabels.baselineAppearance, {
+                  value: character.baseline_appearance || unknown,
+                }),
+                formatTemplate(llmStrings.characterContextLabels.currentAppearance, {
+                  value: character.current_appearance || character.baseline_appearance || unknown,
+                }),
                 formatTemplate(llmStrings.characterContextLabels.clothing, {
                   value: character.current_clothing || unknown,
                 }),
-              ]),
+              ]
+            : []),
           ...(flags.useCharMajorFlaws
             ? [
                 formatTemplate(llmStrings.characterContextLabels.majorFlaws, {

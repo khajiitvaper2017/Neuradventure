@@ -220,7 +220,7 @@ export function tavernCardToCharacter(card: TavernCardV2): TavernImportResult {
     }
   }
 
-  const generalDescription = description.trim() || undefined
+  const generalDescription = description.trim() || getServerDefaults().unknown.generalDescription
 
   const sourceText = [
     `Name: ${card.data.name || getServerDefaults().unknown.value}`,

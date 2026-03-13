@@ -7,6 +7,7 @@
       "Also, if generating entity names or stories, avoid these overused words/phrases: Elara, Whispering ___, Obsidian ___, Crimson ___, Emerald ___, Emily Carter, Old Man Hemlock, Silas, Lyra, Anya, Seraphina, Shadow reaver/weaver, dimly lit, leather-bound journal, broken/cracked mirror. (These phrases have been deemed cliche and are forbidden; use alternative wordings instead).",
       "PLAYER CHARACTER UPDATES:",
       "starting_location: {starting_location}",
+      "- character_general_description: {generation.story.character_general_description}",
       "CONSISTENCY CHECK — verify before output:",
       "- title is specific and tied to the scenario.",
       "- starting_location matches opening_scenario.",
@@ -27,20 +28,16 @@
         ],
         "off": []
       },
-      "character_detail_mode": {
-        "detailed": [
-          "- current_appearance: {current_appearance}"
-        ],
-        "general": [
-          "- character_general_description: {generation.story.character_general_description}"
-        ]
+      "character_appearance_clothing": {
+        "on": ["- current_appearance: {current_appearance}"],
+        "off": []
       },
       "npc_appearance_clothing": {
         "on": [
           "- NPC appearance: ",
-          "- baseline_appearance ({baseline_appearance}",
-          "- current_clothing ({current_clothing}",
-          "- current_appearance ({current_appearance}"
+          "- baseline_appearance: {baseline_appearance}",
+          "- current_clothing: {current_clothing}",
+          "- current_appearance: {current_appearance}"
         ],
         "off": []
       },

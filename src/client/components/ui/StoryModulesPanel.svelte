@@ -8,12 +8,6 @@
   function updateModule<K extends keyof StoryModules>(key: K, value: StoryModules[K]) {
     setModules({ ...modules, [key]: value })
   }
-
-  function updateDetailMode(next: StoryModules["character_detail_mode"]) {
-    const nextModules: StoryModules = { ...modules, character_detail_mode: next }
-    if (next === "detailed") nextModules.character_appearance_clothing = true
-    setModules(nextModules)
-  }
 </script>
 
 <div class="modules-panel" class:bare>
@@ -42,35 +36,21 @@
         onchange={(e) => updateModule("track_locations", (e.target as HTMLInputElement).checked)}
       />
     </label>
-
-    <label class="control-row control-row--input modules-detail-row">
-      <span class="control-row-text">
-        <span class="control-row-title">Character detail mode</span>
-        <span class="control-row-sub">Default character detail style for new stories</span>
-      </span>
-      <select
-        class="select-input"
-        value={modules.character_detail_mode}
-        onchange={(e) =>
-          updateDetailMode((e.target as HTMLSelectElement).value as StoryModules["character_detail_mode"])}
-      >
-        <option value="detailed">Detailed (appearance + traits)</option>
-        <option value="general">General description only</option>
-      </select>
-    </label>
   </div>
 
   <div class="modules-group">
     <div class="control-section-label">Player</div>
-    {#if modules.character_detail_mode === "detailed"}
-      <label class="control-row">
-        <span class="control-row-text">
-          <span class="control-row-title">Player appearance + clothing</span>
-          <span class="control-row-sub">Always enabled in detailed mode</span>
-        </span>
-        <input type="checkbox" checked={true} disabled />
-      </label>
-    {/if}
+    <label class="control-row">
+      <span class="control-row-text">
+        <span class="control-row-title">Player appearance + clothing</span>
+        <span class="control-row-sub">Show and update appearance/clothing fields</span>
+      </span>
+      <input
+        type="checkbox"
+        checked={modules.character_appearance_clothing}
+        onchange={(e) => updateModule("character_appearance_clothing", (e.target as HTMLInputElement).checked)}
+      />
+    </label>
 
     <label class="control-row">
       <span class="control-row-text">

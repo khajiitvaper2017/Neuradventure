@@ -19,7 +19,7 @@ export interface CharacterState {
   name: string
   race: string
   gender: string
-  general_description?: string
+  general_description: string
   current_location: string
   baseline_appearance: string
   current_appearance: string
@@ -40,7 +40,6 @@ export interface NPCState extends CharacterState {
 export interface StoryModules {
   track_npcs: boolean
   track_locations: boolean
-  character_detail_mode: "detailed" | "general"
   character_appearance_clothing: boolean
   character_personality_traits: boolean
   character_major_flaws: boolean

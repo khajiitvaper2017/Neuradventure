@@ -8,7 +8,8 @@
       "Don't write like `Height: 183 cm.`, write like `He is 183 cm tall`.",
       "- name: {state.character.name} If not specified, try to be creative.",
       "- race: {state.character.race} Default to 'Human' unless an alternate race is explicitly provided in the source text.",
-      "- gender: {state.character.gender} Define gender definitively. Directly and clinically specify any non-standard anatomical configurations if dictated by the prompt (e.g., 'Futanari','Intersex')."
+      "- gender: {state.character.gender} Define gender definitively. Directly and clinically specify any non-standard anatomical configurations if dictated by the prompt (e.g., 'Futanari','Intersex').",
+      "- general_description: {state.character.general_description}"
     ],
     "modules": {
       "track_npcs": {
@@ -19,15 +20,12 @@
         "on": [],
         "off": []
       },
-      "character_detail_mode": {
-        "detailed": [
+      "character_appearance_clothing": {
+        "on": [
           "- baseline_appearance: {state.character.baseline_appearance}",
-          "- current_clothing: {state.character.current_clothing}",
-          "- current_appearance: {state.character.current_appearance}"
+          "- current_clothing: {state.character.current_clothing}"
         ],
-        "general": [
-          "- general_description: {state.character.general_description}"
-        ]
+        "off": []
       },
       "character_personality_traits": {
         "on": [

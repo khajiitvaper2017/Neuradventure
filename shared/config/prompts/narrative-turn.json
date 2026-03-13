@@ -32,15 +32,15 @@
         ],
         "off": []
       },
-      "character_detail_mode": {
-        "detailed": [
+      "character_appearance_clothing": {
+        "on": [
           "When appearance/clothing fields are in use, current_appearance and current_clothing must be precise, surgical, and complete when present.",
           "current_appearance: {state.character.current_appearance}",
           "current_clothing: {state.character.current_clothing}",
           "current_appearance must describe visible anatomy only and never mention clothing, coverage, or exposure.",
           "Never output 'None' for current_appearance or current_clothing. If unchanged, omit the field."
         ],
-        "general": []
+        "off": []
       },
       "character_inventory": {
         "on": [],

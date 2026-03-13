@@ -4,7 +4,6 @@ export const StoryModulesSchema = z
   .object({
     track_npcs: z.boolean(),
     track_locations: z.boolean(),
-    character_detail_mode: z.enum(["detailed", "general"]),
     character_appearance_clothing: z.boolean(),
     character_personality_traits: z.boolean(),
     character_major_flaws: z.boolean(),
@@ -19,14 +18,13 @@ export const StoryModulesSchema = z
     npc_location: z.boolean(),
     npc_activity: z.boolean(),
   })
-  .strict()
+  .strip()
 
 export type StoryModules = z.infer<typeof StoryModulesSchema>
 
 export const DEFAULT_STORY_MODULES: StoryModules = {
   track_npcs: true,
   track_locations: true,
-  character_detail_mode: "detailed",
   character_appearance_clothing: true,
   character_personality_traits: true,
   character_major_flaws: true,
@@ -59,7 +57,7 @@ export type ModuleFlags = {
 }
 
 export function resolveModuleFlags(modules: StoryModules): ModuleFlags {
-  const useCharAppearance = modules.character_detail_mode === "detailed"
+  const useCharAppearance = modules.character_appearance_clothing
   return {
     useCharAppearance,
     useCharPersonalityTraits: modules.character_personality_traits,
@@ -83,10 +81,6 @@ export function normalizeStoryModules(value: unknown, fallback: StoryModules): S
   return {
     track_npcs: typeof raw.track_npcs === "boolean" ? raw.track_npcs : fallback.track_npcs,
     track_locations: typeof raw.track_locations === "boolean" ? raw.track_locations : fallback.track_locations,
-    character_detail_mode:
-      raw.character_detail_mode === "general" || raw.character_detail_mode === "detailed"
-        ? raw.character_detail_mode
-        : fallback.character_detail_mode,
     character_appearance_clothing:
       typeof raw.character_appearance_clothing === "boolean"
         ? raw.character_appearance_clothing

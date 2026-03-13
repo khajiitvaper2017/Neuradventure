@@ -95,6 +95,7 @@
   }
 
   const PLAYER_MODULE_KEYS: (keyof StoryModules)[] = [
+    "character_appearance_clothing",
     "character_personality_traits",
     "character_major_flaws",
     "character_quirks",
@@ -126,7 +127,7 @@
   $: activeModules = $pendingStoryModules ?? $storyDefaults
   $: modulesPreviewCore = `Core: ${activeModules.track_npcs ? "NPCs on" : "NPCs off"} · ${
     activeModules.track_locations ? "Locations on" : "Locations off"
-  } · Detail: ${activeModules.character_detail_mode === "detailed" ? "Detailed" : "General"}`
+  } · Appearance: ${activeModules.character_appearance_clothing ? "on" : "off"}`
   $: modulesPreviewPlayer = `Player fields: ${countEnabled(activeModules, PLAYER_MODULE_KEYS)}/${PLAYER_MODULE_KEYS.length}`
   $: modulesPreviewNpc = activeModules.track_npcs
     ? `NPC fields: ${countEnabled(activeModules, NPC_MODULE_KEYS)}/${NPC_MODULE_KEYS.length}`
@@ -221,16 +222,13 @@
       pendingStoryDate.set(result.starting_date)
       pendingStoryTime.set(result.starting_time)
       pendingStoryNPCs.set(result.pregen_npcs ?? [])
-      const updatedCharacter =
-        modules.character_detail_mode === "general"
-          ? {
-              ...$pendingCharacter,
-              general_description: result.character_general_description ?? $pendingCharacter.general_description ?? "",
-            }
-          : {
-              ...$pendingCharacter,
-              current_appearance: result.current_appearance ?? $pendingCharacter.current_appearance,
-            }
+      const updatedCharacter = {
+        ...$pendingCharacter,
+        general_description: result.character_general_description,
+        ...(modules.character_appearance_clothing
+          ? { current_appearance: result.current_appearance ?? $pendingCharacter.current_appearance }
+          : {}),
+      }
       pendingCharacter.set(updatedCharacter)
     } catch (err) {
       showError(err instanceof Error ? err.message : "Generation failed")
@@ -256,11 +254,9 @@
     }
     if (charData) {
       const missing: string[] = []
-      if (($pendingStoryModules?.character_detail_mode ?? "detailed") === "detailed") {
-        if (!charData.current_appearance?.trim()) missing.push("Current appearance")
-      } else if (!charData.general_description?.trim()) {
-        missing.push("General description")
-      }
+      const useAppearance = $pendingStoryModules?.character_appearance_clothing ?? true
+      if (!charData.general_description?.trim()) missing.push("Description")
+      if (useAppearance && !charData.current_appearance?.trim()) missing.push("Current appearance")
       if (missing.length > 0) {
         showError(`Missing ${missing.join(", ")}. Generate the story or fill these fields.`)
         return

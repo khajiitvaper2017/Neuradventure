@@ -58,8 +58,8 @@ generate.post(
     try {
       const defaults = db.getSettings().storyDefaults
       const modules = story_modules ?? defaults
-      if (modules.character_detail_mode === "general") {
-        return c.json({ error: "Character part generation is disabled in general mode." }, 400)
+      if ((part === "appearance" || part === "clothing") && !modules.character_appearance_clothing) {
+        return c.json({ error: "Appearance/clothing generation is disabled by story modules." }, 400)
       }
       if (
         part === "traits" &&

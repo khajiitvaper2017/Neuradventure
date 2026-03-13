@@ -6,8 +6,7 @@
     ],
     "modules": {
       "track_npcs": { "on": [], "off": [] },
-      "track_locations": { "on": [], "off": [] },
-      "character_detail_mode": { "detailed": [], "general": [] }
+      "track_locations": { "on": [], "off": [] }
     }
   }
 }

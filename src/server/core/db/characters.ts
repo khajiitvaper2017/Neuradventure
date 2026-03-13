@@ -18,7 +18,7 @@ export function normalizeCharacterBase(input: Partial<CharacterBase>): Character
     name: input.name ?? "",
     race: input.race ?? "",
     gender: normalizeGender(input.gender, ""),
-    general_description: input.general_description ?? "",
+    general_description: input.general_description ?? getServerDefaults().unknown.generalDescription,
     current_location: input.current_location ?? getServerDefaults().unknown.location,
     baseline_appearance: baselineAppearance,
     current_appearance: currentAppearance,

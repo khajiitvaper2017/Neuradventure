@@ -15,6 +15,7 @@
   import { pendingCharacterGenerateDescription } from "../../stores/game.js"
   import { storyDefaults } from "../../stores/settings.js"
   import personalityOptions from "../../../../shared/config/traits.json"
+  import serverDefaults from "../../../../shared/config/server-defaults.json"
   import { loadPromptHistory, savePromptHistory, removePromptHistory } from "../../utils/promptHistory.js"
   import { normalizeGender } from "../../utils/text.js"
   import PromptHistoryPanel from "../../components/ui/PromptHistoryPanel.svelte"
@@ -89,31 +90,24 @@
       name = result.name
       race = result.race
       gender = normalizeGender(result.gender)
-      if (activeModules.character_detail_mode === "general") {
-        generalDescription = result.general_description ?? generalDescription
-        if (traitsEnabled && result.personality_traits) {
-          const split = splitPersonalityTraits(result.personality_traits)
-          selectedTraits = split.selected
-          customPersonalityTraits = split.custom
-        }
-        if (majorFlawsEnabled && result.major_flaws) majorFlaws = result.major_flaws
-        if (quirksEnabled && result.quirks) quirks = result.quirks
-        if (perksEnabled && result.perks) perks = result.perks
-      } else {
+      generalDescription = result.general_description ?? generalDescription
+
+      if (activeModules.character_appearance_clothing) {
         if (result.baseline_appearance) {
           baselineAppearance = result.baseline_appearance
           currentAppearance = result.baseline_appearance
         }
         if (result.current_clothing) currentClothing = result.current_clothing
-        if (traitsEnabled) {
-          const split = splitPersonalityTraits(result.personality_traits ?? [])
-          selectedTraits = split.selected
-          customPersonalityTraits = split.custom
-        }
-        if (majorFlawsEnabled && result.major_flaws) majorFlaws = result.major_flaws
-        if (quirksEnabled && result.quirks) quirks = result.quirks
-        if (perksEnabled && result.perks) perks = result.perks
       }
+
+      if (traitsEnabled) {
+        const split = splitPersonalityTraits(result.personality_traits ?? [])
+        selectedTraits = split.selected
+        customPersonalityTraits = split.custom
+      }
+      if (majorFlawsEnabled && result.major_flaws) majorFlaws = result.major_flaws
+      if (quirksEnabled && result.quirks) quirks = result.quirks
+      if (perksEnabled && result.perks) perks = result.perks
     } catch (err) {
       showError(err instanceof Error ? err.message : "Generation failed")
     } finally {
@@ -160,11 +154,10 @@
       if (isMissingText(gender) || gender.toLowerCase() === "unknown") {
         gender = normalizeGender(result.gender, gender)
       }
-      if (activeModules.character_detail_mode === "general") {
-        if (isMissingText(generalDescription) && result.general_description) {
-          generalDescription = result.general_description
-        }
-      } else {
+      if (isMissingText(generalDescription) && result.general_description) {
+        generalDescription = result.general_description
+      }
+      if (activeModules.character_appearance_clothing) {
         if (isMissingText(baselineAppearance) && result.baseline_appearance)
           baselineAppearance = result.baseline_appearance
         if (isMissingText(currentAppearance) && result.baseline_appearance)
@@ -225,18 +218,14 @@
   $: majorFlawsEnabled = activeModules.character_major_flaws
   $: quirksEnabled = activeModules.character_quirks
   $: perksEnabled = activeModules.character_perks
-  $: canRegenerateTraits =
-    activeModules.character_detail_mode === "detailed" &&
-    traitsEnabled &&
-    majorFlawsEnabled &&
-    quirksEnabled &&
-    perksEnabled
+  $: canRegenerateTraits = traitsEnabled && majorFlawsEnabled && quirksEnabled && perksEnabled
 
   function setModules(next: StoryModules) {
     pendingStoryModules.set(next)
   }
 
   const PLAYER_MODULE_KEYS: (keyof StoryModules)[] = [
+    "character_appearance_clothing",
     "character_personality_traits",
     "character_major_flaws",
     "character_quirks",
@@ -259,7 +248,7 @@
 
   $: modulesPreviewCore = `Core: ${activeModules.track_npcs ? "NPCs on" : "NPCs off"} · ${
     activeModules.track_locations ? "Locations on" : "Locations off"
-  } · Detail: ${activeModules.character_detail_mode === "detailed" ? "Detailed" : "General"}`
+  } · Appearance: ${activeModules.character_appearance_clothing ? "on" : "off"}`
   $: modulesPreviewPlayer = `Player fields: ${countEnabled(activeModules, PLAYER_MODULE_KEYS)}/${PLAYER_MODULE_KEYS.length}`
   $: modulesPreviewNpc = activeModules.track_npcs
     ? `NPC fields: ${countEnabled(activeModules, NPC_MODULE_KEYS)}/${NPC_MODULE_KEYS.length}`
@@ -349,8 +338,7 @@
     if (!name.trim()) return "Name is required"
     if (!race.trim()) return "Race is required"
     if (!gender.trim()) return "Gender is required"
-    if (activeModules.character_detail_mode === "general" && !generalDescription.trim())
-      return "General description is required"
+    if (!generalDescription.trim()) return "Description is required"
     return null
   }
 
@@ -368,15 +356,17 @@
       }
       return out
     }
+    const baseline = baselineAppearance.trim() || serverDefaults.unknown.baselineAppearance
+    const clothing = currentClothing.trim() || serverDefaults.unknown.clothing
     return {
       name: name.trim(),
       race: race.trim(),
       gender,
-      general_description: generalDescription.trim(),
-      current_location: existing?.current_location ?? "Unknown location",
-      baseline_appearance: baselineAppearance.trim(),
-      current_appearance: currentAppearance.trim() || baselineAppearance.trim(),
-      current_clothing: currentClothing.trim(),
+      general_description: generalDescription.trim() || serverDefaults.unknown.generalDescription,
+      current_location: existing?.current_location ?? serverDefaults.unknown.location,
+      baseline_appearance: baseline,
+      current_appearance: currentAppearance.trim() || baseline,
+      current_clothing: clothing,
       personality_traits: uniquePersonality([...selectedTraits, ...customPersonalityTraits]).filter((_, i) => i < 5),
       major_flaws: majorFlaws,
       quirks,
@@ -390,8 +380,8 @@
 
   async function regenerateAppearance() {
     if (regeneratingAppearance) return
-    if (activeModules.character_detail_mode === "general") {
-      showError("Appearance regeneration is disabled in general mode")
+    if (!activeModules.character_appearance_clothing) {
+      showError("Appearance regeneration is disabled by story modules")
       return
     }
     regeneratingAppearance = true
@@ -409,11 +399,7 @@
   async function regenerateTraits() {
     if (regeneratingTraits) return
     if (!canRegenerateTraits) {
-      showError(
-        activeModules.character_detail_mode === "general"
-          ? "Trait regeneration is disabled in general mode"
-          : "Trait regeneration is disabled by story modules",
-      )
+      showError("Trait regeneration is disabled by story modules")
       return
     }
     regeneratingTraits = true
@@ -434,8 +420,8 @@
 
   async function regenerateClothing() {
     if (regeneratingClothing) return
-    if (activeModules.character_detail_mode === "general") {
-      showError("Clothing regeneration is disabled in general mode")
+    if (!activeModules.character_appearance_clothing) {
+      showError("Clothing regeneration is disabled by story modules")
       return
     }
     regeneratingClothing = true
@@ -566,19 +552,17 @@
       </div>
     </div>
 
-    {#if activeModules.character_detail_mode === "general"}
-      <div class="field">
-        <label for="char-general-description">General Description</label>
-        <textarea
-          id="char-general-description"
-          bind:value={generalDescription}
-          placeholder="Describe personality, appearance, clothing, and overall vibe in a few sentences..."
-          use:autoresize={generalDescription}
-        ></textarea>
-      </div>
-    {/if}
+    <div class="field">
+      <label for="char-description">Description</label>
+      <textarea
+        id="char-description"
+        bind:value={generalDescription}
+        placeholder="A few sentences about personality, vibe, and background..."
+        use:autoresize={generalDescription}
+      ></textarea>
+    </div>
 
-    {#if activeModules.character_detail_mode === "detailed"}
+    {#if activeModules.character_appearance_clothing}
       <div class="field">
         <div class="label-row">
           <label for="char-baseline-appearance">Baseline Appearance</label>
@@ -793,35 +777,6 @@
   }
   .gender-row .toggle {
     flex: 0 0 calc(5rem - 2.2rem * var(--compact));
-  }
-  .toggle-icon {
-    display: inline-block;
-    opacity: var(--compact);
-    font-size: 1rem;
-    line-height: 1;
-    max-width: calc(1rem * var(--compact));
-    margin-right: calc(0.2rem * var(--compact));
-    overflow: hidden;
-    transition:
-      opacity 220ms ease,
-      max-width 220ms ease,
-      margin-right 220ms ease;
-    transform: scale(calc(0.8 + 0.2 * var(--compact)));
-    transition:
-      opacity 220ms ease,
-      max-width 220ms ease,
-      margin-right 220ms ease,
-      transform 220ms ease;
-  }
-  .toggle-text {
-    display: inline-block;
-    opacity: calc(1 - var(--compact));
-    max-width: calc(4.5rem * (1 - var(--compact)));
-    overflow: hidden;
-    white-space: nowrap;
-    transition:
-      opacity 220ms ease,
-      max-width 220ms ease;
   }
   .toggle {
     transition:

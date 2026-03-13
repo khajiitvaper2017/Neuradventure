@@ -44,18 +44,22 @@ function buildContextBlock(opts: ContextBlockOpts): string {
   const none = defaults.format.noneLower
   const modules: StoryModules = opts.modules ?? DEFAULT_STORY_MODULES
   const flags = resolveModuleFlags(modules)
-  const useGeneral = modules.character_detail_mode === "general"
   const generalDescription = character.general_description?.trim() || defaults.unknown.generalDescription
   const initialGeneralDescription = initial.general_description?.trim() || defaults.unknown.generalDescription
 
   // ── STABLE (cached across turns) ──
   const initialSection = wrapSection(
     sections.initialCharacter,
-    useGeneral
-      ? formatTemplate(labels.generalDescription, { value: initialGeneralDescription })
-      : `${formatTemplate(labels.baselineAppearance, { value: initial.baseline_appearance })}\n` +
-          `${formatTemplate(labels.currentAppearance, { value: initial.current_appearance })}\n` +
-          `${formatTemplate(labels.wearing, { value: initial.current_clothing })}`,
+    [
+      formatTemplate(labels.generalDescription, { value: initialGeneralDescription }),
+      flags.useCharAppearance
+        ? formatTemplate(labels.baselineAppearance, { value: initial.baseline_appearance })
+        : null,
+      flags.useCharAppearance ? formatTemplate(labels.currentAppearance, { value: initial.current_appearance }) : null,
+      flags.useCharAppearance ? formatTemplate(labels.wearing, { value: initial.current_clothing }) : null,
+    ]
+      .filter(Boolean)
+      .join("\n"),
   )
 
   const baseLines = [
@@ -64,7 +68,7 @@ function buildContextBlock(opts: ContextBlockOpts): string {
       race: character.race,
       gender: character.gender,
     }),
-    useGeneral ? formatTemplate(labels.generalDescription, { value: generalDescription }) : null,
+    formatTemplate(labels.generalDescription, { value: generalDescription }),
     flags.useCharPersonalityTraits
       ? formatTemplate(labels.personalityTraits, { value: character.personality_traits.join(", ") || none })
       : null,

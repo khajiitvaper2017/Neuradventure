@@ -38,7 +38,7 @@
       "name": "Full legal name.",
       "race": "Character race.",
       "gender": "Character gender (male, female, futanari, intersex and so on).",
-      "general_description": "General description for the character when detailed appearance/clothing is disabled.",
+      "general_description": "General description for the character for a story or roleplaying game. It captures the subject's core identity and non-negotiable facts. The description includes basic traits like age, height, and physical build. It details their appearance, including hair, eyes, and typical attire. A full background covers their occupation, reputation, residence, and life timeline. Their psychology is defined by personality types, alignment, and internal beliefs. The description illustrates how they speak, move, and what they love or hate. It inventories their combat skills, weapons, and tactical style. Their professional mentality and ultimate life goal are clearly stated. Finally, it outlines any unique tools, abilities, or special mechanics they possess.",
       "current_location": "Current unique location name. Describes concrete room. Update only when changed. Should be precise. Avoid `her house`, instead do `{name}'s bathroom`",
       "baseline_appearance": "Precise objective surgical-style anatomical description of baseline physical state (full body only). Every body part mentioned once; exclude all temporary features. Max 1–3 sentences. Metric system exclusively. Always include height (cm), weight (kg), key bodily proportions. Male genitalia: erect length (cm), flaccid length (cm), circumcision status, testicle presence. Female genitalia: labia (e.g. neat/full/prominent inner lips), pubic hair (e.g. natural/trimmed/shaved).",
       "current_clothing": "Precise objective surgical-style exhaustive catalog of all current clothing layers (outerwear/underwear/accessories/medical dressings/bandages). Should contains only clothing description. Omit field entirely if unchanged; never output 'None'.",
@@ -50,8 +50,7 @@
   "story_modules": {
     "track_npcs": "Whether to track NPC state and updates.",
     "track_locations": "Whether to track locations list and presence.",
-    "character_detail_mode": "Character detail mode: detailed or general.",
-    "character_appearance_clothing": "Whether to include player appearance and clothing fields (detailed mode only).",
+    "character_appearance_clothing": "Whether to include player appearance and clothing fields.",
     "character_personality_traits": "Whether to include player personality traits.",
     "character_major_flaws": "Whether to include player major flaws.",
     "character_quirks": "Whether to include player quirks.",
@@ -73,10 +72,10 @@
     "story": {
       "title": "3-5 word title tied to the opening scenario.",
       "opening_scenario": "1-3 short paragraphs in second-person present tense. Separate paragraphs with a literal `\\n\\n`.",
-      "starting_location": "1–5 word unique location name: specific named place, not generic. Use possessive/numbers if needed (\"Kai's 1st Bathroom\"). No vague terms (unknown, adjacent, nearby).",
+      "starting_location": "1–5 word unique location name: specific named place, not generic. Use possessive/numbers if needed. No vague terms (unknown, adjacent, nearby).",
       "starting_date": "Starting date in YYYY-MM-DD format. It should be appropriate for time setting of the story.",
       "starting_time": "Starting time in 24h HH:MM format. It should be in line with opening of the story.",
-      "character_general_description": "General description for the player character at story start.",
+      "character_general_description": "General description for the character for a story or roleplaying game. It captures the subject's core identity and non-negotiable facts. The description includes basic traits like age, height, and physical build. It details their appearance, including hair, eyes, and typical attire. A full background covers their occupation, reputation, residence, and life timeline. Their psychology is defined by personality types, alignment, and internal beliefs. The description illustrates how they speak, move, and what they love or hate. It inventories their combat skills, weapons, and tactical style. Their professional mentality and ultimate life goal are clearly stated. Finally, it outlines any unique tools, abilities, or special mechanics they possess.",
       "pregen_npcs": "List of pre-generated NPCs with full details. All named/identified characters appear with full names, no player/placeholders, add only if strongly implied, not at player's start unless stated."
     }
   },
