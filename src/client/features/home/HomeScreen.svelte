@@ -14,6 +14,7 @@
   import IconGear from "../../components/icons/IconGear.svelte"
   import IconPlus from "../../components/icons/IconPlus.svelte"
   import IconUsers from "../../components/icons/IconUsers.svelte"
+  import Select from "../../components/ui/Select.svelte"
   import {
     resetActiveStory,
     resetGame,
@@ -48,6 +49,10 @@
   let query = ""
   let sort: "recent" | "az" = "recent"
   let menuPlacement: Record<string, "up" | "down"> = {}
+  const sortOptions = [
+    { value: "recent", label: "Recent" },
+    { value: "az", label: "A–Z" },
+  ]
 
   onMount(() => {
     loadStories()
@@ -431,10 +436,7 @@
           </label>
           <label class="lib-sort">
             <span class="sr-only">Sort</span>
-            <select class="select-input lib-sort-input" bind:value={sort}>
-              <option value="recent">Recent</option>
-              <option value="az">A–Z</option>
-            </select>
+            <Select className="lib-sort-input" width="100%" bind:value={sort} options={sortOptions} ariaLabel="Sort" />
           </label>
         </div>
       </div>

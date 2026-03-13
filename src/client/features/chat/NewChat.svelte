@@ -7,6 +7,7 @@
   import { loadPromptHistory, savePromptHistory, removePromptHistory } from "../../utils/promptHistory.js"
   import IconDocument from "../../components/icons/IconDocument.svelte"
   import PromptHistoryPanel from "../../components/ui/PromptHistoryPanel.svelte"
+  import Select from "../../components/ui/Select.svelte"
   import { generateChatFromDescription } from "./actions.js"
 
   let title = $state("")
@@ -28,6 +29,12 @@
   let greetingOptions = $state<string[]>([])
   let seedGreetingIndex = $state(0)
   let greetingFetchNonce = 0
+  let greetingTemplateOptions = $derived(
+    greetingOptions.map((_, i) => ({
+      value: i,
+      label: i === 0 ? "Greeting 1 (first_mes)" : `Greeting ${i + 1}`,
+    })),
+  )
 
   const CHAT_PROMPT_HISTORY_KEY = "na:prompt_history:chat"
 
@@ -303,19 +310,17 @@
     {:else if greetingOptions.length > 0}
       <div class="field">
         <label for="greeting-template-select">Greeting Template (SillyTavern)</label>
-        <select
+        <Select
           id="greeting-template-select"
-          class="text-input"
+          width="100%"
           value={seedGreetingIndex}
-          onchange={(e) => {
-            seedGreetingIndex = Number((e.target as HTMLSelectElement).value)
+          options={greetingTemplateOptions}
+          ariaLabel="Greeting template"
+          onChange={(next: number) => {
+            seedGreetingIndex = Number(next)
             greeting = greetingOptions[seedGreetingIndex] ?? greeting
           }}
-        >
-          {#each greetingOptions as _, i}
-            <option value={i}>{i === 0 ? "Greeting 1 (first_mes)" : `Greeting ${i + 1}`}</option>
-          {/each}
-        </select>
+        />
         <div class="hint">Selecting a template fills the greeting text below.</div>
       </div>
     {/if}

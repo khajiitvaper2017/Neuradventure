@@ -17,6 +17,7 @@
   import type { GenerationParams, PromptConfigFile, SamplerPreset, StoryModules } from "../../api/client.js"
   import { presets, loadPresets, refreshPresets } from "../../utils/presets.js"
   import StoryModulesPanel from "../../components/ui/StoryModulesPanel.svelte"
+  import Select from "../../components/ui/Select.svelte"
 
   type SettingsTab = "appearance" | "generation" | "prompts" | "modules"
   const SETTINGS_TAB_KEY = "settings_active_tab"
@@ -820,6 +821,21 @@
       int: true,
     },
   ]
+
+  const themeOptions = [
+    { value: "default", label: "Default — Dark gray background" },
+    { value: "amoled", label: "AMOLED — Pure black (OLED)" },
+  ]
+  const designOptions = [
+    { value: "classic", label: "Classic — Spectral + DM Sans" },
+    { value: "roboto", label: "Roboto — clean sans-serif" },
+  ]
+  const colorSchemeOptions = [
+    { value: "gold", label: "Gold — Warm, classic accent" },
+    { value: "emerald", label: "Emerald — Cool green accent" },
+    { value: "sapphire", label: "Sapphire — Blue with strong contrast" },
+    { value: "crimson", label: "Crimson — Bold red accent" },
+  ]
 </script>
 
 <div class="screen settings">
@@ -853,10 +869,7 @@
           <span class="row-title">Theme</span>
           <span class="row-sub">Overall background tone</span>
         </span>
-        <select class="select-input" bind:value={$theme}>
-          <option value="default">Default — Dark gray background</option>
-          <option value="amoled">AMOLED — Pure black (OLED)</option>
-        </select>
+        <Select bind:value={$theme} options={themeOptions} ariaLabel="Theme" />
       </label>
 
       <div class="divider"></div>
@@ -869,10 +882,7 @@
           <span class="row-title">Typography</span>
           <span class="row-sub">Fonts for story and UI</span>
         </span>
-        <select class="select-input" bind:value={$design}>
-          <option value="classic">Classic — Spectral + DM Sans</option>
-          <option value="roboto">Roboto — clean sans-serif</option>
-        </select>
+        <Select bind:value={$design} options={designOptions} ariaLabel="Typography" />
       </label>
 
       <div class="divider"></div>
@@ -885,12 +895,7 @@
           <span class="row-title">Accent</span>
           <span class="row-sub">Highlight color for buttons and UI</span>
         </span>
-        <select class="select-input" bind:value={$colorScheme}>
-          <option value="gold">Gold — Warm, classic accent</option>
-          <option value="emerald">Emerald — Cool green accent</option>
-          <option value="sapphire">Sapphire — Blue with strong contrast</option>
-          <option value="crimson">Crimson — Bold red accent</option>
-        </select>
+        <Select bind:value={$colorScheme} options={colorSchemeOptions} ariaLabel="Accent color" />
       </label>
 
       <div class="divider"></div>

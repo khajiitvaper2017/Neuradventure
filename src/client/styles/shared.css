@@ -696,6 +696,7 @@ button.btn-icon {
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
   color: var(--text);
+  color-scheme: dark;
   font-family: var(--font-ui);
   font-size: 0.85rem;
   padding: 0.45rem 2rem 0.45rem 0.6rem;
@@ -714,9 +715,139 @@ button.btn-icon {
     6px 6px;
   background-repeat: no-repeat;
 }
+.select-input option {
+  background: var(--bg-raised);
+  color: var(--text);
+}
+.select-input option:checked {
+  background: var(--accent-dim);
+  color: var(--text);
+}
+.select-input option:disabled {
+  color: var(--text-dim);
+}
 .select-input:focus {
   outline: none;
   border-color: var(--accent);
+}
+
+/* ── Custom select (replaces native <select>) ───────── */
+.select {
+  width: var(--select-width, 260px);
+  flex-shrink: 0;
+  min-width: 0;
+  position: relative;
+}
+
+.select-trigger {
+  width: 100%;
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text);
+  font-family: var(--font-ui);
+  font-size: 0.85rem;
+  padding: 0.45rem 2rem 0.45rem 0.6rem;
+  min-height: 34px;
+  cursor: pointer;
+  text-align: left;
+  transition: border-color 0.15s var(--ease-out);
+  appearance: none;
+  background-image:
+    linear-gradient(45deg, transparent 50%, var(--text-dim) 50%),
+    linear-gradient(135deg, var(--text-dim) 50%, transparent 50%);
+  background-position:
+    calc(100% - 1rem) 55%,
+    calc(100% - 0.7rem) 55%;
+  background-size:
+    6px 6px,
+    6px 6px;
+  background-repeat: no-repeat;
+}
+.select-trigger:hover:not(:disabled) {
+  border-color: var(--border-hover);
+}
+.select-trigger:focus-visible {
+  outline: none;
+  border-color: var(--focus-ring);
+  box-shadow: 0 0 0 2px var(--focus-glow);
+}
+.select-trigger:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.select-value {
+  display: block;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  padding-right: 0.2rem;
+}
+.select-value--placeholder {
+  color: var(--text-dim);
+}
+
+.select-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  right: 0;
+  z-index: 60;
+  background: var(--bg-raised);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-sm);
+  padding: 0.25rem;
+  max-height: min(320px, 55vh);
+  overflow: auto;
+}
+.select-menu:focus {
+  outline: none;
+}
+
+.select-option {
+  width: 100%;
+  background: transparent;
+  border: none;
+  color: var(--text);
+  font-family: var(--font-ui);
+  font-size: 0.85rem;
+  text-align: left;
+  padding: 0.65rem 1.75rem 0.65rem 0.75rem;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  position: relative;
+  transition:
+    background 0.12s var(--ease-out),
+    color 0.12s var(--ease-out);
+}
+.select-option:hover:not(:disabled),
+.select-option.active:not(:disabled) {
+  background: var(--accent-dim);
+  color: var(--text-action);
+}
+.select-option[aria-selected="true"] {
+  color: var(--accent);
+}
+.select-option[aria-selected="true"]::after {
+  content: "";
+  position: absolute;
+  right: 0.75rem;
+  top: 50%;
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  background: var(--accent);
+  transform: translateY(-50%);
+  box-shadow: 0 0 0 3px var(--accent-dim);
+}
+.select-option.active[aria-selected="true"]:not(:disabled) {
+  color: var(--text-action);
+}
+.select-option:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
 }
 
 .num-input {
@@ -1186,19 +1317,25 @@ button.chip:disabled {
 
 .lib-toolbar {
   position: sticky;
-  top: 0;
+  top: 0.5rem;
   z-index: 10;
-  padding: 0.75rem 0;
-  background: var(--bg);
-  border-bottom: 1px solid var(--border);
-  display: flex;
+  padding: 0.65rem;
+  background: var(--bg-raised);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  box-shadow:
+    var(--shadow-sm),
+    0 1px 0 rgba(255, 255, 255, 0.06) inset;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
   gap: 0.75rem;
-  flex-wrap: wrap;
   align-items: center;
 }
 
 .lib-tabs {
-  flex: 1;
+  justify-self: start;
+  width: fit-content;
+  max-width: 100%;
   min-width: 220px;
 }
 
@@ -1218,32 +1355,34 @@ button.chip:disabled {
 }
 
 .lib-controls {
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 160px;
   gap: 0.5rem;
   align-items: center;
-  flex-wrap: wrap;
+  justify-self: end;
 }
 
 .lib-search-input {
-  width: 240px;
+  width: 100%;
 }
 
 .lib-sort-input {
-  width: 160px;
+  width: 100%;
 }
 
 @media (max-width: 520px) {
+  .lib-toolbar {
+    grid-template-columns: 1fr;
+    gap: 0.6rem;
+  }
   .lib-controls {
     width: 100%;
+    grid-template-columns: 1fr;
   }
   .lib-search,
   .lib-sort {
     flex: 1;
     min-width: 0;
-  }
-  .lib-search-input,
-  .lib-sort-input {
-    width: 100%;
   }
 }
 
