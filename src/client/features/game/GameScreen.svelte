@@ -981,7 +981,7 @@
                   disabled={$isGenerating}
                   title={`Version ${variant.variant_index}`}
                 >
-                  v{variant.variant_index}
+                  {variant.variant_index}
                 </button>
               {/each}
             </div>
