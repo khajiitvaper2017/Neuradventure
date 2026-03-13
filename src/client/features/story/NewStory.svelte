@@ -224,7 +224,7 @@
       pendingStoryNPCs.set(result.pregen_npcs ?? [])
       const updatedCharacter = {
         ...$pendingCharacter,
-        general_description: result.character_general_description,
+        general_description: result.general_description,
         ...(modules.character_appearance_clothing
           ? { current_appearance: result.current_appearance ?? $pendingCharacter.current_appearance }
           : {}),

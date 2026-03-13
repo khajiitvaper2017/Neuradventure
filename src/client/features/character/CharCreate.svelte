@@ -610,7 +610,7 @@
             {regeneratingTraits ? "Regenerating..." : "Regenerate"}
           </button>
         </div>
-        <div class="chips">
+        <div class="chips chips--justified">
           {#each PERSONALITY_OPTIONS as trait}
             <button
               class="chip {selectedTraits.includes(trait) ? 'selected' : ''}"

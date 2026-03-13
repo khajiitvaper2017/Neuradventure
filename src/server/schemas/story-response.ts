@@ -88,7 +88,7 @@ export const StoryResponseSchema = z
     starting_date: z.string().regex(DATE_REGEX, "starting_date must be YYYY-MM-DD"),
     starting_time: z.string().regex(TIME_OF_DAY_REGEX, "starting_time must be 24h HH:MM"),
     current_appearance: z.string().min(1).optional(),
-    character_general_description: z.string().min(1),
+    general_description: z.string().trim().min(1),
     pregen_npcs: z.array(NPCStateStoredSchema).optional(),
   })
   .strict()
@@ -111,7 +111,7 @@ export function buildStoryResponseSchema(modules: StoryModules): z.ZodType<Story
     starting_location: z.string().min(1),
     starting_date: z.string().regex(DATE_REGEX, "starting_date must be YYYY-MM-DD"),
     starting_time: z.string().regex(TIME_OF_DAY_REGEX, "starting_time must be 24h HH:MM"),
-    character_general_description: z.string().min(1),
+    general_description: z.string().trim().min(1),
   }
 
   if (flags.useCharAppearance) {

@@ -939,6 +939,21 @@ button.btn-icon {
   gap: 0.5rem;
 }
 
+.chips--justified {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));
+  gap: 0.5rem;
+  align-items: start;
+}
+
+.chips--justified .chip {
+  justify-content: center;
+  text-align: center;
+  justify-self: center;
+  min-width: 0;
+  max-width: 100%;
+}
+
 .chip {
   padding: 0.35rem 0.7rem;
   background: var(--bg-input);
