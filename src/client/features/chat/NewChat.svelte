@@ -26,10 +26,8 @@
 
   let greetingLoading = $state(false)
   let greetingOptions = $state<string[]>([])
-  let seedGreetingEnabled = $state(false)
   let seedGreetingIndex = $state(0)
   let greetingFetchNonce = 0
-  let seedGreetingManual = false
 
   const CHAT_PROMPT_HISTORY_KEY = "na:prompt_history:chat"
 
@@ -46,11 +44,6 @@
     resetChat()
     void loadOptions()
     chatPromptHistory = loadPromptHistory(CHAT_PROMPT_HISTORY_KEY)
-  })
-
-  $effect(() => {
-    if (seedGreetingManual) return
-    seedGreetingEnabled = greeting.trim().length > 0
   })
 
   async function loadOptions() {
@@ -140,7 +133,7 @@
     void refreshGreeting()
   }
 
-  let canSubmit = $derived(!!playerKey && aiKeys.length > 0 && !submitting)
+  let canSubmit = $derived(!!title.trim() && !!greeting.trim() && !!playerKey && aiKeys.length > 0 && !submitting)
   let canGenerate = $derived(!!description.trim() && !generating)
 
   let selectedPlayerOption = $derived(optionByKey(playerKey))
@@ -179,7 +172,6 @@
       greetingOptions = greetings
       seedGreetingIndex = 0
       if (!greeting.trim() && greetings[0]) greeting = greetings[0]
-      if (!seedGreetingManual) seedGreetingEnabled = greeting.trim().length > 0 || greetings.length > 0
     } catch {
       // no stored card or invalid card
     } finally {
@@ -200,7 +192,6 @@
       const result = await generateChatFromDescription(prompt)
       title = result.title
       greeting = result.greeting
-      if (!seedGreetingManual) seedGreetingEnabled = greeting.trim().length > 0
     } catch (err) {
       showError(err instanceof Error ? err.message : "Generation failed")
     } finally {
@@ -229,6 +220,14 @@
       showError("Select at least one AI member")
       return
     }
+    if (!title.trim()) {
+      showError("Title is required")
+      return
+    }
+    if (!greeting.trim()) {
+      showError("Greeting is required")
+      return
+    }
 
     submitting = true
     try {
@@ -247,16 +246,13 @@
         })),
       ]
 
-      const seedGreeting =
-        seedGreetingEnabled && greeting.trim()
-          ? {
-              speaker_sort_order: 1,
-              content: greeting,
-            }
-          : undefined
+      const seedGreeting = {
+        speaker_sort_order: 1,
+        content: greeting.trim(),
+      }
 
       const { id } = await api.chats.create({
-        title: title.trim() || undefined,
+        title: title.trim(),
         members,
         ...(seedGreeting ? { seed_greeting: seedGreeting } : {}),
       })
@@ -296,7 +292,7 @@
     </div>
 
     <div class="field">
-      <label for="chat-title">Title (optional)</label>
+      <label for="chat-title">Title</label>
       <input id="chat-title" class="text-input" type="text" bind:value={title} placeholder="e.g. Fireside Council" />
     </div>
 
@@ -314,7 +310,6 @@
           onchange={(e) => {
             seedGreetingIndex = Number((e.target as HTMLSelectElement).value)
             greeting = greetingOptions[seedGreetingIndex] ?? greeting
-            if (!seedGreetingManual) seedGreetingEnabled = greeting.trim().length > 0
           }}
         >
           {#each greetingOptions as _, i}
@@ -326,34 +321,16 @@
     {/if}
 
     <div class="field">
-      <label for="chat-greeting">Greeting (optional)</label>
+      <label for="chat-greeting">Greeting</label>
       <textarea
         id="chat-greeting"
         class="text-input"
         rows="4"
         bind:value={greeting}
-        placeholder="Optional: seed the first AI message to start the chat."
+        placeholder="Seeds the first AI message to start the chat."
         use:autoresize={greeting}
       ></textarea>
       <div class="hint">Supports placeholders: {"{{user}}"} (player), {"{{char}}"} (AI speaker).</div>
-    </div>
-
-    <div class="field">
-      <div class="field-label">Seed Greeting</div>
-      <div class="field-row">
-        <button
-          class="toggle {seedGreetingEnabled ? 'active' : ''}"
-          onclick={() => {
-            seedGreetingManual = true
-            seedGreetingEnabled = !seedGreetingEnabled
-          }}
-        >
-          {seedGreetingEnabled ? "On" : "Off"}
-        </button>
-        <div class="hint">
-          {seedGreetingEnabled ? "Adds the greeting as the first AI message." : "Starts with no greeting."}
-        </div>
-      </div>
     </div>
 
     <div class="field">
