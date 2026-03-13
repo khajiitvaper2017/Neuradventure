@@ -8,6 +8,8 @@
     pendingCharacter,
     pendingCharacterId,
     pendingCharacterImportText,
+    pendingCharacterImportCard,
+    pendingCharacterImportAvatarDataUrl,
     pendingStoryModules,
   } from "../../stores/game.js"
   import { pendingCharacterGenerateDescription } from "../../stores/game.js"
@@ -437,7 +439,11 @@
     }
     savingCharacter = true
     try {
-      const result = await importCharacter(buildCharacterData())
+      const result = await importCharacter(
+        buildCharacterData(),
+        $pendingCharacterImportCard,
+        $pendingCharacterImportAvatarDataUrl,
+      )
       if (result.needs_review) {
         showError("Saved character needs review. Please check the fields and try again.")
         return

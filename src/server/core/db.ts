@@ -9,6 +9,14 @@ export {
   type CharacterRow,
 } from "./db/characters.js"
 export {
+  upsertCharacterCard,
+  getCharacterCard,
+  getCharacterCardSummary,
+  type CharacterCardRow,
+  type CharacterCardSummary,
+  type CharacterCardFormat,
+} from "./db/character-cards.js"
+export {
   listStories,
   listStoriesWithCharacters,
   listStoriesWithNpcs,

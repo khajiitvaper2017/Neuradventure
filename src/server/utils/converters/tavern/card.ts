@@ -1,30 +1,78 @@
+import { z } from "zod"
 import type { MainCharacterState } from "../../../core/models.js"
 import { npcTraitLookup } from "../../../schemas/npc-traits.js"
 import { getServerDefaults } from "../../../core/strings.js"
 import { normalizeGender } from "../../../schemas/normalizers.js"
 
-export interface TavernCardV2 {
-  spec: "chara_card_v2"
-  spec_version: "2.0"
-  data: {
-    name: string
-    description: string
-    personality: string
-    scenario: string
-    first_mes: string
-    mes_example: string
-    system_prompt: string
-    post_history_instructions: string
-    alternate_greetings: string[]
-    tags: string[]
-    creator: string
-    character_version: string
-    extensions: {
-      neuradventure?: MainCharacterState | Omit<MainCharacterState, "inventory">
-      [key: string]: unknown
-    }
-  }
-}
+const ExtensionsSchema = z.record(z.unknown()).optional().default({}).catch({})
+
+export const CharacterBookEntrySchema = z
+  .object({
+    keys: z.array(z.string()).optional().default([]),
+    content: z.string().optional().default(""),
+    extensions: ExtensionsSchema,
+    enabled: z.boolean().optional().default(true),
+    insertion_order: z.number().int().optional().default(0),
+    case_sensitive: z.boolean().optional(),
+    name: z.string().optional(),
+    priority: z.number().optional(),
+    id: z.number().optional(),
+    comment: z.string().optional(),
+    selective: z.boolean().optional(),
+    secondary_keys: z.array(z.string()).optional(),
+    constant: z.boolean().optional(),
+    position: z.preprocess(
+      (value) => (value === "" || value === null ? undefined : value),
+      z.enum(["before_char", "after_char"]).optional().default("before_char"),
+    ),
+  })
+  .passthrough()
+
+export const CharacterBookSchema = z
+  .object({
+    name: z.string().optional(),
+    description: z.string().optional(),
+    scan_depth: z.number().int().optional(),
+    token_budget: z.number().int().optional(),
+    recursive_scanning: z.boolean().optional(),
+    extensions: ExtensionsSchema,
+    entries: z.array(CharacterBookEntrySchema).optional().default([]),
+  })
+  .passthrough()
+
+export const TavernCardV2Schema = z
+  .object({
+    spec: z.literal("chara_card_v2"),
+    spec_version: z.literal("2.0").optional().default("2.0"),
+    data: z
+      .object({
+        name: z.string().optional().default(""),
+        description: z.string().optional().default(""),
+        personality: z.string().optional().default(""),
+        scenario: z.string().optional().default(""),
+        first_mes: z.string().optional().default(""),
+        mes_example: z.string().optional().default(""),
+
+        // SpecV2 fields
+        creator_notes: z.string().optional().default(""),
+        system_prompt: z.string().optional().default(""),
+        post_history_instructions: z.string().optional().default(""),
+        alternate_greetings: z.array(z.string()).optional().default([]),
+        character_book: CharacterBookSchema.optional(),
+
+        // May-8 additions
+        tags: z.array(z.string()).optional().default([]),
+        creator: z.string().optional().default(""),
+        character_version: z.string().optional().default(""),
+        extensions: ExtensionsSchema,
+      })
+      .passthrough(),
+  })
+  .passthrough()
+
+export type TavernCardV2 = z.infer<typeof TavernCardV2Schema>
+export type CharacterBook = z.infer<typeof CharacterBookSchema>
+export type CharacterBookEntry = z.infer<typeof CharacterBookEntrySchema>
 
 export interface TavernImportResult {
   character: Omit<MainCharacterState, "inventory">
@@ -44,6 +92,9 @@ export function characterToTavernCard(
 
   descriptionLines.push(`Race: ${race}. Gender: ${gender}.`)
 
+  const { inventory: _inventory, ...characterWithoutInventory } = character as MainCharacterState
+  void _inventory
+
   return {
     spec: "chara_card_v2",
     spec_version: "2.0",
@@ -54,14 +105,15 @@ export function characterToTavernCard(
       scenario: "",
       first_mes: "",
       mes_example: "",
+      creator_notes: "",
       system_prompt: "",
       post_history_instructions: "",
       alternate_greetings: [],
-      tags: [...character.quirks, ...character.perks, ...(character.major_flaws ?? [])],
+      tags: [],
       creator: "Neuradventure V2",
       character_version: "1.0",
       extensions: {
-        neuradventure: character,
+        neuradventure: characterWithoutInventory,
       },
     },
   }
@@ -78,6 +130,32 @@ function parseGenderFromDescription(description: string): string {
     genderMatch ? genderMatch[1].trim() : getServerDefaults().unknown.value,
     getServerDefaults().unknown.value,
   )
+}
+
+function inferRaceFromTags(tags: string[], fallback: string): string {
+  const map: Record<string, string> = {
+    human: "Human",
+    elf: "Elf",
+    dwarf: "Dwarf",
+    orc: "Orc",
+    goblin: "Goblin",
+    vampire: "Vampire",
+    werewolf: "Werewolf",
+    android: "Android",
+    robot: "Robot",
+  }
+  const seen = new Set(tags.map((t) => t.trim().toLowerCase()).filter(Boolean))
+  for (const [key, value] of Object.entries(map)) {
+    if (seen.has(key)) return value
+  }
+  return fallback
+}
+
+function inferGenderFromTags(tags: string[], fallback: string): string {
+  const normalized = tags.map((t) => t.trim().toLowerCase())
+  if (normalized.includes("female")) return "Female"
+  if (normalized.includes("male")) return "Male"
+  return fallback
 }
 
 export function tavernCardToCharacter(card: TavernCardV2): TavernImportResult {
@@ -142,6 +220,8 @@ export function tavernCardToCharacter(card: TavernCardV2): TavernImportResult {
     }
   }
 
+  const generalDescription = description.trim() || undefined
+
   const sourceText = [
     `Name: ${card.data.name || getServerDefaults().unknown.value}`,
     description ? `Description: ${description}` : null,
@@ -155,15 +235,26 @@ export function tavernCardToCharacter(card: TavernCardV2): TavernImportResult {
   return {
     character: {
       name: card.data.name || getServerDefaults().unknown.value,
-      race: parseRaceFromDescription(description),
-      gender: parseGenderFromDescription(description),
+      race: (() => {
+        const base = parseRaceFromDescription(description)
+        const hasExplicit = /\bRace:\s*[^.]+\./i.test(description)
+        return hasExplicit ? base : inferRaceFromTags(card.data.tags ?? [], base)
+      })(),
+      gender: (() => {
+        const base = parseGenderFromDescription(description)
+        const hasExplicit = /\bGender:\s*[^.]+\./i.test(description)
+        if (hasExplicit) return base
+        const inferred = inferGenderFromTags(card.data.tags ?? [], base)
+        return normalizeGender(inferred, base)
+      })(),
       current_location: getServerDefaults().unknown.location,
       baseline_appearance: baselineAppearance,
       current_appearance: baselineAppearance,
       current_clothing: getServerDefaults().unknown.clothing,
-      personality_traits: traits.length >= 2 ? traits : getServerDefaults().fallbackTraits,
+      general_description: generalDescription,
+      personality_traits: traits,
       major_flaws: [],
-      quirks: card.data.tags?.slice(0, 6) ?? [],
+      quirks: [],
       perks: [],
     },
     needs_review: true,

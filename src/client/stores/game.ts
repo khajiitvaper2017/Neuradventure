@@ -19,6 +19,8 @@ export const llmUpdateId = writable(0)
 export const pendingCharacter = writable<Omit<MainCharacterState, "inventory"> | null>(null)
 export const pendingCharacterId = writable<number | null>(null)
 export const pendingCharacterImportText = writable<string>("")
+export const pendingCharacterImportCard = writable<object | null>(null)
+export const pendingCharacterImportAvatarDataUrl = writable<string | null>(null)
 
 // Pending new-story fields (persist across char-create navigation)
 export const pendingStoryTitle = writable("")
@@ -59,6 +61,8 @@ export function resetGame() {
   pendingStoryModules.set(null)
   pendingCharacterGenerateDescription.set("")
   pendingCharacterImportText.set("")
+  pendingCharacterImportCard.set(null)
+  pendingCharacterImportAvatarDataUrl.set(null)
   pendingCharacterId.set(null)
 }
 

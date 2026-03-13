@@ -5,6 +5,8 @@ import { zodSchemaToJsonSchema } from "../utils/json-schema.js"
 import { getChatPrompt, getGenerateChatPrompt } from "./config.js"
 import { getServerDefaults } from "../core/strings.js"
 import { callLLMRaw, callLLMText } from "./call.js"
+import type { TavernCardV2 } from "../utils/converters/tavern.js"
+import { renderCharacterBook } from "../utils/tavern/character-book.js"
 
 export type ChatMemberState = Omit<MainCharacterState, "inventory"> | Omit<NPCState, "inventory">
 
@@ -54,13 +56,39 @@ export function buildChatMessages(
   members: ChatMember[],
   history: ChatMessage[],
   nextSpeakerName: string,
-  options: { continueWithoutPlayer?: boolean } = {},
+  options: { continueWithoutPlayer?: boolean; speakerCard?: TavernCardV2 | null } = {},
 ): OpenAI.ChatCompletionMessageParam[] {
   const trimmedHistory = history.slice(-MAX_CHAT_HISTORY)
   const participantBlock = members
     .sort((a, b) => a.sort_order - b.sort_order)
     .map((member) => formatMemberSummary(member.state))
     .join("\n\n")
+
+  const baseSystemPrompt = getChatPrompt()
+  const cardSystemPrompt = options.speakerCard?.data?.system_prompt?.trim() ?? ""
+  const effectiveSystemPrompt = cardSystemPrompt
+    ? cardSystemPrompt.includes("{{original}}")
+      ? cardSystemPrompt.replaceAll("{{original}}", baseSystemPrompt)
+      : cardSystemPrompt
+    : baseSystemPrompt
+
+  const postHistoryRaw = options.speakerCard?.data?.post_history_instructions?.trim() ?? ""
+  const postHistory = postHistoryRaw
+    ? postHistoryRaw.includes("{{original}}")
+      ? postHistoryRaw.replaceAll("{{original}}", "")
+      : postHistoryRaw
+    : ""
+
+  const characterBook = options.speakerCard?.data?.character_book
+  const scanDepth =
+    characterBook && typeof characterBook.scan_depth === "number" && characterBook.scan_depth > 0
+      ? Math.min(characterBook.scan_depth, trimmedHistory.length)
+      : trimmedHistory.length
+  const scannedHistory = scanDepth > 0 ? trimmedHistory.slice(-scanDepth) : []
+  const scanText = [scenario, scannedHistory.map((m) => `${m.speakerName}: ${m.content}`).join("\n")].join("\n\n")
+  const renderedBook = characterBook
+    ? renderCharacterBook(characterBook, scanText)
+    : { before_char: null, after_char: null }
 
   const historyBlock = trimmedHistory.length
     ? trimmedHistory.map((line) => `${line.speakerName}: ${line.content}`).join("\n")
@@ -70,12 +98,21 @@ export function buildChatMessages(
     "=== Scenario ===",
     scenario?.trim() || "(none)",
     "",
+    renderedBook.before_char ? "=== Character Book (Before Participants) ===" : null,
+    renderedBook.before_char ? renderedBook.before_char : null,
+    renderedBook.before_char ? "" : null,
     "=== Participants ===",
     participantBlock || "(none)",
     "",
+    renderedBook.after_char ? "=== Character Book ===" : null,
+    renderedBook.after_char ? renderedBook.after_char : null,
+    renderedBook.after_char ? "" : null,
     "=== Chat History ===",
     historyBlock,
     "",
+    postHistory ? "=== Post-History Instructions ===" : null,
+    postHistory ? postHistory : null,
+    postHistory ? "" : null,
     options.continueWithoutPlayer ? "Player sent no new message; continue the conversation naturally." : null,
     options.continueWithoutPlayer ? "" : null,
     "=== Next Speaker ===",
@@ -85,7 +122,7 @@ export function buildChatMessages(
   ].filter((line): line is string => line !== null)
 
   return [
-    { role: "system", content: getChatPrompt() },
+    { role: "system", content: effectiveSystemPrompt },
     { role: "user", content: promptSections.join("\n") },
   ]
 }

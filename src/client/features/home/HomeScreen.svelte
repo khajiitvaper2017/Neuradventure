@@ -20,6 +20,8 @@
     pendingCharacter,
     pendingCharacterId,
     pendingCharacterImportText,
+    pendingCharacterImportCard,
+    pendingCharacterImportAvatarDataUrl,
     pendingCharacterGenerateDescription,
     pendingStoryTitle,
     pendingStoryScenario,
@@ -186,18 +188,33 @@
   async function importCharacter() {
     const input = document.createElement("input")
     input.type = "file"
-    input.accept = ".json"
+    input.accept = ".json,.png"
     input.onchange = async () => {
       const file = input.files?.[0]
       if (!file) return
       try {
-        const text = await file.text()
-        const result: CharacterImportResult = await api.stories.importCharacter(JSON.parse(text))
+        let result: CharacterImportResult
+        if (file.name.toLowerCase().endsWith(".png")) {
+          const buf = await file.arrayBuffer()
+          const bytes = new Uint8Array(buf)
+          let binary = ""
+          const chunkSize = 0x8000
+          for (let i = 0; i < bytes.length; i += chunkSize) {
+            binary += String.fromCharCode(...bytes.subarray(i, i + chunkSize))
+          }
+          const png_base64 = btoa(binary)
+          result = await api.stories.importCharacter({ png_base64, filename: file.name })
+        } else {
+          const text = await file.text()
+          result = await api.stories.importCharacter(JSON.parse(text))
+        }
         if (result.needs_review) {
           resetGame()
           pendingCharacter.set(result.character)
           pendingCharacterId.set(null)
           pendingCharacterImportText.set(result.source_text ?? "")
+          pendingCharacterImportCard.set((result as { tavern_card?: object }).tavern_card ?? null)
+          pendingCharacterImportAvatarDataUrl.set(result.tavern_avatar_data_url ?? null)
           pendingCharacterGenerateDescription.set(result.source_text ?? "")
           pendingStoryTitle.set("")
           pendingStoryScenario.set("")
@@ -277,9 +294,16 @@
           {#each storyCharacters as group}
             <div class="char-card">
               <div class="char-card-header">
-                <div class="char-card-name">{group.character.name}</div>
-                <div class="char-card-meta">
-                  {group.character.gender} · {group.character.race}
+                {#if group.card?.avatar}
+                  <img class="char-avatar" src={group.card.avatar} alt="" />
+                {:else}
+                  <div class="char-avatar char-avatar--placeholder"></div>
+                {/if}
+                <div class="char-card-title">
+                  <div class="char-card-name">{group.character.name}</div>
+                  <div class="char-card-meta">
+                    {group.character.gender} · {group.character.race}
+                  </div>
                 </div>
               </div>
               <div class="char-card-traits">
@@ -420,6 +444,30 @@
     gap: 0.35rem;
     border-bottom: 1px solid var(--border);
     position: relative;
+  }
+
+  .char-card-header {
+    display: grid;
+    grid-template-columns: 44px 1fr;
+    gap: 0.75rem;
+    align-items: center;
+  }
+
+  .char-avatar {
+    width: 44px;
+    height: 44px;
+    border-radius: 12px;
+    object-fit: cover;
+    background: var(--bg-input);
+    border: 1px solid var(--border);
+  }
+
+  .char-avatar--placeholder {
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.04), rgba(255, 255, 255, 0.01));
+  }
+
+  .char-card-title {
+    min-width: 0;
   }
   .settings-btn {
     position: absolute;

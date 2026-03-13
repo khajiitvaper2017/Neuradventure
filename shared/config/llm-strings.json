@@ -57,7 +57,9 @@
   },
   "sections": {
     "initialCharacter": "initial_character",
+    "characterBookBeforeChar": "character_book_before_char",
     "playerCharacterBase": "player_character_base",
+    "characterBookAfterChar": "character_book_after_char",
     "npcBaselines": "npc_baselines",
     "locations": "locations",
     "memory": "memory",

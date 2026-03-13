@@ -17,6 +17,15 @@ export async function generateCharacterClothing(context: GenerateCharacterContex
   return api.generate.characterClothing(context, modules)
 }
 
-export async function importCharacter(character: Omit<MainCharacterState, "inventory">) {
-  return api.stories.importCharacter(character)
+export async function importCharacter(
+  character: Omit<MainCharacterState, "inventory">,
+  tavernCard?: object | null,
+  tavernAvatarDataUrl?: string | null,
+) {
+  if (!tavernCard) return api.stories.importCharacter(character)
+  return api.stories.importCharacter({
+    character,
+    tavern_card: tavernCard,
+    ...(tavernAvatarDataUrl ? { tavern_avatar_data_url: tavernAvatarDataUrl } : {}),
+  })
 }

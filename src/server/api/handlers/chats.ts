@@ -13,6 +13,7 @@ import { getServerDefaults } from "../../core/strings.js"
 import { buildChatMessages, buildChatStopTokens, sanitizeChatReply } from "../../llm/chat.js"
 import { generateChatReply } from "../../llm/index.js"
 import { chatToPlaintext, chatToTavernJSONL } from "../../utils/converters/tavern.js"
+import { TavernCardV2Schema, type TavernCardV2 } from "../../utils/converters/tavern.js"
 import { badRequest, notFound, serverError } from "./http.js"
 
 const chats = new Hono()
@@ -111,6 +112,18 @@ function buildChatMembersForPrompt(members: db.ChatMemberRow[]) {
 
 function listAiMembers(members: db.ChatMemberRow[]) {
   return members.filter((m) => m.role === "ai").sort((a, b) => a.sort_order - b.sort_order)
+}
+
+function resolveSpeakerCard(member: db.ChatMemberRow): TavernCardV2 | null {
+  if (!member.character_id) return null
+  const row = db.getCharacterCard(member.character_id)
+  if (!row) return null
+  try {
+    const stored = JSON.parse(row.card_json) as unknown
+    return TavernCardV2Schema.parse(stored)
+  } catch {
+    return null
+  }
 }
 
 chats.get("/", (c) => {
@@ -320,6 +333,13 @@ chats.post("/", zValidator("json", CreateChatRequestSchema), (c) => {
     return c.json({ error: "At least one AI member is required" }, 400)
   }
 
+  if (body.seed_greeting) {
+    const index = body.seed_greeting.speaker_sort_order
+    const seedTarget = members[index]
+    if (!seedTarget) return c.json({ error: "seed_greeting.speaker_sort_order is out of range" }, 400)
+    if (seedTarget.role !== "ai") return c.json({ error: "seed_greeting target must be an AI member" }, 400)
+  }
+
   const chatId = db.createChat(
     body.title?.trim() ?? "",
     body.scenario?.trim() ?? "",
@@ -333,6 +353,19 @@ chats.post("/", zValidator("json", CreateChatRequestSchema), (c) => {
       sort_order: index,
     })),
   )
+
+  if (body.seed_greeting) {
+    const createdMembers = db.listChatMembers(chatId)
+    const speaker = createdMembers.find((m) => m.sort_order === body.seed_greeting?.speaker_sort_order)
+    const player = createdMembers.find((m) => m.role === "player")
+    if (speaker && speaker.role === "ai" && player) {
+      const playerName = memberNameFromState(parseMemberState(player.state_json))
+      const speakerName = memberNameFromState(parseMemberState(speaker.state_json))
+      const seeded = body.seed_greeting.content.replaceAll("{{user}}", playerName).replaceAll("{{char}}", speakerName)
+      const messageIndex = db.getNextChatMessageIndex(chatId)
+      db.appendChatMessage(chatId, messageIndex, speaker.id, "assistant", seeded)
+    }
+  }
   return c.json({ id: chatId }, 201)
 })
 
@@ -368,7 +401,8 @@ chats.post("/:id/messages", zValidator("json", SendChatMessageRequestSchema), as
   const chatMembersForPrompt = buildChatMembersForPrompt(members)
 
   const stopTokens = buildChatStopTokens(chatMembersForPrompt.map((member) => member.state.name))
-  const messages = buildChatMessages(chat.scenario, chatMembersForPrompt, history, nextSpeakerName)
+  const speakerCard = resolveSpeakerCard(nextSpeaker)
+  const messages = buildChatMessages(chat.scenario, chatMembersForPrompt, history, nextSpeakerName, { speakerCard })
 
   try {
     const rawReply = await generateChatReply(messages, stopTokens)
@@ -424,8 +458,10 @@ chats.post("/:id/continue", zValidator("json", ChatIdRequestSchema), async (c) =
   const history = buildChatHistory(members, db.listChatMessages(chatId))
   const chatMembersForPrompt = buildChatMembersForPrompt(members)
   const stopTokens = buildChatStopTokens(chatMembersForPrompt.map((member) => member.state.name))
+  const speakerCard = resolveSpeakerCard(nextSpeaker)
   const messages = buildChatMessages(chat.scenario, chatMembersForPrompt, history, nextSpeakerName, {
     continueWithoutPlayer: true,
+    speakerCard,
   })
 
   try {
@@ -494,7 +530,16 @@ chats.post("/:id/regenerate", zValidator("json", ChatIdRequestSchema), async (c)
   const speakerName = memberNameFromState(speakerState)
   const chatMembersForPrompt = buildChatMembersForPrompt(members)
   const stopTokens = buildChatStopTokens(chatMembersForPrompt.map((member) => member.state.name))
-  const prompt = buildChatMessages(chat.scenario, chatMembersForPrompt, buildChatHistory(members, history), speakerName)
+  const speakerCard = resolveSpeakerCard(speakerMember)
+  const prompt = buildChatMessages(
+    chat.scenario,
+    chatMembersForPrompt,
+    buildChatHistory(members, history),
+    speakerName,
+    {
+      speakerCard,
+    },
+  )
 
   try {
     const rawReply = await generateChatReply(prompt, stopTokens)

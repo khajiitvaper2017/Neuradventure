@@ -18,6 +18,8 @@ export const stories = {
     starting_date?: string
     starting_time?: string
     character_id?: number
+    tavern_card?: object
+    tavern_avatar_data_url?: string
     character_data?: Omit<MainCharacterState, "inventory">
     npcs?: NPCState[]
     story_modules?: StoryModules
@@ -51,6 +53,7 @@ export const stories = {
   npcs: () => request<StoryNpcGroup[]>("/api/stories/npcs"),
   exportCharacter: (charId: number, format?: "neuradventure" | "tavern-card") =>
     `/api/stories/characters/${charId}/export${format ? `?format=${format}` : ""}`,
+  getCharacterCard: (charId: number) => request<object>(`/api/stories/characters/${charId}/card`),
   importCharacter: (data: object) =>
     request<CharacterImportResult>("/api/stories/characters/import", {
       method: "POST",

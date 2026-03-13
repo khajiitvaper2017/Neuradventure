@@ -23,6 +23,12 @@
   let playerKey = $state<string | null>(null)
   let aiKeys = $state<string[]>([])
 
+  let greetingLoading = $state(false)
+  let greetingOptions = $state<string[]>([])
+  let seedGreetingEnabled = $state(false)
+  let seedGreetingIndex = $state(0)
+  let greetingFetchNonce = 0
+
   const CHAT_PROMPT_HISTORY_KEY = "na:prompt_history:chat"
 
   type PlayableOption = {
@@ -113,15 +119,18 @@
     playerKey = key
     aiKeys = aiKeys.filter((k) => k !== key)
     showPlayerDropdown = false
+    void refreshGreeting()
   }
 
   function toggleAi(key: string) {
     if (key === playerKey) return
     if (aiKeys.includes(key)) {
       aiKeys = aiKeys.filter((k) => k !== key)
+      void refreshGreeting()
       return
     }
     aiKeys = [...aiKeys, key]
+    void refreshGreeting()
   }
 
   let canSubmit = $derived(!!playerKey && aiKeys.length > 0 && !submitting)
@@ -134,6 +143,41 @@
   let selectedAiOptions = $derived(
     aiKeys.map((key) => optionByKey(key)).filter((entry): entry is PlayableOption => !!entry),
   )
+
+  async function refreshGreeting() {
+    greetingOptions = []
+    seedGreetingEnabled = false
+    seedGreetingIndex = 0
+
+    if (aiKeys.length !== 1) return
+    const ai = optionByKey(aiKeys[0])
+    if (!ai || ai.kind !== "character" || !ai.character_id) return
+
+    const nonce = ++greetingFetchNonce
+    greetingLoading = true
+    try {
+      const card = (await api.stories.getCharacterCard(ai.character_id)) as {
+        spec?: unknown
+        data?: { first_mes?: unknown; alternate_greetings?: unknown }
+      }
+      if (nonce !== greetingFetchNonce) return
+      if (card.spec !== "chara_card_v2" || !card.data) return
+      const first = typeof card.data.first_mes === "string" ? card.data.first_mes.trim() : ""
+      const alts = Array.isArray(card.data.alternate_greetings)
+        ? (card.data.alternate_greetings as unknown[])
+            .filter((v): v is string => typeof v === "string")
+            .map((v) => v.trim())
+        : []
+      const greetings = [first, ...alts].filter((v) => v.trim().length > 0)
+      greetingOptions = greetings
+      seedGreetingEnabled = greetings.length > 0
+      seedGreetingIndex = 0
+    } catch {
+      // no stored card or invalid card
+    } finally {
+      if (nonce === greetingFetchNonce) greetingLoading = false
+    }
+  }
 
   async function generateFromDescription() {
     if (generating) return
@@ -194,10 +238,19 @@
         })),
       ]
 
+      const seedGreeting =
+        seedGreetingEnabled && greetingOptions.length > 0 && greetingOptions[seedGreetingIndex]?.trim()
+          ? {
+              speaker_sort_order: 1,
+              content: greetingOptions[seedGreetingIndex],
+            }
+          : undefined
+
       const { id } = await api.chats.create({
         title: title.trim() || undefined,
         scenario: scenario.trim() || undefined,
         members,
+        ...(seedGreeting ? { seed_greeting: seedGreeting } : {}),
       })
       navigate("chat", { reset: true, params: { chatId: id } })
     } catch (err) {
@@ -249,6 +302,35 @@
         placeholder="Describe the chat setup or shared context."
       ></textarea>
     </div>
+
+    {#if greetingLoading}
+      <div class="field">
+        <div class="empty">Loading character greeting...</div>
+      </div>
+    {:else if greetingOptions.length > 0}
+      <div class="field">
+        <label for="seed-greeting-select">Seed Greeting (SillyTavern)</label>
+        <div class="field-row">
+          <button
+            class="toggle {seedGreetingEnabled ? 'active' : ''}"
+            onclick={() => (seedGreetingEnabled = !seedGreetingEnabled)}
+          >
+            {seedGreetingEnabled ? "On" : "Off"}
+          </button>
+          <select
+            id="seed-greeting-select"
+            class="text-input"
+            value={seedGreetingIndex}
+            disabled={!seedGreetingEnabled}
+            onchange={(e) => (seedGreetingIndex = Number((e.target as HTMLSelectElement).value))}
+          >
+            {#each greetingOptions as _, i}
+              <option value={i}>{i === 0 ? "Greeting 1 (first_mes)" : `Greeting ${i + 1}`}</option>
+            {/each}
+          </select>
+        </div>
+      </div>
+    {/if}
 
     <div class="field">
       <label for="saved-player">Use Character From Stories</label>

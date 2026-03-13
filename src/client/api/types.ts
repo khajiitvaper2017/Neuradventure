@@ -69,7 +69,18 @@ export interface UpdateStoryStateResult {
 export interface StoryCharacterGroup {
   id: number
   character: Omit<MainCharacterState, "inventory">
+  card?: CharacterCardSummary | null
   stories: { id: number; title: string; updated_at: string }[]
+}
+
+export interface CharacterCardSummary {
+  format: string
+  avatar?: string
+  tags: string[]
+  creator?: string
+  character_version?: string
+  greeting_count: number
+  has_character_book: boolean
 }
 
 export interface StoryNpcGroup {
@@ -232,6 +243,8 @@ export interface CharacterImportResult {
   needs_review: boolean
   source?: "neuradventure" | "tavern"
   source_text?: string
+  tavern_card?: object
+  tavern_avatar_data_url?: string
 }
 
 export interface SamplerPreset {

@@ -7,7 +7,7 @@ import {
 import * as db from "../core/db.js"
 import { buildNpcCreationMessages, generateNpcCreation, getCtxLimitCached } from "../llm/index.js"
 import { applyNPCCreations, buildNpcFromCreation, syncCharacterLocation, syncLocationCharacters } from "./state.js"
-import { getAuthorNote, getStoryModules } from "./helpers.js"
+import { getAuthorNote, getStoryCharacterBook, getStoryModules } from "./helpers.js"
 
 export interface CreateNpcResult {
   npc: NPCState
@@ -18,6 +18,7 @@ export async function createNpcFromTurnPrompt(storyId: number, npcName: string):
   const story = db.getStory(storyId)
   if (!story) throw new Error(`Story ${storyId} not found`)
   const modules = getStoryModules(story)
+  const characterBook = getStoryCharacterBook(story)
   if (!modules.track_npcs) throw new Error("NPC tracking is disabled for this story")
 
   const trimmedName = npcName.trim()
@@ -44,6 +45,7 @@ export async function createNpcFromTurnPrompt(storyId: number, npcName: string):
     ctxLimit,
     authorNote,
     modules,
+    characterBook,
   )
   const creation = await generateNpcCreation(messages, trimmedName, modules)
   const updatedNpcs = applyNPCCreations(npcs, [creation])

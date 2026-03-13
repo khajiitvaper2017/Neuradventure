@@ -36,6 +36,10 @@ export const chats = {
       character_id?: number | null
       state: Omit<MainCharacterState, "inventory"> | Omit<NPCState, "inventory">
     }>
+    seed_greeting?: {
+      speaker_sort_order: number
+      content: string
+    }
   }) => request<{ id: number }>("/api/chats", { method: "POST", body: JSON.stringify(data) }),
   send: (id: number, content: string) =>
     request<ChatSendResult>(`/api/chats/${id}/messages`, {

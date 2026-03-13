@@ -26,6 +26,8 @@
     pendingStoryTime,
     pendingStoryGenerateDescription,
     pendingCharacterId,
+    pendingCharacterImportCard,
+    pendingCharacterImportAvatarDataUrl,
     pendingStoryModules,
   } from "../../stores/game.js"
   import { storyDefaults } from "../../stores/settings.js"
@@ -234,6 +236,8 @@
         starting_date?: string
         starting_time?: string
         character_id?: number
+        tavern_card?: object
+        tavern_avatar_data_url?: string
         character_data?: Omit<MainCharacterState, "inventory">
         npcs?: NPCState[]
         story_modules?: StoryModules
@@ -251,11 +255,15 @@
         if (charData) payload.character_data = charData
       } else if (charData) {
         payload.character_data = charData
+        if ($pendingCharacterImportCard) payload.tavern_card = $pendingCharacterImportCard
+        if ($pendingCharacterImportAvatarDataUrl) payload.tavern_avatar_data_url = $pendingCharacterImportAvatarDataUrl
       }
       const { id } = await api.stories.create(payload)
       await loadStoryById(id)
       pendingCharacter.set(null)
       pendingCharacterId.set(null)
+      pendingCharacterImportCard.set(null)
+      pendingCharacterImportAvatarDataUrl.set(null)
       pendingStoryTitle.set("")
       pendingStoryScenario.set("")
       pendingStoryNPCs.set([])

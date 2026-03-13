@@ -19,6 +19,8 @@ import {
   storyToPlaintext,
   detectImportFormat,
   parseTavernJSONL,
+  extractCardJsonFromPng,
+  TavernCardV2Schema,
   type TavernCardV2,
 } from "../../utils/converters/tavern.js"
 import { normalizeStoryModules, StoryModulesSchema } from "../../schemas/story-modules.js"
@@ -96,6 +98,7 @@ stories.get("/characters", (c) => {
     {
       id: number
       character: Omit<ReturnType<typeof MainCharacterStateSchema.parse>, "inventory">
+      card?: db.CharacterCardSummary | null
       stories: { id: number; title: string; updated_at: string }[]
     }
   >()
@@ -105,7 +108,7 @@ stories.get("/characters", (c) => {
     if (!parsed.success) continue
     const { inventory: _inventory, ...base } = parsed.data
     void _inventory
-    groups.set(row.id, { id: row.id, character: base, stories: [] })
+    groups.set(row.id, { id: row.id, character: base, card: db.getCharacterCardSummary(row.id), stories: [] })
   }
 
   for (const story of storyRefs) {
@@ -203,6 +206,16 @@ stories.post("/", zValidator("json", CreateStoryRequestSchema), async (c) => {
     const { inventory: _inventory, ...base } = parsed
     void _inventory
     characterId = db.createCharacter(base)
+    if (body.tavern_card !== undefined && body.tavern_card !== null) {
+      const parsedCard = TavernCardV2Schema.safeParse(body.tavern_card)
+      if (!parsedCard.success) return badRequest(c, "Invalid tavern_card payload")
+      db.upsertCharacterCard(
+        characterId,
+        "tavern-card-v2",
+        JSON.stringify(body.tavern_card),
+        body.tavern_avatar_data_url ?? undefined,
+      )
+    }
     character = parsed
   } else {
     return badRequest(c, "Provide character_id or character_data")
@@ -441,6 +454,27 @@ stories.get("/characters/:id/export", (c) => {
   const parsed = MainCharacterStateStoredSchema.parse(JSON.parse(charRow.state_json))
 
   if (format === "tavern-card") {
+    const cardRow = db.getCharacterCard(charId)
+    if (cardRow) {
+      try {
+        const stored = JSON.parse(cardRow.card_json) as unknown
+        const safeCard = TavernCardV2Schema.parse(stored)
+        const { inventory: _inventory, ...base } = parsed
+        void _inventory
+        safeCard.data.name = parsed.name
+        safeCard.data.extensions = { ...safeCard.data.extensions, neuradventure: base }
+        const data = JSON.stringify(safeCard, null, 2)
+        return new Response(data, {
+          headers: {
+            "Content-Type": "application/json",
+            "Content-Disposition": `attachment; filename="character-${parsed.name.replace(/\s+/g, "_")}.json"`,
+          },
+        })
+      } catch {
+        // fall back to generated card below
+      }
+    }
+
     const card = characterToTavernCard(parsed)
     const data = JSON.stringify(card, null, 2)
     return new Response(data, {
@@ -463,16 +497,62 @@ stories.get("/characters/:id/export", (c) => {
   })
 })
 
+stories.get("/characters/:id/card", (c) => {
+  const charId = Number(c.req.param("id"))
+  const charRow = db.getCharacter(charId)
+  if (!charRow) return notFound(c, "Character not found")
+  const row = db.getCharacterCard(charId)
+  if (!row) return notFound(c, "No stored character card")
+  try {
+    const stored = JSON.parse(row.card_json) as unknown
+    const card = TavernCardV2Schema.parse(stored)
+    return c.json(card)
+  } catch {
+    return badRequest(c, "Stored character card is invalid JSON")
+  }
+})
+
 // ─── Character Import ─────────────────────────────────────────────────────────
 
 stories.post("/characters/import", async (c) => {
   const body = await c.req.json()
-  const format = detectImportFormat(body)
 
-  if (format === "tavern-card") {
-    const result = tavernCardToCharacter(body as TavernCardV2)
+  if (
+    body &&
+    typeof body === "object" &&
+    ("png_base64" in (body as Record<string, unknown>) || "png_data_url" in (body as Record<string, unknown>))
+  ) {
+    const PngSchema = z
+      .object({
+        png_base64: z.string().optional(),
+        png_data_url: z.string().optional(),
+        filename: z.string().optional(),
+      })
+      .passthrough()
+    const parsed = PngSchema.parse(body)
+    const dataUrl =
+      typeof parsed.png_data_url === "string" && parsed.png_data_url.trim()
+        ? parsed.png_data_url.trim()
+        : typeof parsed.png_base64 === "string" && parsed.png_base64.trim()
+          ? `data:image/png;base64,${parsed.png_base64.trim()}`
+          : ""
+    const base64 = dataUrl.includes(",") ? dataUrl.split(",", 2)[1] : dataUrl
+    if (!base64) return badRequest(c, "Invalid PNG payload. Expected png_base64 or png_data_url.")
+
+    let extracted: { card: unknown }
+    try {
+      extracted = extractCardJsonFromPng(Buffer.from(base64, "base64"))
+    } catch (err) {
+      return badRequest(c, err instanceof Error ? err.message : "Invalid PNG character card")
+    }
+
+    const originalCard = extracted.card as unknown
+    const parsedCard = TavernCardV2Schema.safeParse(originalCard)
+    if (!parsedCard.success) return badRequest(c, "Invalid embedded character card JSON")
+    const result = tavernCardToCharacter(parsedCard.data as TavernCardV2)
     if (!result.needs_review) {
       const characterId = db.createCharacter(result.character)
+      db.upsertCharacterCard(characterId, "tavern-card-v2", JSON.stringify(originalCard), dataUrl)
       return c.json({ id: characterId, character: result.character, needs_review: false }, 201)
     }
     return c.json({
@@ -480,6 +560,56 @@ stories.post("/characters/import", async (c) => {
       needs_review: true,
       source: result.source,
       source_text: result.source_text,
+      tavern_card: originalCard,
+      tavern_avatar_data_url: dataUrl,
+    })
+  }
+
+  if (body && typeof body === "object" && "character" in (body as Record<string, unknown>)) {
+    const WrapperSchema = z
+      .object({
+        character: MainCharacterStateStoredSchema,
+        tavern_card: z.unknown().optional(),
+        tavern_avatar_data_url: z.preprocess(
+          (v) => (typeof v === "string" ? v.trim() : v),
+          z.string().min(1).optional(),
+        ),
+      })
+      .passthrough()
+    const wrapper = WrapperSchema.parse(body)
+    const { inventory: _inventory, ...base } = wrapper.character
+    void _inventory
+    const characterId = db.createCharacter(base)
+    if (wrapper.tavern_card !== undefined && wrapper.tavern_card !== null) {
+      const parsedCard = TavernCardV2Schema.safeParse(wrapper.tavern_card)
+      if (!parsedCard.success) return badRequest(c, "Invalid tavern_card payload")
+      db.upsertCharacterCard(
+        characterId,
+        "tavern-card-v2",
+        JSON.stringify(wrapper.tavern_card),
+        wrapper.tavern_avatar_data_url ?? undefined,
+      )
+    }
+    return c.json({ id: characterId, character: base, needs_review: false }, 201)
+  }
+
+  const format = detectImportFormat(body)
+
+  if (format === "tavern-card") {
+    const originalCard = body as unknown
+    const parsedCard = TavernCardV2Schema.parse(originalCard)
+    const result = tavernCardToCharacter(parsedCard as TavernCardV2)
+    if (!result.needs_review) {
+      const characterId = db.createCharacter(result.character)
+      db.upsertCharacterCard(characterId, "tavern-card-v2", JSON.stringify(originalCard))
+      return c.json({ id: characterId, character: result.character, needs_review: false }, 201)
+    }
+    return c.json({
+      character: result.character,
+      needs_review: true,
+      source: result.source,
+      source_text: result.source_text,
+      tavern_card: originalCard,
     })
   }
 

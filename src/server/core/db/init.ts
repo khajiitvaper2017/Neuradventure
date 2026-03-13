@@ -12,6 +12,15 @@ export function initDb() {
       updated_at    TEXT NOT NULL DEFAULT (datetime('now'))
     );
 
+    CREATE TABLE IF NOT EXISTS character_cards (
+      character_id  INTEGER PRIMARY KEY REFERENCES characters(id) ON DELETE CASCADE,
+      format        TEXT NOT NULL,
+      card_json     TEXT NOT NULL,
+      avatar_data_url TEXT,
+      created_at    TEXT NOT NULL DEFAULT (datetime('now')),
+      updated_at    TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+
     CREATE TABLE IF NOT EXISTS stories (
       id                    INTEGER PRIMARY KEY AUTOINCREMENT,
       character_id          INTEGER REFERENCES characters(id),
@@ -113,6 +122,11 @@ export function initDb() {
 
     CREATE INDEX IF NOT EXISTS idx_chat_messages_chat ON chat_messages(chat_id, message_index);
   `)
+  // Lightweight migrations for existing installs (no schema versioning yet).
+  const cardCols = database.prepare("PRAGMA table_info(character_cards)").all() as Array<{ name: string }>
+  if (!cardCols.some((c) => c.name === "avatar_data_url")) {
+    database.exec("ALTER TABLE character_cards ADD COLUMN avatar_data_url TEXT")
+  }
   database.exec("CREATE INDEX IF NOT EXISTS idx_stories_character ON stories(character_id)")
   database.exec("CREATE UNIQUE INDEX IF NOT EXISTS idx_turns_request_id ON turns(request_id)")
 

@@ -23,7 +23,7 @@ import {
   syncLocationCharacters,
 } from "./state.js"
 import { parseInitialStorySnapshot, parseTurnSnapshot, parseTurnVariantSnapshot } from "./snapshots.js"
-import { getAuthorNote, getStoryModules } from "./helpers.js"
+import { getAuthorNote, getStoryCharacterBook, getStoryModules } from "./helpers.js"
 
 export interface TurnResult {
   turn_id: number
@@ -84,6 +84,7 @@ export async function processTurn(
   const story = db.getStory(storyId)
   if (!story) throw new Error(`Story ${storyId} not found`)
   const modules = getStoryModules(story)
+  const characterBook = getStoryCharacterBook(story)
 
   const character = MainCharacterStateStoredSchema.parse(JSON.parse(story.character_state_json))
   const world = WorldStateStoredSchema.parse(JSON.parse(story.world_state_json))
@@ -104,6 +105,7 @@ export async function processTurn(
     ctxLimit,
     authorNote,
     modules,
+    characterBook,
   )
   const turnResponse = await callLLM(messages, npcs, modules)
   const llmWarnings = collectLlmWarnings(world, npcs, turnResponse)
@@ -299,6 +301,7 @@ export async function regenerateLastTurn(storyId: number, actionMode?: string): 
   const story = db.getStory(storyId)
   if (!story) throw new Error(`Story ${storyId} not found`)
   const modules = getStoryModules(story)
+  const characterBook = getStoryCharacterBook(story)
 
   const turnRows = db.getTurnsForStory(storyId)
   const lastTurn = turnRows[turnRows.length - 1]
@@ -325,6 +328,7 @@ export async function regenerateLastTurn(storyId: number, actionMode?: string): 
     ctxLimit,
     authorNote,
     modules,
+    characterBook,
   )
   const turnResponse = await callLLM(messages, snapshot.npcs, modules)
   const llmWarnings = collectLlmWarnings(snapshot.world, snapshot.npcs, turnResponse)

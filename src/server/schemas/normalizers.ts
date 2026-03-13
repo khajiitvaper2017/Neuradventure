@@ -1,5 +1,5 @@
 import { DATE_REGEX, DEFAULT_RECENT_EVENTS_SUMMARY } from "./constants.js"
-import { npcTraitEnumValues, npcTraitLookup } from "./npc-traits.js"
+import { npcTraitLookup } from "./npc-traits.js"
 import { getServerDefaults } from "../core/strings.js"
 export { normalizeGender } from "../../../shared/utils/normalize.js"
 
@@ -117,19 +117,6 @@ export function normalizePersonalityTraits(value: unknown): string[] {
       if (!trimmed) continue
       const canonical = npcTraitLookup.get(trimmed.toLowerCase()) ?? trimmed
       if (!traits.includes(canonical)) traits.push(canonical)
-    }
-  }
-
-  if (traits.length < 2) {
-    const fallbacks =
-      npcTraitEnumValues.length >= 2
-        ? [npcTraitEnumValues[0], npcTraitEnumValues[1]]
-        : npcTraitEnumValues.length === 1
-          ? [npcTraitEnumValues[0], npcTraitEnumValues[0]]
-          : getServerDefaults().fallbackTraits
-    for (const fallback of fallbacks) {
-      if (traits.length >= 2) break
-      if (!traits.includes(fallback)) traits.push(fallback)
     }
   }
 

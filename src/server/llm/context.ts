@@ -14,6 +14,8 @@ import {
 } from "./format.js"
 import { formatTemplate, getLlmStrings, getServerDefaults } from "../core/strings.js"
 import { DEFAULT_STORY_MODULES, resolveModuleFlags } from "../schemas/story-modules.js"
+import { renderCharacterBook } from "../utils/tavern/character-book.js"
+import type { CharacterBook } from "../utils/converters/tavern.js"
 
 // ─── Shared context block builder ─────────────────────────────────────────────
 
@@ -27,11 +29,13 @@ export interface ContextBlockOpts {
   actionBlock?: string | null
   memory?: string | null
   authorNote?: { text: string; depth: number } | null
+  characterBook?: CharacterBook | null
   modules?: StoryModules
 }
 
 function buildContextBlock(opts: ContextBlockOpts): string {
-  const { character, world, npcs, recentTurns, ctxLimit, initialCharacter, actionBlock, authorNote } = opts
+  const { character, world, npcs, recentTurns, ctxLimit, initialCharacter, actionBlock, authorNote, characterBook } =
+    opts
   const initial = initialCharacter ?? character
   const llmStrings = getLlmStrings()
   const defaults = getServerDefaults()
@@ -74,6 +78,28 @@ function buildContextBlock(opts: ContextBlockOpts): string {
     .join("\n")
 
   const baseSection = wrapSection(sections.playerCharacterBase, baseLines)
+
+  let beforeCharacterBookSection: string | null = null
+  let afterCharacterBookSection: string | null = null
+  if (characterBook && Array.isArray(characterBook.entries) && characterBook.entries.length > 0) {
+    const scanDepth =
+      typeof characterBook.scan_depth === "number" && characterBook.scan_depth > 0
+        ? Math.min(characterBook.scan_depth, recentTurns.length)
+        : recentTurns.length
+    const scanTurns = scanDepth > 0 ? recentTurns.slice(-scanDepth) : []
+    const scanText = [
+      world.memory,
+      scanTurns.map((t) => `${t.player_input}\n${t.narrative_text}`).join("\n\n"),
+      actionBlock ?? "",
+    ]
+      .filter(Boolean)
+      .join("\n\n")
+    const rendered = renderCharacterBook(characterBook, scanText)
+    const beforeTag = (sections as Record<string, string>).characterBookBeforeChar ?? "character_book_before_char"
+    const afterTag = (sections as Record<string, string>).characterBookAfterChar ?? "character_book_after_char"
+    beforeCharacterBookSection = rendered.before_char ? wrapSection(beforeTag, rendered.before_char) : null
+    afterCharacterBookSection = rendered.after_char ? wrapSection(afterTag, rendered.after_char) : null
+  }
 
   const npcBaselineSection =
     modules.track_npcs && npcs.length > 0 ? wrapSection(sections.npcBaselines, formatNPCBaselines(npcs, flags)) : null
@@ -123,7 +149,9 @@ function buildContextBlock(opts: ContextBlockOpts): string {
 
   const stableBlock = joinSections([
     initialSection,
+    beforeCharacterBookSection,
     baseSection,
+    afterCharacterBookSection,
     npcBaselineSection,
     locationSection,
     memorySection,
@@ -150,6 +178,7 @@ export function buildTurnMessages(
   ctxLimitOverride?: number,
   authorNote?: { text: string; depth: number } | null,
   modules?: StoryModules,
+  characterBook?: CharacterBook | null,
 ): OpenAI.ChatCompletionMessageParam[] {
   const ctxLimit = ctxLimitOverride ?? getGenerationParams().ctx_limit
   const hasPlayerInput = playerInput.trim().length > 0
@@ -176,6 +205,7 @@ export function buildTurnMessages(
     initialCharacter,
     actionBlock: actionSection,
     authorNote,
+    characterBook,
     modules,
   })
 
@@ -194,6 +224,7 @@ export function buildNpcCreationMessages(
   ctxLimitOverride?: number,
   authorNote?: { text: string; depth: number } | null,
   modules?: StoryModules,
+  characterBook?: CharacterBook | null,
 ): OpenAI.ChatCompletionMessageParam[] {
   const ctxLimit = ctxLimitOverride ?? getGenerationParams().ctx_limit
   const sections = getLlmStrings().sections
@@ -210,6 +241,7 @@ export function buildNpcCreationMessages(
     ctxLimit,
     actionBlock,
     authorNote,
+    characterBook,
     modules,
   })
 
@@ -229,6 +261,7 @@ export function buildImpersonateMessages(
   ctxLimitOverride?: number,
   authorNote?: { text: string; depth: number } | null,
   modules?: StoryModules,
+  characterBook?: CharacterBook | null,
 ): OpenAI.ChatCompletionMessageParam[] {
   const ctxLimit = ctxLimitOverride ?? getGenerationParams().ctx_limit
   const llmStrings = getLlmStrings()
@@ -246,6 +279,7 @@ export function buildImpersonateMessages(
     initialCharacter,
     actionBlock: actionModeSection,
     authorNote,
+    characterBook,
     modules,
   })
   const prompt = `${contextBlock}\n\n${wrapSection(sections.playersAction, "")}`

@@ -27,6 +27,8 @@ export const CreateStoryRequestSchema = z.object({
   starting_date: z.string().regex(DATE_REGEX, "starting_date must be YYYY-MM-DD").optional(),
   starting_time: z.string().regex(TIME_OF_DAY_REGEX, "starting_time must be 24h HH:MM").optional(),
   character_id: z.number().int().optional(),
+  tavern_card: z.unknown().optional(),
+  tavern_avatar_data_url: z.string().min(1).optional(),
   character_data: z
     .object({
       name: z.string().min(1),
@@ -126,6 +128,12 @@ export const CreateChatRequestSchema = z.object({
       }),
     )
     .min(2),
+  seed_greeting: z
+    .object({
+      speaker_sort_order: z.number().int().min(0),
+      content: z.string().min(1),
+    })
+    .optional(),
 })
 
 export const SendChatMessageRequestSchema = z.object({
