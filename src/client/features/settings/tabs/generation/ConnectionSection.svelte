@@ -20,7 +20,7 @@
   } from "../../../../stores/settings.js"
   import { loadPresets, presets, refreshPresets } from "../../../../utils/presets.js"
   import { repetitionParams, samplingParams } from "../../lib/generationParamDefs.js"
-  import { PARAM_TO_OPENROUTER } from "../../lib/openrouterParams.js"
+  import { getOpenRouterParamStatus } from "../../lib/openrouterParams.js"
   import { buildModelSelectOptions, filterModelResults } from "../../lib/openrouterModels.js"
   import { coercePresetFromJson, filenameToPresetName } from "../../lib/presetImport.js"
 
@@ -231,12 +231,7 @@
     const model = modelSearchResults.find((m) => m.id === $connector.model)
     if (!model?.supported_parameters) return []
     const allParams = [...samplingParams, ...repetitionParams]
-    return allParams
-      .filter((p) => {
-        const orParam = PARAM_TO_OPENROUTER[p.key]
-        return orParam && !model.supported_parameters!.includes(orParam)
-      })
-      .map((p) => p.label)
+    return allParams.filter((p) => getOpenRouterParamStatus(p.key, model) === "unsupported").map((p) => p.label)
   })
 
   function commitAuthorNote() {
