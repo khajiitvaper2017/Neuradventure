@@ -1,7 +1,18 @@
+function resolveApiUrl(path: string): string {
+  const base = (import.meta.env.VITE_API_BASE_URL as string | undefined)?.trim()
+  if (!base) return path
+  try {
+    return new URL(path, base).toString()
+  } catch {
+    return path
+  }
+}
+
 export async function request<T>(path: string, options?: RequestInit): Promise<T> {
+  const url = resolveApiUrl(path)
   let res: Response
   try {
-    res = await fetch(path, {
+    res = await fetch(url, {
       headers: { "Content-Type": "application/json" },
       ...options,
     })

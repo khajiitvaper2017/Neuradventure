@@ -39,6 +39,20 @@ type Listener = (msg: StreamServerMessage) => void
 
 function streamUrl(): string | null {
   if (typeof window === "undefined") return null
+  const base = (import.meta.env.VITE_API_BASE_URL as string | undefined)?.trim()
+  if (base) {
+    try {
+      const url = new URL(base)
+      url.protocol = url.protocol === "https:" ? "wss:" : "ws:"
+      url.pathname = "/api/stream"
+      url.search = ""
+      url.hash = ""
+      return url.toString()
+    } catch {
+      // fall back to same-origin
+    }
+  }
+
   const proto = window.location.protocol === "https:" ? "wss" : "ws"
   return `${proto}://${window.location.host}/api/stream`
 }
