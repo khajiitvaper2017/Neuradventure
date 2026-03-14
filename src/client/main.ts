@@ -19,7 +19,7 @@ function kickStreaming() {
   try {
     streamClient.ensureConnected()
   } catch {
-    // ignore
+    // ignore 
   }
 }
 
