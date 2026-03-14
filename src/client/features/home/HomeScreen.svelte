@@ -263,8 +263,8 @@
           showError(`Character "${result.character.name}" imported`)
           await loadCharacters()
         }
-      } catch {
-        showError("Failed to import character — invalid format")
+      } catch (err) {
+        showError(err instanceof Error ? err.message : "Failed to import character — invalid format")
       }
     }
     input.click()

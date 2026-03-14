@@ -654,8 +654,16 @@ stories.post("/characters/import", async (c) => {
 
   if (format === "tavern-card") {
     const originalCard = body as unknown
-    const parsedCard = TavernCardV2Schema.parse(originalCard)
-    const result = tavernCardToCharacter(parsedCard as TavernCardV2)
+    const parsedCard = TavernCardV2Schema.safeParse(originalCard)
+    if (!parsedCard.success) {
+      const issue = parsedCard.error.issues[0]
+      const path = issue?.path?.length ? issue.path.join(".") : "(root)"
+      const message = issue?.message
+        ? `Invalid TavernCardV2 JSON: ${path}: ${issue.message}`
+        : "Invalid TavernCardV2 JSON"
+      return badRequest(c, message)
+    }
+    const result = tavernCardToCharacter(parsedCard.data as TavernCardV2)
     if (!result.needs_review) {
       const characterId = db.createCharacter(result.character)
       db.upsertCharacterCard(characterId, "tavern-card-v2", JSON.stringify(originalCard))

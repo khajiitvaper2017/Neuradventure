@@ -4,23 +4,36 @@ import { npcTraitLookup } from "../../../schemas/npc-traits.js"
 import { getServerDefaults } from "../../../core/strings.js"
 import { normalizeGender } from "../../../schemas/normalizers.js"
 
-const ExtensionsSchema = z.record(z.string(), z.unknown()).optional().default({}).catch({})
+const nullToUndefined = (value: unknown) => (value === null ? undefined : value)
+
+const ExtensionsSchema = z.preprocess(
+  nullToUndefined,
+  z.record(z.string(), z.unknown()).optional().default({}).catch({}),
+)
+const OptionalStringSchema = z.preprocess(nullToUndefined, z.string().optional().default(""))
+const OptionalStringArraySchema = z.preprocess(nullToUndefined, z.array(z.string()).optional().default([]))
+const OptionalStringArrayNoDefaultSchema = z.preprocess(nullToUndefined, z.array(z.string()).optional())
+const OptionalBoolSchema = z.preprocess(nullToUndefined, z.boolean().optional())
+const OptionalBoolDefaultTrueSchema = z.preprocess(nullToUndefined, z.boolean().optional().default(true))
+const OptionalIntDefaultZeroSchema = z.preprocess(nullToUndefined, z.number().int().optional().default(0))
+const OptionalIntSchema = z.preprocess(nullToUndefined, z.number().int().optional())
+const OptionalNumberSchema = z.preprocess(nullToUndefined, z.number().optional())
 
 export const CharacterBookEntrySchema = z
   .object({
-    keys: z.array(z.string()).optional().default([]),
-    content: z.string().optional().default(""),
+    keys: OptionalStringArraySchema,
+    content: OptionalStringSchema,
     extensions: ExtensionsSchema,
-    enabled: z.boolean().optional().default(true),
-    insertion_order: z.number().int().optional().default(0),
-    case_sensitive: z.boolean().optional(),
-    name: z.string().optional(),
-    priority: z.number().optional(),
-    id: z.number().optional(),
-    comment: z.string().optional(),
-    selective: z.boolean().optional(),
-    secondary_keys: z.array(z.string()).optional(),
-    constant: z.boolean().optional(),
+    enabled: OptionalBoolDefaultTrueSchema,
+    insertion_order: OptionalIntDefaultZeroSchema,
+    case_sensitive: OptionalBoolSchema,
+    name: z.preprocess(nullToUndefined, z.string().optional()),
+    priority: OptionalNumberSchema,
+    id: OptionalNumberSchema,
+    comment: z.preprocess(nullToUndefined, z.string().optional()),
+    selective: OptionalBoolSchema,
+    secondary_keys: OptionalStringArrayNoDefaultSchema,
+    constant: OptionalBoolSchema,
     position: z.preprocess(
       (value) => (value === "" || value === null ? undefined : value),
       z.enum(["before_char", "after_char"]).optional().default("before_char"),
@@ -30,40 +43,43 @@ export const CharacterBookEntrySchema = z
 
 export const CharacterBookSchema = z
   .object({
-    name: z.string().optional(),
-    description: z.string().optional(),
-    scan_depth: z.number().int().optional(),
-    token_budget: z.number().int().optional(),
-    recursive_scanning: z.boolean().optional(),
+    name: z.preprocess(nullToUndefined, z.string().optional()),
+    description: z.preprocess(nullToUndefined, z.string().optional()),
+    scan_depth: OptionalIntSchema,
+    token_budget: OptionalIntSchema,
+    recursive_scanning: OptionalBoolSchema,
     extensions: ExtensionsSchema,
-    entries: z.array(CharacterBookEntrySchema).optional().default([]),
+    entries: z.preprocess(nullToUndefined, z.array(CharacterBookEntrySchema).optional().default([])),
   })
   .passthrough()
 
 export const TavernCardV2Schema = z
   .object({
     spec: z.literal("chara_card_v2"),
-    spec_version: z.literal("2.0").optional().default("2.0"),
+    spec_version: z.preprocess(
+      (value) => (value === null ? undefined : value === 2 || value === 2.0 ? "2.0" : value),
+      z.literal("2.0").optional().default("2.0"),
+    ),
     data: z
       .object({
-        name: z.string().optional().default(""),
-        description: z.string().optional().default(""),
-        personality: z.string().optional().default(""),
-        scenario: z.string().optional().default(""),
-        first_mes: z.string().optional().default(""),
-        mes_example: z.string().optional().default(""),
+        name: OptionalStringSchema,
+        description: OptionalStringSchema,
+        personality: OptionalStringSchema,
+        scenario: OptionalStringSchema,
+        first_mes: OptionalStringSchema,
+        mes_example: OptionalStringSchema,
 
         // SpecV2 fields
-        creator_notes: z.string().optional().default(""),
-        system_prompt: z.string().optional().default(""),
-        post_history_instructions: z.string().optional().default(""),
-        alternate_greetings: z.array(z.string()).optional().default([]),
-        character_book: CharacterBookSchema.optional(),
+        creator_notes: OptionalStringSchema,
+        system_prompt: OptionalStringSchema,
+        post_history_instructions: OptionalStringSchema,
+        alternate_greetings: OptionalStringArraySchema,
+        character_book: z.preprocess(nullToUndefined, CharacterBookSchema.optional()),
 
         // May-8 additions
-        tags: z.array(z.string()).optional().default([]),
-        creator: z.string().optional().default(""),
-        character_version: z.string().optional().default(""),
+        tags: OptionalStringArraySchema,
+        creator: OptionalStringSchema,
+        character_version: OptionalStringSchema,
         extensions: ExtensionsSchema,
       })
       .passthrough(),
