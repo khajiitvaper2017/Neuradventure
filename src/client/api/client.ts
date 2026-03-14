@@ -17,4 +17,4 @@ export const api = {
 }
 
 export type * from "../../../shared/types.js"
-export type * from "./types.js"
+export type * from "../../../shared/api-types.js"

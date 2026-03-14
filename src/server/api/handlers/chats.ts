@@ -42,6 +42,7 @@ function resolveMemberState(member: db.ChatMemberRow): db.ChatMemberState {
     name: defaults.unknown.value,
     race: "",
     gender: "",
+    general_description: defaults.unknown.generalDescription,
     current_location: "",
     baseline_appearance: "",
     current_appearance: "",
@@ -107,6 +108,7 @@ function buildChatHistory(members: db.ChatMemberRow[], messages: db.ChatMessageR
 }
 
 function buildChatMembersForPrompt(members: db.ChatMemberRow[]) {
+  const defaults = getServerDefaults()
   return members.map((member) => ({
     id: member.id,
     role: member.role,
@@ -117,6 +119,7 @@ function buildChatMembersForPrompt(members: db.ChatMemberRow[]) {
         name: memberNameFromState(null),
         race: "",
         gender: "",
+        general_description: defaults.unknown.generalDescription,
         current_location: "",
         baseline_appearance: "",
         current_appearance: "",

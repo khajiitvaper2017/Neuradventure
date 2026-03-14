@@ -1,5 +1,5 @@
 import { getServerDefaults, getLlmStrings } from "../src/server/core/strings.js"
-import { DB_PATH } from "../src/server/core/db.js"
+import { DB_PATH, initDb } from "../src/server/core/db.js"
 import { resolve } from "node:path"
 import { getConfig, npcTraits } from "../src/server/llm/config.js"
 import { buildTurnResponseSchema } from "../src/server/llm/schema.js"
@@ -109,6 +109,7 @@ function assertNoMissingDescriptions(schemaName: string, schema: object): void {
 }
 
 function main() {
+  initDb()
   const defaults = getServerDefaults()
   assertNonEmpty(defaults.format?.noneLower, "server-defaults.format.noneLower")
   assertNonEmpty(defaults.unknown?.location, "server-defaults.unknown.location")

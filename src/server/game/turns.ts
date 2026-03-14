@@ -10,6 +10,7 @@ import {
   type TurnResponse,
   type WorldState,
 } from "../core/models.js"
+import type { CancelLastResult, SelectVariantResult, TurnResult, UndoCancelResult } from "../../../shared/api-types.js"
 import * as db from "../core/db.js"
 import { buildTurnMessages, callLLM, getCtxLimitCached } from "../llm/index.js"
 import { resolveModuleFlags } from "../schemas/story-modules.js"
@@ -25,16 +26,10 @@ import {
 import { parseInitialStorySnapshot, parseTurnSnapshot, parseTurnVariantSnapshot } from "./snapshots.js"
 import { getAuthorNote, getStoryCharacterBook, getStoryModules } from "./helpers.js"
 
-export interface TurnResult {
-  turn_id: number
-  story_id: number
-  turn_number: number
-  narrative_text: string
-  background_events: string | null
-  character: MainCharacterState
-  world: WorldState
-  npcs: NPCState[]
-  llm_warnings?: string[]
+type ActionMode = UndoCancelResult["action_mode"]
+
+function coerceActionMode(value: unknown): ActionMode {
+  return value === "do" || value === "say" || value === "story" ? value : "do"
 }
 
 type TurnSnapshot = {
@@ -168,27 +163,6 @@ export function buildTurnResultFromRow(turn: db.TurnRow): TurnResult {
   }
 }
 
-export interface CancelLastResult {
-  removed_turn_id: number
-  character: MainCharacterState
-  world: WorldState
-  npcs: NPCState[]
-}
-
-export interface UndoCancelResult {
-  turn_id: number
-  story_id: number
-  turn_number: number
-  action_mode: string
-  player_input: string
-  narrative_text: string
-  background_events: string | null
-  active_variant_id: number | null
-  character: MainCharacterState
-  world: WorldState
-  npcs: NPCState[]
-}
-
 export function cancelLastTurn(storyId: number): CancelLastResult {
   const story = db.getStory(storyId)
   if (!story) throw new Error(`Story ${storyId} not found`)
@@ -304,7 +278,7 @@ export function undoCancelLastTurn(storyId: number): UndoCancelResult {
     turn_id: turnId,
     story_id: storyId,
     turn_number: canceled.turn_number,
-    action_mode: canceled.action_mode,
+    action_mode: coerceActionMode(canceled.action_mode),
     player_input: canceled.player_input,
     narrative_text: canceled.narrative_text,
     background_events: canceled.background_events ?? null,
@@ -389,18 +363,6 @@ export async function regenerateLastTurn(
     npcs: updated.npcs,
     llm_warnings: llmWarnings.length > 0 ? llmWarnings : undefined,
   }
-}
-
-export interface SelectVariantResult {
-  turn_id: number
-  story_id: number
-  turn_number: number
-  narrative_text: string
-  background_events: string | null
-  character: MainCharacterState
-  world: WorldState
-  npcs: NPCState[]
-  active_variant_id: number
 }
 
 export function selectTurnVariant(turnId: number, variantId: number): SelectVariantResult {

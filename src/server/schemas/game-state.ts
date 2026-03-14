@@ -76,7 +76,7 @@ const CharacterStateBaseSchema = z
     name: z.string().min(1),
     race: z.string().min(1),
     gender: z.string().min(1),
-    general_description: z.string().optional(),
+    general_description: z.string().optional().default(defaults.unknown.generalDescription),
     current_location: z.string().min(1).optional().default(defaults.unknown.location),
     baseline_appearance: z.string().min(1).optional().default(defaults.unknown.baselineAppearance),
     current_appearance: z.string().min(1).optional().default(defaults.unknown.appearance),

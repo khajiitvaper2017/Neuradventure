@@ -1,18 +1,9 @@
-import {
-  MainCharacterStateStoredSchema,
-  NPCStateStoredSchema,
-  WorldStateStoredSchema,
-  type NPCState,
-} from "../core/models.js"
+import { MainCharacterStateStoredSchema, NPCStateStoredSchema, WorldStateStoredSchema } from "../core/models.js"
+import type { CreateNpcResult } from "../../../shared/api-types.js"
 import * as db from "../core/db.js"
 import { buildNpcCreationMessages, generateNpcCreation, getCtxLimitCached } from "../llm/index.js"
 import { applyNPCCreations, buildNpcFromCreation, syncCharacterLocation, syncLocationCharacters } from "./state.js"
 import { getAuthorNote, getStoryCharacterBook, getStoryModules } from "./helpers.js"
-
-export interface CreateNpcResult {
-  npc: NPCState
-  npcs: NPCState[]
-}
 
 export async function createNpcFromTurnPrompt(storyId: number, npcName: string): Promise<CreateNpcResult> {
   const story = db.getStory(storyId)

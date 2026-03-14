@@ -8,7 +8,7 @@ import type {
   TurnResult,
   TurnVariantsResponse,
   UndoCancelResult,
-} from "./types.js"
+} from "../../../shared/api-types.js"
 
 export const turns = {
   list: (storyId: number) => request<TurnSummary[]>(`/api/turns/${storyId}`),

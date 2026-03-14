@@ -6,7 +6,7 @@ import type {
   StoryNpcGroup,
   UpdateStoryStateResult,
   CharacterImportResult,
-} from "./types.js"
+} from "../../../shared/api-types.js"
 
 export const stories = {
   list: () => request<StoryMeta[]>("/api/stories"),

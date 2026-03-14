@@ -9,7 +9,7 @@ import type {
   ChatUndoCancelResult,
   ChatUpdateMessageResult,
   ChatUpdateResult,
-} from "./types.js"
+} from "../../../shared/api-types.js"
 
 export const chats = {
   list: () => request<ChatSummary[]>("/api/chats"),

@@ -1,5 +1,5 @@
 import { request } from "./http.js"
-import type { AppSettings, ModelInfo, PromptConfigFile, SamplerPreset } from "./types.js"
+import type { AppSettings, ModelInfo, PromptConfigFile, SamplerPreset } from "../../../shared/api-types.js"
 
 export const settings = {
   get: () => request<AppSettings>("/api/settings"),

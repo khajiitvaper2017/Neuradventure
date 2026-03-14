@@ -8,7 +8,7 @@ import type {
   GenerateCharacterResponse,
   GenerateCharacterTraitsResponse,
   GenerateStoryResponse,
-} from "./types.js"
+} from "../../../shared/api-types.js"
 
 export const generate = {
   character: (description: string, storyModules?: StoryModules, requestId?: string) =>

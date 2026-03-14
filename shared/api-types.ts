@@ -1,15 +1,4 @@
-import type {
-  ChatMessage,
-  ChatMember,
-  ChatDetail,
-  ChatSummary,
-  MainCharacterState,
-  NPCState,
-  StoryModules,
-  TurnSummary,
-  TurnVariantSummary,
-  WorldState,
-} from "../../../shared/types.js"
+import type { ChatMessage, MainCharacterState, NPCState, StoryModules, TurnVariantSummary, WorldState } from "./types.js"
 
 export interface ChatUpdateResult {
   ok: boolean
@@ -197,6 +186,8 @@ export interface SelectTurnVariantResult extends TurnResult {
   active_variant_id: number
 }
 
+export type SelectVariantResult = SelectTurnVariantResult
+
 export interface GenerationParams {
   max_tokens: number
   ctx_limit: number
@@ -283,7 +274,7 @@ export interface ModelInfo {
   supported_parameters?: string[]
 }
 
-export interface AppSettings {
+export interface SettingsState {
   theme: "default" | "amoled"
   design: "classic" | "roboto"
   textJustify: boolean
@@ -301,6 +292,9 @@ export interface AppSettings {
   storyDefaults: StoryModules
   connector: LLMConnector
   generation: GenerationParams
+}
+
+export interface AppSettings extends SettingsState {
   ctx_limit_detected?: number
 }
 
@@ -335,4 +329,3 @@ export interface SamplerPreset {
   params: GenerationParams
 }
 
-export type { ChatMember, ChatDetail, ChatSummary, TurnSummary }
