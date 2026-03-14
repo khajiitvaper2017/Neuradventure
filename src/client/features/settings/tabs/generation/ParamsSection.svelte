@@ -12,6 +12,7 @@
   } from "../../lib/generationParamDefs.js"
   import { getOpenRouterParamStatus, type OpenRouterParamStatus } from "../../lib/openrouterParams.js"
   import { formatSamplerOrder, parseSamplerOrder } from "../../lib/samplerOrder.js"
+  import ParamNumberRow from "./ParamNumberRow.svelte"
 
   type Props = {
     modelSearchResults?: ModelInfo[]
@@ -274,28 +275,18 @@
 {#each samplingParams as p}
   {@const status = paramStatus(p.key)}
   {@const badge = badgeForStatus(status)}
-  <label class="control-row control-row--input" class:param-ignored={status === "unsupported" || status === "not_sent"}>
-    <span class="control-row-text">
-      <span class="control-row-title">
-        {p.label}
-        {#if badge}
-          <span class="badge" class:badge--warning={badge.kind === "warning"} title={titleForStatus(status)}>
-            {badge.label}
-          </span>
-        {/if}
-      </span>
-      <span class="control-row-sub">{p.sub}</span>
-    </span>
-    <input
-      class="num-input"
-      type="number"
-      value={$generation[p.key]}
-      min={p.min}
-      max={p.max}
-      step={p.step}
-      onchange={(e) => handleNumInput(p.key, e, p.int)}
-    />
-  </label>
+  <ParamNumberRow
+    label={p.label}
+    sub={p.sub}
+    value={$generation[p.key]}
+    min={p.min}
+    max={p.max}
+    step={p.step}
+    {status}
+    {badge}
+    badgeTitle={titleForStatus(status)}
+    onChange={(e: Event) => handleNumInput(p.key, e, p.int)}
+  />
 {/each}
 
 <div class="divider"></div>
@@ -304,28 +295,18 @@
 {#each repetitionParams as p}
   {@const status = paramStatus(p.key)}
   {@const badge = badgeForStatus(status)}
-  <label class="control-row control-row--input" class:param-ignored={status === "unsupported" || status === "not_sent"}>
-    <span class="control-row-text">
-      <span class="control-row-title">
-        {p.label}
-        {#if badge}
-          <span class="badge" class:badge--warning={badge.kind === "warning"} title={titleForStatus(status)}>
-            {badge.label}
-          </span>
-        {/if}
-      </span>
-      <span class="control-row-sub">{p.sub}</span>
-    </span>
-    <input
-      class="num-input"
-      type="number"
-      value={$generation[p.key]}
-      min={p.min}
-      max={p.max}
-      step={p.step}
-      onchange={(e) => handleNumInput(p.key, e, p.int)}
-    />
-  </label>
+  <ParamNumberRow
+    label={p.label}
+    sub={p.sub}
+    value={$generation[p.key]}
+    min={p.min}
+    max={p.max}
+    step={p.step}
+    {status}
+    {badge}
+    badgeTitle={titleForStatus(status)}
+    onChange={(e: Event) => handleNumInput(p.key, e, p.int)}
+  />
 {/each}
 
 <div class="divider"></div>
@@ -334,28 +315,18 @@
 {#each dryParams as p}
   {@const status = paramStatus(p.key)}
   {@const badge = badgeForStatus(status)}
-  <label class="control-row control-row--input" class:param-ignored={status === "unsupported" || status === "not_sent"}>
-    <span class="control-row-text">
-      <span class="control-row-title">
-        {p.label}
-        {#if badge}
-          <span class="badge" class:badge--warning={badge.kind === "warning"} title={titleForStatus(status)}>
-            {badge.label}
-          </span>
-        {/if}
-      </span>
-      <span class="control-row-sub">{p.sub}</span>
-    </span>
-    <input
-      class="num-input"
-      type="number"
-      value={$generation[p.key]}
-      min={p.min}
-      max={p.max}
-      step={p.step}
-      onchange={(e) => handleNumInput(p.key, e, p.int)}
-    />
-  </label>
+  <ParamNumberRow
+    label={p.label}
+    sub={p.sub}
+    value={$generation[p.key]}
+    min={p.min}
+    max={p.max}
+    step={p.step}
+    {status}
+    {badge}
+    badgeTitle={titleForStatus(status)}
+    onChange={(e: Event) => handleNumInput(p.key, e, p.int)}
+  />
 {/each}
 
 <div class="divider"></div>
@@ -364,28 +335,18 @@
 {#each mirostatParams as p}
   {@const status = paramStatus(p.key)}
   {@const badge = badgeForStatus(status)}
-  <label class="control-row control-row--input" class:param-ignored={status === "unsupported" || status === "not_sent"}>
-    <span class="control-row-text">
-      <span class="control-row-title">
-        {p.label}
-        {#if badge}
-          <span class="badge" class:badge--warning={badge.kind === "warning"} title={titleForStatus(status)}>
-            {badge.label}
-          </span>
-        {/if}
-      </span>
-      <span class="control-row-sub">{p.sub}</span>
-    </span>
-    <input
-      class="num-input"
-      type="number"
-      value={$generation[p.key]}
-      min={p.min}
-      max={p.max}
-      step={p.step}
-      onchange={(e) => handleNumInput(p.key, e, p.int)}
-    />
-  </label>
+  <ParamNumberRow
+    label={p.label}
+    sub={p.sub}
+    value={$generation[p.key]}
+    min={p.min}
+    max={p.max}
+    step={p.step}
+    {status}
+    {badge}
+    badgeTitle={titleForStatus(status)}
+    onChange={(e: Event) => handleNumInput(p.key, e, p.int)}
+  />
 {/each}
 
 <div class="divider"></div>
@@ -394,28 +355,18 @@
 {#each dynatempParams as p}
   {@const status = paramStatus(p.key)}
   {@const badge = badgeForStatus(status)}
-  <label class="control-row control-row--input" class:param-ignored={status === "unsupported" || status === "not_sent"}>
-    <span class="control-row-text">
-      <span class="control-row-title">
-        {p.label}
-        {#if badge}
-          <span class="badge" class:badge--warning={badge.kind === "warning"} title={titleForStatus(status)}>
-            {badge.label}
-          </span>
-        {/if}
-      </span>
-      <span class="control-row-sub">{p.sub}</span>
-    </span>
-    <input
-      class="num-input"
-      type="number"
-      value={$generation[p.key]}
-      min={p.min}
-      max={p.max}
-      step={p.step}
-      onchange={(e) => handleNumInput(p.key, e, p.int)}
-    />
-  </label>
+  <ParamNumberRow
+    label={p.label}
+    sub={p.sub}
+    value={$generation[p.key]}
+    min={p.min}
+    max={p.max}
+    step={p.step}
+    {status}
+    {badge}
+    badgeTitle={titleForStatus(status)}
+    onChange={(e: Event) => handleNumInput(p.key, e, p.int)}
+  />
 {/each}
 
 <div class="divider"></div>
@@ -424,28 +375,18 @@
 {#each xtcParams as p}
   {@const status = paramStatus(p.key)}
   {@const badge = badgeForStatus(status)}
-  <label class="control-row control-row--input" class:param-ignored={status === "unsupported" || status === "not_sent"}>
-    <span class="control-row-text">
-      <span class="control-row-title">
-        {p.label}
-        {#if badge}
-          <span class="badge" class:badge--warning={badge.kind === "warning"} title={titleForStatus(status)}>
-            {badge.label}
-          </span>
-        {/if}
-      </span>
-      <span class="control-row-sub">{p.sub}</span>
-    </span>
-    <input
-      class="num-input"
-      type="number"
-      value={$generation[p.key]}
-      min={p.min}
-      max={p.max}
-      step={p.step}
-      onchange={(e) => handleNumInput(p.key, e, p.int)}
-    />
-  </label>
+  <ParamNumberRow
+    label={p.label}
+    sub={p.sub}
+    value={$generation[p.key]}
+    min={p.min}
+    max={p.max}
+    step={p.step}
+    {status}
+    {badge}
+    badgeTitle={titleForStatus(status)}
+    onChange={(e: Event) => handleNumInput(p.key, e, p.int)}
+  />
 {/each}
 
 <div class="divider"></div>
@@ -454,28 +395,18 @@
 {#each otherParams as p}
   {@const status = paramStatus(p.key)}
   {@const badge = badgeForStatus(status)}
-  <label class="control-row control-row--input" class:param-ignored={status === "unsupported" || status === "not_sent"}>
-    <span class="control-row-text">
-      <span class="control-row-title">
-        {p.label}
-        {#if badge}
-          <span class="badge" class:badge--warning={badge.kind === "warning"} title={titleForStatus(status)}>
-            {badge.label}
-          </span>
-        {/if}
-      </span>
-      <span class="control-row-sub">{p.sub}</span>
-    </span>
-    <input
-      class="num-input"
-      type="number"
-      value={$generation[p.key]}
-      min={p.min}
-      max={p.max}
-      step={p.step}
-      onchange={(e) => handleNumInput(p.key, e, p.int)}
-    />
-  </label>
+  <ParamNumberRow
+    label={p.label}
+    sub={p.sub}
+    value={$generation[p.key]}
+    min={p.min}
+    max={p.max}
+    step={p.step}
+    {status}
+    {badge}
+    badgeTitle={titleForStatus(status)}
+    onChange={(e: Event) => handleNumInput(p.key, e, p.int)}
+  />
 {/each}
 
 <div class="divider"></div>

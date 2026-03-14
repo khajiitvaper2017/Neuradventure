@@ -2,45 +2,16 @@
   import { onDestroy, onMount, tick, untrack } from "svelte"
   import { get } from "svelte/store"
   import { api, type TurnSummary, type TurnVariantSummary, type StoryModules, ApiError } from "../../api/client.js"
-  import {
-    navigate,
-    showCharSheet,
-    showNPCTracker,
-    showLocations,
-    showError,
-    showConfirm,
-    showQuietNotice,
-    collapseCharSheet,
-    collapseNPCTracker,
-    collapseLocationsPanel,
-  } from "../../stores/ui.js"
-  import { autoresize } from "../../utils/actions/autoresize.js"
+  import { navigate, showError, showConfirm, showQuietNotice } from "../../stores/ui.js"
   import { createRequestId } from "../../utils/ids.js"
   import { normalizePlayerInput } from "../../utils/inputNormalize.js"
   import { scrollToBottom } from "../../utils/scroll.js"
   import { isNearBottom } from "../../utils/scrollFollow.js"
-  import IconDots from "../../components/icons/IconDots.svelte"
-  import IconFace from "../../components/icons/IconFace.svelte"
-  import IconHome from "../../components/icons/IconHome.svelte"
-  import IconMapPin from "../../components/icons/IconMapPin.svelte"
-  import IconPencilSquare from "../../components/icons/IconPencilSquare.svelte"
-  import IconSpinner from "../../components/icons/IconSpinner.svelte"
-  import IconTrash from "../../components/icons/IconTrash.svelte"
-  import IconUser from "../../components/icons/IconUser.svelte"
-  import IconUsers from "../../components/icons/IconUsers.svelte"
-  import ConversationInput from "../../components/ui/ConversationInput.svelte"
-  import RichText from "../../components/ui/RichText.svelte"
-  import BackgroundEventsReveal from "../../components/ui/BackgroundEventsReveal.svelte"
   import AuthorsNoteModal from "../../components/ui/AuthorsNoteModal.svelte"
-  import StoryModulesPanel from "../../components/ui/StoryModulesPanel.svelte"
-  import ThinkingDots from "../../components/ui/ThinkingDots.svelte"
-  import StreamingTurnPreview from "../../components/ui/StreamingTurnPreview.svelte"
   import { streamClient } from "../../api/stream.js"
-  import { timeouts } from "../../stores/settings.js"
-  import { looksLikeBlockHtml } from "../../utils/sanitizeHtml.js"
+  import { streamingEnabled, timeouts } from "../../stores/settings.js"
   import {
     currentStoryId,
-    currentStoryTitle,
     currentStoryOpeningScenario,
     currentStoryAuthorNote,
     currentStoryAuthorNoteDepth,
@@ -49,7 +20,6 @@
     currentStoryAuthorNoteRole,
     currentStoryAuthorNoteEmbedState,
     currentStoryModules,
-    currentStoryInitialWorld,
     character,
     worldState,
     npcs,
@@ -58,23 +28,20 @@
     resetGame,
     llmUpdateId,
   } from "../../stores/game.js"
-  import { streamingEnabled } from "../../stores/settings.js"
   import { clearPendingTurn, getPendingTurn, setPendingTurn, type PendingTurn } from "./pendingTurn.js"
   import { applyTurnState, appendTurnSummary } from "./actions.js"
+  import GameTopBar from "./GameTopBar.svelte"
+  import GameStoryArea from "./GameStoryArea.svelte"
+  import GameInputZone from "./GameInputZone.svelte"
+  import MemoryModal from "./MemoryModal.svelte"
+  import StoryModulesModal from "./StoryModulesModal.svelte"
 
   type ActionMode = "do" | "say" | "story"
-  const ACTION_MODES: ActionMode[] = ["do", "say", "story"]
-  const MODE_HINTS: Record<ActionMode, string> = {
-    do: "What do you do?",
-    say: "What do you say?",
-    story: "Write story text directly...",
-  }
 
   let input = $state("")
   let actionMode = $state<ActionMode>("do")
-  let storyDiv: HTMLDivElement
+  let storyDiv = $state<HTMLDivElement | null>(null)
   let inputEl = $state<HTMLTextAreaElement | null>(null)
-  let showMenu = $state(false)
   let editingOpening = $state(false)
   let openingDraft = $state("")
   let editingTurnId = $state<number | null>(null)
@@ -133,12 +100,14 @@
   let followStream = $state(true)
   let followScrollPending = false
 
-  const trackNpcs = $derived($currentStoryModules?.track_npcs ?? true)
-  const trackLocations = $derived($currentStoryModules?.track_locations ?? true)
-
   let initialScrollDone = $state(false)
   let userActed = $state(false)
   let resumeAttemptedFor = ""
+
+  function scrollStoryToBottom(opts?: Parameters<typeof scrollToBottom>[1]) {
+    if (!storyDiv) return
+    scrollToBottom(storyDiv, opts)
+  }
 
   function lastTurnId(): number | null {
     return $turns.length > 0 ? $turns[$turns.length - 1].id : null
@@ -181,18 +150,18 @@
     followScrollPending = true
     tick().then(() => {
       followScrollPending = false
-      scrollToBottom(storyDiv)
+      scrollStoryToBottom()
     })
   }
 
   function handleStoryScroll() {
     if (!$isGenerating || !$streamingEnabled) return
-    followStream = isNearBottom(storyDiv)
+    followStream = storyDiv ? isNearBottom(storyDiv) : true
   }
 
   function jumpToLatest() {
     followStream = true
-    tick().then(() => scrollToBottom(storyDiv, { smooth: true }))
+    tick().then(() => scrollStoryToBottom({ smooth: true }))
   }
 
   $effect(() => {
@@ -254,7 +223,7 @@
       canUndoCancel = false
       await loadVariants(result.turn_id, true)
       await tick()
-      scrollToBottom(storyDiv, { smooth: true })
+      scrollStoryToBottom({ smooth: true })
       clearPendingTurn()
     } catch (err) {
       if (err instanceof ApiError) {
@@ -316,7 +285,7 @@
       clearPendingTurn()
       await loadVariants(result.turn_id, true)
       await tick()
-      scrollToBottom(storyDiv, { smooth: true })
+      scrollStoryToBottom({ smooth: true })
     } catch (err) {
       if (err instanceof ApiError) {
         showError(err.message)
@@ -374,7 +343,7 @@
       await loadVariants(result.turn_id, true)
       editingTurnId = null
       await tick()
-      scrollToBottom(storyDiv, { smooth: true })
+      scrollStoryToBottom({ smooth: true })
     } catch (err) {
       if (err instanceof ApiError) {
         showError(err.message)
@@ -411,7 +380,7 @@
       }
       editingTurnId = null
       await tick()
-      scrollToBottom(storyDiv, { smooth: true })
+      scrollStoryToBottom({ smooth: true })
     } catch (err) {
       if (err instanceof ApiError) {
         showError(err.message)
@@ -439,7 +408,7 @@
       canUndoCancel = false
       await loadVariants(result.turn_id, true)
       await tick()
-      scrollToBottom(storyDiv, { smooth: true })
+      scrollStoryToBottom({ smooth: true })
     } catch (err) {
       if (err instanceof ApiError) {
         showError(err.message)
@@ -479,7 +448,6 @@
   function openMemoryEditor() {
     memoryDraft = $worldState?.memory ?? ""
     showMemoryEditor = true
-    showMenu = false
   }
 
   async function saveMemory() {
@@ -506,7 +474,6 @@
     authorNoteRoleDraft = $currentStoryAuthorNoteRole
     authorNoteEmbedStateDraft = $currentStoryAuthorNoteEmbedState
     showAuthorNoteEditor = true
-    showMenu = false
   }
 
   async function saveAuthorNote() {
@@ -556,7 +523,6 @@
       npc_activity: true,
     }
     showModulesEditor = true
-    showMenu = false
   }
 
   async function saveModules() {
@@ -577,7 +543,7 @@
     // autoresize uses rAF internally, so wait for tick + 2 rAFs to ensure textareas are sized
     tick().then(() =>
       requestAnimationFrame(() =>
-        requestAnimationFrame(() => requestAnimationFrame(() => scrollToBottom(storyDiv, { smooth: true }))),
+        requestAnimationFrame(() => requestAnimationFrame(() => scrollStoryToBottom({ smooth: true }))),
       ),
     )
   }
@@ -635,26 +601,13 @@
 
   function scheduleKeyboardScroll() {
     if (keyboardScrollTimer) window.clearTimeout(keyboardScrollTimer)
-    requestAnimationFrame(() => scrollToBottom(storyDiv))
-    keyboardScrollTimer = window.setTimeout(() => scrollToBottom(storyDiv), get(timeouts).uiKeyboardScrollDelayMs)
+    requestAnimationFrame(() => scrollStoryToBottom())
+    keyboardScrollTimer = window.setTimeout(() => scrollStoryToBottom(), get(timeouts).uiKeyboardScrollDelayMs)
   }
 
   function goHome() {
     resetGame()
     navigate("home", { reset: true })
-  }
-
-  // Split narrative into paragraphs for proper rendering
-  function paragraphs(text: string): string[] {
-    let normalized = text.replace(/\r\n/g, "\n")
-    if (!normalized.includes("\n") && normalized.includes("\\n")) {
-      normalized = normalized.replace(/\\n/g, "\n")
-    }
-    const hasBlankLines = /\n\s*\n/.test(normalized)
-    return normalized
-      .split(hasBlankLines ? /\n\s*\n+/ : /\n+/)
-      .map((p) => p.trim())
-      .filter(Boolean)
   }
 
   async function loadVariants(turnId: number, force = false) {
@@ -698,7 +651,7 @@
       )
       activeVariantId = result.active_variant_id
       await tick()
-      scrollToBottom(storyDiv, { smooth: true })
+      scrollStoryToBottom({ smooth: true })
     } catch (err) {
       if (err instanceof ApiError) {
         showError(err.message)
@@ -719,7 +672,7 @@
           loadVariants(lastId).then(() => {
             if (!initialScrollDone) {
               initialScrollDone = true
-              tick().then(() => requestAnimationFrame(() => scrollToBottom(storyDiv)))
+              tick().then(() => requestAnimationFrame(() => scrollStoryToBottom()))
             }
           })
         }
@@ -817,121 +770,21 @@
 </script>
 
 <div class="screen game">
-  <!-- ── Top bar ─────────────────────────────────────────── -->
-  <header>
-    <button class="header-back" onclick={goHome} title="Return to menu" aria-label="Back to stories">
-      <svg
-        width="14"
-        height="14"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        stroke-width="2"
-        stroke-linecap="round"
-        aria-hidden="true"><path d="M19 12H5" /><path d="M12 19l-7-7 7-7" /></svg
-      >
-    </button>
+  <GameTopBar
+    {flashScene}
+    onGoHome={goHome}
+    onOpenMemoryEditor={openMemoryEditor}
+    onOpenAuthorNoteEditor={openAuthorNoteEditor}
+    onOpenModulesEditor={openModulesEditor}
+  />
 
-    <div class="header-center">
-      <span class="story-name">{$currentStoryTitle}</span>
-      {#if $worldState}
-        <span class="header-scene" class:flash={flashScene}>
-          {$worldState.current_scene} · {$worldState.time_of_day}
-        </span>
-      {/if}
-    </div>
-
-    <div class="header-actions">
-      <span class="turn-badge">{$turns.length}</span>
-      <button
-        class="hbtn desktop-only"
-        class:inactive={$collapseCharSheet}
-        title={$collapseCharSheet ? "Show character sheet" : "Hide character sheet"}
-        onclick={() => collapseCharSheet.update((v) => !v)}
-      >
-        <IconUser size={15} strokeWidth={1.8} />
-      </button>
-      {#if trackNpcs}
-        <button
-          class="hbtn desktop-only"
-          class:inactive={$collapseNPCTracker}
-          title={$collapseNPCTracker ? "Show NPC tracker" : "Hide NPC tracker"}
-          onclick={() => collapseNPCTracker.update((v) => !v)}
-        >
-          <IconUsers size={15} strokeWidth={1.8} />
-        </button>
-      {/if}
-      {#if trackLocations}
-        <button
-          class="hbtn desktop-only"
-          class:inactive={$collapseLocationsPanel}
-          title={$collapseLocationsPanel ? "Show locations" : "Hide locations"}
-          onclick={() => collapseLocationsPanel.update((v) => !v)}
-        >
-          <IconMapPin size={15} strokeWidth={1.8} />
-        </button>
-      {/if}
-      <button class="hbtn mobile-only" title="Character Sheet" onclick={() => showCharSheet.update((v) => !v)}>
-        <IconUser size={15} strokeWidth={1.8} />
-      </button>
-      {#if trackNpcs}
-        <button class="hbtn mobile-only" title="NPC Tracker" onclick={() => showNPCTracker.update((v) => !v)}>
-          <IconUsers size={15} strokeWidth={1.8} />
-        </button>
-      {/if}
-      {#if trackLocations}
-        <button class="hbtn mobile-only" title="Locations" onclick={() => showLocations.update((v) => !v)}>
-          <IconMapPin size={15} strokeWidth={1.8} />
-        </button>
-      {/if}
-      <div class="menu-wrap">
-        <button class="hbtn" aria-label="More options" onclick={() => (showMenu = !showMenu)}>
-          <IconDots size={15} strokeWidth={1.8} />
-        </button>
-        {#if showMenu}
-          <div class="dropdown">
-            <button onclick={openMemoryEditor}>Memory</button>
-            <button onclick={openAuthorNoteEditor}>Author's Note</button>
-            <button onclick={openModulesEditor}>Story Modules</button>
-            {#if $currentStoryId}
-              <a href={api.stories.exportUrl($currentStoryId, "neuradventure")} download class="dropdown-link"
-                >Export JSON</a
-              >
-              <a href={api.stories.exportUrl($currentStoryId, "tavern")} download class="dropdown-link"
-                >Export ST Chat</a
-              >
-              <a href={api.stories.exportUrl($currentStoryId, "plaintext")} download class="dropdown-link"
-                >Export Text</a
-              >
-            {/if}
-          </div>
-        {/if}
-      </div>
-    </div>
-  </header>
-
-  <!-- ── Memory editor overlay ─────────────────────────── -->
-  {#if showMemoryEditor}
-    <!-- svelte-ignore a11y_click_events_have_key_events -->
-    <!-- svelte-ignore a11y_no_static_element_interactions -->
-    <div
-      class="overlay overlay--modal"
-      onclick={(e) => {
-        if (e.currentTarget !== e.target) return
-        showMemoryEditor = false
-      }}
-    >
-      <div class="modal" role="dialog" aria-modal="true" aria-label="Memory" tabindex="-1">
-        <h3 class="modal__title">Memory</h3>
-        <p class="modal__message">Persistent summary — updated by AI each turn, editable by you.</p>
-        <textarea class="edit-textarea" bind:value={memoryDraft} rows="6" use:autoresize={memoryDraft}></textarea>
-        <div class="modal__actions">
-          <button class="btn-ghost" onclick={() => (showMemoryEditor = false)}>Cancel</button>
-          <button class="btn-accent" onclick={saveMemory}>Save</button>
-        </div>
-      </div>
-    </div>
-  {/if}
+  <MemoryModal
+    open={showMemoryEditor}
+    disabled={$isGenerating}
+    bind:draft={memoryDraft}
+    onCancel={() => (showMemoryEditor = false)}
+    onSave={saveMemory}
+  />
 
   <!-- ── Author's Note editor overlay ──────────────────── -->
   <AuthorsNoteModal
@@ -947,640 +800,64 @@
     onSave={saveAuthorNote}
   />
 
-  <!-- ── Story Modules editor overlay ──────────────────── -->
-  {#if showModulesEditor}
-    <!-- svelte-ignore a11y_click_events_have_key_events -->
-    <!-- svelte-ignore a11y_no_static_element_interactions -->
-    <div
-      class="overlay overlay--modal"
-      onclick={(e) => {
-        if (e.currentTarget !== e.target) return
-        showModulesEditor = false
-      }}
-    >
-      <div class="modal modal--wide" role="dialog" aria-modal="true" aria-label="Story modules" tabindex="-1">
-        <h3 class="modal__title">Story Modules</h3>
-        <p class="modal__message">Control which mechanics are tracked for this story.</p>
-        <div class="editor-body editor-body--modules" data-scroll-root="modal">
-          <StoryModulesPanel modules={modulesDraft} setModules={(next) => (modulesDraft = next)} bare />
-        </div>
-        <div class="modal__actions">
-          <button class="btn-ghost" onclick={() => (showModulesEditor = false)}>Cancel</button>
-          <button class="btn-accent" onclick={saveModules}>Save</button>
-        </div>
-      </div>
-    </div>
-  {/if}
-
-  <!-- ── Story scroll area ───────────────────────────────── -->
-  <div
-    class="story-area"
-    class:story-ready={initialScrollDone || $turns.length === 0}
-    data-scroll-root="screen"
-    bind:this={storyDiv}
-    onscroll={handleStoryScroll}
-  >
-    <!-- Opening scene context -->
-    {#if $worldState}
-      <p class="scene-crumb mobile-only" class:flash={flashScene}>
-        {$worldState.current_scene} · {$worldState.time_of_day}
-      </p>
-    {/if}
-
-    <div class="opening-block">
-      <div class="opening-header">
-        <span>Opening</span>
-        {#if !editingOpening}
-          <button
-            class="edit-btn"
-            onclick={startEditOpening}
-            disabled={$isGenerating}
-            title="Edit opening"
-            aria-label="Edit opening"
-          >
-            <IconPencilSquare size={12} strokeWidth={2} />
-          </button>
-        {/if}
-      </div>
-      {#if $currentStoryInitialWorld}
-        <p class="opening-scene">
-          {$currentStoryInitialWorld.current_scene} · {$currentStoryInitialWorld.time_of_day}
-        </p>
-      {/if}
-      {#if editingOpening}
-        <textarea
-          class="edit-textarea"
-          bind:value={openingDraft}
-          rows="6"
-          disabled={$isGenerating}
-          use:autoresize={openingDraft}
-        ></textarea>
-        <div class="edit-actions">
-          <button class="btn-ghost" onclick={cancelEditOpening} disabled={$isGenerating}>Cancel</button>
-          <button class="btn-accent" onclick={saveOpening} disabled={$isGenerating}>Save</button>
-        </div>
-      {:else}
-        <div class="opening-text" class:flash={flashOpening}>
-          <RichText text={$currentStoryOpeningScenario || $worldState?.memory || ""} mode="block" />
-        </div>
-      {/if}
-    </div>
-
-    {#each $turns as turn, i (turn.id)}
-      {#if editingTurnId === turn.id}
-        <div class="edit-turn">
-          <label class="edit-label" for="edit-player-input">Player Input</label>
-          <textarea
-            id="edit-player-input"
-            class="edit-textarea"
-            bind:value={editPlayerInput}
-            rows="2"
-            disabled={$isGenerating}
-            use:autoresize={editPlayerInput}
-          ></textarea>
-          <label class="edit-label" for="edit-narrative">Story Text</label>
-          <textarea
-            id="edit-narrative"
-            class="edit-textarea"
-            bind:value={editNarrative}
-            rows="6"
-            disabled={$isGenerating}
-            use:autoresize={editNarrative}
-          ></textarea>
-          <div class="edit-actions">
-            <button class="btn-ghost" onclick={cancelEditTurn} disabled={$isGenerating}>Cancel</button>
-            <button class="btn-accent" onclick={() => saveTurnEdit(turn.id)} disabled={$isGenerating}>Save</button>
-          </div>
-        </div>
-      {:else}
-        <!-- Player action inline — matches AI Dungeon's "pencil" style -->
-        <div class="action-inline" class:fresh={userActed && i === $turns.length - 1 && !$isGenerating}>
-          {#if turn.player_input.trim().length > 0}
-            <IconPencilSquare className="pencil-icon" size={12} strokeWidth={2} />
-          {/if}
-          <span class="action-text">
-            <RichText text={turn.player_input} mode="inline" />
-          </span>
-          <button
-            class="edit-btn inline"
-            onclick={() => startEditTurn(turn)}
-            disabled={$isGenerating}
-            title="Edit turn"
-            aria-label="Edit turn"
-          >
-            <IconPencilSquare size={12} strokeWidth={2} />
-          </button>
-          <button
-            class="delete-btn inline"
-            onclick={() => deleteTurn(turn.id)}
-            disabled={$isGenerating}
-            title="Delete turn"
-          >
-            <IconTrash size={12} strokeWidth={2} />
-          </button>
-        </div>
-
-        <!-- Narrative paragraphs -->
-        <div class="narrative-block" class:fresh={userActed && i === $turns.length - 1 && !$isGenerating}>
-          {#if $isGenerating && regeneratingTurnId === turn.id}
-            <p class="regen-placeholder">Regenerating…</p>
-          {:else}
-            {#if turn.world}
-              <p class="turn-scene">{turn.world.current_scene} · {turn.world.time_of_day}</p>
-            {/if}
-
-            <BackgroundEventsReveal text={turn.background_events} />
-
-            {#if looksLikeBlockHtml(turn.narrative_text)}
-              <div class="para para--html" style="animation-delay: 0s">
-                <RichText text={turn.narrative_text} mode="block" />
-              </div>
-            {:else}
-              {#each paragraphs(turn.narrative_text) as para, j}
-                <p class="para" style="animation-delay: {j * 0.06}s">
-                  <RichText text={para} mode="inline" />
-                </p>
-              {/each}
-            {/if}
-
-            {#if i === $turns.length - 1 && lastTurnVariants.length > 1}
-              <div class="variant-row">
-                <span class="variant-label">Versions</span>
-                {#each lastTurnVariants as variant}
-                  <button
-                    class="variant-pill {activeVariantId === variant.id ? 'active' : ''}"
-                    onclick={() => selectVariant(variant.id)}
-                    disabled={$isGenerating}
-                    title={`Version ${variant.variant_index}`}
-                  >
-                    {variant.variant_index}
-                  </button>
-                {/each}
-              </div>
-            {/if}
-          {/if}
-        </div>
-      {/if}
-    {/each}
-
-    {#if $isGenerating && $streamingEnabled}
-      <StreamingTurnPreview
-        narrativeText={streamNarrative}
-        backgroundEvents={streamBackground}
-        currentScene={streamScene}
-        timeOfDay={streamTime}
-      />
-    {/if}
-
-    {#if $isGenerating}
-      <ThinkingDots />
-    {/if}
-
-    <!-- Breathing room at bottom -->
-    <div style="height:1rem"></div>
-  </div>
-
-  <!-- ── Input zone ──────────────────────────────────────── -->
-  <ConversationInput
-    bind:textareaEl={inputEl}
-    bind:value={input}
-    placeholder={MODE_HINTS[actionMode]}
+  <StoryModulesModal
+    open={showModulesEditor}
     disabled={$isGenerating}
-    canSend={true}
-    sending={$isGenerating}
+    bind:modules={modulesDraft}
+    onCancel={() => (showModulesEditor = false)}
+    onSave={saveModules}
+  />
+
+  <GameStoryArea
+    bind:storyDiv
+    {initialScrollDone}
+    {flashScene}
+    {flashOpening}
+    {editingOpening}
+    bind:openingDraft
+    {startEditOpening}
+    {cancelEditOpening}
+    {saveOpening}
+    {editingTurnId}
+    bind:editPlayerInput
+    bind:editNarrative
+    {startEditTurn}
+    {cancelEditTurn}
+    {saveTurnEdit}
+    {deleteTurn}
+    {userActed}
+    {regeneratingTurnId}
+    {lastTurnVariants}
+    {activeVariantId}
+    {selectVariant}
+    {handleStoryScroll}
+    {streamNarrative}
+    {streamBackground}
+    {streamScene}
+    {streamTime}
+  />
+
+  <GameInputZone
+    bind:textareaEl={inputEl}
+    bind:input
+    bind:actionMode
+    {canUndoCancel}
+    {followStream}
+    {isImpersonating}
     onSend={sendTurn}
     onFocus={scheduleKeyboardScroll}
-  >
-    <div slot="top-controls">
-      <button class="mode-clear" onclick={() => (input = "")} disabled={!input || $isGenerating} aria-label="Clear">
-        ×
-      </button>
-
-      <div class="mode-group" role="group" aria-label="Action mode">
-        {#each ACTION_MODES as mode}
-          <button
-            class="mode-pill {actionMode === mode ? 'active' : ''}"
-            onclick={() => (actionMode = mode)}
-            disabled={$isGenerating}
-          >
-            {mode}
-          </button>
-        {/each}
-      </div>
-
-      <button
-        class="mode-undo"
-        onclick={cancelLastTurn}
-        disabled={$isGenerating || $turns.length === 0}
-        title="Cancel last turn"
-        aria-label="Cancel last turn"
-      >
-        ↶
-      </button>
-
-      {#if canUndoCancel}
-        <button
-          class="mode-undo-cancel"
-          onclick={undoCancelLastTurn}
-          disabled={$isGenerating}
-          title="Undo cancel"
-          aria-label="Undo cancel"
-        >
-          ↷
-        </button>
-      {/if}
-
-      {#if $isGenerating && $streamingEnabled}
-        {#if followStream}
-          <span class="stream-lock-pill" title="Streaming output is following the latest text">Live</span>
-        {:else}
-          <button
-            class="stream-lock-pill stream-lock-pill--paused"
-            type="button"
-            onclick={jumpToLatest}
-            title="Jump to the latest streamed output"
-            aria-label="Jump to the latest streamed output"
-          >
-            Jump to latest
-          </button>
-        {/if}
-      {/if}
-
-      <button
-        class="mode-regen"
-        onclick={regenerateLastTurn}
-        disabled={$isGenerating || $turns.length === 0}
-        title="Regenerate last turn"
-        aria-label="Regenerate last turn"
-      >
-        ↻
-      </button>
-
-      <button
-        class="mode-impersonate"
-        onclick={impersonatePlayer}
-        disabled={$isGenerating || isImpersonating}
-        title="Impersonate player action"
-        aria-label="Impersonate player action"
-      >
-        {#if isImpersonating}
-          <IconSpinner className="spin" size={14} strokeWidth={2.2} />
-        {:else}
-          <IconFace size={14} strokeWidth={2} />
-        {/if}
-      </button>
-    </div>
-
-    <div slot="bottom-controls">
-      <button class="tbtn" onclick={goHome} title="Stories">
-        <IconHome size={14} strokeWidth={1.8} />
-      </button>
-      <button class="tbtn" onclick={() => showCharSheet.update((v) => !v)} title="Character">
-        <IconUser size={14} strokeWidth={1.8} />
-      </button>
-      <button class="tbtn" onclick={() => showNPCTracker.update((v) => !v)} title="NPCs">
-        <IconUsers size={14} strokeWidth={1.8} />
-      </button>
-      <button class="tbtn" onclick={() => showLocations.update((v) => !v)} title="Locations">
-        <IconMapPin size={14} strokeWidth={1.8} />
-      </button>
-    </div>
-  </ConversationInput>
+    onCancelLastTurn={cancelLastTurn}
+    onUndoCancelLastTurn={undoCancelLastTurn}
+    onJumpToLatest={jumpToLatest}
+    onRegenerateLastTurn={regenerateLastTurn}
+    onImpersonatePlayer={impersonatePlayer}
+    onGoHome={goHome}
+  />
 </div>
 
 <style>
   .game {
     position: relative;
     overflow: hidden;
-  }
-
-  /* ── Header ─────────────────────────────────────────── */
-  header {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    padding: 0 0.5rem 0 0;
-    border-bottom: 1px solid var(--border);
-    min-height: 46px;
-    flex-shrink: 0;
-  }
-  @media (min-width: 1200px) {
-    header {
-      padding: 0 1.5rem 0 0;
-    }
-  }
-  .header-back {
-    background: none;
-    border: none;
-    border-right: 1px solid var(--border);
-    color: var(--text-dim);
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 46px;
-    min-height: 46px;
-    flex-shrink: 0;
-    transition:
-      color 0.15s,
-      background 0.15s;
-  }
-  .header-back:hover {
-    color: var(--text);
-    background: var(--bg-action);
-  }
-  .header-center {
-    flex: 1;
-    min-width: 0;
-    display: flex;
-    flex-direction: column;
-    gap: 0.1rem;
-    padding: 0.35rem 0;
-  }
-  .story-name {
-    font-family: var(--font-ui);
-    font-size: 0.82rem;
-    color: var(--text);
-    font-weight: 500;
-    white-space: normal;
-    overflow-wrap: anywhere;
-    line-height: 1.2;
-  }
-  .header-scene {
-    font-family: var(--font-ui);
-    font-size: 0.65rem;
-    color: var(--text-scene);
-    letter-spacing: 0.06em;
-    white-space: normal;
-    overflow-wrap: anywhere;
-    line-height: 1.2;
-  }
-  .header-actions {
-    display: flex;
-    align-items: center;
-    gap: 0.15rem;
-    flex-shrink: 0;
-  }
-  .turn-badge {
-    font-family: var(--font-ui);
-    font-size: 0.7rem;
-    color: var(--accent);
-    background: var(--accent-dim);
-    padding: 0.15rem 0.5rem;
-    border-radius: var(--radius-pill);
-    font-feature-settings: "tnum";
-    font-weight: 500;
-    letter-spacing: 0.02em;
-    margin-right: 0.25rem;
-  }
-  .hbtn {
-    background: none;
-    border: none;
-    color: var(--text-dim);
-    cursor: pointer;
-    min-width: 34px;
-    min-height: 34px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    border-radius: 4px;
-    transition: color 0.15s;
-  }
-  .hbtn:hover {
-    color: var(--text);
-  }
-  .menu-wrap {
-    position: relative;
-  }
-  .dropdown {
-    position: absolute;
-    right: 0;
-    top: calc(100% + 4px);
-  }
-  @media (min-width: 1200px) {
-    .mobile-only {
-      display: none;
-    }
-  }
-  @media (max-width: 1199px) {
-    .desktop-only {
-      display: none;
-    }
-  }
-  .hbtn.inactive {
-    opacity: 0.45;
-  }
-
-  /* ── Story area ─────────────────────────────────────── */
-  .story-area {
-    flex: 1;
-    overflow-y: auto;
-    padding: 1.5rem 1.25rem 0.5rem;
-    display: flex;
-    flex-direction: column;
-    gap: 0;
-    visibility: hidden;
-  }
-  .story-area.story-ready {
-    visibility: visible;
-  }
-  @media (min-width: 1200px) {
-    .story-area {
-      padding: 2rem 2.5rem 0.5rem;
-    }
-  }
-  .opening-block {
-    background: var(--bg-raised);
-    border: 1px solid var(--border);
-    border-radius: 6px;
-    padding: 0.9rem;
-    display: flex;
-    flex-direction: column;
-    gap: 0.6rem;
-    margin-bottom: 1.25rem;
-  }
-  .opening-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    font-size: 0.72rem;
-    letter-spacing: 0.1em;
-    color: var(--text-dim);
-  }
-  .opening-scene {
-    font-family: var(--font-ui);
-    font-size: 0.65rem;
-    color: var(--text-scene);
-    letter-spacing: 0.08em;
-  }
-  .scene-crumb {
-    font-family: var(--font-ui);
-    font-size: 0.72rem;
-    color: var(--text-scene);
-    letter-spacing: 0.1em;
-    margin-bottom: 1.25rem;
-  }
-  .turn-scene {
-    font-family: var(--font-ui);
-    font-size: 0.65rem;
-    color: var(--text-scene);
-    letter-spacing: 0.08em;
-    margin-bottom: 0.4rem;
-  }
-  .opening-text {
-    font-family: var(--font-story);
-    font-size: var(--story-size);
-    line-height: var(--story-line);
-    color: var(--text);
-    margin-bottom: 1.5rem;
-    font-style: italic;
-    opacity: 0.75;
-    white-space: pre-line;
-  }
-  .edit-turn {
-    background: var(--bg-raised);
-    border: 1px solid var(--border);
-    border-radius: 6px;
-    padding: 0.9rem;
-    display: flex;
-    flex-direction: column;
-    gap: 0.5rem;
-    margin-bottom: 1.25rem;
-  }
-  .edit-btn {
-    background: none;
-    border: 1px solid var(--border);
-    color: var(--text-dim);
-    padding: 0.25rem 0.6rem;
-    border-radius: 4px;
-    cursor: pointer;
-    font-size: 0.75rem;
-    min-height: 28px;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-  }
-  .edit-btn:hover {
-    color: var(--text);
-  }
-  .edit-btn.inline {
-    margin-left: auto;
-  }
-  .delete-btn {
-    background: none;
-    border: 1px solid var(--accent);
-    color: var(--accent);
-    padding: 0.25rem 0.5rem;
-    border-radius: 4px;
-    cursor: pointer;
-    font-size: 0.75rem;
-    min-height: 28px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-  }
-  .delete-btn:hover:not(:disabled) {
-    background: var(--accent);
-    color: #0d0b08;
-  }
-  .delete-btn:disabled {
-    opacity: 0.4;
-    cursor: not-allowed;
-  }
-  .delete-btn.inline {
-    margin-left: 0.25rem;
-  }
-
-  /* Player action — pencil style */
-  .action-inline {
-    display: flex;
-    align-items: baseline;
-    gap: 0.5rem;
-    background: var(--bg-action);
-    padding: 0.55rem 1rem 0.55rem 0.85rem;
-    margin: 1rem -1.25rem;
-    color: var(--text-action);
-    font-family: var(--font-story);
-    font-size: 0.92rem;
-    font-style: italic;
-    line-height: 1.5;
-  }
-  @media (min-width: 1200px) {
-    .action-inline {
-      margin-left: -2.5rem;
-      margin-right: -2.5rem;
-      padding-left: 2.5rem;
-      padding-right: 2.5rem;
-    }
-  }
-  :global(.pencil-icon) {
-    flex-shrink: 0;
-    color: var(--text-dim);
-    opacity: 0.6;
-    position: relative;
-    top: 1px;
-  }
-
-  /* Narrative paragraphs */
-  .narrative-block {
-    margin-bottom: 1rem;
-  }
-  .para {
-    font-family: var(--font-story);
-    font-size: var(--story-size);
-    line-height: var(--story-line);
-    color: var(--text);
-    margin-bottom: 1em;
-    white-space: pre-line;
-  }
-  .para:last-child {
-    margin-bottom: 0;
-  }
-  .action-text {
-    flex: 1;
-    min-width: 0;
-  }
-  /* Fade-in animation for fresh turns */
-  .fresh .para {
-    animation: paraIn 0.4s ease both;
-  }
-  .fresh.action-inline {
-    animation: paraIn 0.25s ease both;
-  }
-  @keyframes paraIn {
-    from {
-      opacity: 0;
-      transform: translateY(5px);
-    }
-    to {
-      opacity: 1;
-      transform: translateY(0);
-    }
-  }
-
-  .editor-body {
-    min-height: 0;
-  }
-  .editor-body--modules {
-    overflow-y: auto;
-    padding: 0.3rem 0.8rem;
-    border-top: 1px solid var(--border);
-    border-bottom: 1px solid var(--border);
-  }
-  .dropdown-link {
-    display: block;
-    padding: 0.5rem 0.75rem;
-    font-size: 0.82rem;
-    color: var(--text);
-    text-decoration: none;
-    background: none;
-    border: none;
-    text-align: left;
-    cursor: pointer;
-    transition: background 0.1s;
-    white-space: nowrap;
-  }
-  .dropdown-link:hover {
-    background: var(--bg-action);
   }
 </style>

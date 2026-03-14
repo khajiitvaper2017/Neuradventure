@@ -29,7 +29,7 @@
   import IconStar from "../../components/icons/IconStar.svelte"
   import IconPencilSquare from "../../components/icons/IconPencilSquare.svelte"
   import IconTrash from "../../components/icons/IconTrash.svelte"
-  import IconUsers from "../../components/icons/IconUsers.svelte"
+  import NPCTrackerHeaderContent from "./NPCTrackerHeaderContent.svelte"
 
   let { inline = false }: { inline?: boolean } = $props()
   let showBaselineDetails = $state(false)
@@ -674,17 +674,13 @@
 {#if inline}
   <div class="sidebar">
     <div class="sidebar-header">
-      <IconUsers size={16} strokeWidth={1.5} className="npc-header-icon" />
-      <span>Known NPCs ({$npcs.length})</span>
-      {#if useNpcAppearance}
-        <button
-          class="btn-ghost small"
-          onclick={() => (showBaselineDetails = !showBaselineDetails)}
-          disabled={$npcs.length === 0}
-        >
-          {showBaselineDetails ? "Hide Baseline" : "Show Baseline"}
-        </button>
-      {/if}
+      <NPCTrackerHeaderContent
+        count={$npcs.length}
+        {useNpcAppearance}
+        {showBaselineDetails}
+        disableBaselineToggle={$npcs.length === 0}
+        onToggleBaseline={() => (showBaselineDetails = !showBaselineDetails)}
+      />
     </div>
     <div class="sidebar-body" data-scroll-root="modal" bind:this={sidebarBodyEl}>
       {@render npcContent()}
@@ -696,18 +692,15 @@
   <div class="overlay" onclick={() => showNPCTracker.set(false)}></div>
   <div class="panel">
     <div class="panel-header">
-      <IconUsers size={16} strokeWidth={1.5} className="npc-header-icon" />
-      <span>Known NPCs ({$npcs.length})</span>
-      {#if useNpcAppearance}
-        <button
-          class="btn-ghost small"
-          onclick={() => (showBaselineDetails = !showBaselineDetails)}
-          disabled={$npcs.length === 0}
-        >
-          {showBaselineDetails ? "Hide Baseline" : "Show Baseline"}
-        </button>
-      {/if}
-      <button class="panel-close" onclick={() => showNPCTracker.set(false)} aria-label="Close">×</button>
+      <NPCTrackerHeaderContent
+        count={$npcs.length}
+        {useNpcAppearance}
+        {showBaselineDetails}
+        disableBaselineToggle={$npcs.length === 0}
+        showClose
+        onToggleBaseline={() => (showBaselineDetails = !showBaselineDetails)}
+        onClose={() => showNPCTracker.set(false)}
+      />
     </div>
     <div class="panel-body" data-scroll-root="modal" bind:this={panelBodyEl}>
       {@render npcContent()}

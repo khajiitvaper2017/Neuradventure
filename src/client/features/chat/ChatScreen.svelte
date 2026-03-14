@@ -31,6 +31,8 @@
   import ThinkingDots from "../../components/ui/ThinkingDots.svelte"
   import IconPencilSquare from "../../components/icons/IconPencilSquare.svelte"
   import IconTrash from "../../components/icons/IconTrash.svelte"
+  import ChatTitleModal from "./ChatTitleModal.svelte"
+  import NextSpeakerModal from "./NextSpeakerModal.svelte"
 
   type ActionMode = "do" | "say"
   const ACTION_MODES: ActionMode[] = ["do", "say"]
@@ -531,62 +533,23 @@
   </header>
 
   {#if showTitleEditor}
-    <!-- svelte-ignore a11y_click_events_have_key_events -->
-    <!-- svelte-ignore a11y_no_static_element_interactions -->
-    <div
-      class="overlay overlay--modal"
-      onclick={(e) => {
-        if (e.currentTarget !== e.target) return
-        cancelEditTitle()
-      }}
-    >
-      <div class="modal" role="dialog" aria-modal="true" aria-label="Chat title" tabindex="-1">
-        <h3 class="modal__title">Chat Title</h3>
-        <p class="modal__message">Rename this chat.</p>
-        <div class="field">
-          <label for="chat-title">Title</label>
-          <input id="chat-title" class="text-input text-input--fluid" type="text" bind:value={titleDraft} />
-        </div>
-        <div class="modal__actions">
-          <button class="btn-ghost" onclick={cancelEditTitle}>Cancel</button>
-          <button class="btn-accent" onclick={saveTitle}>Save</button>
-        </div>
-      </div>
-    </div>
+    <ChatTitleModal
+      open={showTitleEditor}
+      disabled={$isChatGenerating}
+      bind:titleDraft
+      onCancel={cancelEditTitle}
+      onSave={saveTitle}
+    />
   {/if}
 
   {#if showSpeakerPicker && showNextSpeakerControl()}
-    <div
-      class="overlay overlay--modal"
-      role="button"
-      tabindex="0"
-      aria-label="Close speaker picker"
-      onclick={(e) => {
-        if (e.currentTarget !== e.target) return
-        showSpeakerPicker = false
-      }}
-      onkeydown={(e) => {
-        if (e.key === "Escape" || e.key === "Enter" || e.key === " ") {
-          e.preventDefault()
-          showSpeakerPicker = false
-        }
-      }}
-    >
-      <div class="modal" role="dialog" aria-modal="true" aria-label="Next speaker" tabindex="-1">
-        <h3 class="modal__title">Next Speaker</h3>
-        <p class="modal__message">Choose which AI should reply next.</p>
-        <div class="speaker-list">
-          {#each aiMembers() as member}
-            <button class="speaker-btn" onclick={() => setNextSpeaker(member.id)} disabled={$isChatGenerating}>
-              {member.name}
-            </button>
-          {/each}
-        </div>
-        <div class="modal__actions">
-          <button class="btn-ghost" onclick={() => (showSpeakerPicker = false)}>Close</button>
-        </div>
-      </div>
-    </div>
+    <NextSpeakerModal
+      open={showSpeakerPicker}
+      disabled={$isChatGenerating}
+      members={aiMembers()}
+      onPick={setNextSpeaker}
+      onClose={() => (showSpeakerPicker = false)}
+    />
   {/if}
 
   <div class="chat-log" bind:this={logEl} data-scroll-root="screen" onscroll={handleLogScroll}>
@@ -955,27 +918,5 @@
   }
   .delete-btn.inline {
     margin-left: 0.25rem;
-  }
-
-  .speaker-list {
-    display: flex;
-    flex-direction: column;
-    gap: 0.4rem;
-  }
-  .speaker-btn {
-    background: var(--bg-action);
-    border: 1px solid var(--border);
-    color: var(--text);
-    padding: 0.5rem 0.75rem;
-    border-radius: 6px;
-    text-align: left;
-    cursor: pointer;
-  }
-  .speaker-btn:hover:not(:disabled) {
-    border-color: var(--border-hover);
-  }
-  .speaker-btn:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
   }
 </style>

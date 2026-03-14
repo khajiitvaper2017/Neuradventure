@@ -21,8 +21,8 @@
   import { createRequestId } from "../../utils/ids.js"
   import { clearPendingRequest, getPendingRequest, setPendingRequest } from "../../utils/pendingRequests.js"
   import PromptHistoryPanel from "../../components/ui/PromptHistoryPanel.svelte"
-  import StoryModulesPanel from "../../components/ui/StoryModulesPanel.svelte"
   import { streamClient } from "../../api/stream.js"
+  import StoryModulesEditorPanel from "./StoryModulesEditorPanel.svelte"
   import {
     generateCharacterFromDescription,
     generateCharacterAppearance,
@@ -819,18 +819,12 @@
   </div>
 
   {#if showModulesPanel}
-    <!-- svelte-ignore a11y_click_events_have_key_events -->
-    <!-- svelte-ignore a11y_no_static_element_interactions -->
-    <div class="overlay" onclick={() => (showModulesPanel = false)}></div>
-    <div class="panel panel--wide">
-      <div class="panel-header">
-        <span>Story Modules</span>
-        <button class="panel-close" onclick={() => (showModulesPanel = false)} aria-label="Close">×</button>
-      </div>
-      <div class="panel-body" data-scroll-root="modal">
-        <StoryModulesPanel modules={activeModules} {setModules} bare />
-      </div>
-    </div>
+    <StoryModulesEditorPanel
+      open={showModulesPanel}
+      modules={activeModules}
+      {setModules}
+      onClose={() => (showModulesPanel = false)}
+    />
   {/if}
 
   <div class="actions">
