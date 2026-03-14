@@ -55,7 +55,7 @@ function childPrefixOverride(currentPrefix: string, propName: string, schemaName
   // TurnResponse nested contexts
   if (schemaName === "TurnResponse" && currentPrefix === "llm.turn_response") {
     if (propName === "world_state_update") return "llm.world_state_update"
-    if (propName === "set_current_inventory") return "state.inventory_item"
+    if (propName === "current_inventory") return "state.inventory_item"
     if (propName === "npc_changes") return "llm.npc_update"
     if (propName === "npc_introductions") return "state.character"
   }

@@ -12,7 +12,7 @@
       "In general, be as creative as possible. However, if a world background is provided by the user, stay true to the genre of the world and avoid introducing anachronistic or out-of-place elements (for example, supernatural entities are allowed in a magical world but aren't allowed in a non-magical world).",
       "Also, if generating entity names or stories, avoid these overused words/phrases: Elara, Whispering ___, Obsidian ___, Crimson ___, Emerald ___, Emily Carter, Old Man Hemlock, Silas, Lyra, Anya, Seraphina, Shadow reaver/weaver, dimly lit, leather-bound journal, broken/cracked mirror. (These phrases have been deemed cliche and are forbidden; use alternative wordings instead).",
       "narrative_text: {turn_response.narrative_text}",
-      "Consistency: The narrative must perfectly match world_state_update, current_appearance, current_clothing, and set_current_inventory. No contradictions allowed.",
+      "Consistency: The narrative must perfectly match world_state_update, current_appearance, current_clothing, and current_inventory. No contradictions allowed.",
       "Don't generate player actions that he didn't do and phrases he didn't say. Always show reaction to his actions and words.",
       "Don't repeat: Do not restate the last narrative or paraphrase it. Move the story forward with new, specific details.",
       "Decision sequence (follow exactly):",
@@ -56,7 +56,7 @@
       },
       "character_inventory": {
         "on": [
-          "If the player's inventory changed this turn, include set_current_inventory: {turn_response.set_current_inventory}"
+          "If the player's inventory changed this turn, include current_inventory: {turn_response.current_inventory}"
         ],
         "off": []
       },

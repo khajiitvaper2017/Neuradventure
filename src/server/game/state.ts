@@ -34,7 +34,7 @@ export function applyPlayerUpdate(
     ...character,
     ...appearance,
     inventory: flags.useCharInventory
-      ? (turnResponse.set_current_inventory ?? character.inventory)
+      ? (turnResponse.current_inventory ?? character.inventory)
       : character.inventory,
   }
 }
@@ -152,7 +152,7 @@ export function applyNPCUpdates(npcs: NPCState[], updates: NPCStateUpdate[], fla
         ? (patch.current_clothing ?? npc.current_clothing)
         : npc.current_clothing,
       current_activity: flags.useNpcActivity
-        ? (patch.set_current_activity ?? npc.current_activity)
+        ? (patch.current_activity ?? npc.current_activity)
         : npc.current_activity,
     }
   })
@@ -218,8 +218,8 @@ export function collectLlmWarnings(world: WorldState, npcs: NPCState[], turnResp
     if (patch.current_clothing && patch.current_clothing === npc.current_clothing) {
       warnings.push(`npc_changes[${npc.name}].current_clothing matches existing value`)
     }
-    if (patch.set_current_activity && patch.set_current_activity === npc.current_activity) {
-      warnings.push(`npc_changes[${npc.name}].set_current_activity matches existing value`)
+    if (patch.current_activity && patch.current_activity === npc.current_activity) {
+      warnings.push(`npc_changes[${npc.name}].current_activity matches existing value`)
     }
   }
 

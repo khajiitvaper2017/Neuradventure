@@ -84,7 +84,7 @@ export function buildTurnResponseSchema(
   }
 
   if (!flags.useCharInventory) {
-    schema = schema.omit({ set_current_inventory: true })
+    schema = schema.omit({ current_inventory: true })
   }
 
   if (!modules.track_background_events) {

@@ -86,7 +86,7 @@
       "npc_activity": {
         "on": [
           "Within each pregen_npcs entry (when present), include:",
-          "current_activity: {current_activity}"
+          "current_activity: {character.current_activity}"
         ],
         "off": []
       }

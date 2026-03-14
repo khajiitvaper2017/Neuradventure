@@ -49,7 +49,7 @@ export const buildNPCStateUpdateSchema = (
   if (flags.allowActivity) {
     variants.push(
       base.extend({
-        set_current_activity: z.string().min(1),
+        current_activity: z.string().min(1),
       }),
     )
   }
@@ -98,7 +98,7 @@ export const TurnResponseSchema = z
     background_events: BackgroundEventsSection,
     current_clothing: CurrentClothingSection.optional(),
     current_appearance: SetCurrentAppearanceSection.optional(),
-    set_current_inventory: SetCurrentInventorySection.optional(),
+    current_inventory: SetCurrentInventorySection.optional(),
     world_state_update: WorldStateUpdateSchema.optional().default({}),
     npc_changes: NPCChangesSection.optional(),
     npc_introductions: NPCIntroductionsSection.optional(),
