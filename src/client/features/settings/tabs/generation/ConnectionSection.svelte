@@ -179,6 +179,45 @@
     }
   }
 
+  function mergeModels(existing: ModelInfo[], incoming: ModelInfo[]): ModelInfo[] {
+    if (!incoming.length) return existing
+    const seen = new Set(existing.map((m) => m.id))
+    const out = [...existing]
+    for (const m of incoming) {
+      if (!m.id || seen.has(m.id)) continue
+      seen.add(m.id)
+      out.push(m)
+    }
+    return out
+  }
+
+  $effect(() => {
+    if (!active) return
+    if ($connector.type !== "openrouter") return
+
+    const currentId = $connector.model.trim()
+    if (!currentId) return
+    const existing = modelSearchResults.find((m) => m.id === currentId) ?? null
+    if (existing?.supported_parameters && existing.supported_parameters.length > 0) return
+    if (modelSearchLoading) return
+
+    const q = currentId
+    modelSearchLoading = true
+    modelSearchError = null
+    void api.settings
+      .models(q, 25)
+      .then((res) => {
+        const models = Array.isArray(res.models) ? res.models : []
+        modelSearchResults = mergeModels(modelSearchResults, models)
+      })
+      .catch((err) => {
+        modelSearchError = err instanceof Error ? err.message : String(err)
+      })
+      .finally(() => {
+        modelSearchLoading = false
+      })
+  })
+
   let ctxRefreshLoading = $state(false)
   async function refreshCtxLimitDetected() {
     ctxRefreshLoading = true

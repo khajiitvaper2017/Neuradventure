@@ -62,7 +62,6 @@
   function badgeForStatus(status: OpenRouterParamStatus): { label: string; kind: "warning" | "neutral" } | null {
     if (status === "unsupported") return { label: "ignored", kind: "warning" }
     if (status === "not_sent") return { label: "kobold-only", kind: "neutral" }
-    if (status === "unknown") return { label: "unknown", kind: "neutral" }
     return null
   }
 
@@ -230,7 +229,7 @@
         <ul class="notice__list">
           <li><span class="badge">kobold-only</span> not sent to OpenRouter</li>
           <li><span class="badge badge--warning">ignored</span> sent, but model does not support</li>
-          <li><span class="badge">unknown</span> model metadata missing (best-effort)</li>
+          <li>Model support metadata can be missing until models are fetched</li>
         </ul>
       </div>
     </div>
