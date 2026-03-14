@@ -2,6 +2,7 @@
   import type { GenerationParams, LLMConnector, ModelInfo, SamplerPreset } from "../../../../api/client.js"
   import { api } from "../../../../api/client.js"
   import Select from "../../../../components/ui/Select.svelte"
+  import TimeoutsSection from "./TimeoutsSection.svelte"
   import { isChatGenerating } from "../../../../stores/chat.js"
   import { isGenerating } from "../../../../stores/game.js"
   import {
@@ -12,7 +13,6 @@
     defaultAuthorNoteDepth,
     generation,
     streamingEnabled,
-    timeouts,
   } from "../../../../stores/settings.js"
   import { loadPresets, presets, refreshPresets } from "../../../../utils/presets.js"
   import { repetitionParams, samplingParams } from "../../lib/generationParamDefs.js"
@@ -62,15 +62,6 @@
   let modelSearchOnlyJsonSchema = $state(false)
   let authorNoteDraft = $state($defaultAuthorNote)
   let authorNoteDepthDraft = $state($defaultAuthorNoteDepth)
-  let llmRequestTimeoutSecDraft = $state(String(Math.round($timeouts.llmRequestMs / 1000)))
-  let upstreamFetchTimeoutSecDraft = $state(String(Math.round($timeouts.upstreamFetchMs / 1000)))
-  let streamSessionTtlSecDraft = $state(String(Math.round($timeouts.streamSessionTtlMs / 1000)))
-  let pendingRequestTtlMinDraft = $state(String(Math.round($timeouts.pendingRequestTtlMs / 60000)))
-  let uiErrorToastMsDraft = $state(String($timeouts.uiErrorToastMs))
-  let uiQuietNoticeMsDraft = $state(String($timeouts.uiQuietNoticeMs))
-  let uiFlashMsDraft = $state(String($timeouts.uiFlashMs))
-  let uiKeyboardScrollDelayMsDraft = $state(String($timeouts.uiKeyboardScrollDelayMs))
-  let uiResumePendingTurnDelayMsDraft = $state(String($timeouts.uiResumePendingTurnDelayMs))
 
   let importFileInput: HTMLInputElement | null = $state(null)
 
@@ -92,114 +83,6 @@
   $effect(() => {
     authorNoteDepthDraft = $defaultAuthorNoteDepth
   })
-  $effect(() => {
-    llmRequestTimeoutSecDraft = String(Math.round($timeouts.llmRequestMs / 1000))
-    upstreamFetchTimeoutSecDraft = String(Math.round($timeouts.upstreamFetchMs / 1000))
-    streamSessionTtlSecDraft = String(Math.round($timeouts.streamSessionTtlMs / 1000))
-    pendingRequestTtlMinDraft = String(Math.round($timeouts.pendingRequestTtlMs / 60000))
-    uiErrorToastMsDraft = String($timeouts.uiErrorToastMs)
-    uiQuietNoticeMsDraft = String($timeouts.uiQuietNoticeMs)
-    uiFlashMsDraft = String($timeouts.uiFlashMs)
-    uiKeyboardScrollDelayMsDraft = String($timeouts.uiKeyboardScrollDelayMs)
-    uiResumePendingTurnDelayMsDraft = String($timeouts.uiResumePendingTurnDelayMs)
-  })
-
-  function clampInt(value: number, min: number, max: number): number {
-    return Math.max(min, Math.min(max, Math.trunc(value)))
-  }
-
-  function parseIntDraft(value: string): number | null {
-    const trimmed = value.trim()
-    if (!trimmed) return null
-    const n = Number(trimmed)
-    if (!Number.isFinite(n)) return null
-    return Math.trunc(n)
-  }
-
-  function commitTimeouts(next: Partial<typeof $timeouts>) {
-    timeouts.set({ ...$timeouts, ...next })
-  }
-
-  function commitLlmRequestTimeout() {
-    const sec = parseIntDraft(llmRequestTimeoutSecDraft)
-    if (sec === null) {
-      llmRequestTimeoutSecDraft = String(Math.round($timeouts.llmRequestMs / 1000))
-      return
-    }
-    commitTimeouts({ llmRequestMs: clampInt(sec, 1, 3600) * 1000 })
-  }
-
-  function commitUpstreamFetchTimeout() {
-    const sec = parseIntDraft(upstreamFetchTimeoutSecDraft)
-    if (sec === null) {
-      upstreamFetchTimeoutSecDraft = String(Math.round($timeouts.upstreamFetchMs / 1000))
-      return
-    }
-    commitTimeouts({ upstreamFetchMs: clampInt(sec, 1, 300) * 1000 })
-  }
-
-  function commitStreamSessionTtl() {
-    const sec = parseIntDraft(streamSessionTtlSecDraft)
-    if (sec === null) {
-      streamSessionTtlSecDraft = String(Math.round($timeouts.streamSessionTtlMs / 1000))
-      return
-    }
-    commitTimeouts({ streamSessionTtlMs: clampInt(sec, 1, 600) * 1000 })
-  }
-
-  function commitPendingRequestTtl() {
-    const min = parseIntDraft(pendingRequestTtlMinDraft)
-    if (min === null) {
-      pendingRequestTtlMinDraft = String(Math.round($timeouts.pendingRequestTtlMs / 60000))
-      return
-    }
-    commitTimeouts({ pendingRequestTtlMs: clampInt(min, 1, 1440) * 60 * 1000 })
-  }
-
-  function commitUiErrorToastMs() {
-    const ms = parseIntDraft(uiErrorToastMsDraft)
-    if (ms === null) {
-      uiErrorToastMsDraft = String($timeouts.uiErrorToastMs)
-      return
-    }
-    commitTimeouts({ uiErrorToastMs: clampInt(ms, 0, 60_000) })
-  }
-
-  function commitUiQuietNoticeMs() {
-    const ms = parseIntDraft(uiQuietNoticeMsDraft)
-    if (ms === null) {
-      uiQuietNoticeMsDraft = String($timeouts.uiQuietNoticeMs)
-      return
-    }
-    commitTimeouts({ uiQuietNoticeMs: clampInt(ms, 0, 60_000) })
-  }
-
-  function commitUiFlashMs() {
-    const ms = parseIntDraft(uiFlashMsDraft)
-    if (ms === null) {
-      uiFlashMsDraft = String($timeouts.uiFlashMs)
-      return
-    }
-    commitTimeouts({ uiFlashMs: clampInt(ms, 0, 30_000) })
-  }
-
-  function commitUiKeyboardScrollDelayMs() {
-    const ms = parseIntDraft(uiKeyboardScrollDelayMsDraft)
-    if (ms === null) {
-      uiKeyboardScrollDelayMsDraft = String($timeouts.uiKeyboardScrollDelayMs)
-      return
-    }
-    commitTimeouts({ uiKeyboardScrollDelayMs: clampInt(ms, 0, 5000) })
-  }
-
-  function commitUiResumePendingTurnDelayMs() {
-    const ms = parseIntDraft(uiResumePendingTurnDelayMsDraft)
-    if (ms === null) {
-      uiResumePendingTurnDelayMsDraft = String($timeouts.uiResumePendingTurnDelayMs)
-      return
-    }
-    commitTimeouts({ uiResumePendingTurnDelayMs: clampInt(ms, 0, 30_000) })
-  }
 
   function commitConnector() {
     const trimmedUrl = connectorUrl.trim()
@@ -471,187 +354,7 @@
 
 <div class="divider"></div>
 
-<div class="control-section-label">Timeouts</div>
-
-<label class="control-row control-row--input" class:control-row--disabled={generationLockActive}>
-  <span class="control-row-text">
-    <span class="control-row-title">LLM request timeout (seconds)</span>
-    <span class="control-row-sub">How long the server will wait for the model before aborting</span>
-  </span>
-  <input
-    class="num-input"
-    type="number"
-    min="1"
-    max="3600"
-    step="1"
-    bind:value={llmRequestTimeoutSecDraft}
-    disabled={generationLockActive}
-    onblur={commitLlmRequestTimeout}
-    onkeydown={(e) => {
-      if (e.key === "Enter") (e.target as HTMLInputElement).blur()
-    }}
-  />
-</label>
-
-<label class="control-row control-row--input" class:control-row--disabled={generationLockActive}>
-  <span class="control-row-text">
-    <span class="control-row-title">Upstream fetch timeout (seconds)</span>
-    <span class="control-row-sub">Timeout for /models and ctx-limit detection fetches</span>
-  </span>
-  <input
-    class="num-input"
-    type="number"
-    min="1"
-    max="300"
-    step="1"
-    bind:value={upstreamFetchTimeoutSecDraft}
-    disabled={generationLockActive}
-    onblur={commitUpstreamFetchTimeout}
-    onkeydown={(e) => {
-      if (e.key === "Enter") (e.target as HTMLInputElement).blur()
-    }}
-  />
-</label>
-
-<label class="control-row control-row--input" class:control-row--disabled={generationLockActive}>
-  <span class="control-row-text">
-    <span class="control-row-title">Stream session TTL (seconds)</span>
-    <span class="control-row-sub">How long server keeps a stream snapshot after last subscriber</span>
-  </span>
-  <input
-    class="num-input"
-    type="number"
-    min="1"
-    max="600"
-    step="1"
-    bind:value={streamSessionTtlSecDraft}
-    disabled={generationLockActive}
-    onblur={commitStreamSessionTtl}
-    onkeydown={(e) => {
-      if (e.key === "Enter") (e.target as HTMLInputElement).blur()
-    }}
-  />
-</label>
-
-<label class="control-row control-row--input" class:control-row--disabled={generationLockActive}>
-  <span class="control-row-text">
-    <span class="control-row-title">Pending request TTL (minutes)</span>
-    <span class="control-row-sub">How long the app will try to resume an interrupted generation</span>
-  </span>
-  <input
-    class="num-input"
-    type="number"
-    min="1"
-    max="1440"
-    step="1"
-    bind:value={pendingRequestTtlMinDraft}
-    disabled={generationLockActive}
-    onblur={commitPendingRequestTtl}
-    onkeydown={(e) => {
-      if (e.key === "Enter") (e.target as HTMLInputElement).blur()
-    }}
-  />
-</label>
-
-<label class="control-row control-row--input" class:control-row--disabled={generationLockActive}>
-  <span class="control-row-text">
-    <span class="control-row-title">Error toast duration (ms)</span>
-    <span class="control-row-sub">Default duration for red error banners</span>
-  </span>
-  <input
-    class="num-input"
-    type="number"
-    min="0"
-    max="60000"
-    step="100"
-    bind:value={uiErrorToastMsDraft}
-    disabled={generationLockActive}
-    onblur={commitUiErrorToastMs}
-    onkeydown={(e) => {
-      if (e.key === "Enter") (e.target as HTMLInputElement).blur()
-    }}
-  />
-</label>
-
-<label class="control-row control-row--input" class:control-row--disabled={generationLockActive}>
-  <span class="control-row-text">
-    <span class="control-row-title">Quiet notice duration (ms)</span>
-    <span class="control-row-sub">Default duration for gray status notices</span>
-  </span>
-  <input
-    class="num-input"
-    type="number"
-    min="0"
-    max="60000"
-    step="100"
-    bind:value={uiQuietNoticeMsDraft}
-    disabled={generationLockActive}
-    onblur={commitUiQuietNoticeMs}
-    onkeydown={(e) => {
-      if (e.key === "Enter") (e.target as HTMLInputElement).blur()
-    }}
-  />
-</label>
-
-<label class="control-row control-row--input" class:control-row--disabled={generationLockActive}>
-  <span class="control-row-text">
-    <span class="control-row-title">UI flash duration (ms)</span>
-    <span class="control-row-sub">Highlight pulse for updated fields (character/NPC/scene)</span>
-  </span>
-  <input
-    class="num-input"
-    type="number"
-    min="0"
-    max="30000"
-    step="50"
-    bind:value={uiFlashMsDraft}
-    disabled={generationLockActive}
-    onblur={commitUiFlashMs}
-    onkeydown={(e) => {
-      if (e.key === "Enter") (e.target as HTMLInputElement).blur()
-    }}
-  />
-</label>
-
-<label class="control-row control-row--input" class:control-row--disabled={generationLockActive}>
-  <span class="control-row-text">
-    <span class="control-row-title">Keyboard scroll delay (ms)</span>
-    <span class="control-row-sub">Delay before scrolling after virtual keyboard opens</span>
-  </span>
-  <input
-    class="num-input"
-    type="number"
-    min="0"
-    max="5000"
-    step="10"
-    bind:value={uiKeyboardScrollDelayMsDraft}
-    disabled={generationLockActive}
-    onblur={commitUiKeyboardScrollDelayMs}
-    onkeydown={(e) => {
-      if (e.key === "Enter") (e.target as HTMLInputElement).blur()
-    }}
-  />
-</label>
-
-<label class="control-row control-row--input" class:control-row--disabled={generationLockActive}>
-  <span class="control-row-text">
-    <span class="control-row-title">Resume delay (ms)</span>
-    <span class="control-row-sub">Delay before attempting to resume a pending generation</span>
-  </span>
-  <input
-    class="num-input"
-    type="number"
-    min="0"
-    max="30000"
-    step="50"
-    bind:value={uiResumePendingTurnDelayMsDraft}
-    disabled={generationLockActive}
-    onblur={commitUiResumePendingTurnDelayMs}
-    onkeydown={(e) => {
-      if (e.key === "Enter") (e.target as HTMLInputElement).blur()
-    }}
-  />
-</label>
+<TimeoutsSection disabled={generationLockActive} />
 
 <label class="control-row control-row--input" class:control-row--disabled={generationLockActive}>
   <span class="control-row-text">

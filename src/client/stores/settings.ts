@@ -83,7 +83,7 @@ const DEFAULT_STORY_MODULES: StoryModules = {
   npc_activity: true,
 }
 
-const DEFAULT_TIMEOUTS: TimeoutSettings = {
+export const DEFAULT_TIMEOUTS: TimeoutSettings = {
   llmRequestMs: 10 * 60 * 1000,
   upstreamFetchMs: 15 * 1000,
   streamSessionTtlMs: 45 * 1000,
