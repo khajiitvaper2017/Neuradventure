@@ -32,6 +32,10 @@
         <span class="inline-dquote"
           ><span class="quote-mark">"</span>{token.content}<span class="quote-mark">"</span></span
         >
+      {:else if token.type === "squote"}
+        <span class="inline-dquote"
+          ><span class="quote-mark">'</span>{token.content}<span class="quote-mark">'</span></span
+        >
       {/if}
     {/each}
   {/if}

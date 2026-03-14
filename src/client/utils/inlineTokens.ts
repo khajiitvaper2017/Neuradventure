@@ -5,10 +5,11 @@ export type InlineToken =
   | { type: "em"; content: string }
   | { type: "quote"; content: string }
   | { type: "dquote"; content: string }
+  | { type: "squote"; content: string }
   | { type: "image"; alt: string; src: string; style: string }
 
 type InlineMatch =
-  | { type: "code" | "strong" | "em" | "quote" | "dquote"; start: number; end: number; inner: string }
+  | { type: "code" | "strong" | "em" | "quote" | "dquote" | "squote"; start: number; end: number; inner: string }
   | { type: "image"; start: number; end: number; alt: string; src: string; style: string }
 
 function isWordChar(ch: string): boolean {
@@ -104,6 +105,51 @@ function findDQuote(text: string, from: number): InlineMatch | null {
   return null
 }
 
+function findSQuote(text: string, from: number): InlineMatch | null {
+  let start = text.indexOf("'", from)
+  while (start !== -1) {
+    if (isIndexInsideAngleTag(text, start)) {
+      start = text.indexOf("'", start + 1)
+      continue
+    }
+
+    const prev = start > 0 ? text[start - 1] : ""
+    const next = start + 1 < text.length ? text[start + 1] : ""
+    const looksLikeApostrophe = isWordChar(prev) && isWordChar(next)
+    if (looksLikeApostrophe || !next || next === "\n" || next === " ") {
+      start = text.indexOf("'", start + 1)
+      continue
+    }
+
+    let end = start + 1
+    while (true) {
+      end = text.indexOf("'", end)
+      if (end === -1) return null
+      if (isIndexInsideAngleTag(text, end)) {
+        end += 1
+        continue
+      }
+
+      const endPrev = end > 0 ? text[end - 1] : ""
+      const endNext = end + 1 < text.length ? text[end + 1] : ""
+      const endIsApostrophe = isWordChar(endPrev) && isWordChar(endNext)
+      if (endIsApostrophe) {
+        end += 1
+        continue
+      }
+      break
+    }
+
+    const inner = text.slice(start + 1, end)
+    if (inner && !inner.includes("\n") && inner.trim().length > 0) {
+      return { type: "squote", start, end: end + 1, inner }
+    }
+
+    start = text.indexOf("'", start + 1)
+  }
+  return null
+}
+
 function findEm(text: string, from: number): InlineMatch | null {
   let start = text.indexOf("*", from)
   while (start !== -1) {
@@ -179,6 +225,7 @@ export function tokenizeInline(text: string): InlineToken[] {
     em: 3,
     quote: 4,
     dquote: 5,
+    squote: 6,
   }
   while (index < text.length) {
     const candidates = [
@@ -188,6 +235,7 @@ export function tokenizeInline(text: string): InlineToken[] {
       findEm(text, index),
       findTripleQuote(text, index),
       findDQuote(text, index),
+      findSQuote(text, index),
     ].filter((m): m is InlineMatch => m !== null)
     if (candidates.length === 0) {
       tokens.push({ type: "text", content: text.substring(index) })
@@ -210,6 +258,8 @@ export function tokenizeInline(text: string): InlineToken[] {
       tokens.push({ type: "quote", content: next.inner })
     } else if (next.type === "dquote") {
       tokens.push({ type: "dquote", content: next.inner })
+    } else if (next.type === "squote") {
+      tokens.push({ type: "squote", content: next.inner })
     }
     index = next.end
   }

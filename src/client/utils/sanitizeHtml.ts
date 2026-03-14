@@ -116,6 +116,8 @@ function renderMarkdownishLineToHtml(line: string): string {
     else if (token.type === "quote") out += `<mark>"""${escapeHtml(token.content)}"""</mark>`
     else if (token.type === "dquote")
       out += `<em><mark>"</mark><mark><em>${escapeHtml(token.content)}</em></mark><mark>"</mark></em>`
+    else if (token.type === "squote")
+      out += `<em><mark>'</mark><mark><em>${escapeHtml(token.content)}</em></mark><mark>'</mark></em>`
     else out += `<img alt="${escapeHtml(token.alt)}" src="${escapeHtml(token.src)}" />`
   }
   return out
