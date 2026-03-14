@@ -115,10 +115,10 @@
   <!-- svelte-ignore a11y_click_events_have_key_events -->
   <!-- svelte-ignore a11y_no_static_element_interactions -->
   <div class="overlay" onclick={close}></div>
-  <div class="panel panel--wide" role="dialog" aria-modal="true" aria-label={title}>
+  <div class="panel panel--wide" role="dialog" aria-modal="true" aria-label={title} tabindex="-1">
     <div class="panel-header">
       <span>{title}</span>
-      <button onclick={close}>×</button>
+      <button class="panel-close" onclick={close} aria-label="Close">×</button>
     </div>
     <div class="panel-body inspector" data-scroll-root="modal">
       {#if loading}

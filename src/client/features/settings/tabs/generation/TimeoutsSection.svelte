@@ -230,14 +230,14 @@
   ])
 </script>
 
-<div class="control-section-label timeouts-head">
+<div class="control-section-label section-head">
   <span>Timeouts</span>
-  <div class="timeouts-actions">
-    <div class="timeouts-chips" aria-label="Timeout summary">
+  <div class="section-head__actions">
+    <div class="chips" aria-label="Timeout summary">
       {#each summaryChips as chip (chip.label)}
-        <span class="timeouts-chip" title={chip.label}>
-          <span class="timeouts-chip-k">{chip.label}</span>
-          <span class="timeouts-chip-v">{chip.value}</span>
+        <span class="chip chip--kv" title={chip.label}>
+          <span class="chip-k">{chip.label}</span>
+          <span class="chip-v">{chip.value}</span>
         </span>
       {/each}
     </div>
@@ -248,9 +248,9 @@
 </div>
 
 {#if warnings.length > 0}
-  <div class="timeouts-warning" role="note">
-    <div class="timeouts-warning-title">Heads up</div>
-    <ul class="timeouts-warning-body">
+  <div class="notice notice--warning" role="note">
+    <div class="notice__title">Heads up</div>
+    <ul class="notice__list">
       {#each warnings as warning (warning)}
         <li>{warning}</li>
       {/each}
@@ -278,9 +278,9 @@
   </label>
 {/each}
 
-<details class="timeouts-details" data-disabled={disabled ? "true" : "false"}>
+<details class="disclosure" data-disabled={disabled ? "true" : "false"}>
   <summary
-    class="timeouts-summary"
+    class="disclosure__summary"
     aria-disabled={disabled}
     tabindex={disabled ? -1 : 0}
     onclick={preventToggleIfDisabled}
@@ -308,9 +308,9 @@
   {/each}
 </details>
 
-<details class="timeouts-details" data-disabled={disabled ? "true" : "false"}>
+<details class="disclosure" data-disabled={disabled ? "true" : "false"}>
   <summary
-    class="timeouts-summary"
+    class="disclosure__summary"
     aria-disabled={disabled}
     tabindex={disabled ? -1 : 0}
     onclick={preventToggleIfDisabled}
@@ -337,127 +337,3 @@
     </label>
   {/each}
 </details>
-
-<style>
-  .timeouts-head {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 0.75rem;
-  }
-  .timeouts-actions {
-    display: flex;
-    align-items: center;
-    gap: 0.6rem;
-  }
-
-  .timeouts-chips {
-    display: flex;
-    align-items: center;
-    gap: 0.4rem;
-    flex-wrap: wrap;
-  }
-  .timeouts-chip {
-    display: inline-flex;
-    align-items: baseline;
-    gap: 0.35rem;
-    padding: 0.22rem 0.5rem;
-    border: 1px solid var(--border);
-    background: var(--bg-input);
-    border-radius: 999px;
-    font-family: var(--font-ui);
-    font-size: 0.72rem;
-    color: var(--text-dim);
-    line-height: 1;
-    user-select: none;
-    white-space: nowrap;
-  }
-  .timeouts-chip-k {
-    letter-spacing: 0.03em;
-    text-transform: uppercase;
-    opacity: 0.9;
-  }
-  .timeouts-chip-v {
-    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
-    color: var(--text);
-  }
-
-  .timeouts-warning {
-    margin: 0.55rem 1rem 0.2rem;
-    padding: 0.65rem 0.85rem;
-    border: 1px solid var(--warning-border, rgba(194, 122, 26, 0.22));
-    background: var(--warning-bg, rgba(194, 122, 26, 0.08));
-    border-radius: 8px;
-  }
-  .timeouts-warning-title {
-    font-family: var(--font-ui);
-    font-size: 0.8rem;
-    font-weight: 700;
-    color: var(--text);
-    margin-bottom: 0.2rem;
-  }
-  .timeouts-warning-body {
-    font-family: var(--font-ui);
-    font-size: 0.8rem;
-    color: var(--text-dim);
-    line-height: 1.4;
-    margin: 0;
-    padding-left: 1.05rem;
-  }
-
-  .timeouts-details {
-    margin: 0.35rem 1rem 0;
-    border: 1px solid var(--border);
-    background: var(--bg-input);
-    background: color-mix(in srgb, var(--bg-input) 65%, transparent);
-    border-radius: 10px;
-    overflow: hidden;
-  }
-  .timeouts-summary {
-    list-style: none;
-    cursor: pointer;
-    padding: 0.6rem 0.75rem;
-    font-family: var(--font-ui);
-    font-size: 0.82rem;
-    font-weight: 700;
-    color: var(--text);
-    letter-spacing: 0.02em;
-  }
-  .timeouts-summary::-webkit-details-marker {
-    display: none;
-  }
-  .timeouts-details > .timeouts-summary::after {
-    content: "▾";
-    float: right;
-    color: var(--text-dim);
-    transition: transform 0.15s cubic-bezier(0.2, 0.8, 0.2, 1);
-  }
-  .timeouts-details[open] > .timeouts-summary::after {
-    transform: rotate(-180deg);
-  }
-  .timeouts-details[data-disabled="true"] {
-    opacity: 0.7;
-  }
-  .timeouts-details[data-disabled="true"] .timeouts-summary {
-    cursor: not-allowed;
-  }
-
-  .timeouts-details :global(.control-row) {
-    padding-left: 0.75rem;
-    padding-right: 0.75rem;
-  }
-  .timeouts-details :global(.control-row:first-of-type) {
-    border-top: 1px solid var(--border);
-  }
-
-  @media (max-width: 520px) {
-    .timeouts-actions {
-      align-items: flex-end;
-      flex-direction: column;
-      gap: 0.45rem;
-    }
-    .timeouts-chips {
-      justify-content: flex-end;
-    }
-  }
-</style>

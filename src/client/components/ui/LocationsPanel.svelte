@@ -49,11 +49,11 @@
         <div class="empty">No locations yet.</div>
       {:else}
         {#each sortedLocations as location (location.name)}
-          <div class="location-card" class:current={location.name.trim().toLowerCase() === currentSceneKey}>
+          <div class="surface location-card" class:current={location.name.trim().toLowerCase() === currentSceneKey}>
             <div class="location-title">
               <span class="location-name">{location.name}</span>
               {#if location.name.trim().toLowerCase() === currentSceneKey}
-                <span class="location-badge">Current</span>
+                <span class="badge">Current</span>
               {/if}
             </div>
 
@@ -84,7 +84,7 @@
     <div class="panel-header">
       <IconMapPin size={16} strokeWidth={1.5} className="location-header-icon" />
       <span>Locations ({sortedLocations.length})</span>
-      <button onclick={() => showLocations.set(false)}>×</button>
+      <button class="panel-close" onclick={() => showLocations.set(false)} aria-label="Close">×</button>
     </div>
     <div class="panel-body" data-scroll-root="modal">
       {#if !$worldState}
@@ -93,11 +93,11 @@
         <div class="empty">No locations yet.</div>
       {:else}
         {#each sortedLocations as location (location.name)}
-          <div class="location-card" class:current={location.name.trim().toLowerCase() === currentSceneKey}>
+          <div class="surface location-card" class:current={location.name.trim().toLowerCase() === currentSceneKey}>
             <div class="location-title">
               <span class="location-name">{location.name}</span>
               {#if location.name.trim().toLowerCase() === currentSceneKey}
-                <span class="location-badge">Current</span>
+                <span class="badge">Current</span>
               {/if}
             </div>
 
@@ -130,16 +130,7 @@
     opacity: 0.6;
   }
 
-  .empty {
-    color: var(--text-dim);
-    font-size: 0.8rem;
-  }
-
   .location-card {
-    background: var(--bg-input);
-    border: 1px solid var(--border);
-    border-radius: 6px;
-    padding: 0.65rem 0.75rem;
     display: flex;
     flex-direction: column;
     gap: 0.35rem;
@@ -162,16 +153,6 @@
     font-family: var(--font-story);
     color: var(--text);
     font-size: 0.95rem;
-  }
-
-  .location-badge {
-    font-size: 0.6rem;
-    font-weight: 600;
-    letter-spacing: 0.08em;
-    border: 1px solid var(--border);
-    border-radius: var(--radius-pill);
-    padding: 0.1rem 0.45rem;
-    color: var(--text-dim);
   }
 
   .location-row {

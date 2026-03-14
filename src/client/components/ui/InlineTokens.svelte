@@ -39,7 +39,7 @@
 
 <style>
   .inline-code {
-    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+    font-family: var(--font-mono);
     font-size: 0.95em;
     padding: 0.08em 0.28em;
     border-radius: 4px;

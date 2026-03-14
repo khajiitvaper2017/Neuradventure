@@ -434,18 +434,24 @@
               {#each draft.inventory as item, index}
                 <div class="cs-inv-row">
                   <input
+                    class="text-input text-input--fluid"
                     type="text"
                     value={item.name}
                     placeholder="Item name"
                     oninput={(e) => updateInventoryItem(index, "name", (e.target as HTMLInputElement).value)}
                   />
                   <input
+                    class="text-input text-input--fluid"
                     type="text"
                     value={item.description}
                     placeholder="Description"
                     oninput={(e) => updateInventoryItem(index, "description", (e.target as HTMLInputElement).value)}
                   />
-                  <button class="cs-inv-remove" onclick={() => removeInventoryItem(index)} aria-label="Remove item">
+                  <button
+                    class="btn-ghost btn-ghost--danger small cs-inv-remove"
+                    onclick={() => removeInventoryItem(index)}
+                    aria-label="Remove item"
+                  >
                     ×
                   </button>
                 </div>
@@ -453,7 +459,7 @@
             {/if}
           </div>
         {/if}
-        <div class="cs-edit-actions">
+        <div class="modal__actions">
           <button class="btn-ghost" onclick={cancelEdit} disabled={saving}>Cancel</button>
           <button class="btn-primary" onclick={saveCharacter} disabled={saving || !$currentStoryId}>
             {saving ? "Saving..." : "Save"}
@@ -461,7 +467,7 @@
         </div>
       </div>
     {:else}
-      <div class="cs-section cs-identity" class:flash={flashIdentity}>
+      <div class="surface cs-section cs-identity" class:flash={flashIdentity}>
         <div class="cs-identity-name">
           {displayCharacter.name}
           {#if genderIcon(displayCharacter.gender) === "male"}
@@ -480,7 +486,7 @@
       </div>
 
       {#if showBaselineDetails}
-        <div class="cs-section" class:flash={flashAppearance}>
+        <div class="surface cs-section" class:flash={flashAppearance}>
           <div class="cs-section-header">
             <IconFace size={14} strokeWidth={1.5} className="cs-icon" />
             <span class="section-label">Description</span>
@@ -491,7 +497,7 @@
 
       {#if useAppearance}
         {#if showBaselineDetails}
-          <div class="cs-section" class:flash={flashAppearance}>
+          <div class="surface cs-section" class:flash={flashAppearance}>
             <div class="cs-section-header">
               <IconFace size={14} strokeWidth={1.5} className="cs-icon" />
               <span class="section-label">Baseline Appearance</span>
@@ -500,7 +506,7 @@
           </div>
         {/if}
 
-        <div class="cs-section" class:flash={flashAppearance}>
+        <div class="surface cs-section" class:flash={flashAppearance}>
           <div class="cs-section-header">
             <IconFace size={14} strokeWidth={1.5} className="cs-icon" />
             <span class="section-label">Current Appearance</span>
@@ -508,7 +514,7 @@
           <div class="cs-value">{displayCharacter.current_appearance}</div>
         </div>
 
-        <div class="cs-section" class:flash={flashClothing}>
+        <div class="surface cs-section" class:flash={flashClothing}>
           <div class="cs-section-header">
             <IconShirt size={14} strokeWidth={1.5} className="cs-icon" />
             <span class="section-label">Wearing</span>
@@ -518,7 +524,7 @@
       {/if}
 
       {#if showTraitSection && ((usePersonalityTraits && displayCharacter.personality_traits.length > 0) || (useMajorFlaws && displayCharacter.major_flaws.length > 0) || (useQuirks && displayCharacter.quirks.length > 0) || (usePerks && displayCharacter.perks.length > 0))}
-        <div class="cs-section">
+        <div class="surface cs-section">
           <div class="cs-section-header">
             <IconStar size={14} strokeWidth={1.5} className="cs-icon" />
             <span class="section-label">Traits · Flaws · Quirks · Perks</span>
@@ -549,7 +555,7 @@
       {/if}
 
       {#if useInventory}
-        <div class="cs-section" class:flash={flashInventory}>
+        <div class="surface cs-section" class:flash={flashInventory}>
           <div class="cs-section-header">
             <IconCube size={14} strokeWidth={1.5} className="cs-icon" />
             <span class="section-label">Inventory ({displayCharacter.inventory.length})</span>
@@ -586,14 +592,14 @@
       </div>
       <div class="cs-header-actions">
         <button
-          class="cs-toggle-btn"
+          class="btn-ghost small"
           onclick={() => (showBaselineDetails = !showBaselineDetails)}
           disabled={!displayCharacter}
         >
           {showBaselineDetails ? "Hide details" : "Show details"}
         </button>
         <button
-          class="cs-edit-btn"
+          class="btn-ghost small"
           onclick={startEdit}
           disabled={editing || !canEdit || !displayCharacter || saving}
           title="Edit character sheet"
@@ -619,14 +625,14 @@
       </div>
       <div class="cs-header-actions">
         <button
-          class="cs-toggle-btn"
+          class="btn-ghost small"
           onclick={() => (showBaselineDetails = !showBaselineDetails)}
           disabled={!displayCharacter}
         >
           {showBaselineDetails ? "Hide details" : "Show details"}
         </button>
         <button
-          class="cs-edit-btn"
+          class="btn-ghost small"
           onclick={startEdit}
           disabled={editing || !canEdit || !displayCharacter || saving}
           title="Edit character sheet"
@@ -634,7 +640,7 @@
         >
           <IconPencilSquare size={12} strokeWidth={2} />
         </button>
-        <button class="cs-close-btn" onclick={closeCharSheet}>×</button>
+        <button class="panel-close" onclick={closeCharSheet} aria-label="Close">×</button>
       </div>
     </div>
     <div class="panel-body" data-scroll-root="modal">
@@ -679,53 +685,9 @@
     align-items: center;
     gap: 0.4rem;
   }
-  .cs-toggle-btn {
-    background: transparent;
-    border: 1px dashed var(--border);
-    color: var(--text-dim);
-    border-radius: var(--radius-pill);
-    padding: 0.2rem 0.6rem;
-    font-size: 0.62rem;
-    letter-spacing: 0.08em;
-    min-width: auto;
-    min-height: auto;
-  }
-  .cs-toggle-btn:hover:not(:disabled) {
-    color: var(--text);
-    border-color: var(--border-hover);
-  }
-  .cs-toggle-btn:disabled {
-    opacity: 0.5;
-  }
-  .cs-edit-btn {
-    background: var(--bg-input);
-    border: 1px solid var(--border);
-    color: var(--text);
-    border-radius: var(--radius-pill);
-    padding: 0.2rem 0.6rem;
-    font-size: 0.65rem;
-    letter-spacing: 0.08em;
-    min-width: auto;
-    min-height: auto;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-  }
-  .cs-edit-btn:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-  }
-  .cs-close-btn {
-    min-width: 40px;
-    min-height: 40px;
-  }
 
   /* ── Sections ──────────────────────────────────────── */
   .cs-section {
-    background: var(--bg-input);
-    border: 1px solid var(--border);
-    border-radius: 6px;
-    padding: 0.65rem 0.75rem;
     display: flex;
     flex-direction: column;
     gap: 0.35rem;
@@ -755,31 +717,15 @@
     align-items: center;
     margin-top: 0.35rem;
   }
-  .cs-inv-row input {
-    background: var(--bg-input);
-    border: 1px solid var(--border);
-    color: var(--text);
-    border-radius: 6px;
-    padding: 0.35rem 0.45rem;
-    font-size: 0.85rem;
-  }
   .cs-inv-remove {
-    background: none;
-    border: 1px solid var(--border);
-    color: var(--text-dim);
-    border-radius: 6px;
     width: 28px;
     height: 28px;
-  }
-  .cs-inv-remove:hover {
-    color: var(--text);
-    border-color: var(--text-dim);
-  }
-  .cs-edit-actions {
+    min-width: 28px;
+    min-height: 28px;
+    padding: 0;
     display: flex;
-    justify-content: flex-end;
-    gap: 0.5rem;
-    padding-top: 0.25rem;
+    align-items: center;
+    justify-content: center;
   }
 
   /* ── Identity ──────────────────────────────────────── */

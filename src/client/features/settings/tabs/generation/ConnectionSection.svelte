@@ -290,26 +290,32 @@
 </script>
 
 {#if unsupportedParamLabels.length > 0}
-  <div class="unsupported-banner">
-    <span class="unsupported-banner-icon">⚠</span>
-    <span class="unsupported-banner-text">
-      <strong>{$connector.type === "openrouter" ? $connector.model : ""}</strong> does not support: {unsupportedParamLabels.join(
-        ", ",
-      )}. These parameters will be ignored.
-    </span>
+  <div class="notice notice--warning" role="note">
+    <div class="notice__row">
+      <span class="notice__icon" aria-hidden="true">⚠</span>
+      <div>
+        <div class="notice__title">Unsupported parameters</div>
+        <div class="notice__body">
+          <strong>{$connector.type === "openrouter" ? $connector.model : ""}</strong> does not support:
+          {unsupportedParamLabels.join(", ")}. These parameters will be ignored.
+        </div>
+      </div>
+    </div>
   </div>
 {/if}
 
-<div class="control-section-label settings-section-head">
+<div class="control-section-label section-head">
   <span>Connection</span>
-  {#if generationLockActive}
-    <span
-      class="stream-lock-pill"
-      title="A generation is in progress; connection controls are locked until it completes"
-    >
-      Generating…
-    </span>
-  {/if}
+  <div class="section-head__actions">
+    {#if generationLockActive}
+      <span
+        class="stream-lock-pill"
+        title="A generation is in progress; connection controls are locked until it completes"
+      >
+        Generating…
+      </span>
+    {/if}
+  </div>
 </div>
 
 <div class="control-row control-row--input" class:control-row--disabled={generationLockActive}>
@@ -395,7 +401,7 @@
       <span class="control-row-sub">Example: openrouter/free</span>
     </span>
     <input
-      class="text-input model-id-input"
+      class="text-input text-input--mono"
       type="text"
       bind:value={openrouterModelDraft}
       disabled={generationLockActive}
@@ -534,37 +540,6 @@
 <div class="divider"></div>
 
 <style>
-  .settings-section-head {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    justify-content: space-between;
-  }
-
-  .unsupported-banner {
-    display: flex;
-    align-items: flex-start;
-    gap: 0.6rem;
-    margin: 0.75rem 1rem 0;
-    padding: 0.7rem 0.9rem;
-    background: var(--warning-bg, rgba(194, 122, 26, 0.08));
-    border: 1px solid var(--warning-border, rgba(194, 122, 26, 0.2));
-    border-radius: 6px;
-    font-family: var(--font-ui);
-    font-size: 0.82rem;
-    color: var(--text);
-    line-height: 1.45;
-  }
-  .unsupported-banner-icon {
-    flex-shrink: 0;
-    font-size: 1rem;
-    line-height: 1.3;
-  }
-  .unsupported-banner-text strong {
-    font-weight: 600;
-    word-break: break-all;
-  }
-
   .model-search {
     display: flex;
     gap: 0.5rem;
@@ -601,10 +576,6 @@
     font-family: var(--font-ui);
     font-size: 0.78rem;
     color: var(--text-dim);
-  }
-  .model-id-input {
-    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
-    letter-spacing: 0.01em;
   }
 
   .preset-btn:disabled {

@@ -334,7 +334,7 @@
 
   .prompt-editor {
     width: 100%;
-    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+    font-family: var(--font-mono);
   }
 
   .prompt-actions {
@@ -360,9 +360,5 @@
     color: var(--danger);
     font-size: 0.85rem;
     line-height: 1.35;
-  }
-
-  .settings-bottom-pad {
-    height: 2rem;
   }
 </style>

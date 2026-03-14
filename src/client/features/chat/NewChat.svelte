@@ -338,7 +338,7 @@
 
     <div class="field">
       <label for="chat-title">Title</label>
-      <input id="chat-title" class="text-input" type="text" bind:value={title} placeholder="e.g. Fireside Council" />
+      <input id="chat-title" type="text" bind:value={title} placeholder="e.g. Fireside Council" />
     </div>
 
     {#if greetingLoading}
@@ -359,7 +359,7 @@
             greeting = greetingOptions[seedGreetingIndex] ?? greeting
           }}
         />
-        <div class="hint">Selecting a template fills the greeting text below.</div>
+        <div class="help-text">Selecting a template fills the greeting text below.</div>
       </div>
     {/if}
 
@@ -367,13 +367,12 @@
       <label for="chat-greeting">Greeting</label>
       <textarea
         id="chat-greeting"
-        class="text-input"
         rows="4"
         bind:value={greeting}
         placeholder="Seeds the first AI message to start the chat."
         use:autoresize={greeting}
       ></textarea>
-      <div class="hint">Supports placeholders: {"{{user}}"} (player), {"{{char}}"} (AI speaker).</div>
+      <div class="help-text">Supports placeholders: {"{{user}}"} (player), {"{{char}}"} (AI speaker).</div>
     </div>
 
     <div class="field">
@@ -486,7 +485,7 @@
     {/if}
 
     <div class="field">
-      <div class="field-label">AI Members</div>
+      <div class="section-label">AI Members</div>
       {#if loading}
         <div class="empty">Loading characters...</div>
       {:else if playableOptions.length === 0}
@@ -494,7 +493,7 @@
       {:else}
         <div class="ai-list">
           {#each playableOptions as option}
-            <label class="ai-row {option.key === playerKey ? 'disabled' : ''}">
+            <label class="surface ai-row {option.key === playerKey ? 'disabled' : ''}">
               <input
                 type="checkbox"
                 disabled={generating || submitting || option.key === playerKey}
@@ -528,7 +527,7 @@
         </div>
       {/if}
       {#if playerKey && aiKeys.length === 0}
-        <div class="hint">Select at least one AI member.</div>
+        <div class="help-text">Select at least one AI member.</div>
       {/if}
     </div>
 
@@ -568,48 +567,6 @@
     height: 100%;
   }
 
-  .text-input {
-    background: var(--bg-input);
-    border: 1px solid var(--border);
-    color: var(--text);
-    padding: 0.6rem 0.75rem;
-    border-radius: var(--radius-sm);
-    font-family: var(--font-story);
-    font-size: 0.9rem;
-  }
-
-  .text-input:focus {
-    outline: 1px solid var(--accent);
-  }
-
-  .field-label {
-    font-size: 0.85rem;
-    font-weight: 600;
-    color: var(--text);
-  }
-
-  .hint {
-    font-size: 0.75rem;
-    color: var(--text-dim);
-  }
-
-  .generate-field textarea {
-    width: 100%;
-    min-height: 60px;
-    resize: none;
-  }
-
-  .generate-row {
-    display: flex;
-    gap: 0.75rem;
-    align-items: flex-start;
-  }
-
-  .generate-btn {
-    min-height: 44px;
-    white-space: nowrap;
-  }
-
   .ai-list {
     display: grid;
     gap: 0.35rem;
@@ -620,9 +577,6 @@
     gap: 0.6rem;
     align-items: center;
     padding: 0.45rem 0.6rem;
-    border: 1px solid var(--border);
-    border-radius: 6px;
-    background: var(--bg-raised);
     cursor: pointer;
   }
   .ai-row input {
@@ -652,14 +606,5 @@
   .ai-meta {
     font-size: 0.75rem;
     color: var(--text-dim);
-  }
-
-  @media (max-width: 680px) {
-    .generate-row {
-      flex-direction: column;
-    }
-    .generate-btn {
-      width: 100%;
-    }
   }
 </style>

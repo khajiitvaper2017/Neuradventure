@@ -610,7 +610,7 @@
     <div class="panel panel--wide">
       <div class="panel-header">
         <span>Story Modules</span>
-        <button onclick={() => (showModulesPanel = false)}>×</button>
+        <button class="panel-close" onclick={() => (showModulesPanel = false)} aria-label="Close">×</button>
       </div>
       <div class="panel-body" data-scroll-root="modal">
         <StoryModulesPanel modules={activeModules} {setModules} bare />

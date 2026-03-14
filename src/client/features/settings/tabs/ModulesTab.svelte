@@ -19,8 +19,4 @@
   .settings-modules {
     padding: 0.4rem 1rem 1rem;
   }
-
-  .settings-bottom-pad {
-    height: 2rem;
-  }
 </style>

@@ -34,12 +34,9 @@
 
 {#if paras.length > 0}
   <div class="bg-wrap">
-    <details class="bg-details" bind:open>
-      <summary class="bg-summary">
-        <span class="bg-left">
-          <span class="bg-caret" aria-hidden="true">▸</span>
-          <span class="bg-title">{title}</span>
-        </span>
+    <details class="disclosure" bind:open>
+      <summary class="disclosure__summary bg-summary">
+        <span class="bg-title">{title}</span>
         <span class="bg-meta">{open ? "shown" : "hidden"}</span>
       </summary>
     </details>
@@ -61,49 +58,11 @@
     overflow-anchor: none;
   }
 
-  .bg-details {
-    border: 1px solid var(--border);
-    border-radius: var(--radius-md);
-    background: var(--bg-action);
-    overflow: hidden;
-    transition:
-      border-color 0.15s var(--ease-out),
-      background 0.15s var(--ease-out);
-  }
-
   .bg-summary {
-    list-style: none;
     display: flex;
     align-items: center;
     justify-content: space-between;
     gap: 0.75rem;
-    padding: 0.55rem 0.7rem;
-    cursor: pointer;
-    user-select: none;
-    color: var(--text-dim);
-    font-size: 0.82rem;
-    letter-spacing: 0.02em;
-  }
-
-  .bg-summary:focus-visible {
-    outline: none;
-    box-shadow: 0 0 0 2px var(--focus-glow);
-  }
-
-  .bg-details:hover {
-    border-color: var(--border-hover);
-    background: rgba(255, 255, 255, 0.05);
-  }
-
-  .bg-summary::-webkit-details-marker {
-    display: none;
-  }
-
-  .bg-left {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.45rem;
-    min-width: 0;
   }
 
   .bg-title {
@@ -118,17 +77,6 @@
     font-size: 0.78rem;
     color: var(--text-scene);
     letter-spacing: 0.03em;
-  }
-
-  .bg-caret {
-    display: inline-block;
-    transform: rotate(0deg);
-    transition: transform 0.14s var(--ease-out);
-    color: var(--accent);
-  }
-
-  details[open] .bg-caret {
-    transform: rotate(90deg);
   }
 
   details[open] .bg-meta {

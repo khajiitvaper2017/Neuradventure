@@ -531,15 +531,23 @@
   </header>
 
   {#if showTitleEditor}
-    <div class="editor-overlay">
-      <div class="editor-panel">
-        <div class="editor-header">
-          <span>Chat Title</span>
-          <span class="editor-hint">Rename this chat</span>
+    <!-- svelte-ignore a11y_click_events_have_key_events -->
+    <!-- svelte-ignore a11y_no_static_element_interactions -->
+    <div
+      class="overlay overlay--modal"
+      onclick={(e) => {
+        if (e.currentTarget !== e.target) return
+        cancelEditTitle()
+      }}
+    >
+      <div class="modal" role="dialog" aria-modal="true" aria-label="Chat title" tabindex="-1">
+        <h3 class="modal__title">Chat Title</h3>
+        <p class="modal__message">Rename this chat.</p>
+        <div class="field">
+          <label for="chat-title">Title</label>
+          <input id="chat-title" class="text-input text-input--fluid" type="text" bind:value={titleDraft} />
         </div>
-        <label class="edit-label" for="chat-title">Title</label>
-        <input id="chat-title" class="edit-input" type="text" bind:value={titleDraft} />
-        <div class="edit-actions">
+        <div class="modal__actions">
           <button class="btn-ghost" onclick={cancelEditTitle}>Cancel</button>
           <button class="btn-accent" onclick={saveTitle}>Save</button>
         </div>
@@ -549,7 +557,7 @@
 
   {#if showSpeakerPicker && showNextSpeakerControl()}
     <div
-      class="editor-overlay"
+      class="overlay overlay--modal"
       role="button"
       tabindex="0"
       aria-label="Close speaker picker"
@@ -564,11 +572,9 @@
         }
       }}
     >
-      <div class="editor-panel">
-        <div class="editor-header">
-          <span>Next Speaker</span>
-          <span class="editor-hint">Choose which AI should reply next</span>
-        </div>
+      <div class="modal" role="dialog" aria-modal="true" aria-label="Next speaker" tabindex="-1">
+        <h3 class="modal__title">Next Speaker</h3>
+        <p class="modal__message">Choose which AI should reply next.</p>
         <div class="speaker-list">
           {#each aiMembers() as member}
             <button class="speaker-btn" onclick={() => setNextSpeaker(member.id)} disabled={$isChatGenerating}>
@@ -576,7 +582,7 @@
             </button>
           {/each}
         </div>
-        <div class="edit-actions">
+        <div class="modal__actions">
           <button class="btn-ghost" onclick={() => (showSpeakerPicker = false)}>Close</button>
         </div>
       </div>
@@ -903,42 +909,6 @@
     white-space: pre-line;
   }
 
-  .edit-textarea {
-    background: var(--bg-input);
-    border: 1px solid var(--border);
-    border-radius: 4px;
-    color: var(--text);
-    padding: 0.75rem;
-    font-size: 0.95rem;
-    font-family: var(--font-ui);
-    resize: none;
-    overflow: hidden;
-    width: 100%;
-    box-sizing: border-box;
-  }
-  .edit-textarea:focus {
-    outline: none;
-    border-color: var(--accent);
-  }
-  .edit-input {
-    background: var(--bg-input);
-    border: 1px solid var(--border);
-    border-radius: 4px;
-    color: var(--text);
-    padding: 0.65rem 0.75rem;
-    font-size: 0.95rem;
-    font-family: var(--font-ui);
-  }
-  .edit-label {
-    font-size: 0.72rem;
-    letter-spacing: 0.1em;
-    color: var(--text-dim);
-  }
-  .edit-actions {
-    display: flex;
-    gap: 0.5rem;
-    justify-content: flex-end;
-  }
   .edit-btn {
     background: none;
     border: 1px solid var(--border);
@@ -987,43 +957,6 @@
     margin-left: 0.25rem;
   }
 
-  .editor-overlay {
-    position: fixed;
-    inset: 0;
-    background: rgba(0, 0, 0, 0.6);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    z-index: 100;
-    padding: 1rem;
-  }
-  .editor-panel {
-    background: var(--bg);
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    padding: 1.25rem;
-    width: 100%;
-    max-width: 480px;
-    display: flex;
-    flex-direction: column;
-    gap: 0.75rem;
-  }
-  .editor-header {
-    display: flex;
-    flex-direction: column;
-    gap: 0.2rem;
-  }
-  .editor-header > span:first-child {
-    font-family: var(--font-ui);
-    font-size: 0.9rem;
-    font-weight: 600;
-    color: var(--text);
-    letter-spacing: 0.06em;
-  }
-  .editor-hint {
-    font-size: 0.75rem;
-    color: var(--text-dim);
-  }
   .speaker-list {
     display: flex;
     flex-direction: column;

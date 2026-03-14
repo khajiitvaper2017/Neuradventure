@@ -542,7 +542,7 @@
     <div class="empty">No known characters yet.</div>
   {:else}
     {#each sortedNpcs as npc}
-      <div class="npc-card" class:flash={flashNpcNames.includes(npc.name)}>
+      <div class="surface npc-card" class:flash={flashNpcNames.includes(npc.name)}>
         <div class="npc-header">
           <div class="npc-identity">
             <div class="npc-name">
@@ -561,7 +561,7 @@
           </div>
           <div class="npc-header-actions">
             <button
-              class="npc-edit-btn icon"
+              class="btn-ghost small"
               onclick={() => startNpcEdit(npc)}
               disabled={savingNpc ||
                 editingNpcName === npc.name ||
@@ -574,7 +574,7 @@
               <IconPencilSquare size={12} strokeWidth={2} />
             </button>
             <button
-              class="npc-edit-btn danger icon"
+              class="btn-ghost btn-ghost--danger small"
               onclick={() => deleteNpc(npc)}
               disabled={savingNpc || deletingNpcName !== null || !$currentStoryId}
               title="Delete NPC"
@@ -588,7 +588,7 @@
         {#if editingNpcName === npc.name}
           <div class="npc-edit">
             <EditableFieldList fields={npcEditFields(npc)} />
-            <div class="npc-edit-actions">
+            <div class="modal__actions">
               <button class="btn-ghost" onclick={cancelNpcEdit} disabled={savingNpc}>Cancel</button>
               <button class="btn-primary" onclick={saveNpcEdit} disabled={savingNpc || !$currentStoryId}>
                 {savingNpc ? "Saving..." : "Save"}
@@ -678,7 +678,7 @@
       <span>Known NPCs ({$npcs.length})</span>
       {#if useNpcAppearance}
         <button
-          class="npc-toggle-btn"
+          class="btn-ghost small"
           onclick={() => (showBaselineDetails = !showBaselineDetails)}
           disabled={$npcs.length === 0}
         >
@@ -700,14 +700,14 @@
       <span>Known NPCs ({$npcs.length})</span>
       {#if useNpcAppearance}
         <button
-          class="npc-toggle-btn"
+          class="btn-ghost small"
           onclick={() => (showBaselineDetails = !showBaselineDetails)}
           disabled={$npcs.length === 0}
         >
           {showBaselineDetails ? "Hide Baseline" : "Show Baseline"}
         </button>
       {/if}
-      <button onclick={() => showNPCTracker.set(false)}>×</button>
+      <button class="panel-close" onclick={() => showNPCTracker.set(false)} aria-label="Close">×</button>
     </div>
     <div class="panel-body" data-scroll-root="modal" bind:this={panelBodyEl}>
       {@render npcContent()}
@@ -727,25 +727,6 @@
     flex-shrink: 0;
     margin-right: 0.4rem;
     opacity: 0.6;
-  }
-  .npc-toggle-btn {
-    margin-left: auto;
-    background: transparent;
-    border: 1px dashed var(--border);
-    color: var(--text-dim);
-    border-radius: var(--radius-pill);
-    padding: 0.2rem 0.6rem;
-    font-size: 0.62rem;
-    letter-spacing: 0.08em;
-    min-width: auto;
-    min-height: auto;
-  }
-  .npc-toggle-btn:hover:not(:disabled) {
-    color: var(--text);
-    border-color: var(--border-hover);
-  }
-  .npc-toggle-btn:disabled {
-    opacity: 0.5;
   }
 
   /* ── Shared content styles ────────────────────────── */
@@ -772,10 +753,6 @@
 
   /* ── NPC Card ──────────────────────────────────────── */
   .npc-card {
-    background: var(--bg-input);
-    border: 1px solid var(--border);
-    border-radius: 6px;
-    padding: 0.65rem 0.75rem;
     display: flex;
     flex-direction: column;
     gap: 0.35rem;
@@ -792,36 +769,6 @@
     display: flex;
     align-items: center;
     gap: 0.35rem;
-  }
-
-  .npc-edit-btn {
-    background: var(--bg-input);
-    border: 1px solid var(--border);
-    color: var(--text);
-    border-radius: var(--radius-pill);
-    padding: 0.2rem 0.55rem;
-    font-size: 0.65rem;
-    letter-spacing: 0.08em;
-  }
-  .npc-edit-btn:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-  }
-
-  .npc-edit-btn.danger {
-    border-color: #8b2b2b;
-    color: #c65a5a;
-  }
-  .npc-edit-btn.danger:hover:not(:disabled) {
-    border-color: #c0392b;
-    color: #c0392b;
-  }
-
-  .npc-edit-btn.icon {
-    padding: 0.2rem 0.35rem;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
   }
 
   :global(.npc-trash-icon) {
@@ -889,12 +836,6 @@
     flex-direction: column;
     gap: 0.65rem;
     margin-top: 0.5rem;
-  }
-
-  .npc-edit-actions {
-    display: flex;
-    justify-content: flex-end;
-    gap: 0.5rem;
   }
 
   .npc-traits {

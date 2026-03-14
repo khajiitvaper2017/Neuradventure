@@ -123,7 +123,8 @@
       <span class="control-row-title">
         {p.label}
         {#if unsupported}
-          <span class="unsupported-badge" title="This parameter is not supported by the selected model">ignored</span>
+          <span class="badge badge--warning" title="This parameter is not supported by the selected model">ignored</span
+          >
         {/if}
       </span>
       <span class="control-row-sub">{p.sub}</span>
@@ -150,7 +151,8 @@
       <span class="control-row-title">
         {p.label}
         {#if unsupported}
-          <span class="unsupported-badge" title="This parameter is not supported by the selected model">ignored</span>
+          <span class="badge badge--warning" title="This parameter is not supported by the selected model">ignored</span
+          >
         {/if}
       </span>
       <span class="control-row-sub">{p.sub}</span>
@@ -424,26 +426,5 @@
   .param-unsupported .num-input {
     text-decoration: line-through;
     text-decoration-color: var(--text-dim);
-  }
-
-  .unsupported-badge {
-    display: inline-block;
-    font-family: var(--font-ui);
-    font-size: 0.65rem;
-    font-weight: 600;
-    letter-spacing: 0.06em;
-    text-transform: uppercase;
-    color: var(--warning, #c27a1a);
-    background: var(--warning-bg, rgba(194, 122, 26, 0.12));
-    border: 1px solid var(--warning-border, rgba(194, 122, 26, 0.25));
-    border-radius: 3px;
-    padding: 0.1em 0.4em;
-    margin-left: 0.5em;
-    vertical-align: middle;
-    line-height: 1.4;
-  }
-
-  .settings-bottom-pad {
-    height: 2rem;
   }
 </style>

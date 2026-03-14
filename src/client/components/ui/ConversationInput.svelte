@@ -128,7 +128,7 @@
     background: transparent;
     border: none;
     color: var(--text);
-    font-family: var(--font-story);
+    font-family: var(--font-ui);
     font-size: 0.95rem;
     line-height: 1.5;
     padding: 0.85rem 1.25rem 0.65rem;

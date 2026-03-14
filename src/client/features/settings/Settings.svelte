@@ -81,8 +81,4 @@
     flex: 1;
     overflow-y: auto;
   }
-
-  .settings-bottom-pad {
-    height: 2rem;
-  }
 </style>

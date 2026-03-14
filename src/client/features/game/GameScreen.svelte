@@ -886,14 +886,20 @@
 
   <!-- ── Memory editor overlay ─────────────────────────── -->
   {#if showMemoryEditor}
-    <div class="editor-overlay">
-      <div class="editor-panel">
-        <div class="editor-header">
-          <span>Memory</span>
-          <span class="editor-hint">Persistent summary — updated by AI each turn, editable by you</span>
-        </div>
+    <!-- svelte-ignore a11y_click_events_have_key_events -->
+    <!-- svelte-ignore a11y_no_static_element_interactions -->
+    <div
+      class="overlay overlay--modal"
+      onclick={(e) => {
+        if (e.currentTarget !== e.target) return
+        showMemoryEditor = false
+      }}
+    >
+      <div class="modal" role="dialog" aria-modal="true" aria-label="Memory" tabindex="-1">
+        <h3 class="modal__title">Memory</h3>
+        <p class="modal__message">Persistent summary — updated by AI each turn, editable by you.</p>
         <textarea class="edit-textarea" bind:value={memoryDraft} rows="6" use:autoresize={memoryDraft}></textarea>
-        <div class="edit-actions">
+        <div class="modal__actions">
           <button class="btn-ghost" onclick={() => (showMemoryEditor = false)}>Cancel</button>
           <button class="btn-accent" onclick={saveMemory}>Save</button>
         </div>
@@ -903,12 +909,18 @@
 
   <!-- ── Author's Note editor overlay ──────────────────── -->
   {#if showAuthorNoteEditor}
-    <div class="editor-overlay">
-      <div class="editor-panel">
-        <div class="editor-header">
-          <span>Author's Note</span>
-          <span class="editor-hint">Injected into the prompt at the specified depth in history</span>
-        </div>
+    <!-- svelte-ignore a11y_click_events_have_key_events -->
+    <!-- svelte-ignore a11y_no_static_element_interactions -->
+    <div
+      class="overlay overlay--modal"
+      onclick={(e) => {
+        if (e.currentTarget !== e.target) return
+        showAuthorNoteEditor = false
+      }}
+    >
+      <div class="modal" role="dialog" aria-modal="true" aria-label="Author's note" tabindex="-1">
+        <h3 class="modal__title">Author's Note</h3>
+        <p class="modal__message">Injected into the prompt at the specified depth in history.</p>
         <textarea
           class="edit-textarea"
           bind:value={authorNoteDraft}
@@ -920,7 +932,7 @@
           <label for="an-depth">Depth (entries from bottom):</label>
           <input id="an-depth" type="number" min="0" max="100" bind:value={authorNoteDepthDraft} class="depth-input" />
         </div>
-        <div class="edit-actions">
+        <div class="modal__actions">
           <button class="btn-ghost" onclick={() => (showAuthorNoteEditor = false)}>Cancel</button>
           <button class="btn-accent" onclick={saveAuthorNote}>Save</button>
         </div>
@@ -930,16 +942,22 @@
 
   <!-- ── Story Modules editor overlay ──────────────────── -->
   {#if showModulesEditor}
-    <div class="editor-overlay">
-      <div class="editor-panel editor-panel--modules">
-        <div class="editor-header">
-          <span>Story Modules</span>
-          <span class="editor-hint">Control which mechanics are tracked for this story</span>
-        </div>
+    <!-- svelte-ignore a11y_click_events_have_key_events -->
+    <!-- svelte-ignore a11y_no_static_element_interactions -->
+    <div
+      class="overlay overlay--modal"
+      onclick={(e) => {
+        if (e.currentTarget !== e.target) return
+        showModulesEditor = false
+      }}
+    >
+      <div class="modal modal--wide" role="dialog" aria-modal="true" aria-label="Story modules" tabindex="-1">
+        <h3 class="modal__title">Story Modules</h3>
+        <p class="modal__message">Control which mechanics are tracked for this story.</p>
         <div class="editor-body editor-body--modules" data-scroll-root="modal">
           <StoryModulesPanel modules={modulesDraft} setModules={(next) => (modulesDraft = next)} bare />
         </div>
-        <div class="edit-actions">
+        <div class="modal__actions">
           <button class="btn-ghost" onclick={() => (showModulesEditor = false)}>Cancel</button>
           <button class="btn-accent" onclick={saveModules}>Save</button>
         </div>
@@ -1416,33 +1434,6 @@
     gap: 0.5rem;
     margin-bottom: 1.25rem;
   }
-  .edit-label {
-    font-size: 0.72rem;
-    letter-spacing: 0.1em;
-    color: var(--text-dim);
-  }
-  .edit-textarea {
-    background: var(--bg-input);
-    border: 1px solid var(--border);
-    border-radius: 4px;
-    color: var(--text);
-    padding: 0.75rem;
-    font-size: 0.95rem;
-    font-family: var(--font-ui);
-    resize: none;
-    overflow: hidden;
-    width: 100%;
-    box-sizing: border-box;
-  }
-  .edit-textarea:focus {
-    outline: none;
-    border-color: var(--accent);
-  }
-  .edit-actions {
-    display: flex;
-    gap: 0.5rem;
-    justify-content: flex-end;
-  }
   .edit-btn {
     background: none;
     border: 1px solid var(--border);
@@ -1509,7 +1500,7 @@
       padding-right: 2.5rem;
     }
   }
-  .pencil-icon {
+  :global(.pencil-icon) {
     flex-shrink: 0;
     color: var(--text-dim);
     opacity: 0.6;
@@ -1554,58 +1545,6 @@
     }
   }
 
-  /* Editor overlay */
-  .editor-overlay {
-    position: fixed;
-    inset: 0;
-    background: rgba(0, 0, 0, 0.6);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    z-index: 100;
-    padding: 1rem;
-  }
-  .editor-panel {
-    background: var(--bg);
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    padding: 1.25rem;
-    width: 100%;
-    max-width: 480px;
-    display: flex;
-    flex-direction: column;
-    gap: 0.75rem;
-  }
-  .editor-panel--modules {
-    background: var(--bg-raised);
-    box-shadow: 0 18px 50px rgba(0, 0, 0, 0.55);
-    max-width: 560px;
-    max-height: min(86dvh, 760px);
-    padding: 1.1rem 1.25rem;
-  }
-  .editor-panel--modules .editor-header > span:first-child {
-    font-family: var(--font-brand);
-    font-size: 0.8rem;
-    font-weight: 400;
-    letter-spacing: 0.1em;
-    color: var(--accent);
-  }
-  .editor-header {
-    display: flex;
-    flex-direction: column;
-    gap: 0.2rem;
-  }
-  .editor-header > span:first-child {
-    font-family: var(--font-ui);
-    font-size: 0.9rem;
-    font-weight: 600;
-    color: var(--text);
-    letter-spacing: 0.06em;
-  }
-  .editor-hint {
-    font-size: 0.75rem;
-    color: var(--text-dim);
-  }
   .editor-body {
     min-height: 0;
   }
@@ -1614,9 +1553,6 @@
     padding: 0.3rem 0.8rem;
     border-top: 1px solid var(--border);
     border-bottom: 1px solid var(--border);
-  }
-  .editor-panel--modules .edit-actions {
-    padding-top: 0.25rem;
   }
   .depth-row {
     display: flex;

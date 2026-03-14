@@ -748,13 +748,6 @@
   .settings-btn:hover {
     color: var(--text);
   }
-  .theme-badge {
-    font-family: var(--font-ui);
-    font-size: 0.65rem;
-    font-weight: 600;
-    letter-spacing: 0.06em;
-    color: var(--accent);
-  }
   .brand-flame {
     font-size: 1.8rem;
     opacity: 0.75;
@@ -767,13 +760,6 @@
     letter-spacing: 0.12em;
     color: var(--accent);
     margin: 0;
-  }
-  .brand-sub {
-    font-family: var(--font-story);
-    font-style: italic;
-    font-size: 0.82rem;
-    color: var(--text-dim);
-    letter-spacing: 0.04em;
   }
 
   /* New story row */
