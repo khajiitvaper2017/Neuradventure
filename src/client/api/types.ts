@@ -256,6 +256,22 @@ export type LLMConnector = KoboldCppConnector | OpenRouterConnector
 
 export type SectionFormat = "xml" | "markdown" | "equals" | "bbcode" | "colon" | "none"
 
+export interface TimeoutSettings {
+  llmRequestMs: number
+  upstreamFetchMs: number
+  streamSessionTtlMs: number
+  modelsCacheTtlMs: number
+  supportedParamsCacheTtlMs: number
+  ctxLimitCacheTtlMs: number
+  pendingRequestTtlMs: number
+  uiErrorToastMs: number
+  uiQuietNoticeMs: number
+  uiFlashMs: number
+  uiKeyboardScrollDelayMs: number
+  uiResumePendingTurnDelayMs: number
+  fieldWatchDebounceMs: number
+}
+
 export interface ModelInfo {
   id: string
   name?: string
@@ -270,6 +286,7 @@ export interface AppSettings {
   colorScheme: "gold" | "emerald" | "sapphire" | "crimson"
   streamingEnabled: boolean
   sectionFormat: SectionFormat
+  timeouts: TimeoutSettings
   authorNoteEnabled: boolean
   defaultAuthorNote: string
   defaultAuthorNoteDepth: number

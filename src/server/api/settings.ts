@@ -105,6 +105,67 @@ const SettingsUpdateSchema = z
     colorScheme: z.enum(["gold", "emerald", "sapphire", "crimson"]),
     streamingEnabled: z.boolean(),
     sectionFormat: z.enum(["xml", "markdown", "equals", "bbcode", "colon", "none"]),
+    timeouts: z
+      .object({
+        llmRequestMs: z
+          .number()
+          .int()
+          .min(1000)
+          .max(60 * 60 * 1000),
+        upstreamFetchMs: z
+          .number()
+          .int()
+          .min(500)
+          .max(5 * 60 * 1000),
+        streamSessionTtlMs: z
+          .number()
+          .int()
+          .min(1000)
+          .max(10 * 60 * 1000),
+        modelsCacheTtlMs: z
+          .number()
+          .int()
+          .min(1000)
+          .max(60 * 60 * 1000),
+        supportedParamsCacheTtlMs: z
+          .number()
+          .int()
+          .min(1000)
+          .max(60 * 60 * 1000),
+        ctxLimitCacheTtlMs: z
+          .number()
+          .int()
+          .min(1000)
+          .max(60 * 60 * 1000),
+        pendingRequestTtlMs: z
+          .number()
+          .int()
+          .min(1000)
+          .max(24 * 60 * 60 * 1000),
+        uiErrorToastMs: z
+          .number()
+          .int()
+          .min(0)
+          .max(60 * 1000),
+        uiQuietNoticeMs: z
+          .number()
+          .int()
+          .min(0)
+          .max(60 * 1000),
+        uiFlashMs: z
+          .number()
+          .int()
+          .min(0)
+          .max(30 * 1000),
+        uiKeyboardScrollDelayMs: z.number().int().min(0).max(5000),
+        uiResumePendingTurnDelayMs: z
+          .number()
+          .int()
+          .min(0)
+          .max(30 * 1000),
+        fieldWatchDebounceMs: z.number().int().min(0).max(5000),
+      })
+      .partial(),
     authorNoteEnabled: z.boolean(),
     defaultAuthorNote: z.string(),
     defaultAuthorNoteDepth: z.number().int().min(0).max(100),
@@ -179,6 +240,7 @@ settings.put("/", zValidator("json", SettingsUpdateSchema), (c) => {
     ...(update.colorScheme !== undefined && { colorScheme: update.colorScheme }),
     ...(update.streamingEnabled !== undefined && { streamingEnabled: update.streamingEnabled }),
     ...(update.sectionFormat !== undefined && { sectionFormat: update.sectionFormat }),
+    ...(update.timeouts && { timeouts: { ...current.timeouts, ...update.timeouts } }),
     ...(update.authorNoteEnabled !== undefined && { authorNoteEnabled: update.authorNoteEnabled }),
     ...(update.defaultAuthorNote !== undefined && { defaultAuthorNote: update.defaultAuthorNote }),
     ...(update.defaultAuthorNoteDepth !== undefined && { defaultAuthorNoteDepth: update.defaultAuthorNoteDepth }),

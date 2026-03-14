@@ -63,6 +63,22 @@ export type OpenRouterConnector = {
 
 export type LLMConnector = KoboldCppConnector | OpenRouterConnector
 
+export interface TimeoutSettings {
+  llmRequestMs: number
+  upstreamFetchMs: number
+  streamSessionTtlMs: number
+  modelsCacheTtlMs: number
+  supportedParamsCacheTtlMs: number
+  ctxLimitCacheTtlMs: number
+  pendingRequestTtlMs: number
+  uiErrorToastMs: number
+  uiQuietNoticeMs: number
+  uiFlashMs: number
+  uiKeyboardScrollDelayMs: number
+  uiResumePendingTurnDelayMs: number
+  fieldWatchDebounceMs: number
+}
+
 export interface SettingsState {
   theme: "default" | "amoled"
   design: "classic" | "roboto"
@@ -70,6 +86,7 @@ export interface SettingsState {
   colorScheme: "gold" | "emerald" | "sapphire" | "crimson"
   streamingEnabled: boolean
   sectionFormat: "xml" | "markdown" | "equals" | "bbcode" | "colon" | "none"
+  timeouts: TimeoutSettings
   authorNoteEnabled: boolean
   defaultAuthorNote: string
   defaultAuthorNoteDepth: number

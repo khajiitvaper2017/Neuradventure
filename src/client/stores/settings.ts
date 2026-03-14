@@ -6,6 +6,7 @@ import {
   type KoboldCppConnector,
   type LLMConnector,
   type SectionFormat,
+  type TimeoutSettings,
   type StoryModules,
 } from "../api/client.js"
 
@@ -82,12 +83,29 @@ const DEFAULT_STORY_MODULES: StoryModules = {
   npc_activity: true,
 }
 
+const DEFAULT_TIMEOUTS: TimeoutSettings = {
+  llmRequestMs: 10 * 60 * 1000,
+  upstreamFetchMs: 15 * 1000,
+  streamSessionTtlMs: 45 * 1000,
+  modelsCacheTtlMs: 5 * 60 * 1000,
+  supportedParamsCacheTtlMs: 5 * 60 * 1000,
+  ctxLimitCacheTtlMs: 5 * 60 * 1000,
+  pendingRequestTtlMs: 10 * 60 * 1000,
+  uiErrorToastMs: 4000,
+  uiQuietNoticeMs: 3500,
+  uiFlashMs: 900,
+  uiKeyboardScrollDelayMs: 120,
+  uiResumePendingTurnDelayMs: 500,
+  fieldWatchDebounceMs: 50,
+}
+
 const themeStore = writable<Theme>("default")
 const designStore = writable<Design>("classic")
 const textJustifyStore = writable<boolean>(true)
 const colorSchemeStore = writable<"gold" | "emerald" | "sapphire" | "crimson">("gold")
 const streamingEnabledStore = writable<boolean>(false)
 const sectionFormatStore = writable<SectionFormat>("markdown")
+const timeoutsStore = writable<TimeoutSettings>({ ...DEFAULT_TIMEOUTS })
 const authorNoteEnabledStore = writable<boolean>(true)
 const connectorStore = writable<LLMConnector>({ ...DEFAULT_CONNECTOR })
 const generationStore = writable<GenerationParams>({ ...DEFAULT_GENERATION })
@@ -107,6 +125,7 @@ let current: AppSettings = {
   colorScheme: "gold",
   streamingEnabled: false,
   sectionFormat: "markdown",
+  timeouts: { ...DEFAULT_TIMEOUTS },
   authorNoteEnabled: true,
   defaultAuthorNote: "Remember the instructions you were given at the beginning of this chat.",
   defaultAuthorNoteDepth: 4,
@@ -124,6 +143,7 @@ function applySettings(settings: AppSettings) {
   colorSchemeStore.set(settings.colorScheme)
   streamingEnabledStore.set(settings.streamingEnabled ?? false)
   sectionFormatStore.set(settings.sectionFormat ?? "markdown")
+  timeoutsStore.set(settings.timeouts ?? DEFAULT_TIMEOUTS)
   authorNoteEnabledStore.set(settings.authorNoteEnabled ?? true)
   defaultAuthorNoteStore.set(settings.defaultAuthorNote)
   defaultAuthorNoteDepthStore.set(settings.defaultAuthorNoteDepth)
@@ -185,6 +205,11 @@ sectionFormatStore.subscribe((value) => {
   if (!suppressSync) void persistSettings({ sectionFormat: value })
 })
 
+timeoutsStore.subscribe((value) => {
+  current = { ...current, timeouts: value }
+  if (!suppressSync) void persistSettings({ timeouts: value })
+})
+
 authorNoteEnabledStore.subscribe((value) => {
   current = { ...current, authorNoteEnabled: value }
   if (!suppressSync) void persistSettings({ authorNoteEnabled: value })
@@ -221,6 +246,7 @@ export const textJustify = textJustifyStore
 export const colorScheme = colorSchemeStore
 export const streamingEnabled = streamingEnabledStore
 export const sectionFormat = sectionFormatStore
+export const timeouts = timeoutsStore
 export const authorNoteEnabled = authorNoteEnabledStore
 export const defaultAuthorNote = defaultAuthorNoteStore
 export const defaultAuthorNoteDepth = defaultAuthorNoteDepthStore

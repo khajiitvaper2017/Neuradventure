@@ -5,6 +5,10 @@
       "design": "Updated typography style.",
       "textJustify": "Updated text justification setting.",
       "colorScheme": "Updated accent color scheme.",
+      "streamingEnabled": "Toggle streaming responses over WebSocket.",
+      "sectionFormat": "Global wrapper format for context sections.",
+      "timeouts": "Advanced timing and timeout settings.",
+      "authorNoteEnabled": "Toggle injection of the default author's note.",
       "defaultAuthorNote": "Default author's note for new stories.",
       "defaultAuthorNoteDepth": "Depth to inject default author's note.",
       "storyDefaults": "Default story module settings for new stories.",
@@ -54,6 +58,21 @@
       "type": "Connector type.",
       "url": "Connector base URL.",
       "api_key": "Connector API key."
+    },
+    "timeouts": {
+      "llmRequestMs": "Server-side timeout for LLM requests (ms).",
+      "upstreamFetchMs": "Timeout for upstream fetches like /models and ctx detection (ms).",
+      "streamSessionTtlMs": "How long the server keeps streaming snapshots after disconnect (ms).",
+      "modelsCacheTtlMs": "Server-side /models cache TTL (ms).",
+      "supportedParamsCacheTtlMs": "Server-side supported-params cache TTL (ms).",
+      "ctxLimitCacheTtlMs": "Server-side detected ctx-limit cache TTL (ms).",
+      "pendingRequestTtlMs": "Client-side pending-request TTL for resume (ms).",
+      "uiErrorToastMs": "Default duration for error toasts (ms).",
+      "uiQuietNoticeMs": "Default duration for quiet notices (ms).",
+      "uiFlashMs": "UI flash highlight duration (ms).",
+      "uiKeyboardScrollDelayMs": "Keyboard-scroll follow-up delay (ms).",
+      "uiResumePendingTurnDelayMs": "Delay before attempting to resume a pending turn (ms).",
+      "fieldWatchDebounceMs": "Debounce window for reloading field-description JSON files (ms)."
     }
   }
 }

@@ -1,4 +1,5 @@
 import WebSocket from "ws"
+import { getSettings } from "../core/db.js"
 
 export type StreamKind = "turn" | "generate.character" | "generate.story" | "generate.chat" | "chat.reply"
 
@@ -48,8 +49,6 @@ type Session = {
 const sessions = new Map<string, Session>()
 const subscribedIdsBySocket = new WeakMap<WebSocket, Set<string>>()
 
-const SESSION_TTL_MS = 45_000
-
 function safeSend(ws: WebSocket, msg: StreamServerMessage): void {
   if (ws.readyState !== WebSocket.OPEN) return
   try {
@@ -61,9 +60,10 @@ function safeSend(ws: WebSocket, msg: StreamServerMessage): void {
 
 function scheduleCleanup(session: Session): void {
   if (session.cleanupTimer) return
+  const ttlMs = getSettings().timeouts.streamSessionTtlMs
   session.cleanupTimer = setTimeout(() => {
     sessions.delete(session.requestId)
-  }, SESSION_TTL_MS)
+  }, ttlMs)
 }
 
 export function createOrGetSession(requestId: string, kind: StreamKind): Session {

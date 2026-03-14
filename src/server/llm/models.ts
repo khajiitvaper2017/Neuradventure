@@ -1,4 +1,5 @@
-import type { LLMConnector } from "../core/db.js"
+import { getSettings, type LLMConnector } from "../core/db.js"
+import { fetchWithTimeout } from "../utils/fetch-timeout.js"
 
 export type UpstreamModelInfo = {
   id: string
@@ -12,7 +13,6 @@ type ModelsCacheEntry = {
   models: UpstreamModelInfo[]
 }
 
-const MODELS_CACHE_TTL_MS = 5 * 60 * 1000
 const modelsCache = new Map<string, ModelsCacheEntry>()
 
 function cacheKey(connector: LLMConnector): string {
@@ -76,7 +76,8 @@ function parseModelsPayload(payload: unknown): UpstreamModelInfo[] {
 
 async function fetchUpstreamModels(connector: LLMConnector): Promise<UpstreamModelInfo[]> {
   const url = buildModelsUrl(connector)
-  const res = await fetch(url, { headers: buildUpstreamHeaders(connector) })
+  const timeoutMs = getSettings().timeouts.upstreamFetchMs
+  const res = await fetchWithTimeout(url, { headers: buildUpstreamHeaders(connector) }, timeoutMs)
   if (!res.ok) {
     const text = await res.text().catch(() => "")
     throw new Error(`Upstream /models failed (${res.status}): ${text || res.statusText}`)
@@ -89,7 +90,8 @@ export async function getCachedUpstreamModels(connector: LLMConnector): Promise<
   const key = cacheKey(connector)
   const now = Date.now()
   const cached = modelsCache.get(key)
-  if (cached && now - cached.fetchedAt < MODELS_CACHE_TTL_MS) return cached.models
+  const ttlMs = getSettings().timeouts.modelsCacheTtlMs
+  if (cached && now - cached.fetchedAt < ttlMs) return cached.models
 
   try {
     const models = await fetchUpstreamModels(connector)

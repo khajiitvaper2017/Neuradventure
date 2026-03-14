@@ -1,5 +1,6 @@
 <script lang="ts">
   import { onDestroy, onMount, tick, untrack } from "svelte"
+  import { get } from "svelte/store"
   import { api, type TurnSummary, type TurnVariantSummary, type StoryModules, ApiError } from "../../api/client.js"
   import {
     navigate,
@@ -17,6 +18,7 @@
   import { createRequestId } from "../../utils/ids.js"
   import { normalizePlayerInput } from "../../utils/inputNormalize.js"
   import { scrollToBottom } from "../../utils/scroll.js"
+  import { isNearBottom } from "../../utils/scrollFollow.js"
   import IconDots from "../../components/icons/IconDots.svelte"
   import IconFace from "../../components/icons/IconFace.svelte"
   import IconHome from "../../components/icons/IconHome.svelte"
@@ -33,6 +35,7 @@
   import ThinkingDots from "../../components/ui/ThinkingDots.svelte"
   import StreamingTurnPreview from "../../components/ui/StreamingTurnPreview.svelte"
   import { streamClient } from "../../api/stream.js"
+  import { timeouts } from "../../stores/settings.js"
   import {
     currentStoryId,
     currentStoryTitle,
@@ -117,6 +120,8 @@
   let streamScene = $state("")
   let streamTime = $state("")
   let regeneratingTurnId = $state<number | null>(null)
+  let followStream = $state(true)
+  let followScrollPending = false
 
   const trackNpcs = $derived($currentStoryModules?.track_npcs ?? true)
   const trackLocations = $derived($currentStoryModules?.track_locations ?? true)
@@ -140,6 +145,7 @@
 
   function startTurnStream(requestId: string) {
     stopTurnStream()
+    followStream = true
     if (!$streamingEnabled) return
     streamUnsub = streamClient.subscribe(requestId, (msg) => {
       if (msg.type === "subscribed" && msg.snapshot) {
@@ -159,12 +165,41 @@
     })
   }
 
+  function scheduleFollowScroll() {
+    if (!followStream) return
+    if (followScrollPending) return
+    followScrollPending = true
+    tick().then(() => {
+      followScrollPending = false
+      scrollToBottom(storyDiv)
+    })
+  }
+
+  function handleStoryScroll() {
+    if (!$isGenerating || !$streamingEnabled) return
+    followStream = isNearBottom(storyDiv)
+  }
+
+  function jumpToLatest() {
+    followStream = true
+    tick().then(() => scrollToBottom(storyDiv, { smooth: true }))
+  }
+
+  $effect(() => {
+    if (!$isGenerating || !$streamingEnabled) return
+    const _n = streamNarrative
+    const _b = streamBackground
+    const _s = streamScene
+    const _t = streamTime
+    scheduleFollowScroll()
+  })
+
   function triggerSceneFlash() {
     flashScene = true
     if (sceneFlashTimer) window.clearTimeout(sceneFlashTimer)
     sceneFlashTimer = window.setTimeout(() => {
       flashScene = false
-    }, 900)
+    }, get(timeouts).uiFlashMs)
   }
 
   function triggerOpeningFlash() {
@@ -172,7 +207,7 @@
     if (openingFlashTimer) window.clearTimeout(openingFlashTimer)
     openingFlashTimer = window.setTimeout(() => {
       flashOpening = false
-    }, 900)
+    }, get(timeouts).uiFlashMs)
   }
 
   function handleLlmWarnings(warnings?: string[]) {
@@ -298,7 +333,7 @@
     resumeAttemptedFor = pending.requestId
     window.setTimeout(() => {
       void resumePendingTurn(pending)
-    }, 500)
+    }, get(timeouts).uiResumePendingTurnDelayMs)
   })
 
   async function regenerateLastTurn() {
@@ -575,7 +610,7 @@
   function scheduleKeyboardScroll() {
     if (keyboardScrollTimer) window.clearTimeout(keyboardScrollTimer)
     requestAnimationFrame(() => scrollToBottom(storyDiv))
-    keyboardScrollTimer = window.setTimeout(() => scrollToBottom(storyDiv), 120)
+    keyboardScrollTimer = window.setTimeout(() => scrollToBottom(storyDiv), get(timeouts).uiKeyboardScrollDelayMs)
   }
 
   function goHome() {
@@ -918,6 +953,7 @@
     class:story-ready={initialScrollDone || $turns.length === 0}
     data-scroll-root="screen"
     bind:this={storyDiv}
+    onscroll={handleStoryScroll}
   >
     <!-- Opening scene context -->
     {#if $worldState}
@@ -1121,6 +1157,22 @@
         >
           ↷
         </button>
+      {/if}
+
+      {#if $isGenerating && $streamingEnabled}
+        {#if followStream}
+          <span class="stream-lock-pill" title="Streaming output is following the latest text">Live</span>
+        {:else}
+          <button
+            class="stream-lock-pill stream-lock-pill--paused"
+            type="button"
+            onclick={jumpToLatest}
+            title="Jump to the latest streamed output"
+            aria-label="Jump to the latest streamed output"
+          >
+            Jump to latest
+          </button>
+        {/if}
       {/if}
 
       <button

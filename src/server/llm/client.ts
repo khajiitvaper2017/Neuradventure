@@ -1,6 +1,7 @@
 import OpenAI from "openai"
 import { type GenerationParams, type LLMConnector, getSettings } from "../core/db.js"
 import { findContextLength, getCachedUpstreamModels, getModelSupportedParameters } from "./models.js"
+import { fetchWithTimeout } from "../utils/fetch-timeout.js"
 
 // ─── OpenAI client (re-created when connector settings change) ───────────────
 
@@ -22,7 +23,8 @@ export async function getCachedSupportedParameters(): Promise<string[] | null> {
 
   const key = `${connector.type}|${connector.url}|${connector.model}`
   const now = Date.now()
-  if (cachedSupportedParamsKey === key && cachedSupportedParams && now - cachedSupportedParamsAt < 5 * 60 * 1000) {
+  const ttlMs = getSettings().timeouts.supportedParamsCacheTtlMs
+  if (cachedSupportedParamsKey === key && cachedSupportedParams && now - cachedSupportedParamsAt < ttlMs) {
     return cachedSupportedParams
   }
 
@@ -41,9 +43,9 @@ export async function getCachedSupportedParameters(): Promise<string[] | null> {
 }
 
 export function getClient(): OpenAI {
-  const { connector } = getSettings()
+  const { connector, timeouts } = getSettings()
   const apiKey = connector.api_keys[connector.type]
-  const key = `${connector.type}|${connector.url}|${apiKey}`
+  const key = `${connector.type}|${connector.url}|${apiKey}|${timeouts.llmRequestMs}`
   if (cachedClient && cachedClientKey === key) return cachedClient
   const defaultHeaders =
     connector.type === "openrouter"
@@ -53,7 +55,7 @@ export function getClient(): OpenAI {
           "X-OpenRouter-Title": "NeuradventureV2",
         }
       : undefined
-  cachedClient = new OpenAI({ baseURL: connector.url, apiKey: apiKey, defaultHeaders })
+  cachedClient = new OpenAI({ baseURL: connector.url, apiKey: apiKey, defaultHeaders, timeout: timeouts.llmRequestMs })
   cachedClientKey = key
   return cachedClient
 }
@@ -116,6 +118,7 @@ async function fetchCtxLimitFromKobold(
   connector: Extract<LLMConnector, { type: "koboldcpp" }>,
 ): Promise<number | null> {
   const base = stripV1(connector.url)
+  const timeoutMs = getSettings().timeouts.upstreamFetchMs
   const candidates = [
     `${base}/api/extra/true_max_context_length`,
     `${base}/api/v1/config/max_context_length`,
@@ -125,7 +128,7 @@ async function fetchCtxLimitFromKobold(
 
   for (const url of candidates) {
     try {
-      const res = await fetch(url)
+      const res = await fetchWithTimeout(url, {}, timeoutMs)
       if (!res.ok) continue
       const text = await res.text()
       let payload: unknown = text
@@ -156,7 +159,8 @@ export async function getCtxLimit(): Promise<number> {
   const now = Date.now()
   const connector = getConnector()
   const key = connectorCtxKey(connector)
-  if (cachedCtxLimitKey === key && cachedCtxLimit > 0 && now - cachedCtxLimitAt < 5 * 60 * 1000) return cachedCtxLimit
+  const ttlMs = getSettings().timeouts.ctxLimitCacheTtlMs
+  if (cachedCtxLimitKey === key && cachedCtxLimit > 0 && now - cachedCtxLimitAt < ttlMs) return cachedCtxLimit
 
   if (cachedCtxLimitKey !== key) {
     cachedCtxLimitKey = key

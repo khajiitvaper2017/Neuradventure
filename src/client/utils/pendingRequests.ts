@@ -1,3 +1,6 @@
+import { get } from "svelte/store"
+import { timeouts } from "../stores/settings.js"
+
 export type PendingRequestKind =
   | "chat.send"
   | "chat.continue"
@@ -13,7 +16,16 @@ export type PendingRequest<TPayload = unknown> = {
   payload: TPayload
 }
 
-const TTL_MS = 10 * 60 * 1000
+const DEFAULT_TTL_MS = 10 * 60 * 1000
+
+function getTtlMs(): number {
+  try {
+    const ms = get(timeouts).pendingRequestTtlMs
+    return Number.isFinite(ms) ? ms : DEFAULT_TTL_MS
+  } catch {
+    return DEFAULT_TTL_MS
+  }
+}
 
 function storageKey(kind: PendingRequestKind) {
   return `pending_request_v1:${kind}`
@@ -28,7 +40,7 @@ export function getPendingRequest<TPayload>(kind: PendingRequestKind): PendingRe
     if (parsed.kind !== kind) return null
     if (typeof parsed.requestId !== "string" || !parsed.requestId.trim()) return null
     if (typeof parsed.createdAt !== "number") return null
-    if (Date.now() - parsed.createdAt > TTL_MS) {
+    if (Date.now() - parsed.createdAt > getTtlMs()) {
       clearPendingRequest(kind, parsed.requestId)
       return null
     }

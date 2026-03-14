@@ -1,7 +1,9 @@
 <script lang="ts">
   import { onDestroy } from "svelte"
+  import { get } from "svelte/store"
   import { api, ApiError } from "../../api/client.js"
   import { showNPCTracker, showError, showQuietNotice, showConfirm } from "../../stores/ui.js"
+  import { timeouts } from "../../stores/settings.js"
   import {
     currentStoryId,
     currentStoryModules,
@@ -408,7 +410,7 @@
     if (flashTimer) window.clearTimeout(flashTimer)
     flashTimer = window.setTimeout(() => {
       flashNpcNames = []
-    }, 900)
+    }, get(timeouts).uiFlashMs)
   }
 
   function sortByLatestChange(list: NPCState[], changeIds: Map<string, number>): NPCState[] {

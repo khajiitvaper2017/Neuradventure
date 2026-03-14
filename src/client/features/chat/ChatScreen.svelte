@@ -3,6 +3,7 @@
   import { api, type ChatMember, type ChatMessage } from "../../api/client.js"
   import { normalizeChatInput } from "../../utils/inputNormalize.js"
   import { scrollToBottom } from "../../utils/scroll.js"
+  import { isNearBottom } from "../../utils/scrollFollow.js"
   import { showConfirm, showError, goBack } from "../../stores/ui.js"
   import { createRequestId } from "../../utils/ids.js"
   import { clearPendingRequest, getPendingRequest, setPendingRequest } from "../../utils/pendingRequests.js"
@@ -58,6 +59,8 @@
   let resumeAttemptedFor = ""
   let streamPreviewMode = $state<"append" | "replace">("append")
   let regeneratingMessageId = $state<number | null>(null)
+  let followStream = $state(true)
+  let followScrollPending = false
 
   let visibleMessages = $derived($chatMessages.filter((m) => m.role !== "system"))
 
@@ -96,6 +99,7 @@
 
   function startChatStream(requestId: string) {
     stopChatStream()
+    followStream = true
     if (!$streamingEnabled) return
     streamUnsub = streamClient.subscribe(requestId, (msg) => {
       if (msg.type === "subscribed" && msg.snapshot) {
@@ -109,13 +113,38 @@
     })
   }
 
+  function scheduleFollowScroll() {
+    if (!followStream) return
+    if (followScrollPending) return
+    followScrollPending = true
+    tick().then(() => {
+      followScrollPending = false
+      scrollToBottom(logEl)
+    })
+  }
+
+  function handleLogScroll() {
+    followStream = isNearBottom(logEl)
+  }
+
+  function jumpToLatest() {
+    followStream = true
+    tick().then(() => scrollToBottom(logEl, { smooth: true }))
+  }
+
+  $effect(() => {
+    if (!$isChatGenerating || !$streamingEnabled) return
+    const _r = streamReply
+    scheduleFollowScroll()
+  })
+
   $effect(() => {
     if (visibleMessages.length === 0) return
-    tick().then(() => scrollToBottom(logEl))
+    scheduleFollowScroll()
   })
 
   onMount(() => {
-    tick().then(() => scrollToBottom(logEl))
+    scheduleFollowScroll()
   })
 
   type PendingChatPayload = { chatId: number; content?: string }
@@ -554,7 +583,7 @@
     </div>
   {/if}
 
-  <div class="chat-log" bind:this={logEl} data-scroll-root="screen">
+  <div class="chat-log" bind:this={logEl} data-scroll-root="screen" onscroll={handleLogScroll}>
     {#if visibleMessages.length === 0}
       <div class="empty">No messages yet.</div>
     {:else}
@@ -695,6 +724,23 @@
           ↷
         </button>
       {/if}
+
+      {#if $isChatGenerating && $streamingEnabled}
+        {#if followStream}
+          <span class="stream-lock-pill" title="Streaming output is following the latest text">Live</span>
+        {:else}
+          <button
+            class="stream-lock-pill stream-lock-pill--paused"
+            type="button"
+            onclick={jumpToLatest}
+            title="Jump to the latest streamed output"
+            aria-label="Jump to the latest streamed output"
+          >
+            Jump to latest
+          </button>
+        {/if}
+      {/if}
+
       <button
         class="mode-regen"
         onclick={regenerateLast}

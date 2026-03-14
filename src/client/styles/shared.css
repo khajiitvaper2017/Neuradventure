@@ -524,9 +524,26 @@ button.btn-icon {
   background: var(--accent);
   box-shadow: 0 0 0 3px var(--accent-dim);
 }
+button.stream-lock-pill {
+  cursor: pointer;
+}
+button.stream-lock-pill:hover:not(:disabled) {
+  border-color: var(--border-hover);
+  color: var(--text);
+}
+button.stream-lock-pill:active:not(:disabled) {
+  transform: translateY(1px);
+}
+.stream-lock-pill--paused::before {
+  background: var(--text-dim);
+  box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.06);
+}
 @media (prefers-reduced-motion: no-preference) {
   .stream-lock-pill::before {
     animation: stream-lock-pulse 1.15s var(--ease-out) infinite;
+  }
+  .stream-lock-pill--paused::before {
+    animation: none;
   }
 }
 @keyframes stream-lock-pulse {

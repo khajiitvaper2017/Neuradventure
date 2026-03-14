@@ -1,5 +1,6 @@
 <script lang="ts">
   import { onDestroy } from "svelte"
+  import { get } from "svelte/store"
   import { api, ApiError } from "../../api/client.js"
   import {
     activeScreen,
@@ -10,6 +11,7 @@
     showQuietNotice,
   } from "../../stores/ui.js"
   import { character, currentStoryId, currentStoryModules, llmUpdateId } from "../../stores/game.js"
+  import { timeouts } from "../../stores/settings.js"
   import type { MainCharacterState } from "../../api/client.js"
   import { genderIcon, normalizeGender, splitCsv } from "../../utils/text.js"
   import EditableFieldList from "../../components/ui/EditableFieldList.svelte"
@@ -116,27 +118,28 @@
   }
 
   function triggerFlash(kind: "identity" | "appearance" | "clothing" | "inventory") {
+    const flashMs = get(timeouts).uiFlashMs
     if (kind === "identity") {
       flashIdentity = true
       if (identityTimer) window.clearTimeout(identityTimer)
-      identityTimer = window.setTimeout(() => (flashIdentity = false), 900)
+      identityTimer = window.setTimeout(() => (flashIdentity = false), flashMs)
       return
     }
     if (kind === "appearance") {
       flashAppearance = true
       if (appearanceTimer) window.clearTimeout(appearanceTimer)
-      appearanceTimer = window.setTimeout(() => (flashAppearance = false), 900)
+      appearanceTimer = window.setTimeout(() => (flashAppearance = false), flashMs)
       return
     }
     if (kind === "clothing") {
       flashClothing = true
       if (clothingTimer) window.clearTimeout(clothingTimer)
-      clothingTimer = window.setTimeout(() => (flashClothing = false), 900)
+      clothingTimer = window.setTimeout(() => (flashClothing = false), flashMs)
       return
     }
     flashInventory = true
     if (inventoryTimer) window.clearTimeout(inventoryTimer)
-    inventoryTimer = window.setTimeout(() => (flashInventory = false), 900)
+    inventoryTimer = window.setTimeout(() => (flashInventory = false), flashMs)
   }
 
   function characterFields(): EditField[] {

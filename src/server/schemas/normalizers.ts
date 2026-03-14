@@ -1,4 +1,4 @@
-import { DATE_REGEX, DEFAULT_RECENT_EVENTS_SUMMARY } from "./constants.js"
+import { DATE_REGEX, getDefaultRecentEventsSummary } from "./constants.js"
 import { npcTraitLookup } from "./npc-traits.js"
 import { getServerDefaults } from "../core/strings.js"
 export { normalizeGender } from "../../../shared/utils/normalize.js"
@@ -93,7 +93,7 @@ export function normalizeRecentEventsSummary(value: unknown): string {
       return summary
     }
   }
-  return DEFAULT_RECENT_EVENTS_SUMMARY
+  return getDefaultRecentEventsSummary()
 }
 
 export function normalizeMemory(value: unknown): string {

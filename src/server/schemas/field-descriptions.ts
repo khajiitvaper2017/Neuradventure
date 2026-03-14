@@ -1,6 +1,7 @@
 import fs from "node:fs"
 import path from "node:path"
 import { fileURLToPath } from "node:url"
+import { getSettings } from "../core/db.js"
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const SETTINGS_FIELDS_PATH = path.resolve(__dirname, "../../../shared/config/settings-fields.json")
@@ -16,7 +17,7 @@ type LeafLookup = {
   ambiguousSuffix: Set<string>
 }
 
-const WATCH_DEBOUNCE_MS = 50
+const DEFAULT_WATCH_DEBOUNCE_MS = 50
 let leafLookup: LeafLookup = { byKey: new Map(), bySuffix: new Map(), ambiguous: new Set(), ambiguousSuffix: new Set() }
 let reloadTimer: NodeJS.Timeout | null = null
 let watchersStarted = false
@@ -123,10 +124,17 @@ function tryReloadFields(): void {
 
 function scheduleReload(): void {
   if (reloadTimer) clearTimeout(reloadTimer)
+  const debounceMs = (() => {
+    try {
+      return getSettings().timeouts.fieldWatchDebounceMs
+    } catch {
+      return DEFAULT_WATCH_DEBOUNCE_MS
+    }
+  })()
   reloadTimer = setTimeout(() => {
     reloadTimer = null
     tryReloadFields()
-  }, WATCH_DEBOUNCE_MS)
+  }, debounceMs)
 }
 
 function startWatchers(): void {

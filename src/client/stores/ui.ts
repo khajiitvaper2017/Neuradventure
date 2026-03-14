@@ -1,4 +1,5 @@
 import { writable, readable, get } from "svelte/store"
+import { timeouts } from "./settings.js"
 
 export type Screen = "home" | "char-create" | "new-story" | "new-chat" | "game" | "chat" | "settings"
 
@@ -122,14 +123,16 @@ export function closeCharSheet() {
   charSheetCharacterId.set(null)
 }
 
-export function showError(msg: string, durationMs = 4000) {
+export function showError(msg: string, durationMs?: number) {
   errorMessage.set(msg)
-  setTimeout(() => errorMessage.set(null), durationMs)
+  const ms = durationMs ?? get(timeouts).uiErrorToastMs
+  setTimeout(() => errorMessage.set(null), ms)
 }
 
-export function showQuietNotice(msg: string, durationMs = 3500) {
+export function showQuietNotice(msg: string, durationMs?: number) {
   quietNotice.set(msg)
-  setTimeout(() => quietNotice.set(null), durationMs)
+  const ms = durationMs ?? get(timeouts).uiQuietNoticeMs
+  setTimeout(() => quietNotice.set(null), ms)
 }
 
 // ─── Confirm dialog ──────────────────────────────────────────────────────────

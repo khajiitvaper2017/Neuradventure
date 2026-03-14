@@ -1,5 +1,12 @@
 import { getDb } from "./connection.js"
-import type { SettingsState, GenerationParams, LLMConnector, OpenRouterConnector, KoboldCppConnector } from "./types.js"
+import type {
+  SettingsState,
+  GenerationParams,
+  LLMConnector,
+  OpenRouterConnector,
+  KoboldCppConnector,
+  TimeoutSettings,
+} from "./types.js"
 import { DEFAULT_STORY_MODULES, normalizeStoryModules } from "../../schemas/story-modules.js"
 
 export const DEFAULT_GENERATION: GenerationParams = {
@@ -68,6 +75,21 @@ export const DEFAULT_SETTINGS: SettingsState = {
   colorScheme: "gold",
   streamingEnabled: false,
   sectionFormat: "markdown",
+  timeouts: {
+    llmRequestMs: 10 * 60 * 1000,
+    upstreamFetchMs: 15 * 1000,
+    streamSessionTtlMs: 45 * 1000,
+    modelsCacheTtlMs: 5 * 60 * 1000,
+    supportedParamsCacheTtlMs: 5 * 60 * 1000,
+    ctxLimitCacheTtlMs: 5 * 60 * 1000,
+    pendingRequestTtlMs: 10 * 60 * 1000,
+    uiErrorToastMs: 4000,
+    uiQuietNoticeMs: 3500,
+    uiFlashMs: 900,
+    uiKeyboardScrollDelayMs: 120,
+    uiResumePendingTurnDelayMs: 500,
+    fieldWatchDebounceMs: 50,
+  },
   authorNoteEnabled: true,
   defaultAuthorNote: "Remember the instructions you were given at the beginning of this chat.",
   defaultAuthorNoteDepth: 4,
@@ -137,6 +159,40 @@ function coerceSectionFormat(raw: unknown): SettingsState["sectionFormat"] {
   return DEFAULT_SETTINGS.sectionFormat
 }
 
+function coerceTimeoutSettings(raw: unknown): TimeoutSettings {
+  const base = DEFAULT_SETTINGS.timeouts
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return { ...base }
+  const obj = raw as Record<string, unknown>
+
+  const asInt = (v: unknown): number | null => {
+    const n = typeof v === "number" ? v : typeof v === "string" ? Number(v.trim()) : NaN
+    if (!Number.isFinite(n)) return null
+    return Math.trunc(n)
+  }
+
+  const pick = (key: keyof TimeoutSettings, min: number, max: number): number => {
+    const parsed = asInt(obj[key])
+    if (parsed === null) return base[key]
+    return Math.max(min, Math.min(max, parsed))
+  }
+
+  return {
+    llmRequestMs: pick("llmRequestMs", 1000, 60 * 60 * 1000),
+    upstreamFetchMs: pick("upstreamFetchMs", 500, 5 * 60 * 1000),
+    streamSessionTtlMs: pick("streamSessionTtlMs", 1000, 10 * 60 * 1000),
+    modelsCacheTtlMs: pick("modelsCacheTtlMs", 1000, 60 * 60 * 1000),
+    supportedParamsCacheTtlMs: pick("supportedParamsCacheTtlMs", 1000, 60 * 60 * 1000),
+    ctxLimitCacheTtlMs: pick("ctxLimitCacheTtlMs", 1000, 60 * 60 * 1000),
+    pendingRequestTtlMs: pick("pendingRequestTtlMs", 1000, 24 * 60 * 60 * 1000),
+    uiErrorToastMs: pick("uiErrorToastMs", 0, 60 * 1000),
+    uiQuietNoticeMs: pick("uiQuietNoticeMs", 0, 60 * 1000),
+    uiFlashMs: pick("uiFlashMs", 0, 30 * 1000),
+    uiKeyboardScrollDelayMs: pick("uiKeyboardScrollDelayMs", 0, 5000),
+    uiResumePendingTurnDelayMs: pick("uiResumePendingTurnDelayMs", 0, 30 * 1000),
+    fieldWatchDebounceMs: pick("fieldWatchDebounceMs", 0, 5000),
+  }
+}
+
 export function getSettings(): SettingsState {
   const row = getDb().prepare("SELECT settings_json FROM settings WHERE id = 1").get() as
     | { settings_json: string }
@@ -151,6 +207,7 @@ export function getSettings(): SettingsState {
       connector: coerceConnector(stored.connector),
       generation: { ...DEFAULT_SETTINGS.generation, ...(stored.generation ?? {}) },
       sectionFormat: coerceSectionFormat(stored.sectionFormat),
+      timeouts: coerceTimeoutSettings(stored.timeouts),
     }
   } catch {
     return DEFAULT_SETTINGS
