@@ -173,10 +173,6 @@
 
   .seg-tabs__tab.active {
     background: none;
-    color: var(--text);
-  }
-
-  .seg-tabs--nav .seg-tabs__tab.active {
     color: var(--accent);
   }
 

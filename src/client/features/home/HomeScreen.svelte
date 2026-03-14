@@ -401,34 +401,35 @@
     </button>
   </div>
 
+  <div class="lib-toolbar lib-toolbar--flat" aria-label="Library controls">
+    <SegmentedTabs
+      ariaLabel="Library section"
+      tabs={sectionTabs}
+      value={section}
+      onChange={(next) => setSection(next as LibrarySection)}
+      variant="nav"
+      stretch
+    />
+
+    <div class="lib-controls">
+      <label class="lib-search">
+        <span class="sr-only">Search</span>
+        <input
+          class="text-input lib-search-input"
+          type="search"
+          placeholder={`Search ${section}...`}
+          bind:value={query}
+        />
+      </label>
+      <label class="lib-sort">
+        <span class="sr-only">Sort</span>
+        <Select className="lib-sort-input" width="100%" bind:value={sort} options={sortOptions} ariaLabel="Sort" />
+      </label>
+    </div>
+  </div>
+
   <div class="home-scroll" data-scroll-root="screen" bind:this={homeScroll}>
     <section class="lib-shell lib-shell--footer-safe" aria-label="Library">
-      <div class="lib-toolbar">
-        <SegmentedTabs
-          ariaLabel="Library section"
-          tabs={sectionTabs}
-          value={section}
-          onChange={(next) => setSection(next as LibrarySection)}
-          className="lib-tabs"
-        />
-
-        <div class="lib-controls">
-          <label class="lib-search">
-            <span class="sr-only">Search</span>
-            <input
-              class="text-input lib-search-input"
-              type="search"
-              placeholder={`Search ${section}...`}
-              bind:value={query}
-            />
-          </label>
-          <label class="lib-sort">
-            <span class="sr-only">Sort</span>
-            <Select className="lib-sort-input" width="100%" bind:value={sort} options={sortOptions} ariaLabel="Sort" />
-          </label>
-        </div>
-      </div>
-
       {#if section === "stories"}
         {#if loading}
           <div class="empty">Loading stories...</div>

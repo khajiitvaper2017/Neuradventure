@@ -48,7 +48,7 @@
   </header>
 
   <div class="settings-tabs">
-    <SegmentedTabs ariaLabel="Settings tabs" {tabs} bind:value={activeTab} variant="nav" stretch wrap />
+    <SegmentedTabs ariaLabel="Settings tabs" {tabs} bind:value={activeTab} variant="nav" stretch />
   </div>
 
   <div class="settings-body" data-scroll-root="screen">
