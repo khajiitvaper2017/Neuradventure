@@ -20,14 +20,18 @@
         {token.content}
       {:else if token.type === "code"}
         <span class="inline-code">{token.content}</span>
+      {:else if token.type === "strong"}
+        <strong class="inline-strong">{token.content}</strong>
       {:else if token.type === "image"}
         <img class="inline-image" src={token.src} alt={token.alt} style={token.style} loading="lazy" decoding="async" />
       {:else if token.type === "em"}
         <em class="inline-em">{token.content}</em>
+      {:else if token.type === "quote"}
+        <span class="inline-quote">"""{token.content}"""</span>
       {:else if token.type === "dquote"}
-        <span class="inline-quote">"{token.content}"</span>
-      {:else}
-        <span class="inline-quote">'{token.content}'</span>
+        <span class="inline-dquote"
+          ><span class="quote-mark">"</span>{token.content}<span class="quote-mark">"</span></span
+        >
       {/if}
     {/each}
   {/if}
@@ -46,22 +50,32 @@
     border: 1px solid var(--border);
     color: var(--accent);
   }
-  .inline-quote {
-    padding: 0.04em 0.12em;
-    border-radius: 4px;
-    color: var(--accent);
-    font-style: italic;
-  }
   .inline-image {
     display: block;
     max-width: 100%;
+    max-height: min(42vh, 360px);
     border-radius: 6px;
-    margin: 0.35rem 0;
+    margin: 0.65rem auto;
     object-fit: contain;
   }
   .inline-em {
     font-style: italic;
+    color: inherit;
+  }
+  .inline-strong {
+    font-weight: 700;
+  }
+  .inline-quote {
     color: var(--accent);
+    font-style: normal;
+  }
+  .inline-dquote {
+    font-style: italic;
+    color: var(--accent);
+  }
+  .quote-mark {
+    color: var(--accent);
+    font-style: normal;
   }
   .inline-hr {
     border: none;

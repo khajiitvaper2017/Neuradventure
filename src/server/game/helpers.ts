@@ -3,12 +3,26 @@ import { normalizeStoryModules } from "../schemas/story-modules.js"
 import type { StoryModules } from "../core/models.js"
 import { TavernCardV2Schema, type CharacterBook } from "../utils/converters/tavern.js"
 
-export function getAuthorNote(story: db.StoryRow): { text: string; depth: number } | null {
+export function getAuthorNote(story: db.StoryRow): {
+  text: string
+  depth: number
+  position: number
+  interval: number
+  role: number
+  embedState: boolean
+  enabled: boolean
+} {
   const settings = db.getSettings()
-  if (settings.authorNoteEnabled === false) return null
   const text = story.author_note ?? ""
-  if (!text.trim()) return null
-  return { text, depth: story.author_note_depth ?? 4 }
+  return {
+    text,
+    depth: story.author_note_depth ?? settings.defaultAuthorNoteDepth ?? 4,
+    position: story.author_note_position ?? settings.defaultAuthorNotePosition ?? 1,
+    interval: story.author_note_interval ?? settings.defaultAuthorNoteInterval ?? 1,
+    role: story.author_note_role ?? settings.defaultAuthorNoteRole ?? 0,
+    embedState: (story.author_note_embed_state ?? 0) === 1,
+    enabled: settings.authorNoteEnabled !== false,
+  }
 }
 
 export function getStoryModules(story: db.StoryRow): StoryModules {

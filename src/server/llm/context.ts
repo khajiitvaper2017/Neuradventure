@@ -2,13 +2,14 @@ import OpenAI from "openai"
 import type { MainCharacterState, NPCState, StoryModules, WorldState } from "../core/models.js"
 import type { TurnRow } from "../core/db.js"
 import { getGenerationParams } from "./client.js"
-import { getImpersonatePrompt, getNpcCreationPrompt, getSystemPrompt } from "./config.js"
+import { getImpersonatePrompt, getNpcCreationPrompt, getSectionFormat, getSystemPrompt } from "./config.js"
 import {
   buildHistoryBlock,
   formatInventory,
   formatLocations,
   formatNPCBaselines,
   formatNPCCurrentStates,
+  injectEntryAtDepth,
   wrapSection,
   estimateTokens,
 } from "./format.js"
@@ -19,6 +20,42 @@ import type { CharacterBook } from "../utils/converters/tavern.js"
 
 // ─── Shared context block builder ─────────────────────────────────────────────
 
+function authorNoteRoleName(role: number): "system" | "user" | "assistant" {
+  if (role === 1) return "user"
+  if (role === 2) return "assistant"
+  return "system"
+}
+
+function wrapAuthorNoteSection(tag: string, content: string, role: "system" | "user" | "assistant"): string {
+  const format = getSectionFormat()
+  const roleUpper = role.toUpperCase()
+  const roleTitle = `${role.slice(0, 1).toUpperCase()}${role.slice(1)}`
+
+  if (format === "xml") {
+    return `<${tag} role="${role}">\n${content}\n</${tag}>`
+  }
+
+  if (format === "none") {
+    return `Author note (${roleUpper}):\n${content}`
+  }
+
+  const wrapped = wrapSection(tag, content)
+  if (format === "equals") {
+    return wrapped.replace(/^=== (.+) ===/m, (_m, title: string) => `=== ${title} (${roleUpper}) ===`)
+  }
+  if (format === "markdown") {
+    return wrapped.replace(/^## ([^\n]+)\n/, `## $1 (${roleTitle})\n`)
+  }
+  if (format === "colon") {
+    return wrapped.replace(/^([^\n]+):\n/, `$1 (${roleUpper}):\n`)
+  }
+  if (format === "bbcode") {
+    return wrapped.replace(/^\[([^\]]+)\]\n/, `[$1]\nRole: ${roleUpper}\n`)
+  }
+
+  return wrapped
+}
+
 export interface ContextBlockOpts {
   character: MainCharacterState
   world: WorldState
@@ -28,14 +65,33 @@ export interface ContextBlockOpts {
   initialCharacter?: MainCharacterState
   actionBlock?: string | null
   memory?: string | null
-  authorNote?: { text: string; depth: number } | null
+  playerInput?: string | null
+  authorNote?: {
+    text: string
+    depth: number
+    position: number
+    interval: number
+    role: number
+    embedState: boolean
+    enabled: boolean
+  } | null
   characterBook?: CharacterBook | null
   modules?: StoryModules
 }
 
 function buildContextBlock(opts: ContextBlockOpts): string {
-  const { character, world, npcs, recentTurns, ctxLimit, initialCharacter, actionBlock, authorNote, characterBook } =
-    opts
+  const {
+    character,
+    world,
+    npcs,
+    recentTurns,
+    ctxLimit,
+    initialCharacter,
+    actionBlock,
+    authorNote,
+    characterBook,
+    playerInput,
+  } = opts
   const initial = initialCharacter ?? character
   const llmStrings = getLlmStrings()
   const defaults = getServerDefaults()
@@ -45,8 +101,6 @@ function buildContextBlock(opts: ContextBlockOpts): string {
   const modules: StoryModules = opts.modules ?? DEFAULT_STORY_MODULES
   const flags = resolveModuleFlags(modules)
   const generalDescription = character.general_description?.trim() || defaults.unknown.generalDescription
-
-  const hasTurns = recentTurns.length > 0
 
   const baseLines = [
     formatTemplate(labels.nameRaceGender, {
@@ -107,9 +161,6 @@ function buildContextBlock(opts: ContextBlockOpts): string {
   // ── SEMI-STABLE ──
   const memorySection = world.memory ? wrapSection(sections.memory, world.memory) : null
 
-  const authorNoteSection =
-    !hasTurns && authorNote && authorNote.text.trim() ? wrapSection(sections.authorNote, authorNote.text.trim()) : null
-
   // ── VOLATILE ──
   const currentSection = wrapSection(
     sections.playerCharacterState,
@@ -139,7 +190,7 @@ function buildContextBlock(opts: ContextBlockOpts): string {
   const joinSections = (sections: Array<string | null | undefined>): string => sections.filter(Boolean).join("\n\n")
 
   const storyHeader = wrapSection(sections.storySoFar, "").replace(/\n$/, "")
-  const afterHistory = joinSections([currentSection, npcCurrentSection, storyContextSection, actionBlock])
+  const afterHistory = joinSections([actionBlock])
 
   const stableBlock = joinSections([
     beforeCharacterBookSection,
@@ -148,16 +199,74 @@ function buildContextBlock(opts: ContextBlockOpts): string {
     npcBaselineSection,
     locationSection,
     memorySection,
-    authorNoteSection,
   ])
 
-  const baseTokens = estimateTokens(joinSections([stableBlock, storyHeader, afterHistory]))
-  const { summary, history } = buildHistoryBlock(recentTurns, world, ctxLimit, baseTokens, authorNote, {
+  const volatileBlock = joinSections([currentSection, npcCurrentSection, storyContextSection])
+
+  const noteTextRaw = typeof authorNote?.text === "string" ? authorNote.text : ""
+  const noteText = noteTextRaw.trim()
+  const noteDepth = Math.max(0, authorNote?.depth ?? 0)
+  const notePosition = Math.max(0, Math.min(2, Math.floor(authorNote?.position ?? 1)))
+  const noteInterval = Math.max(0, Math.floor(authorNote?.interval ?? 1))
+  const noteRole = Math.max(0, Math.min(2, Math.floor(authorNote?.role ?? 0)))
+  const noteEmbedState = authorNote?.embedState === true
+  const noteEnabled = authorNote?.enabled === true
+
+  const playerInputRaw = (playerInput ?? "").trim()
+  const hasCurrentUserMessage = playerInputRaw.length > 0
+  const isContinue = !hasCurrentUserMessage
+  const priorUserMessageCount = recentTurns.filter((t) => t.player_input.trim().length > 0).length
+  const userMessageCount = priorUserMessageCount + (hasCurrentUserMessage ? 1 : 0)
+
+  const shouldInjectNoteText =
+    noteEnabled &&
+    noteText.length > 0 &&
+    noteInterval > 0 &&
+    (noteInterval === 1 || (noteInterval > 1 && userMessageCount % noteInterval === 0))
+
+  const authorNoteContent = joinSections([
+    noteEmbedState ? volatileBlock : null,
+    shouldInjectNoteText ? noteText : null,
+  ])
+  const authorNoteSection =
+    authorNoteContent.trim().length > 0
+      ? wrapAuthorNoteSection(sections.authorNote, authorNoteContent, authorNoteRoleName(noteRole))
+      : null
+  const authorNoteTokens = authorNoteSection ? estimateTokens(authorNoteSection) : 0
+
+  const volatileOutside = noteEmbedState ? null : volatileBlock
+  const baseTokens =
+    estimateTokens(joinSections([stableBlock, volatileOutside, storyHeader, afterHistory])) + authorNoteTokens
+  const { summary, entries } = buildHistoryBlock(recentTurns, world, ctxLimit, baseTokens, {
     includeBackgroundEvents: modules.track_background_events,
   })
 
-  const storySoFarHeader = history ? storyHeader : null
-  return joinSections([stableBlock, summary || null, storySoFarHeader, history || null, afterHistory || null])
+  const storySoFarHeader = entries.length > 0 ? storyHeader : null
+
+  if (notePosition === 1) {
+    let chatEntries = [...entries, ...(actionBlock ? [actionBlock] : [])]
+    if (authorNoteSection) {
+      const effectiveDepth = isContinue && noteDepth === 0 ? 1 : noteDepth
+      chatEntries = injectEntryAtDepth(chatEntries, authorNoteSection, effectiveDepth)
+    }
+    const chatBlock = chatEntries.length > 0 ? chatEntries.join("\n\n") : null
+    return joinSections([stableBlock, volatileOutside, summary || null, storySoFarHeader, chatBlock])
+  }
+
+  const beforeScenarioNote = notePosition === 2 ? authorNoteSection : null
+  const afterScenarioNote = notePosition === 0 ? authorNoteSection : null
+  const history = entries.length > 0 ? entries.join("\n\n") : null
+
+  return joinSections([
+    beforeScenarioNote,
+    stableBlock,
+    volatileOutside,
+    afterScenarioNote,
+    summary || null,
+    storySoFarHeader,
+    history,
+    afterHistory || null,
+  ])
 }
 
 // ─── Message builders (thin wrappers over buildContextBlock) ──────────────────
@@ -171,7 +280,15 @@ export function buildTurnMessages(
   actionMode: string,
   initialCharacter?: MainCharacterState,
   ctxLimitOverride?: number,
-  authorNote?: { text: string; depth: number } | null,
+  authorNote?: {
+    text: string
+    depth: number
+    position: number
+    interval: number
+    role: number
+    embedState: boolean
+    enabled: boolean
+  } | null,
   modules?: StoryModules,
   characterBook?: CharacterBook | null,
 ): OpenAI.ChatCompletionMessageParam[] {
@@ -179,17 +296,12 @@ export function buildTurnMessages(
   const hasPlayerInput = playerInput.trim().length > 0
   const llmStrings = getLlmStrings()
   const sections = llmStrings.sections
-  const actionSection =
-    actionMode === "story"
-      ? hasPlayerInput
-        ? wrapSection(sections.storyContinuation, playerInput)
-        : wrapSection(sections.storyContinuation, "")
-      : hasPlayerInput
-        ? wrapSection(
-            sections.playersAction,
-            actionMode === "say" ? `${llmStrings.playerSayPrefix}${playerInput}` : playerInput,
-          )
-        : null
+  const actionSection = hasPlayerInput
+    ? wrapSection(
+        sections.playersAction,
+        actionMode === "say" ? `${llmStrings.playerSayPrefix}${playerInput}` : playerInput,
+      )
+    : null
 
   const contextBlock = buildContextBlock({
     character,
@@ -199,6 +311,7 @@ export function buildTurnMessages(
     ctxLimit,
     initialCharacter,
     actionBlock: actionSection,
+    playerInput,
     authorNote,
     characterBook,
     modules,
@@ -217,7 +330,15 @@ export function buildNpcCreationMessages(
   recentTurns: TurnRow[],
   npcName: string,
   ctxLimitOverride?: number,
-  authorNote?: { text: string; depth: number } | null,
+  authorNote?: {
+    text: string
+    depth: number
+    position: number
+    interval: number
+    role: number
+    embedState: boolean
+    enabled: boolean
+  } | null,
   modules?: StoryModules,
   characterBook?: CharacterBook | null,
 ): OpenAI.ChatCompletionMessageParam[] {
@@ -235,6 +356,7 @@ export function buildNpcCreationMessages(
     recentTurns,
     ctxLimit,
     actionBlock,
+    playerInput: "",
     authorNote,
     characterBook,
     modules,
@@ -254,7 +376,15 @@ export function buildImpersonateMessages(
   actionMode: string,
   initialCharacter?: MainCharacterState,
   ctxLimitOverride?: number,
-  authorNote?: { text: string; depth: number } | null,
+  authorNote?: {
+    text: string
+    depth: number
+    position: number
+    interval: number
+    role: number
+    embedState: boolean
+    enabled: boolean
+  } | null,
   modules?: StoryModules,
   characterBook?: CharacterBook | null,
 ): OpenAI.ChatCompletionMessageParam[] {
@@ -273,6 +403,7 @@ export function buildImpersonateMessages(
     ctxLimit,
     initialCharacter,
     actionBlock: actionModeSection,
+    playerInput: "",
     authorNote,
     characterBook,
     modules,

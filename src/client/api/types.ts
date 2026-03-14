@@ -51,6 +51,10 @@ export interface StoryDetail {
   opening_scenario: string
   author_note: string
   author_note_depth: number
+  author_note_position: number
+  author_note_interval: number
+  author_note_role: number
+  author_note_embed_state: boolean
   story_modules: StoryModules
   character: MainCharacterState
   world: WorldState
@@ -290,6 +294,10 @@ export interface AppSettings {
   authorNoteEnabled: boolean
   defaultAuthorNote: string
   defaultAuthorNoteDepth: number
+  defaultAuthorNotePosition: number
+  defaultAuthorNoteInterval: number
+  defaultAuthorNoteRole: number
+  defaultAuthorNoteEmbedState: boolean
   storyDefaults: StoryModules
   connector: LLMConnector
   generation: GenerationParams

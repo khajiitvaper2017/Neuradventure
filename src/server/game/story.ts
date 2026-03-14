@@ -49,5 +49,9 @@ export function createNewStory(
     characterId,
     settings.defaultAuthorNote ?? "",
     settings.defaultAuthorNoteDepth ?? 4,
+    settings.defaultAuthorNotePosition ?? 1,
+    settings.defaultAuthorNoteInterval ?? 1,
+    settings.defaultAuthorNoteRole ?? 0,
+    settings.defaultAuthorNoteEmbedState ?? false,
   )
 }

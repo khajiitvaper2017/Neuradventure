@@ -36,6 +36,10 @@ export function initDb() {
       initial_npc_states_json       TEXT NOT NULL,
       author_note           TEXT NOT NULL DEFAULT '',
       author_note_depth     INTEGER NOT NULL DEFAULT 4,
+      author_note_position  INTEGER NOT NULL DEFAULT 1,
+      author_note_interval  INTEGER NOT NULL DEFAULT 1,
+      author_note_role      INTEGER NOT NULL DEFAULT 0,
+      author_note_embed_state INTEGER NOT NULL DEFAULT 0,
       created_at            TEXT NOT NULL DEFAULT (datetime('now')),
       updated_at            TEXT NOT NULL DEFAULT (datetime('now'))
     );
@@ -174,6 +178,20 @@ export function initDb() {
   const variantCols = database.prepare("PRAGMA table_info(turn_variants)").all() as Array<{ name: string }>
   if (!variantCols.some((c) => c.name === "background_events")) {
     database.exec("ALTER TABLE turn_variants ADD COLUMN background_events TEXT")
+  }
+
+  const storyCols = database.prepare("PRAGMA table_info(stories)").all() as Array<{ name: string }>
+  if (!storyCols.some((c) => c.name === "author_note_position")) {
+    database.exec("ALTER TABLE stories ADD COLUMN author_note_position INTEGER NOT NULL DEFAULT 1")
+  }
+  if (!storyCols.some((c) => c.name === "author_note_interval")) {
+    database.exec("ALTER TABLE stories ADD COLUMN author_note_interval INTEGER NOT NULL DEFAULT 1")
+  }
+  if (!storyCols.some((c) => c.name === "author_note_role")) {
+    database.exec("ALTER TABLE stories ADD COLUMN author_note_role INTEGER NOT NULL DEFAULT 0")
+  }
+  if (!storyCols.some((c) => c.name === "author_note_embed_state")) {
+    database.exec("ALTER TABLE stories ADD COLUMN author_note_embed_state INTEGER NOT NULL DEFAULT 0")
   }
 
   const settingsRow = database.prepare("SELECT settings_json FROM settings WHERE id = 1").get() as

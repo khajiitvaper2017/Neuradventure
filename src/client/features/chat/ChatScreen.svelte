@@ -27,7 +27,7 @@
     applyUndoCancelResult,
   } from "./actions.js"
   import ConversationInput from "../../components/ui/ConversationInput.svelte"
-  import InlineTokens from "../../components/ui/InlineTokens.svelte"
+  import RichText from "../../components/ui/RichText.svelte"
   import ThinkingDots from "../../components/ui/ThinkingDots.svelte"
   import IconPencilSquare from "../../components/icons/IconPencilSquare.svelte"
   import IconTrash from "../../components/icons/IconTrash.svelte"
@@ -635,12 +635,12 @@
           {:else}
             {#if $isChatGenerating && streamPreviewMode === "replace" && regeneratingMessageId === message.id}
               {#if $streamingEnabled && streamReply.trim().length > 0}
-                <div class="chat-text streaming-preview"><InlineTokens text={streamReply} /></div>
+                <div class="chat-text streaming-preview"><RichText text={streamReply} mode="block" /></div>
               {:else}
                 <div class="chat-text regen-placeholder">Regenerating…</div>
               {/if}
             {:else}
-              <div class="chat-text"><InlineTokens text={message.content} /></div>
+              <div class="chat-text"><RichText text={message.content} mode="block" /></div>
             {/if}
 
             {#if !(streamPreviewMode === "replace" && $isChatGenerating && regeneratingMessageId === message.id)}
@@ -676,7 +676,7 @@
         <div class="chat-speaker">
           <span>{nextSpeakerName()}</span>
         </div>
-        <div class="chat-text"><InlineTokens text={streamReply} /></div>
+        <div class="chat-text"><RichText text={streamReply} mode="block" /></div>
       </div>
     {/if}
 

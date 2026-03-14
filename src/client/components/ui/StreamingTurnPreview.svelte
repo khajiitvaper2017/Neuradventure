@@ -1,6 +1,7 @@
 <script lang="ts">
-  import InlineTokens from "./InlineTokens.svelte"
+  import RichText from "./RichText.svelte"
   import BackgroundEventsReveal from "./BackgroundEventsReveal.svelte"
+  import { looksLikeBlockHtml } from "../../utils/sanitizeHtml.js"
 
   export let narrativeText: string | null | undefined
   export let backgroundEvents: string | null | undefined
@@ -21,6 +22,7 @@
 
   $: trimmedNarrative = typeof narrativeText === "string" ? narrativeText.trim() : ""
   $: narrativeParas = trimmedNarrative ? paragraphs(trimmedNarrative) : []
+  $: narrativeIsBlockHtml = trimmedNarrative ? looksLikeBlockHtml(trimmedNarrative) : false
   $: trimmedBg = typeof backgroundEvents === "string" ? backgroundEvents.trim() : ""
   $: show = narrativeParas.length > 0 || trimmedBg.length > 0
 </script>
@@ -37,8 +39,12 @@
 
     <BackgroundEventsReveal text={backgroundEvents} />
 
-    {#each narrativeParas as para}
-      <p class="stream-preview__para"><InlineTokens text={para} /></p>
-    {/each}
+    {#if narrativeIsBlockHtml}
+      <div class="stream-preview__para"><RichText text={trimmedNarrative} mode="block" /></div>
+    {:else}
+      {#each narrativeParas as para}
+        <p class="stream-preview__para"><RichText text={para} mode="inline" /></p>
+      {/each}
+    {/if}
   </div>
 {/if}

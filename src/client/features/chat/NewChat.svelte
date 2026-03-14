@@ -28,6 +28,7 @@
 
   let playerKey = $state<string | null>(null)
   let aiKeys = $state<string[]>([])
+  let titleWasAutofilled = $state(false)
 
   let greetingLoading = $state(false)
   let greetingOptions = $state<string[]>([])
@@ -139,6 +140,7 @@
     playerKey = key
     aiKeys = aiKeys.filter((k) => k !== key)
     showPlayerDropdown = false
+    maybeAutofillTitle()
     void refreshGreeting()
   }
 
@@ -146,11 +148,37 @@
     if (key === playerKey) return
     if (aiKeys.includes(key)) {
       aiKeys = aiKeys.filter((k) => k !== key)
+      maybeAutofillTitle()
       void refreshGreeting()
       return
     }
     aiKeys = [...aiKeys, key]
+    maybeAutofillTitle()
     void refreshGreeting()
+  }
+
+  function formatNameList(names: string[]): string {
+    const cleaned = names.map((n) => n.trim()).filter(Boolean)
+    if (cleaned.length <= 1) return cleaned[0] ?? ""
+    if (cleaned.length === 2) return `${cleaned[0]} and ${cleaned[1]}`
+    return `${cleaned.slice(0, -1).join(", ")} and ${cleaned[cleaned.length - 1]}`
+  }
+
+  function maybeAutofillTitle() {
+    if (!playerKey) {
+      if (titleWasAutofilled) title = ""
+      return
+    }
+    const player = optionByKey(playerKey)
+    const aiMembers = aiKeys.map((k) => optionByKey(k)).filter((entry): entry is PlayableOption => !!entry)
+    if (!player || aiMembers.length === 0) {
+      if (titleWasAutofilled) title = ""
+      return
+    }
+
+    if (title.trim() && !titleWasAutofilled) return
+    title = formatNameList([player.name, ...aiMembers.map((m) => m.name)])
+    titleWasAutofilled = true
   }
 
   let canSubmit = $derived(
@@ -216,7 +244,10 @@
                 ? (msg.patch as Record<string, unknown>)
                 : null
           if (!patch) return
-          if (typeof patch.title === "string") title = patch.title
+          if (typeof patch.title === "string") {
+            title = patch.title
+            titleWasAutofilled = false
+          }
           if (typeof patch.greeting === "string") greeting = patch.greeting
         })
       : null
@@ -224,6 +255,7 @@
       chatPromptHistory = await savePromptHistory(CHAT_PROMPT_HISTORY_KEY, trimmed)
       const result = await generateChatFromDescription(trimmed, requestId)
       title = result.title
+      titleWasAutofilled = false
       greeting = result.greeting
     } catch (err) {
       showError(err instanceof Error ? err.message : "Generation failed")
@@ -338,7 +370,13 @@
 
     <div class="field">
       <label for="chat-title">Title</label>
-      <input id="chat-title" type="text" bind:value={title} placeholder="e.g. Fireside Council" />
+      <input
+        id="chat-title"
+        type="text"
+        bind:value={title}
+        placeholder="e.g. Fireside Council"
+        oninput={() => (titleWasAutofilled = false)}
+      />
     </div>
 
     {#if greetingLoading}

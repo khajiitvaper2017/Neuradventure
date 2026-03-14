@@ -169,6 +169,10 @@ const SettingsUpdateSchema = z
     authorNoteEnabled: z.boolean(),
     defaultAuthorNote: z.string(),
     defaultAuthorNoteDepth: z.number().int().min(0).max(100),
+    defaultAuthorNotePosition: z.number().int().min(0).max(2),
+    defaultAuthorNoteInterval: z.number().int().min(0).max(1000),
+    defaultAuthorNoteRole: z.number().int().min(0).max(2),
+    defaultAuthorNoteEmbedState: z.boolean(),
     storyDefaults: StoryModulesSchema.partial(),
     connector: ConnectorSchema.partial(),
     generation: GenerationParamsSchema.partial(),
@@ -244,6 +248,16 @@ settings.put("/", zValidator("json", SettingsUpdateSchema), (c) => {
     ...(update.authorNoteEnabled !== undefined && { authorNoteEnabled: update.authorNoteEnabled }),
     ...(update.defaultAuthorNote !== undefined && { defaultAuthorNote: update.defaultAuthorNote }),
     ...(update.defaultAuthorNoteDepth !== undefined && { defaultAuthorNoteDepth: update.defaultAuthorNoteDepth }),
+    ...(update.defaultAuthorNotePosition !== undefined && {
+      defaultAuthorNotePosition: update.defaultAuthorNotePosition,
+    }),
+    ...(update.defaultAuthorNoteInterval !== undefined && {
+      defaultAuthorNoteInterval: update.defaultAuthorNoteInterval,
+    }),
+    ...(update.defaultAuthorNoteRole !== undefined && { defaultAuthorNoteRole: update.defaultAuthorNoteRole }),
+    ...(update.defaultAuthorNoteEmbedState !== undefined && {
+      defaultAuthorNoteEmbedState: update.defaultAuthorNoteEmbedState,
+    }),
     ...(update.storyDefaults && {
       storyDefaults: { ...current.storyDefaults, ...update.storyDefaults },
     }),

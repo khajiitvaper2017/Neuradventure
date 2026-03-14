@@ -8,6 +8,36 @@ function toTitleCase(tag: string): string {
   return tag.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase())
 }
 
+function toPseudoXmlTagName(name: string): string {
+  return name
+    .trim()
+    .replace(/[\r\n\t]/g, " ")
+    .replace(/\s{2,}/g, " ")
+    .replace(/[<>&]/g, "")
+}
+
+function wrapNamedEntry(name: string, content: string): string {
+  switch (getSectionFormat()) {
+    case "xml":
+      // Note: this is "XML-like" markup for the LLM, not strict XML.
+      // We allow spaces in tag names to match the user's preferred output.
+      // Strip only the most dangerous tag-breaking characters.
+      const tagName = toPseudoXmlTagName(name)
+      return `<${tagName}>\n${content}\n</${tagName}>`
+    case "markdown":
+      return `### ${name}\n${content}`
+    case "bbcode":
+      return `[${name}]\n${content}`
+    case "colon":
+      return `${name}:\n${content}`
+    case "none":
+      return `${name}\n${content}`
+    case "equals":
+    default:
+      return `=== ${name.toUpperCase()} ===\n${content}`
+  }
+}
+
 export function wrapSection(tag: string, content: string): string {
   switch (getSectionFormat()) {
     case "xml":
@@ -47,9 +77,8 @@ export function formatNPCBaselines(npcs: NPCState[], flags: ModuleFlags): string
   const none = defaults.format.noneLower
   const useGeneral = !flags.useNpcAppearance
   return npcs
-    .map(
-      (npc) =>
-        `[${npc.name}]\n` +
+    .map((npc) => {
+      const content =
         `  ${formatTemplate(labels.race, { value: npc.race })}\n` +
         (npc.gender ? `  ${formatTemplate(labels.gender, { value: npc.gender })}\n` : "") +
         (useGeneral
@@ -64,8 +93,10 @@ export function formatNPCBaselines(npcs: NPCState[], flags: ModuleFlags): string
           ? `\n  ${formatTemplate(labels.majorFlaws, { value: npc.major_flaws.join(", ") || none })}`
           : "") +
         (flags.useNpcQuirks ? `\n  ${formatTemplate(labels.quirks, { value: npc.quirks.join(", ") || none })}` : "") +
-        (flags.useNpcPerks ? `\n  ${formatTemplate(labels.perks, { value: npc.perks.join(", ") || none })}` : ""),
-    )
+        (flags.useNpcPerks ? `\n  ${formatTemplate(labels.perks, { value: npc.perks.join(", ") || none })}` : "")
+
+      return wrapNamedEntry(npc.name, content)
+    })
     .join("\n\n")
 }
 
@@ -77,9 +108,8 @@ export function formatNPCCurrentStates(npcs: NPCState[], flags: ModuleFlags): st
   const defaults = getServerDefaults()
   const useGeneral = !flags.useNpcAppearance
   return npcs
-    .map(
-      (npc) =>
-        `[${npc.name}]\n` +
+    .map((npc) => {
+      const content =
         (useGeneral
           ? `  ${formatTemplate(labels.generalDescription, {
               value: npc.general_description?.trim() || defaults.unknown.generalDescription,
@@ -87,8 +117,10 @@ export function formatNPCCurrentStates(npcs: NPCState[], flags: ModuleFlags): st
           : `  ${formatTemplate(labels.currentAppearance, { value: npc.current_appearance })}\n` +
             `  ${formatTemplate(contextLabels.wearing, { value: npc.current_clothing })}\n`) +
         (flags.useNpcActivity ? `  ${formatTemplate(labels.currentActivity, { value: npc.current_activity })}\n` : "") +
-        (flags.useNpcLocation ? `  ${formatTemplate(labels.location, { value: npc.current_location })}` : ""),
-    )
+        (flags.useNpcLocation ? `  ${formatTemplate(labels.location, { value: npc.current_location })}` : "")
+
+      return wrapNamedEntry(npc.name, content)
+    })
     .join("\n\n")
 }
 
@@ -127,18 +159,13 @@ export function formatHistoryEntries(turns: TurnRow[], options: { includeBackgro
   })
 }
 
-export function injectAuthorNote(
-  entries: string[],
-  authorNote: { text: string; depth: number } | null | undefined,
-): string[] {
-  if (!authorNote || !authorNote.text.trim()) return entries
-  if (entries.length === 0) return entries
-  const llmStrings = getLlmStrings()
-  const note = wrapSection(llmStrings.sections.authorNote, authorNote.text.trim())
-  const depth = Math.max(0, authorNote.depth)
-  const insertIndex = Math.max(0, entries.length - depth)
+export function injectEntryAtDepth(entries: string[], entry: string, depth: number): string[] {
+  const trimmed = entry.trim()
+  if (!trimmed) return entries
+  const insertDepth = Math.max(0, depth)
+  const insertIndex = Math.max(0, entries.length - insertDepth)
   const result = [...entries]
-  result.splice(insertIndex, 0, note)
+  result.splice(insertIndex, 0, entry)
   return result
 }
 
@@ -147,16 +174,14 @@ export function buildHistoryBlock(
   world: WorldState,
   ctxLimit: number,
   baseTokens: number,
-  authorNote?: { text: string; depth: number } | null,
   options: { includeBackgroundEvents?: boolean } = {},
-): { summary: string | null; history: string | null } {
-  const rawEntries = formatHistoryEntries(turns, options)
-  const entries = injectAuthorNote(rawEntries, authorNote)
-  if (entries.length === 0) return { summary: null, history: null }
+): { summary: string | null; entries: string[] } {
+  const entries = formatHistoryEntries(turns, options)
+  if (entries.length === 0) return { summary: null, entries: [] }
 
   let history = entries.join("\n\n")
-  if (!ctxLimit || ctxLimit <= 0) return { summary: null, history }
-  if (baseTokens + estimateTokens(history) <= ctxLimit) return { summary: null, history }
+  if (!ctxLimit || ctxLimit <= 0) return { summary: null, entries }
+  if (baseTokens + estimateTokens(history) <= ctxLimit) return { summary: null, entries }
 
   const summaryContent = [
     "{",
@@ -177,7 +202,7 @@ export function buildHistoryBlock(
 
   let combinedHistory = remaining.join("\n\n")
   if (baseTokens + estimateTokens([summary, combinedHistory].join("\n\n")) <= ctxLimit) {
-    return { summary, history: combinedHistory || null }
+    return { summary, entries: remaining }
   }
 
   while (
@@ -189,7 +214,7 @@ export function buildHistoryBlock(
 
   combinedHistory = remaining.join("\n\n")
   if (baseTokens + estimateTokens([summary, combinedHistory].join("\n\n")) <= ctxLimit) {
-    return { summary, history: combinedHistory || null }
+    return { summary, entries: remaining }
   }
-  return { summary, history: null }
+  return { summary, entries: [] }
 }

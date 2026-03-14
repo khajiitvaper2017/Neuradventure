@@ -29,19 +29,25 @@
   import IconUser from "../../components/icons/IconUser.svelte"
   import IconUsers from "../../components/icons/IconUsers.svelte"
   import ConversationInput from "../../components/ui/ConversationInput.svelte"
-  import InlineTokens from "../../components/ui/InlineTokens.svelte"
+  import RichText from "../../components/ui/RichText.svelte"
   import BackgroundEventsReveal from "../../components/ui/BackgroundEventsReveal.svelte"
+  import AuthorsNoteModal from "../../components/ui/AuthorsNoteModal.svelte"
   import StoryModulesPanel from "../../components/ui/StoryModulesPanel.svelte"
   import ThinkingDots from "../../components/ui/ThinkingDots.svelte"
   import StreamingTurnPreview from "../../components/ui/StreamingTurnPreview.svelte"
   import { streamClient } from "../../api/stream.js"
   import { timeouts } from "../../stores/settings.js"
+  import { looksLikeBlockHtml } from "../../utils/sanitizeHtml.js"
   import {
     currentStoryId,
     currentStoryTitle,
     currentStoryOpeningScenario,
     currentStoryAuthorNote,
     currentStoryAuthorNoteDepth,
+    currentStoryAuthorNotePosition,
+    currentStoryAuthorNoteInterval,
+    currentStoryAuthorNoteRole,
+    currentStoryAuthorNoteEmbedState,
     currentStoryModules,
     currentStoryInitialWorld,
     character,
@@ -84,6 +90,10 @@
   let showAuthorNoteEditor = $state(false)
   let authorNoteDraft = $state("")
   let authorNoteDepthDraft = $state(4)
+  let authorNotePositionDraft = $state(1)
+  let authorNoteIntervalDraft = $state(1)
+  let authorNoteRoleDraft = $state(0)
+  let authorNoteEmbedStateDraft = $state(false)
   let showModulesEditor = $state(false)
   let modulesDraft = $state<StoryModules>({
     track_npcs: true,
@@ -491,6 +501,10 @@
   function openAuthorNoteEditor() {
     authorNoteDraft = $currentStoryAuthorNote
     authorNoteDepthDraft = $currentStoryAuthorNoteDepth
+    authorNotePositionDraft = $currentStoryAuthorNotePosition
+    authorNoteIntervalDraft = $currentStoryAuthorNoteInterval
+    authorNoteRoleDraft = $currentStoryAuthorNoteRole
+    authorNoteEmbedStateDraft = $currentStoryAuthorNoteEmbedState
     showAuthorNoteEditor = true
     showMenu = false
   }
@@ -498,12 +512,24 @@
   async function saveAuthorNote() {
     if (!$currentStoryId) return
     try {
+      const nextDepth = Math.max(0, Math.min(100, Math.floor(Number(authorNoteDepthDraft) || 0)))
+      const nextPosition = Math.max(0, Math.min(2, Math.floor(Number(authorNotePositionDraft) || 0)))
+      const nextInterval = Math.max(0, Math.min(1000, Math.floor(Number(authorNoteIntervalDraft) || 0)))
+      const nextRole = Math.max(0, Math.min(2, Math.floor(Number(authorNoteRoleDraft) || 0)))
       await api.stories.update($currentStoryId, {
         author_note: authorNoteDraft,
-        author_note_depth: authorNoteDepthDraft,
+        author_note_depth: nextDepth,
+        author_note_position: nextPosition,
+        author_note_interval: nextInterval,
+        author_note_role: nextRole,
+        author_note_embed_state: authorNoteEmbedStateDraft,
       })
       currentStoryAuthorNote.set(authorNoteDraft)
-      currentStoryAuthorNoteDepth.set(authorNoteDepthDraft)
+      currentStoryAuthorNoteDepth.set(nextDepth)
+      currentStoryAuthorNotePosition.set(nextPosition)
+      currentStoryAuthorNoteInterval.set(nextInterval)
+      currentStoryAuthorNoteRole.set(nextRole)
+      currentStoryAuthorNoteEmbedState.set(authorNoteEmbedStateDraft)
       showAuthorNoteEditor = false
     } catch {
       showError("Failed to update author's note")
@@ -908,37 +934,18 @@
   {/if}
 
   <!-- ── Author's Note editor overlay ──────────────────── -->
-  {#if showAuthorNoteEditor}
-    <!-- svelte-ignore a11y_click_events_have_key_events -->
-    <!-- svelte-ignore a11y_no_static_element_interactions -->
-    <div
-      class="overlay overlay--modal"
-      onclick={(e) => {
-        if (e.currentTarget !== e.target) return
-        showAuthorNoteEditor = false
-      }}
-    >
-      <div class="modal" role="dialog" aria-modal="true" aria-label="Author's note" tabindex="-1">
-        <h3 class="modal__title">Author's Note</h3>
-        <p class="modal__message">Injected into the prompt at the specified depth in history.</p>
-        <textarea
-          class="edit-textarea"
-          bind:value={authorNoteDraft}
-          rows="4"
-          placeholder="e.g. Focus on dialogue and character emotions"
-          use:autoresize={authorNoteDraft}
-        ></textarea>
-        <div class="depth-row">
-          <label for="an-depth">Depth (entries from bottom):</label>
-          <input id="an-depth" type="number" min="0" max="100" bind:value={authorNoteDepthDraft} class="depth-input" />
-        </div>
-        <div class="modal__actions">
-          <button class="btn-ghost" onclick={() => (showAuthorNoteEditor = false)}>Cancel</button>
-          <button class="btn-accent" onclick={saveAuthorNote}>Save</button>
-        </div>
-      </div>
-    </div>
-  {/if}
+  <AuthorsNoteModal
+    open={showAuthorNoteEditor}
+    disabled={$isGenerating}
+    bind:note={authorNoteDraft}
+    bind:position={authorNotePositionDraft}
+    bind:depth={authorNoteDepthDraft}
+    bind:interval={authorNoteIntervalDraft}
+    bind:role={authorNoteRoleDraft}
+    bind:embedState={authorNoteEmbedStateDraft}
+    onCancel={() => (showAuthorNoteEditor = false)}
+    onSave={saveAuthorNote}
+  />
 
   <!-- ── Story Modules editor overlay ──────────────────── -->
   {#if showModulesEditor}
@@ -1013,9 +1020,9 @@
           <button class="btn-accent" onclick={saveOpening} disabled={$isGenerating}>Save</button>
         </div>
       {:else}
-        <p class="opening-text" class:flash={flashOpening}>
-          <InlineTokens text={$currentStoryOpeningScenario || $worldState?.memory || ""} />
-        </p>
+        <div class="opening-text" class:flash={flashOpening}>
+          <RichText text={$currentStoryOpeningScenario || $worldState?.memory || ""} mode="block" />
+        </div>
       {/if}
     </div>
 
@@ -1052,7 +1059,7 @@
             <IconPencilSquare className="pencil-icon" size={12} strokeWidth={2} />
           {/if}
           <span class="action-text">
-            <InlineTokens text={turn.player_input} />
+            <RichText text={turn.player_input} mode="inline" />
           </span>
           <button
             class="edit-btn inline"
@@ -1084,11 +1091,17 @@
 
             <BackgroundEventsReveal text={turn.background_events} />
 
-            {#each paragraphs(turn.narrative_text) as para, j}
-              <p class="para" style="animation-delay: {j * 0.06}s">
-                <InlineTokens text={para} />
-              </p>
-            {/each}
+            {#if looksLikeBlockHtml(turn.narrative_text)}
+              <div class="para para--html" style="animation-delay: 0s">
+                <RichText text={turn.narrative_text} mode="block" />
+              </div>
+            {:else}
+              {#each paragraphs(turn.narrative_text) as para, j}
+                <p class="para" style="animation-delay: {j * 0.06}s">
+                  <RichText text={para} mode="inline" />
+                </p>
+              {/each}
+            {/if}
 
             {#if i === $turns.length - 1 && lastTurnVariants.length > 1}
               <div class="variant-row">
@@ -1553,22 +1566,6 @@
     padding: 0.3rem 0.8rem;
     border-top: 1px solid var(--border);
     border-bottom: 1px solid var(--border);
-  }
-  .depth-row {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    font-size: 0.82rem;
-    color: var(--text-dim);
-  }
-  .depth-input {
-    width: 60px;
-    padding: 0.3rem 0.5rem;
-    background: var(--bg-input);
-    border: 1px solid var(--border);
-    border-radius: 4px;
-    color: var(--text);
-    font-size: 0.82rem;
   }
   .dropdown-link {
     display: block;

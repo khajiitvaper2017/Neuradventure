@@ -5,6 +5,10 @@ import {
   currentStoryOpeningScenario,
   currentStoryAuthorNote,
   currentStoryAuthorNoteDepth,
+  currentStoryAuthorNotePosition,
+  currentStoryAuthorNoteInterval,
+  currentStoryAuthorNoteRole,
+  currentStoryAuthorNoteEmbedState,
   currentStoryModules,
   currentStoryInitialWorld,
   character,
@@ -20,6 +24,10 @@ export async function loadStoryById(id: number): Promise<void> {
   currentStoryOpeningScenario.set(detail.opening_scenario)
   currentStoryAuthorNote.set(detail.author_note ?? "")
   currentStoryAuthorNoteDepth.set(detail.author_note_depth ?? 4)
+  currentStoryAuthorNotePosition.set(detail.author_note_position ?? 1)
+  currentStoryAuthorNoteInterval.set(detail.author_note_interval ?? 1)
+  currentStoryAuthorNoteRole.set(detail.author_note_role ?? 0)
+  currentStoryAuthorNoteEmbedState.set(detail.author_note_embed_state ?? false)
   currentStoryModules.set(detail.story_modules ?? null)
   currentStoryInitialWorld.set(detail.initial_world)
   character.set(detail.character)

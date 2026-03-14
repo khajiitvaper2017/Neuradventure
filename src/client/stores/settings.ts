@@ -114,6 +114,10 @@ const defaultAuthorNoteStore = writable<string>(
   "Remember the instructions you were given at the beginning of this chat.",
 )
 const defaultAuthorNoteDepthStore = writable<number>(4)
+const defaultAuthorNotePositionStore = writable<number>(1)
+const defaultAuthorNoteIntervalStore = writable<number>(1)
+const defaultAuthorNoteRoleStore = writable<number>(0)
+const defaultAuthorNoteEmbedStateStore = writable<boolean>(false)
 const storyDefaultsStore = writable<StoryModules>({ ...DEFAULT_STORY_MODULES })
 
 let initialized = false
@@ -129,6 +133,10 @@ let current: AppSettings = {
   authorNoteEnabled: true,
   defaultAuthorNote: "Remember the instructions you were given at the beginning of this chat.",
   defaultAuthorNoteDepth: 4,
+  defaultAuthorNotePosition: 1,
+  defaultAuthorNoteInterval: 1,
+  defaultAuthorNoteRole: 0,
+  defaultAuthorNoteEmbedState: false,
   storyDefaults: { ...DEFAULT_STORY_MODULES },
   connector: { ...DEFAULT_CONNECTOR },
   generation: { ...DEFAULT_GENERATION },
@@ -147,6 +155,10 @@ function applySettings(settings: AppSettings) {
   authorNoteEnabledStore.set(settings.authorNoteEnabled ?? true)
   defaultAuthorNoteStore.set(settings.defaultAuthorNote)
   defaultAuthorNoteDepthStore.set(settings.defaultAuthorNoteDepth)
+  defaultAuthorNotePositionStore.set(settings.defaultAuthorNotePosition ?? 1)
+  defaultAuthorNoteIntervalStore.set(settings.defaultAuthorNoteInterval ?? 1)
+  defaultAuthorNoteRoleStore.set(settings.defaultAuthorNoteRole ?? 0)
+  defaultAuthorNoteEmbedStateStore.set(settings.defaultAuthorNoteEmbedState ?? false)
   storyDefaultsStore.set(settings.storyDefaults)
   connectorStore.set(settings.connector)
   generationStore.set(settings.generation)
@@ -225,6 +237,26 @@ defaultAuthorNoteDepthStore.subscribe((value) => {
   if (!suppressSync) void persistSettings({ defaultAuthorNoteDepth: value })
 })
 
+defaultAuthorNotePositionStore.subscribe((value) => {
+  current = { ...current, defaultAuthorNotePosition: value }
+  if (!suppressSync) void persistSettings({ defaultAuthorNotePosition: value })
+})
+
+defaultAuthorNoteIntervalStore.subscribe((value) => {
+  current = { ...current, defaultAuthorNoteInterval: value }
+  if (!suppressSync) void persistSettings({ defaultAuthorNoteInterval: value })
+})
+
+defaultAuthorNoteRoleStore.subscribe((value) => {
+  current = { ...current, defaultAuthorNoteRole: value }
+  if (!suppressSync) void persistSettings({ defaultAuthorNoteRole: value })
+})
+
+defaultAuthorNoteEmbedStateStore.subscribe((value) => {
+  current = { ...current, defaultAuthorNoteEmbedState: value }
+  if (!suppressSync) void persistSettings({ defaultAuthorNoteEmbedState: value })
+})
+
 storyDefaultsStore.subscribe((value) => {
   current = { ...current, storyDefaults: value }
   if (!suppressSync) void persistSettings({ storyDefaults: value })
@@ -250,6 +282,10 @@ export const timeouts = timeoutsStore
 export const authorNoteEnabled = authorNoteEnabledStore
 export const defaultAuthorNote = defaultAuthorNoteStore
 export const defaultAuthorNoteDepth = defaultAuthorNoteDepthStore
+export const defaultAuthorNotePosition = defaultAuthorNotePositionStore
+export const defaultAuthorNoteInterval = defaultAuthorNoteIntervalStore
+export const defaultAuthorNoteRole = defaultAuthorNoteRoleStore
+export const defaultAuthorNoteEmbedState = defaultAuthorNoteEmbedStateStore
 export const storyDefaults = storyDefaultsStore
 export const connector = connectorStore
 export const generation = generationStore

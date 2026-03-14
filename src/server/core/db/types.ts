@@ -90,6 +90,10 @@ export interface SettingsState {
   authorNoteEnabled: boolean
   defaultAuthorNote: string
   defaultAuthorNoteDepth: number
+  defaultAuthorNotePosition: number
+  defaultAuthorNoteInterval: number
+  defaultAuthorNoteRole: number
+  defaultAuthorNoteEmbedState: boolean
   storyDefaults: StoryModules
   connector: LLMConnector
   generation: GenerationParams

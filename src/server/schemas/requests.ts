@@ -56,6 +56,10 @@ export const UpdateStoryRequestSchema = z.object({
   story_modules: StoryModulesSchema.optional(),
   author_note: z.string().optional(),
   author_note_depth: z.number().int().min(0).max(100).optional(),
+  author_note_position: z.number().int().min(0).max(2).optional(),
+  author_note_interval: z.number().int().min(0).max(1000).optional(),
+  author_note_role: z.number().int().min(0).max(2).optional(),
+  author_note_embed_state: z.boolean().optional(),
 })
 
 export const UpdateStoryStateRequestSchema = z

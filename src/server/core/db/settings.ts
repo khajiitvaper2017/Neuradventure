@@ -93,6 +93,10 @@ export const DEFAULT_SETTINGS: SettingsState = {
   authorNoteEnabled: true,
   defaultAuthorNote: "Remember the instructions you were given at the beginning of this chat.",
   defaultAuthorNoteDepth: 4,
+  defaultAuthorNotePosition: 1,
+  defaultAuthorNoteInterval: 1,
+  defaultAuthorNoteRole: 0,
+  defaultAuthorNoteEmbedState: false,
   storyDefaults: { ...DEFAULT_STORY_MODULES },
   connector: {
     ...DEFAULT_KOBOLD_CONNECTOR,

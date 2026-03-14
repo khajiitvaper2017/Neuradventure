@@ -31,6 +31,10 @@ export const stories = {
       opening_scenario?: string
       author_note?: string
       author_note_depth?: number
+      author_note_position?: number
+      author_note_interval?: number
+      author_note_role?: number
+      author_note_embed_state?: boolean
       story_modules?: StoryModules
     },
   ) => request<{ ok: boolean }>(`/api/stories/${id}`, { method: "PUT", body: JSON.stringify(data) }),

@@ -73,6 +73,13 @@ const ImportStorySchema = z.object({
   story_modules: StoryModulesSchema.optional(),
   author_note: z.string().optional(),
   author_note_depth: z.number().int().min(0).max(100).optional(),
+  author_note_position: z.number().int().min(0).max(2).optional(),
+  author_note_interval: z.number().int().min(0).max(1000).optional(),
+  author_note_role: z.number().int().min(0).max(2).optional(),
+  author_note_embed_state: z
+    .union([z.boolean(), z.number().int().min(0).max(1)])
+    .optional()
+    .transform((v) => (v === undefined ? undefined : v === true || v === 1)),
   turns: z.array(ImportTurnSchema).optional(),
 })
 
@@ -175,6 +182,10 @@ stories.get("/:id", (c) => {
     opening_scenario: row.opening_scenario,
     author_note: row.author_note ?? "",
     author_note_depth: row.author_note_depth ?? 4,
+    author_note_position: row.author_note_position ?? 1,
+    author_note_interval: row.author_note_interval ?? 1,
+    author_note_role: row.author_note_role ?? 0,
+    author_note_embed_state: (row.author_note_embed_state ?? 0) === 1,
     story_modules: storyModules,
     character,
     world,
@@ -245,6 +256,10 @@ stories.put("/:id", zValidator("json", UpdateStoryRequestSchema), (c) => {
     opening_scenario: body.opening_scenario,
     author_note: body.author_note,
     author_note_depth: body.author_note_depth,
+    author_note_position: body.author_note_position,
+    author_note_interval: body.author_note_interval,
+    author_note_role: body.author_note_role,
+    author_note_embed_state: body.author_note_embed_state,
     story_modules: body.story_modules,
   })
   return c.json({ ok: true })
@@ -310,6 +325,10 @@ stories.get("/:id/export", (c) => {
       opening_scenario: row.opening_scenario,
       author_note: row.author_note ?? "",
       author_note_depth: row.author_note_depth ?? 4,
+      author_note_position: row.author_note_position ?? 1,
+      author_note_interval: row.author_note_interval ?? 1,
+      author_note_role: row.author_note_role ?? 0,
+      author_note_embed_state: (row.author_note_embed_state ?? 0) === 1,
       story_modules: storyModules,
       character,
       world,
@@ -402,6 +421,7 @@ stories.post("/import", async (c) => {
     const { inventory: _inventory, ...base } = parsed.character
     void _inventory
     const characterId = db.createCharacter(base)
+    const settings = db.getSettings()
     const id = db.createStory(
       parsed.title,
       parsed.opening_scenario,
@@ -412,11 +432,26 @@ stories.post("/import", async (c) => {
       characterId,
       parsed.author_note ?? "",
       parsed.author_note_depth ?? 4,
+      parsed.author_note_position ?? settings.defaultAuthorNotePosition ?? 1,
+      parsed.author_note_interval ?? settings.defaultAuthorNoteInterval ?? 1,
+      parsed.author_note_role ?? settings.defaultAuthorNoteRole ?? 0,
+      parsed.author_note_embed_state ?? settings.defaultAuthorNoteEmbedState ?? false,
     )
-    if (parsed.author_note !== undefined || parsed.author_note_depth !== undefined) {
+    if (
+      parsed.author_note !== undefined ||
+      parsed.author_note_depth !== undefined ||
+      parsed.author_note_position !== undefined ||
+      parsed.author_note_interval !== undefined ||
+      parsed.author_note_role !== undefined ||
+      parsed.author_note_embed_state !== undefined
+    ) {
       db.updateStoryMeta(id, {
         author_note: parsed.author_note,
         author_note_depth: parsed.author_note_depth,
+        author_note_position: parsed.author_note_position,
+        author_note_interval: parsed.author_note_interval,
+        author_note_role: parsed.author_note_role,
+        author_note_embed_state: parsed.author_note_embed_state,
       })
     }
     if (parsed.turns && parsed.turns.length > 0) {

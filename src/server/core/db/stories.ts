@@ -15,6 +15,10 @@ export interface StoryRow {
   initial_npc_states_json: string | null
   author_note: string
   author_note_depth: number
+  author_note_position: number
+  author_note_interval: number
+  author_note_role: number
+  author_note_embed_state: number
   created_at: string
   updated_at: string
 }
@@ -71,6 +75,10 @@ export function createStory(
   characterId: number | null,
   authorNote: string,
   authorNoteDepth: number,
+  authorNotePosition: number,
+  authorNoteInterval: number,
+  authorNoteRole: number,
+  authorNoteEmbedState: boolean,
 ): number {
   const result = getDb()
     .prepare(
@@ -86,9 +94,13 @@ export function createStory(
         initial_world_state_json,
         initial_npc_states_json,
         author_note,
-        author_note_depth
+        author_note_depth,
+        author_note_position,
+        author_note_interval,
+        author_note_role,
+        author_note_embed_state
       )
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     )
     .run(
       characterId,
@@ -103,6 +115,10 @@ export function createStory(
       JSON.stringify(npcs),
       authorNote,
       authorNoteDepth,
+      authorNotePosition,
+      authorNoteInterval,
+      authorNoteRole,
+      authorNoteEmbedState ? 1 : 0,
     )
   return result.lastInsertRowid as number
 }
@@ -123,6 +139,10 @@ export function updateStoryMeta(
     opening_scenario?: string
     author_note?: string
     author_note_depth?: number
+    author_note_position?: number
+    author_note_interval?: number
+    author_note_role?: number
+    author_note_embed_state?: boolean
     story_modules?: StoryModules
   },
 ): void {
@@ -143,6 +163,22 @@ export function updateStoryMeta(
   if (fields.author_note_depth !== undefined) {
     updates.push("author_note_depth = ?")
     values.push(fields.author_note_depth)
+  }
+  if (fields.author_note_position !== undefined) {
+    updates.push("author_note_position = ?")
+    values.push(fields.author_note_position)
+  }
+  if (fields.author_note_interval !== undefined) {
+    updates.push("author_note_interval = ?")
+    values.push(fields.author_note_interval)
+  }
+  if (fields.author_note_role !== undefined) {
+    updates.push("author_note_role = ?")
+    values.push(fields.author_note_role)
+  }
+  if (fields.author_note_embed_state !== undefined) {
+    updates.push("author_note_embed_state = ?")
+    values.push(fields.author_note_embed_state ? 1 : 0)
   }
   if (fields.story_modules !== undefined) {
     updates.push("story_modules_json = ?")

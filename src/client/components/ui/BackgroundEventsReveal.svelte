@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onDestroy } from "svelte"
-  import InlineTokens from "./InlineTokens.svelte"
+  import RichText from "./RichText.svelte"
+  import { looksLikeBlockHtml } from "../../utils/sanitizeHtml.js"
 
   export let text: string | null | undefined
   export let title = "Background events"
@@ -30,6 +31,7 @@
 
   $: trimmed = typeof text === "string" ? text.trim() : ""
   $: paras = trimmed ? paragraphs(trimmed) : []
+  $: isBlockHtml = trimmed ? looksLikeBlockHtml(trimmed) : false
 </script>
 
 {#if paras.length > 0}
@@ -43,9 +45,13 @@
 
     {#if open}
       <div class="bg-popover" role="region" aria-label={title}>
-        {#each paras as para}
-          <p class="bg-para"><InlineTokens text={para} /></p>
-        {/each}
+        {#if isBlockHtml}
+          <div class="bg-para bg-para--html"><RichText text={trimmed} mode="block" /></div>
+        {:else}
+          {#each paras as para}
+            <p class="bg-para"><RichText text={para} mode="inline" /></p>
+          {/each}
+        {/if}
       </div>
     {/if}
   </div>

@@ -11,7 +11,7 @@ type SendResult = {
 type ContinueResult = {
   ai_message: ChatMessage
   next_speaker_index: number
-}
+} 
 
 type RegenerateResult = {
   ai_message: ChatMessage

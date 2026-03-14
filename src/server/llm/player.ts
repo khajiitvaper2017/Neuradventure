@@ -16,12 +16,20 @@ function sanitizePlayerAction(text: string): string {
 export async function generatePlayerAction(
   character: MainCharacterState,
   world: WorldState,
-  npcs: NPCState[],
+  npcs: NPCState[], 
   recentTurns: TurnRow[],
   actionMode: string,
   initialCharacter?: MainCharacterState,
   ctxLimitOverride?: number,
-  authorNote?: { text: string; depth: number } | null,
+  authorNote?: {
+    text: string
+    depth: number
+    position: number
+    interval: number
+    role: number
+    embedState: boolean
+    enabled: boolean
+  } | null,
   storyModules?: StoryModules,
   options: { onText?: (text: string) => void } = {},
 ): Promise<string> {
