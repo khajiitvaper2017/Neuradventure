@@ -11,7 +11,7 @@ import { dirname, resolve } from "node:path"
 import { WebSocketServer } from "ws"
 import { initDb } from "./core/db.js"
 import { initCtxLimit } from "./llm/index.js"
-import { initFileLogger } from "./utils/file-logger.js"
+import { closeFileLogger, initFileLogger } from "./utils/file-logger.js"
 import stories from "./api/stories.js"
 import turns from "./api/turns.js"
 import generate from "./api/generate.js"
@@ -53,6 +53,86 @@ app.route("/api/prompt-history", promptHistory)
 const PORT = Number.parseInt(process.env.PORT ?? "3001", 10) || 3001
 const HOST = process.env.HOST ?? "0.0.0.0"
 
+let httpServer: ReturnType<typeof createHttpServer> | null = null
+let wss: WebSocketServer | null = null
+let vite: Awaited<ReturnType<(typeof import("vite"))["createServer"]>> | null = null
+let shuttingDown = false
+
+async function shutdown(opts: { reason: string; exitCode: number }): Promise<void> {
+  if (shuttingDown) return
+  shuttingDown = true
+
+  const { reason, exitCode } = opts
+  console.warn(`[server] Shutting down (${reason})`)
+
+  const forceExitTimer = setTimeout(() => {
+    console.error(`[server] Force exiting after shutdown timeout (${reason})`)
+    process.exit(exitCode)
+  }, 2500)
+  forceExitTimer.unref?.()
+
+  const closeWs = async () => {
+    if (!wss) return
+    try {
+      for (const client of wss.clients) client.terminate()
+    } catch {
+      // ignore
+    }
+    await new Promise<void>((resolve) => {
+      try {
+        wss?.close(() => resolve())
+      } catch {
+        resolve()
+      }
+    })
+  }
+
+  const closeHttp = async () => {
+    if (!httpServer) return
+    try {
+      httpServer.closeIdleConnections?.()
+      httpServer.closeAllConnections?.()
+    } catch {
+      // ignore
+    }
+    await new Promise<void>((resolve) => {
+      try {
+        if (!httpServer || !httpServer.listening) {
+          resolve()
+          return
+        }
+        httpServer.close(() => resolve())
+      } catch {
+        resolve()
+      }
+    })
+  }
+
+  const closeVite = async () => {
+    try {
+      await vite?.close()
+    } catch {
+      // ignore
+    } finally {
+      vite = null
+    }
+  }
+
+  try {
+    await closeVite()
+    await closeWs()
+    await closeHttp()
+  } finally {
+    try {
+      closeFileLogger()
+    } catch {
+      // ignore
+    }
+    clearTimeout(forceExitTimer)
+    process.exit(exitCode)
+  }
+}
+
 const logServerStart = () => {
   console.log(`Neuradventure backend running at http://${HOST}:${PORT}`)
   console.log(`API docs: http://localhost:${PORT}/api/stories`)
@@ -66,6 +146,15 @@ const logServerStart = () => {
       console.log(`  http://${ip}:${PORT}`)
     }
   }
+
+  const handleSignal = (signal: string) => {
+    void shutdown({ reason: signal, exitCode: 0 })
+  }
+
+  process.once("SIGINT", handleSignal)
+  process.once("SIGTERM", handleSignal)
+  // Windows-friendly signal used by some process managers.
+  process.once("SIGBREAK", handleSignal)
 }
 
 const startServer = async () => {
@@ -75,8 +164,6 @@ const startServer = async () => {
   if (!isDev) {
     app.use("/*", serveStatic({ root: "./dist" }))
   }
-
-  let vite: Awaited<ReturnType<(typeof import("vite"))["createServer"]>> | null = null
 
   const server = createHttpServer(async (req, res) => {
     const url = req.url ?? "/"
@@ -123,6 +210,7 @@ const startServer = async () => {
 
     await honoListener(req, res)
   })
+  httpServer = server
 
   if (isDev) {
     process.env.NA_VITE_MIDDLEWARE = "1"
@@ -137,7 +225,7 @@ const startServer = async () => {
   // NOTE: Do not attach `ws` directly to the shared HTTP server with `path`,
   // because `ws` will abort *all* non-matching upgrade requests with a 400.
   // That breaks Vite's HMR socket at `/?token=...` when running in dev.
-  const wss = new WebSocketServer({ noServer: true })
+  wss = new WebSocketServer({ noServer: true })
   wss.on("error", (err) => {
     console.error("[ws] Stream server error", err)
   })
@@ -147,15 +235,41 @@ const startServer = async () => {
     const url = req.url ?? ""
     const index = url.indexOf("?")
     const pathname = index === -1 ? url : url.slice(0, index)
-    if (pathname !== "/api/stream") return
+    if (pathname !== "/api/stream") {
+      if (isDev) return
+      try {
+        socket.destroy()
+      } catch {
+        // ignore
+      }
+      return
+    }
 
-    wss.handleUpgrade(req, socket, head, (ws) => {
-      wss.emit("connection", ws, req)
+    const wsServer = wss
+    if (!wsServer) {
+      try {
+        socket.destroy()
+      } catch {
+        // ignore
+      }
+      return
+    }
+
+    wsServer.handleUpgrade(req, socket, head, (ws) => {
+      wsServer.emit("connection", ws, req)
     })
   })
 
   server.on("error", (err) => {
+    const code = err && typeof err === "object" && "code" in err ? String((err as { code?: unknown }).code) : null
+    if (code === "EADDRINUSE") {
+      console.error(`[server] Port already in use: ${HOST}:${PORT}. Another instance is still running.`)
+      void shutdown({ reason: "EADDRINUSE", exitCode: 1 })
+      return
+    }
+
     console.error("[server] HTTP server error", err)
+    void shutdown({ reason: "http-server-error", exitCode: 1 })
   })
 
   server.listen(PORT, HOST, logServerStart)
@@ -163,7 +277,7 @@ const startServer = async () => {
 
 startServer().catch((err) => {
   console.error("Failed to start server", err)
-  process.exit(1)
+  void shutdown({ reason: "startup-failed", exitCode: 1 })
 })
 
-export default app
+export default app 

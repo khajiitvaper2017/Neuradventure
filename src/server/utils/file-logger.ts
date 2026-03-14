@@ -47,3 +47,13 @@ export function initFileLogger(): void {
 
   initialized = true
 }
+
+export function closeFileLogger(): void {
+  try {
+    stream?.end()
+  } catch {
+    // ignore
+  } finally {
+    stream = null
+  }
+}
