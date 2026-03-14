@@ -378,7 +378,6 @@
 <div class="screen home">
   <!-- Brand header -->
   <div class="brand">
-    <span class="brand-flame">🕯</span>
     <h1>Neuradventure</h1>
     <button class="settings-btn" onclick={() => navigate("settings")} aria-label="Settings">
       <IconGear size={17} strokeWidth={1.8} />
