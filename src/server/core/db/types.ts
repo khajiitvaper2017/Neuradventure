@@ -69,6 +69,7 @@ export interface SettingsState {
   textJustify: boolean
   colorScheme: "gold" | "emerald" | "sapphire" | "crimson"
   streamingEnabled: boolean
+  sectionFormat: "xml" | "markdown" | "equals" | "bbcode" | "colon" | "none"
   authorNoteEnabled: boolean
   defaultAuthorNote: string
   defaultAuthorNoteDepth: number

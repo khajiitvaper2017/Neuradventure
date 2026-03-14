@@ -67,6 +67,7 @@ export const DEFAULT_SETTINGS: SettingsState = {
   textJustify: true,
   colorScheme: "gold",
   streamingEnabled: false,
+  sectionFormat: "markdown",
   authorNoteEnabled: true,
   defaultAuthorNote: "Remember the instructions you were given at the beginning of this chat.",
   defaultAuthorNoteDepth: 4,
@@ -122,6 +123,20 @@ function coerceConnector(raw: unknown): LLMConnector {
   }
 }
 
+function coerceSectionFormat(raw: unknown): SettingsState["sectionFormat"] {
+  if (
+    raw === "xml" ||
+    raw === "markdown" ||
+    raw === "equals" ||
+    raw === "bbcode" ||
+    raw === "colon" ||
+    raw === "none"
+  ) {
+    return raw
+  }
+  return DEFAULT_SETTINGS.sectionFormat
+}
+
 export function getSettings(): SettingsState {
   const row = getDb().prepare("SELECT settings_json FROM settings WHERE id = 1").get() as
     | { settings_json: string }
@@ -135,6 +150,7 @@ export function getSettings(): SettingsState {
       storyDefaults: normalizeStoryModules(stored.storyDefaults, DEFAULT_SETTINGS.storyDefaults),
       connector: coerceConnector(stored.connector),
       generation: { ...DEFAULT_SETTINGS.generation, ...(stored.generation ?? {}) },
+      sectionFormat: coerceSectionFormat(stored.sectionFormat),
     }
   } catch {
     return DEFAULT_SETTINGS

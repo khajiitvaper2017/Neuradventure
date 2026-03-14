@@ -14,6 +14,12 @@ export function wrapSection(tag: string, content: string): string {
       return `<${tag}>\n${content}\n</${tag}>`
     case "markdown":
       return `## ${toTitleCase(tag)}\n${content}`
+    case "bbcode":
+      return `[${tag}]\n${content}\n[/${tag}]`
+    case "colon":
+      return `${toTitleCase(tag)}:\n${content}`
+    case "none":
+      return content
     case "equals":
     default:
       return `=== ${tag.toUpperCase().replace(/_/g, " ")} ===\n${content}`

@@ -124,5 +124,5 @@ export function getGenerateChatPrompt(modules?: StoryModules): string {
 }
 
 export function getSectionFormat(): SectionFormat {
-  return getConfig().sectionFormat ?? "equals"
+  return db.getSettings().sectionFormat
 }

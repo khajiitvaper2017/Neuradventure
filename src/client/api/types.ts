@@ -254,6 +254,8 @@ export type OpenRouterConnector = {
 
 export type LLMConnector = KoboldCppConnector | OpenRouterConnector
 
+export type SectionFormat = "xml" | "markdown" | "equals" | "bbcode" | "colon" | "none"
+
 export interface ModelInfo {
   id: string
   name?: string
@@ -267,6 +269,7 @@ export interface AppSettings {
   textJustify: boolean
   colorScheme: "gold" | "emerald" | "sapphire" | "crimson"
   streamingEnabled: boolean
+  sectionFormat: SectionFormat
   authorNoteEnabled: boolean
   defaultAuthorNote: string
   defaultAuthorNoteDepth: number

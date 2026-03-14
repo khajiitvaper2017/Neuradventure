@@ -24,6 +24,16 @@ const PromptConfigKeySchema = z.enum(PROMPT_CONFIG_KEYS as unknown as [PromptCon
 
 const PromptConfigFileSchema = PromptConfigSchema.partial().passthrough()
 
+function stripGlobalPromptKeys(raw: unknown): unknown {
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return raw
+  const obj = raw as Record<string, unknown>
+  if (!("sectionFormat" in obj)) return raw
+  // `sectionFormat` is a global app setting (stored in settings), not a per-prompt template option.
+  const cloned = { ...obj }
+  delete cloned.sectionFormat
+  return cloned
+}
+
 function nowSql(): string {
   // Millisecond-ish resolution for cache invalidation.
   return "strftime('%Y-%m-%dT%H:%M:%fZ','now')"
@@ -50,7 +60,7 @@ export function ensurePromptConfigDefaults(): void {
     try {
       const raw = readPromptConfigFileFromDisk(name)
       const parsed = PromptConfigFileSchema.parse(raw)
-      upsert.run(name, JSON.stringify(parsed))
+      upsert.run(name, JSON.stringify(stripGlobalPromptKeys(parsed)))
     } catch {
       // If a default file is invalid, skip inserting it rather than crashing startup.
     }
@@ -80,7 +90,9 @@ function mergePromptConfigFiles(files: Record<PromptConfigKey, unknown>): Prompt
   for (const name of PROMPT_CONFIG_KEYS) {
     const payload = files[name]
     if (payload && typeof payload === "object" && !Array.isArray(payload)) {
-      Object.assign(merged, payload as Record<string, unknown>)
+      const sanitized = { ...(payload as Record<string, unknown>) }
+      delete sanitized.sectionFormat
+      Object.assign(merged, sanitized)
     }
   }
   return PromptConfigSchema.parse(merged)
@@ -93,13 +105,13 @@ function loadPromptConfigFilesFromDb(): Record<PromptConfigKey, unknown> {
   for (const name of PROMPT_CONFIG_KEYS) {
     const row = get.get(name) as { config_json: string } | undefined
     if (!row) {
-      out[name] = readPromptConfigFileFromDisk(name)
+      out[name] = stripGlobalPromptKeys(readPromptConfigFileFromDisk(name))
       continue
     }
     try {
-      out[name] = JSON.parse(row.config_json) as unknown
+      out[name] = stripGlobalPromptKeys(JSON.parse(row.config_json) as unknown)
     } catch {
-      out[name] = readPromptConfigFileFromDisk(name)
+      out[name] = stripGlobalPromptKeys(readPromptConfigFileFromDisk(name))
     }
   }
   return out
@@ -140,7 +152,7 @@ export function updatePromptConfigFile(nameRaw: string, configJsonText: string):
     const message = error instanceof Error ? error.message : "Invalid JSON"
     throw new Error(message)
   }
-  const nextParsed = PromptConfigFileSchema.parse(nextRaw)
+  const nextParsed = stripGlobalPromptKeys(PromptConfigFileSchema.parse(nextRaw))
 
   const existing = loadPromptConfigFilesFromDb()
   existing[name] = nextParsed
@@ -170,7 +182,7 @@ export function updatePromptConfigFile(nameRaw: string, configJsonText: string):
 export function resetPromptConfigFile(nameRaw: string): PromptConfigFileRow {
   const name = PromptConfigKeySchema.parse(nameRaw)
   const raw = readPromptConfigFileFromDisk(name)
-  const parsed = PromptConfigFileSchema.parse(raw)
+  const parsed = stripGlobalPromptKeys(PromptConfigFileSchema.parse(raw))
   const database = getDb()
   database
     .prepare(
@@ -198,7 +210,7 @@ export function resetAllPromptConfigFiles(): number {
     const disk: Record<PromptConfigKey, unknown> = {} as Record<PromptConfigKey, unknown>
     for (const name of PROMPT_CONFIG_KEYS) {
       const raw = readPromptConfigFileFromDisk(name)
-      disk[name] = PromptConfigFileSchema.parse(raw)
+      disk[name] = stripGlobalPromptKeys(PromptConfigFileSchema.parse(raw))
     }
 
     // Ensure the merged prompt config is valid before writing.

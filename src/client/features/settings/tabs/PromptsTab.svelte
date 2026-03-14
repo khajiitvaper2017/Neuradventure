@@ -1,5 +1,7 @@
 <script lang="ts">
   import { api, type PromptConfigFile } from "../../../api/client.js"
+  import Select from "../../../components/ui/Select.svelte"
+  import { sectionFormat } from "../../../stores/settings.js"
 
   type Props = {
     active?: boolean
@@ -15,6 +17,15 @@
     "npc-creation": "NPC Creation",
     "player-impersonation": "Player Impersonation",
   }
+
+  const SECTION_FORMAT_OPTIONS = [
+    { value: "markdown", label: "Markdown — ## Section" },
+    { value: "xml", label: "XML — <section>…</section>" },
+    { value: "equals", label: "Equals — === SECTION ===" },
+    { value: "bbcode", label: "BBCode — [section]…[/section]" },
+    { value: "colon", label: "Colon — Section:" },
+    { value: "none", label: "None — no wrappers" },
+  ]
 
   let promptFiles = $state<PromptConfigFile[]>([])
   let promptSelected = $state<PromptConfigFile["name"]>("narrative-turn")
@@ -159,6 +170,23 @@
     if (!promptDirty) promptDraft = row.config_json
   })
 </script>
+
+<div class="control-section-label">Prompt Formatting</div>
+
+<div class="prompt-hint">
+  Controls how context sections are wrapped in prompts sent to the model. Does not change the required JSON output
+  format.
+</div>
+
+<label class="control-row control-row--input">
+  <span class="control-row-text">
+    <span class="control-row-title">Section wrapper format</span>
+    <span class="control-row-sub">Global setting (applies to all prompts)</span>
+  </span>
+  <Select bind:value={$sectionFormat} options={SECTION_FORMAT_OPTIONS} ariaLabel="Section wrapper format" />
+</label>
+
+<div class="divider"></div>
 
 <div class="control-section-label">Prompt Templates</div>
 

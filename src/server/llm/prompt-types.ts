@@ -1,6 +1,6 @@
 import { z } from "zod"
 
-export type SectionFormat = "xml" | "markdown" | "equals"
+export type SectionFormat = "xml" | "markdown" | "equals" | "bbcode" | "colon" | "none"
 
 export const PromptModuleBlockSchema = z
   .object({
@@ -37,7 +37,7 @@ export const ModularPromptSchema = z
   })
   .passthrough()
 
-export const SectionFormatSchema = z.enum(["xml", "markdown", "equals"])
+export const SectionFormatSchema = z.enum(["xml", "markdown", "equals", "bbcode", "colon", "none"])
 
 export const PromptConfigSchema = z
   .object({
