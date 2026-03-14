@@ -13,6 +13,7 @@ export type LlmLogEntry = {
   request_name: string
   schema_name?: string
   schema?: object
+  request?: Record<string, unknown>
   messages: OpenAI.ChatCompletionMessageParam[]
   sampling: Record<string, unknown>
   stop?: string[]
@@ -28,6 +29,7 @@ export type LlmLogEntry = {
 
 const llmLogPath = join(LOG_DIR, "llm.log")
 const llmLastPath = join(LOG_DIR, "llm-last.json")
+const llmLastRequestPath = join(LOG_DIR, "llm-last-request.json")
 
 function safeFilePart(raw: string): string {
   const trimmed = raw.trim()
@@ -35,6 +37,8 @@ function safeFilePart(raw: string): string {
   const safe = trimmed.replace(/[^a-zA-Z0-9_-]+/g, "_")
   return safe.length > 120 ? safe.slice(0, 120) : safe
 }
+
+type LastRequestLog = Pick<LlmLogEntry, "id" | "timestamp" | "mode" | "request_name" | "schema_name" | "request">
 
 async function writeEntry(entry: LlmLogEntry): Promise<void> {
   await mkdir(LOG_DIR, { recursive: true })
@@ -44,6 +48,20 @@ async function writeEntry(entry: LlmLogEntry): Promise<void> {
   const requestName = safeFilePart(entry.request_name || entry.schema_name || entry.mode)
   const byRequestPath = join(LOG_DIR, `llm-last-${requestName}.json`)
   await writeFile(byRequestPath, JSON.stringify(entry, null, 2))
+
+  if (entry.request) {
+    const requestEntry: LastRequestLog = {
+      id: entry.id,
+      timestamp: entry.timestamp,
+      mode: entry.mode,
+      request_name: entry.request_name,
+      schema_name: entry.schema_name,
+      request: entry.request,
+    }
+    await writeFile(llmLastRequestPath, JSON.stringify(requestEntry, null, 2))
+    const byRequestRequestPath = join(LOG_DIR, `llm-last-request-${requestName}.json`)
+    await writeFile(byRequestRequestPath, JSON.stringify(requestEntry, null, 2))
+  }
 }
 
 export function logLlmEntry(entry: LlmLogEntry): void {

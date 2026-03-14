@@ -21,8 +21,8 @@ export function buildJsonSchemaResponseFormat(
     json_schema: {
       name: schemaName,
       ...(options.description ? { description: options.description } : {}),
-      schema: derefJsonSchema(schema),
       ...(options.strict ? { strict: true } : {}),
+      schema: derefJsonSchema(schema),
     },
   }
 }

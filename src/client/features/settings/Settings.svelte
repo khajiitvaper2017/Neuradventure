@@ -99,6 +99,8 @@
   let modelSearchLoading = $state(false)
   let modelSearchError = $state<string | null>(null)
   let modelSearchResults = $state<ModelInfo[]>([])
+  let modelSearchOnlyFree = $state(false)
+  let modelSearchOnlyJsonSchema = $state(false)
   let authorNoteDraft = $state($defaultAuthorNote)
   let authorNoteDepthDraft = $state($defaultAuthorNoteDepth)
   let samplerOrderDraft = $state(formatSamplerOrder($generation.sampler_order))
@@ -227,6 +229,57 @@
     }
   }
 
+  function isFreeModel(model: ModelInfo): boolean {
+    const id = model.id.trim().toLowerCase()
+    if (!id) return false
+    if (id.endsWith("/free")) return true
+    if (id.endsWith(":free")) return true
+    const name = (model.name ?? "").trim().toLowerCase()
+    if (name.endsWith("free")) return true
+    if (name.includes("(free)")) return true
+    return false
+  }
+
+  function supportsJsonSchema(model: ModelInfo): boolean {
+    return Array.isArray(model.supported_parameters) && model.supported_parameters.includes("structured_outputs")
+  }
+
+  function filterModelResults(models: ModelInfo[]): ModelInfo[] {
+    let out = models
+    if (modelSearchOnlyFree) out = out.filter(isFreeModel)
+    if (modelSearchOnlyJsonSchema) out = out.filter(supportsJsonSchema)
+    return out
+  }
+
+  function findModelInfoById(models: ModelInfo[], id: string): ModelInfo | null {
+    const trimmed = id.trim()
+    if (!trimmed) return null
+    return models.find((m) => m.id === trimmed) ?? null
+  }
+
+  function formatModelLabel(model: ModelInfo, extraTags: string[] = []): string {
+    const parts: string[] = []
+
+    const name = (model.name ?? model.id).trim()
+    parts.push(name)
+
+    const ctx =
+      typeof model.context_length === "number" && Number.isFinite(model.context_length) ? model.context_length : null
+    if (ctx) parts.push(`${ctx.toLocaleString()} ctx`)
+
+
+    const tags: string[] = []
+    if (isFreeModel(model)) tags.push("free")
+    if (supportsJsonSchema(model)) tags.push("json_schema")
+    else if (Array.isArray(model.supported_parameters) && model.supported_parameters.includes("response_format"))
+      tags.push("json_object")
+
+    tags.push(...extraTags.filter((t) => t.trim().length > 0))
+    if (tags.length > 0) parts.push(tags.join(", "))
+
+    return parts.join(" · ")
+  }
+
   function buildModelSelectOptions(models: ModelInfo[], currentModel: string) {
     const out: Array<{ value: string; label: string }> = []
     const seen = new Set<string>()
@@ -235,13 +288,25 @@
       seen.add(id)
       out.push({ value: id, label })
     }
-    if (currentModel) push(currentModel, currentModel)
-    for (const pinned of OPENROUTER_PINNED_MODELS) push(pinned.id, pinned.label)
+    if (currentModel) {
+      const info = findModelInfoById(models, currentModel)
+      push(currentModel, info ? formatModelLabel(info) : currentModel)
+    }
+    for (const pinned of OPENROUTER_PINNED_MODELS) {
+      const pinnedTag =
+        pinned.id === OPENROUTER_DEFAULT_MODEL ? "default" : pinned.id === "openrouter/auto" ? "auto" : ""
+      const info = findModelInfoById(models, pinned.id)
+      const label = info ? formatModelLabel(info, pinnedTag ? [pinnedTag] : []) : pinned.label
+      if (!modelSearchOnlyFree && !modelSearchOnlyJsonSchema) {
+        push(pinned.id, label)
+        continue
+      }
+      if (info && filterModelResults([info]).length > 0) push(pinned.id, label)
+    }
     for (const m of models) {
       const id = m.id
       if (!id) continue
-      const ctx = typeof m.context_length === "number" && Number.isFinite(m.context_length) ? m.context_length : null
-      push(id, ctx ? `${id} · ${ctx.toLocaleString()} ctx` : id)
+      push(id, formatModelLabel(m))
     }
     return out
   }
@@ -1194,11 +1259,27 @@
             </button>
           </div>
 
+          <div class="model-filters">
+            <label class="filter-toggle">
+              <input type="checkbox" bind:checked={modelSearchOnlyFree} />
+              <span>Free only</span>
+            </label>
+            <label class="filter-toggle">
+              <input type="checkbox" bind:checked={modelSearchOnlyJsonSchema} />
+              <span>JSON Schema only</span>
+            </label>
+            {#if modelSearchResults.length > 0 && (modelSearchOnlyFree || modelSearchOnlyJsonSchema)}
+              <div class="filter-summary">
+                Showing {filterModelResults(modelSearchResults).length} / {modelSearchResults.length}
+              </div>
+            {/if}
+          </div>
+
           <Select
             value={$connector.model}
             width="100%"
             placeholder={modelSearchResults.length ? "Select model…" : "No results yet"}
-            options={buildModelSelectOptions(modelSearchResults, $connector.model)}
+            options={buildModelSelectOptions(filterModelResults(modelSearchResults), $connector.model)}
             ariaLabel="OpenRouter model"
             onChange={(v) => pickOpenRouterModel(String(v))}
           />
@@ -1842,6 +1923,34 @@
   .model-search .text-input {
     flex: 1;
     min-width: 0;
+  }
+
+  .model-filters {
+    display: flex;
+    gap: 0.75rem;
+    align-items: center;
+    flex-wrap: wrap;
+  }
+  .filter-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    font-family: var(--font-ui);
+    font-size: 0.82rem;
+    color: var(--text);
+    user-select: none;
+    cursor: pointer;
+  }
+  .filter-toggle input {
+    width: 1rem;
+    height: 1rem;
+    accent-color: var(--accent);
+  }
+  .filter-summary {
+    margin-left: auto;
+    font-family: var(--font-ui);
+    font-size: 0.78rem;
+    color: var(--text-dim);
   }
   .model-id-input {
     font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;

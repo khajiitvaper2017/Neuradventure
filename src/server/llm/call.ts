@@ -165,9 +165,6 @@ function describeResponseShape(value: unknown): string {
 }
 
 function maybeLogOpenRouterResolvedModel(requestedModel: string, res: unknown): void {
-  const normalized = requestedModel.trim().toLowerCase()
-  if (normalized !== "openrouter/auto" && normalized !== "openrouter/free") return
-
   const root = asRecord(res)
   const model = root?.model
   const resolvedModel = typeof model === "string" && model.trim() ? model.trim() : null
@@ -181,10 +178,21 @@ function maybeLogOpenRouterResolvedModel(requestedModel: string, res: unknown): 
     (providerObj && typeof providerObj.id === "string" && providerObj.id.trim() ? providerObj.id.trim() : null) ||
     null
 
-  if (!resolvedModel && !providerName) return
+  const shouldLog =
+    (resolvedModel && resolvedModel !== requestedModel.trim()) || (providerName && providerName !== "") || false
+  if (!shouldLog) return
   console.info(
     `[llm-openrouter] requested_model=${requestedModel}${resolvedModel ? ` resolved_model=${resolvedModel}` : ""}${providerName ? ` provider=${providerName}` : ""}`,
   )
+}
+
+function maybeLogOpenRouterSupportedParametersForSelection(
+  model: string,
+  request: Record<string, unknown>,
+  schemaName: string,
+  supportedParams: string[] | null,
+): void {
+  console.info(formatOpenRouterRoutingDiagnostics(request, schemaName, model, supportedParams))
 }
 
 function formatOpenRouterRoutingDiagnostics(
@@ -211,6 +219,10 @@ function formatOpenRouterRoutingDiagnostics(
   const supportedParamSet = supportedParams && supportedParams.length > 0 ? new Set(supportedParams) : null
   const supportsStructuredOutputs = supportedParamSet ? supportedParamSet.has("structured_outputs") : null
   const supportsResponseFormat = supportedParamSet ? supportedParamSet.has("response_format") : null
+  const supportedResponseFormats: string[] = []
+  if (supportsResponseFormat === true) supportedResponseFormats.push("json_object")
+  if (supportsResponseFormat === true && supportsStructuredOutputs === true)
+    supportedResponseFormats.push("json_schema")
 
   const samplingKeys = [
     "max_completion_tokens",
@@ -254,6 +266,16 @@ function formatOpenRouterRoutingDiagnostics(
   if (samplingParts.length > 0) parts.push(`[openrouter-routing] sampling=${samplingParts.join(", ")}`)
   if (supportedParams && supportedParams.length > 0) {
     parts.push(`[openrouter-routing] model_supported_parameters=${supportedParams.join(", ")}`)
+    parts.push(
+      `[openrouter-routing] supports_response_format=${String(supportsResponseFormat)} supports_structured_outputs=${String(
+        supportsStructuredOutputs,
+      )}`,
+    )
+    parts.push(
+      `[openrouter-routing] supported_response_formats=${
+        supportedResponseFormats.length > 0 ? supportedResponseFormats.join(", ") : "(none)"
+      }`,
+    )
   }
   if (notSupported.length > 0) {
     // Note: OpenRouter routing options like `provider` are not part of model supported_parameters.
@@ -419,6 +441,7 @@ export async function callLLMRaw<TSchema extends z.ZodTypeAny>(
   const logBase = createLlmLogBase("json", schemaName, messages, sampling, schemaName, undefined, jsonSchema)
   let responseContent: string | undefined
   let parsedCandidate: unknown | undefined
+  let requestPayload: Record<string, unknown> | undefined
 
   const model = connector.type === "openrouter" ? connector.model : "local"
 
@@ -427,10 +450,6 @@ export async function callLLMRaw<TSchema extends z.ZodTypeAny>(
       TurnResponse: "Game turn response with narrative text and state updates",
       NPCCreation: "NPC character creation data",
     }
-
-    // Check if structured outputs are supported (for response_format)
-    const shouldUseStructuredOutputs =
-      connector.type !== "openrouter" || supportedParams?.includes("structured_outputs")
 
     const responseFormat = buildJsonSchemaResponseFormat(schemaName, jsonSchema, {
       // Always request strict mode; some backends may ignore it, but providers that
@@ -459,20 +478,17 @@ export async function callLLMRaw<TSchema extends z.ZodTypeAny>(
             grammar_lazy: boolean
             grammar_triggers: unknown[]
           })
-        : connector.type === "openrouter"
-          ? shouldUseStructuredOutputs
-            ? ({
-                ...baseReq,
-                response_format: responseFormat,
-              } as OpenAI.ChatCompletionCreateParams)
-            : (baseReq as OpenAI.ChatCompletionCreateParams)
-          : ({
-              ...baseReq,
-              response_format: responseFormat,
-            } as OpenAI.ChatCompletionCreateParams)
+        : ({
+            ...baseReq,
+            response_format: responseFormat,
+          } as OpenAI.ChatCompletionCreateParams)
 
     let res: unknown
     try {
+      requestPayload = initialReq as unknown as Record<string, unknown>
+      if (connector.type === "openrouter") {
+        maybeLogOpenRouterSupportedParametersForSelection(model, requestPayload, schemaName, supportedParams)
+      }
       res = await getClient().chat.completions.create(initialReq)
     } catch (err) {
       const msg = String(err)
@@ -506,6 +522,7 @@ export async function callLLMRaw<TSchema extends z.ZodTypeAny>(
         // KoboldCpp should still honor `json_schema` via grammar conversion.
         const fallbackReq = { ...initialReq }
         delete (fallbackReq as unknown as Record<string, unknown>).response_format
+        requestPayload = fallbackReq as unknown as Record<string, unknown>
         res = await getClient().chat.completions.create(fallbackReq as OpenAI.ChatCompletionCreateParams)
       } else {
         throw err
@@ -530,6 +547,7 @@ export async function callLLMRaw<TSchema extends z.ZodTypeAny>(
     const parsed = validated.data
     logLlmEntry({
       ...logBase,
+      request: requestPayload,
       response: {
         content: responseContent,
         parsed,
@@ -540,6 +558,7 @@ export async function callLLMRaw<TSchema extends z.ZodTypeAny>(
     const message = err instanceof Error ? err.message : "Unknown error"
     logLlmEntry({
       ...logBase,
+      request: requestPayload,
       response: responseContent
         ? { content: responseContent, ...(parsedCandidate !== undefined ? { parsed: parsedCandidate } : {}) }
         : parsedCandidate !== undefined
@@ -570,14 +589,17 @@ export async function callLLMText(
   const requestName = options.requestName?.trim() || "Text"
   const logBase = createLlmLogBase("text", requestName, messages, sampling, undefined, stop)
   let responseContent: string | undefined
+  let requestPayload: Record<string, unknown> | undefined
 
   try {
-    const res = await getClient().chat.completions.create({
+    const req: OpenAI.ChatCompletionCreateParams = {
       model: connector.type === "openrouter" ? connector.model : "local",
       messages,
       ...sampling,
       stop,
-    })
+    }
+    requestPayload = req as unknown as Record<string, unknown>
+    const res = await getClient().chat.completions.create(req)
 
     const shape = describeResponseShape(res)
     responseContent = (await extractContentFromUnknown(res)) ?? undefined
@@ -585,6 +607,7 @@ export async function callLLMText(
     if (!responseContent) throw new Error(`LLM returned empty response. Shape: ${shape}`)
     logLlmEntry({
       ...logBase,
+      request: requestPayload,
       response: { content: responseContent },
     })
     return responseContent
@@ -592,6 +615,7 @@ export async function callLLMText(
     const message = err instanceof Error ? err.message : "Unknown error"
     logLlmEntry({
       ...logBase,
+      request: requestPayload,
       response: responseContent ? { content: responseContent } : undefined,
       error: err instanceof Error ? { message, stack: err.stack } : { message },
     })
