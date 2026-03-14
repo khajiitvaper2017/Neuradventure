@@ -11,6 +11,7 @@ import { createLlmLogBase, logLlmEntry } from "./logging.js"
 import { getClient, getConnector, getGenerationParams, getCachedSupportedParameters } from "./client.js"
 import { injectSchemaDescriptions } from "./inject-schema-descriptions.js"
 import { createStructuredPreviewExtractor } from "./structured-preview.js"
+import { injectOutputSchemaIntoMessages } from "./schema-in-prompt.js"
 
 function isAsyncIterable(value: unknown): value is AsyncIterable<unknown> {
   if (!value || typeof value !== "object") return false
@@ -432,6 +433,53 @@ function shouldRetryWithoutStream(err: unknown): boolean {
   return /(unknown|unrecognized|unsupported|unexpected|additional property|not allowed|invalid)/i.test(msg)
 }
 
+function shouldFallbackFromJsonSchema(err: unknown): boolean {
+  const msg = err instanceof Error ? err.message : String(err)
+  if (!msg) return false
+  return /(json_schema|structured|strict|response_format)/i.test(msg)
+}
+
+function shouldDropResponseFormat(err: unknown): boolean {
+  const msg = err instanceof Error ? err.message : String(err)
+  if (!msg) return false
+  return /(response_format|unknown parameter|unrecognized|unsupported|additional property|not allowed|invalid)/i.test(
+    msg,
+  )
+}
+
+function extractOpenRouterNoEndpointMessage(err: unknown): string | null {
+  if (!(err instanceof OpenAI.NotFoundError)) return null
+  if (typeof err.error !== "object" || err.error === null) return null
+  const errObj = err.error as Record<string, unknown>
+  const errMessage = typeof errObj.message === "string" ? errObj.message : ""
+  if (!errMessage.includes("No endpoints found that can handle the requested parameters")) return null
+  return errMessage
+}
+
+function shortErrorForLog(err: unknown, limit = 260): string {
+  const raw = err instanceof Error ? err.message : String(err)
+  const singleLine = raw.replace(/\s+/g, " ").trim()
+  if (!singleLine) return "(unknown)"
+  return singleLine.length > limit ? `${singleLine.slice(0, limit)}...` : singleLine
+}
+
+function logOpenRouterJsonObjectFallback(
+  schemaName: string,
+  model: string,
+  reason: string,
+  details?: Record<string, unknown>,
+): void {
+  const parts: string[] = []
+  parts.push(`[llm-openrouter] fallback=json_object schema=${schemaName} model=${model} reason=${reason}`)
+  if (details) {
+    for (const [k, v] of Object.entries(details)) {
+      if (v === undefined) continue
+      parts.push(`[llm-openrouter] ${k}=${String(v)}`)
+    }
+  }
+  console.info(parts.join("\n"))
+}
+
 export async function callLLM(
   messages: OpenAI.ChatCompletionMessageParam[],
   knownNpcs: NPCState[] = [],
@@ -508,6 +556,9 @@ export async function callLLMRaw<TSchema extends z.ZodTypeAny>(
   let requestPayload: Record<string, unknown> | undefined
 
   const model = connector.type === "openrouter" ? connector.model : "local"
+  const supportedParamSet = supportedParams && supportedParams.length > 0 ? new Set(supportedParams) : null
+  const supportsResponseFormat = supportedParamSet ? supportedParamSet.has("response_format") : null
+  const supportsStructuredOutputs = supportedParamSet ? supportedParamSet.has("structured_outputs") : null
   const shouldStream = typeof options.onPreviewPatch === "function"
   const previewKeys =
     options.previewKeys ??
@@ -546,11 +597,36 @@ export async function callLLMRaw<TSchema extends z.ZodTypeAny>(
       strict: true,
       description: schemaDescriptions[schemaName],
     }) as OpenAI.ResponseFormatJSONSchema
+
     const baseReq: OpenAI.ChatCompletionCreateParams = {
       model,
       messages,
       ...sampling,
       stream: shouldStream,
+    }
+
+    type OpenRouterMode = "json_schema" | "json_object" | "none"
+    const buildOpenRouterReq = (mode: OpenRouterMode): OpenAI.ChatCompletionCreateParams => {
+      const nextMessages =
+        mode === "json_schema" ? messages : injectOutputSchemaIntoMessages(messages, schemaName, jsonSchema)
+      const req: OpenAI.ChatCompletionCreateParams = { ...baseReq, messages: nextMessages }
+      if (mode === "json_schema") {
+        req.response_format = responseFormat
+      } else if (mode === "json_object") {
+        req.response_format = { type: "json_object" } as OpenAI.ResponseFormatJSONObject
+      }
+      return req
+    }
+
+    let openRouterMode: OpenRouterMode = "json_schema"
+    if (connector.type === "openrouter" && supportsStructuredOutputs === false) {
+      openRouterMode = supportsResponseFormat === false ? "none" : "json_object"
+    }
+    if (connector.type === "openrouter" && openRouterMode === "json_object") {
+      logOpenRouterJsonObjectFallback(schemaName, model, "model_lacks_structured_outputs", {
+        supports_response_format: supportsResponseFormat,
+        supports_structured_outputs: supportsStructuredOutputs,
+      })
     }
 
     const initialReq =
@@ -567,10 +643,12 @@ export async function callLLMRaw<TSchema extends z.ZodTypeAny>(
             grammar_lazy: boolean
             grammar_triggers: unknown[]
           })
-        : ({
-            ...baseReq,
-            response_format: responseFormat,
-          } as OpenAI.ChatCompletionCreateParams)
+        : connector.type === "openrouter"
+          ? buildOpenRouterReq(openRouterMode)
+          : ({
+              ...baseReq,
+              response_format: responseFormat,
+            } as OpenAI.ChatCompletionCreateParams)
 
     let res: unknown
     try {
@@ -581,28 +659,70 @@ export async function callLLMRaw<TSchema extends z.ZodTypeAny>(
       res = await getClient().chat.completions.create(initialReq)
     } catch (err) {
       const msg = String(err)
+
+      const openRouterNoEndpointMessage =
+        connector.type === "openrouter" ? extractOpenRouterNoEndpointMessage(err) : null
       if (
         connector.type === "openrouter" &&
-        err instanceof OpenAI.NotFoundError &&
-        typeof err.error === "object" &&
-        err.error !== null
+        openRouterMode === "json_schema" &&
+        (shouldFallbackFromJsonSchema(err) || !!openRouterNoEndpointMessage)
       ) {
-        const errObj = err.error as Record<string, unknown>
-        const errMessage = typeof errObj.message === "string" ? errObj.message : ""
-        if (!errMessage.includes("No endpoints found that can handle the requested parameters")) {
-          throw err
+        const fallbackMode: OpenRouterMode = supportsResponseFormat === false ? "none" : "json_object"
+        try {
+          if (fallbackMode === "json_object") {
+            logOpenRouterJsonObjectFallback(schemaName, model, "request_rejected_json_schema", {
+              error: shortErrorForLog(err),
+              supports_response_format: supportsResponseFormat,
+              supports_structured_outputs: supportsStructuredOutputs,
+            })
+          }
+          const fallbackReq = buildOpenRouterReq(fallbackMode)
+          requestPayload = fallbackReq as unknown as Record<string, unknown>
+          openRouterMode = fallbackMode
+          res = await getClient().chat.completions.create(fallbackReq)
+        } catch (err2) {
+          if (fallbackMode === "json_object" && shouldDropResponseFormat(err2)) {
+            console.info(
+              `[llm-openrouter] fallback=drop_response_format_after_json_object schema=${schemaName} model=${model} error=${shortErrorForLog(err2)}`,
+            )
+            const fallbackReq2 = buildOpenRouterReq("none")
+            requestPayload = fallbackReq2 as unknown as Record<string, unknown>
+            openRouterMode = "none"
+            res = await getClient().chat.completions.create(fallbackReq2)
+          } else if (openRouterNoEndpointMessage) {
+            const diagnostics = formatOpenRouterRoutingDiagnostics(
+              initialReq as unknown as Record<string, unknown>,
+              schemaName,
+              model,
+              supportedParams,
+            )
+            throw new Error(`OpenRouter routing failed (404): ${openRouterNoEndpointMessage}\n${diagnostics}`, {
+              cause: err2,
+            })
+          } else {
+            throw err2
+          }
         }
+      } else if (connector.type === "openrouter" && openRouterMode === "json_object" && shouldDropResponseFormat(err)) {
+        console.info(
+          `[llm-openrouter] fallback=drop_response_format_after_json_object schema=${schemaName} model=${model} error=${shortErrorForLog(err)}`,
+        )
+        const fallbackReq = buildOpenRouterReq("none")
+        requestPayload = fallbackReq as unknown as Record<string, unknown>
+        openRouterMode = "none"
+        res = await getClient().chat.completions.create(fallbackReq)
+      } else if (openRouterNoEndpointMessage) {
         const diagnostics = formatOpenRouterRoutingDiagnostics(
           initialReq as unknown as Record<string, unknown>,
           schemaName,
           model,
           supportedParams,
         )
-        const orMessage = String(errMessage)
-        throw new Error(`OpenRouter routing failed (404): ${orMessage}\n${diagnostics}`, {
+        throw new Error(`OpenRouter routing failed (404): ${openRouterNoEndpointMessage}\n${diagnostics}`, {
           cause: err,
         })
       }
+
       if (
         connector.type === "koboldcpp" &&
         (msg.includes("response_format") || msg.includes("json_schema") || msg.includes("strict"))
