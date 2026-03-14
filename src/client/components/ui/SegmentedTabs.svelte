@@ -3,6 +3,7 @@
     value: T
     label: string
     disabled?: boolean
+    badge?: string | number
   }
 
   export let tabs: Array<TabDef<any>> = []
@@ -10,6 +11,10 @@
   export let ariaLabel: string | undefined = undefined
   export let disabled = false
   export let onChange: ((next: string) => void) | undefined = undefined
+  export let className: string = ""
+  export let variant: "default" | "nav" = "default"
+  export let wrap = false
+  export let stretch = false
 
   let buttons: Array<HTMLButtonElement | null> = []
 
@@ -79,7 +84,10 @@
 </script>
 
 <div
-  class="seg-tabs"
+  class="mode-group seg-tabs {className}"
+  class:seg-tabs--nav={variant === "nav"}
+  class:seg-tabs--wrap={wrap}
+  class:seg-tabs--stretch={stretch}
   role="tablist"
   aria-label={ariaLabel}
   aria-disabled={disabled}
@@ -89,8 +97,8 @@
   {#each tabs as t, idx (t.value)}
     <button
       type="button"
-      class="seg-tabs__tab"
-      class:seg-tabs__tab--active={t.value === value}
+      class="mode-pill seg-tabs__tab"
+      class:active={t.value === value}
       disabled={disabled || !!t.disabled}
       role="tab"
       aria-selected={t.value === value}
@@ -99,7 +107,10 @@
       onclick={() => pick(t.value)}
       onkeydown={(e) => onTabKeydown(e, idx)}
     >
-      {t.label}
+      <span class="seg-tabs__label">{t.label}</span>
+      {#if t.badge !== undefined}
+        <span class="seg-tabs__badge">{t.badge}</span>
+      {/if}
     </button>
   {/each}
 </div>
@@ -109,14 +120,9 @@
     position: relative;
     display: grid;
     grid-template-columns: repeat(var(--seg-count), minmax(0, 1fr));
-    gap: 0;
-    padding: 0.25rem;
-    background: rgba(255, 255, 255, 0.03);
-    border: 1px solid var(--border);
-    border-radius: 999px;
-    overflow: hidden;
-    flex-shrink: 0;
-    box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.12) inset;
+    gap: 0.25rem;
+    padding: 0.2rem 0.25rem;
+    max-width: 100%;
   }
 
   .seg-tabs__indicator {
@@ -124,42 +130,53 @@
     inset: 0;
     width: calc(100% / var(--seg-count));
     transform: translateX(calc(var(--seg-index) * 100%));
+    margin: 0.2rem;
     border-radius: 999px;
-    background:
-      radial-gradient(120% 120% at 30% 30%, rgba(255, 255, 255, 0.07), transparent 60%),
-      linear-gradient(180deg, rgba(255, 255, 255, 0.05), rgba(0, 0, 0, 0.12));
-    border: 1px solid rgba(255, 255, 255, 0.06);
+    background: color-mix(in srgb, var(--accent) 12%, transparent);
+    border: 1px solid color-mix(in srgb, var(--accent) 24%, var(--border));
     box-shadow:
-      0 10px 22px rgba(0, 0, 0, 0.35),
-      0 0 0 3px var(--accent-dim);
+      0 10px 20px rgba(0, 0, 0, 0.28),
+      0 0 0 2px color-mix(in srgb, var(--accent) 12%, transparent);
     transition: transform 220ms var(--ease-out);
     pointer-events: none;
-    margin: 0.25rem;
   }
 
   .seg-tabs__tab {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.45rem;
+    white-space: nowrap;
+    border: 1px solid transparent;
     position: relative;
     z-index: 1;
-    border: none;
-    background: none;
-    color: var(--text-dim);
-    font-family: var(--font-ui);
-    font-size: 0.82rem;
-    font-weight: 600;
-    padding: 0.55rem 0.7rem;
-    letter-spacing: 0.02em;
-    cursor: pointer;
-    border-radius: 999px;
-    transition:
-      color 140ms var(--ease-out),
-      opacity 140ms var(--ease-out);
   }
 
-  .seg-tabs__tab:hover:not(:disabled) {
+  .seg-tabs__label {
+    min-width: 0;
+  }
+
+  .seg-tabs__badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 1.4rem;
+    height: 1.15rem;
+    padding: 0 0.35rem;
+    border-radius: var(--radius-pill);
+    font-size: 0.7rem;
+    letter-spacing: 0.02em;
+    color: var(--text-action);
+    border: 1px solid var(--border);
+    background: var(--bg-action);
+  }
+
+  .seg-tabs__tab.active {
+    background: none;
     color: var(--text);
   }
 
-  .seg-tabs__tab--active {
+  .seg-tabs--nav .seg-tabs__tab.active {
     color: var(--accent);
   }
 
@@ -170,8 +187,33 @@
       0 0 0 4px var(--focus-ring);
   }
 
-  .seg-tabs__tab:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
+  .seg-tabs--wrap {
+    display: flex;
+    flex-wrap: wrap;
+  }
+
+  .seg-tabs--wrap .seg-tabs__indicator {
+    display: none;
+  }
+
+  .seg-tabs--wrap .seg-tabs__tab.active {
+    background: color-mix(in srgb, var(--accent) 10%, var(--bg-action));
+    border-color: color-mix(in srgb, var(--accent) 26%, var(--border));
+  }
+
+  .seg-tabs--stretch {
+    width: 100%;
+  }
+  .seg-tabs--stretch .seg-tabs__tab {
+    flex: 1;
+  }
+
+  .seg-tabs--nav .seg-tabs__tab {
+    font-size: 0.78rem;
+    letter-spacing: 0.08em;
+    padding: 0.35rem 0.75rem;
+    min-height: 34px;
+    white-space: normal;
+    text-align: center;
   }
 </style>

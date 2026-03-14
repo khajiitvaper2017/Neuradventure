@@ -15,6 +15,7 @@
   import IconPlus from "../../components/icons/IconPlus.svelte"
   import IconUsers from "../../components/icons/IconUsers.svelte"
   import Select from "../../components/ui/Select.svelte"
+  import SegmentedTabs from "../../components/ui/SegmentedTabs.svelte"
   import {
     resetActiveStory,
     resetGame,
@@ -52,6 +53,12 @@
   const sortOptions = [
     { value: "recent", label: "Recent" },
     { value: "az", label: "A–Z" },
+  ]
+
+  $: sectionTabs = [
+    { value: "stories" as const, label: "Stories", badge: stories.length },
+    { value: "chats" as const, label: "Chats", badge: chats.length },
+    { value: "characters" as const, label: "Characters", badge: storyCharacters.length },
   ]
 
   onMount(() => {
@@ -397,32 +404,13 @@
   <div class="home-scroll" data-scroll-root="screen" bind:this={homeScroll}>
     <section class="lib-shell lib-shell--footer-safe" aria-label="Library">
       <div class="lib-toolbar">
-        <div class="mode-group lib-tabs" role="tablist" aria-label="Library section">
-          <button
-            class="mode-pill {section === 'stories' ? 'active' : ''}"
-            role="tab"
-            aria-selected={section === "stories"}
-            onclick={() => setSection("stories")}
-          >
-            Stories <span class="lib-count">{stories.length}</span>
-          </button>
-          <button
-            class="mode-pill {section === 'chats' ? 'active' : ''}"
-            role="tab"
-            aria-selected={section === "chats"}
-            onclick={() => setSection("chats")}
-          >
-            Chats <span class="lib-count">{chats.length}</span>
-          </button>
-          <button
-            class="mode-pill {section === 'characters' ? 'active' : ''}"
-            role="tab"
-            aria-selected={section === "characters"}
-            onclick={() => setSection("characters")}
-          >
-            Characters <span class="lib-count">{storyCharacters.length}</span>
-          </button>
-        </div>
+        <SegmentedTabs
+          ariaLabel="Library section"
+          tabs={sectionTabs}
+          value={section}
+          onChange={(next) => setSection(next as LibrarySection)}
+          className="lib-tabs"
+        />
 
         <div class="lib-controls">
           <label class="lib-search">

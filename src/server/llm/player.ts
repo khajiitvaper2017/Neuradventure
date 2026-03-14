@@ -16,7 +16,7 @@ function sanitizePlayerAction(text: string): string {
 export async function generatePlayerAction(
   character: MainCharacterState,
   world: WorldState,
-  npcs: NPCState[], 
+  npcs: NPCState[],
   recentTurns: TurnRow[],
   actionMode: string,
   initialCharacter?: MainCharacterState,

@@ -280,4 +280,4 @@ startServer().catch((err) => {
   void shutdown({ reason: "startup-failed", exitCode: 1 })
 })
 
-export default app 
+export default app
