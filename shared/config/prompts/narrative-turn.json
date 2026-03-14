@@ -28,10 +28,7 @@
     "track_background_events": {
       "on": [
         "After writing narrative_text, optionally write background_events: hidden off-screen events happening in parallel.",
-        "background_events: {turn_response.background_events}",
-        "background_events may include information the player character does not know yet.",
-        "Keep background_events concise (1-2 short paragraphs, separated by a literal \\n\\n).",
-        "If nothing notable happens off-screen, omit the background_events field entirely."
+        "background_events: {turn_response.background_events}"
       ],
       "off": []
     },
