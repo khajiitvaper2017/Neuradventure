@@ -48,6 +48,26 @@ class StreamClient {
   connecting = false
   listenersByRequestId = new Map<string, Set<Listener>>()
   pendingSubscribe = new Set<string>()
+  reconnectTimer: number | null = null
+  reconnectDelayMs = 250
+
+  hasActiveSubscriptions(): boolean {
+    return this.pendingSubscribe.size > 0 || this.listenersByRequestId.size > 0
+  }
+
+  scheduleReconnect() {
+    if (typeof window === "undefined") return
+    if (!this.hasActiveSubscriptions()) return
+    if (this.connecting) return
+    if (this.ws && (this.ws.readyState === WebSocket.OPEN || this.ws.readyState === WebSocket.CONNECTING)) return
+    if (this.reconnectTimer !== null) return
+
+    this.reconnectTimer = window.setTimeout(() => {
+      this.reconnectTimer = null
+      this.ensureConnected()
+      this.reconnectDelayMs = Math.min(this.reconnectDelayMs * 2, 2000)
+    }, this.reconnectDelayMs)
+  }
 
   ensureConnected() {
     const url = streamUrl()
@@ -56,12 +76,22 @@ class StreamClient {
     if (this.connecting) return
     this.connecting = true
 
+    if (this.reconnectTimer !== null) {
+      window.clearTimeout(this.reconnectTimer)
+      this.reconnectTimer = null
+    }
+
     const ws = new WebSocket(url)
     this.ws = ws
 
     ws.onopen = () => {
       this.connecting = false
-      for (const id of this.pendingSubscribe) {
+      this.reconnectDelayMs = 250
+      const ids = new Set<string>()
+      for (const id of this.pendingSubscribe) ids.add(id)
+      for (const id of this.listenersByRequestId.keys()) ids.add(id)
+
+      for (const id of ids) {
         this.send({ type: "subscribe", request_id: id })
       }
       this.pendingSubscribe.clear()
@@ -87,6 +117,7 @@ class StreamClient {
       this.connecting = false
       this.ws = null
       // reconnect lazily on next subscribe
+      this.scheduleReconnect()
     }
     ws.onclose = onCloseOrError
     ws.onerror = onCloseOrError
@@ -121,6 +152,7 @@ class StreamClient {
       listeners.delete(listener)
       if (listeners.size === 0) {
         this.listenersByRequestId.delete(trimmed)
+        this.pendingSubscribe.delete(trimmed)
         this.send({ type: "unsubscribe", request_id: trimmed })
       }
     }
