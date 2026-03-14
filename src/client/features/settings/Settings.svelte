@@ -8,6 +8,7 @@
     textJustify,
     colorScheme,
     streamingEnabled,
+    authorNoteEnabled,
     defaultAuthorNote,
     defaultAuthorNoteDepth,
     storyDefaults,
@@ -1329,6 +1330,14 @@
 
       <!-- Story Defaults -->
       <div class="section-label">Story Defaults</div>
+
+      <label class="row" class:control-row--disabled={generationLockActive}>
+        <span class="row-text">
+          <span class="row-title">Enable Author Note in prompts</span>
+          <span class="row-sub">When disabled, author notes are not sent to the model (saved notes remain)</span>
+        </span>
+        <input type="checkbox" bind:checked={$authorNoteEnabled} disabled={generationLockActive} />
+      </label>
 
       <label class="row row-input row-stack">
         <span class="row-text">

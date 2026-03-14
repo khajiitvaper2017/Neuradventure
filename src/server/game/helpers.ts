@@ -4,6 +4,8 @@ import type { StoryModules } from "../core/models.js"
 import { TavernCardV2Schema, type CharacterBook } from "../utils/converters/tavern.js"
 
 export function getAuthorNote(story: db.StoryRow): { text: string; depth: number } | null {
+  const settings = db.getSettings()
+  if (settings.authorNoteEnabled === false) return null
   const text = story.author_note ?? ""
   if (!text.trim()) return null
   return { text, depth: story.author_note_depth ?? 4 }

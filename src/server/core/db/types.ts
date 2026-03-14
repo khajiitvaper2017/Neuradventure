@@ -69,6 +69,7 @@ export interface SettingsState {
   textJustify: boolean
   colorScheme: "gold" | "emerald" | "sapphire" | "crimson"
   streamingEnabled: boolean
+  authorNoteEnabled: boolean
   defaultAuthorNote: string
   defaultAuthorNoteDepth: number
   storyDefaults: StoryModules

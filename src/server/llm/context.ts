@@ -45,22 +45,8 @@ function buildContextBlock(opts: ContextBlockOpts): string {
   const modules: StoryModules = opts.modules ?? DEFAULT_STORY_MODULES
   const flags = resolveModuleFlags(modules)
   const generalDescription = character.general_description?.trim() || defaults.unknown.generalDescription
-  const initialGeneralDescription = initial.general_description?.trim() || defaults.unknown.generalDescription
 
-  // ── STABLE (cached across turns) ──
-  const initialSection = wrapSection(
-    sections.initialCharacter,
-    [
-      formatTemplate(labels.generalDescription, { value: initialGeneralDescription }),
-      flags.useCharAppearance
-        ? formatTemplate(labels.baselineAppearance, { value: initial.baseline_appearance })
-        : null,
-      flags.useCharAppearance ? formatTemplate(labels.currentAppearance, { value: initial.current_appearance }) : null,
-      flags.useCharAppearance ? formatTemplate(labels.wearing, { value: initial.current_clothing }) : null,
-    ]
-      .filter(Boolean)
-      .join("\n"),
-  )
+  const hasTurns = recentTurns.length > 0
 
   const baseLines = [
     formatTemplate(labels.nameRaceGender, {
@@ -69,6 +55,11 @@ function buildContextBlock(opts: ContextBlockOpts): string {
       gender: character.gender,
     }),
     formatTemplate(labels.generalDescription, { value: generalDescription }),
+    flags.useCharAppearance
+      ? formatTemplate(labels.baselineAppearance, {
+          value: initial.baseline_appearance?.trim() || defaults.unknown.baselineAppearance,
+        })
+      : null,
     flags.useCharPersonalityTraits
       ? formatTemplate(labels.personalityTraits, { value: character.personality_traits.join(", ") || none })
       : null,
@@ -117,7 +108,7 @@ function buildContextBlock(opts: ContextBlockOpts): string {
   const memorySection = world.memory ? wrapSection(sections.memory, world.memory) : null
 
   const authorNoteSection =
-    authorNote && authorNote.text.trim() ? wrapSection(sections.authorNote, authorNote.text.trim()) : null
+    !hasTurns && authorNote && authorNote.text.trim() ? wrapSection(sections.authorNote, authorNote.text.trim()) : null
 
   // ── VOLATILE ──
   const currentSection = wrapSection(
@@ -151,7 +142,6 @@ function buildContextBlock(opts: ContextBlockOpts): string {
   const afterHistory = joinSections([currentSection, npcCurrentSection, storyContextSection, actionBlock])
 
   const stableBlock = joinSections([
-    initialSection,
     beforeCharacterBookSection,
     baseSection,
     afterCharacterBookSection,

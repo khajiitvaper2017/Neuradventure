@@ -126,8 +126,9 @@ export function injectAuthorNote(
   authorNote: { text: string; depth: number } | null | undefined,
 ): string[] {
   if (!authorNote || !authorNote.text.trim()) return entries
+  if (entries.length === 0) return entries
   const llmStrings = getLlmStrings()
-  const note = formatTemplate(llmStrings.authorNote.wrapper, { note: authorNote.text.trim() })
+  const note = wrapSection(llmStrings.sections.authorNote, authorNote.text.trim())
   const depth = Math.max(0, authorNote.depth)
   const insertIndex = Math.max(0, entries.length - depth)
   const result = [...entries]
@@ -154,8 +155,7 @@ export function buildHistoryBlock(
   const summaryContent = [
     "{",
     `  "current_scene": "${escapeForInlineJson(world.current_scene)}",`,
-    `  "time_of_day": "${escapeForInlineJson(world.time_of_day)}",`,
-    `  "memory": "${escapeForInlineJson(world.memory)}"`,
+    `  "time_of_day": "${escapeForInlineJson(world.time_of_day)}"`,
     "}",
   ].join("\n")
   const summary = wrapSection(getLlmStrings().sections.compressedEarlierContext, summaryContent)
