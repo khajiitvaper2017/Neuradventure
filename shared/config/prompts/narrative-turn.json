@@ -44,8 +44,8 @@
       },
       "track_npcs": {
         "on": [
-          "If npc_changes or npc_introductions are present, the narrative must match them exactly.",
           "NPC knowledge: NPCs can only act on information they have personally observed or been directly told in previous turns. They never have meta-knowledge.",
+          "Existing npcs are listed in npc_current_states",
           "Use npc_changes for existing NPCs. Use npc_introductions only for brand-new NPCs not in the known list."
         ],
         "off": []

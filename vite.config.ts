@@ -14,11 +14,16 @@ export default defineConfig(() => ({
       unhandledErrors: true,
       logLevels: ["error", "warn", "info", "log", "debug"],
     },
-    proxy: {
-      "/api": {
-        target: "http://localhost:3001",
-        changeOrigin: true,
-      },
-    },
+    ...(process.env.NA_VITE_MIDDLEWARE === "1"
+      ? {}
+      : {
+          proxy: {
+            "/api": {
+              target: "http://localhost:3001",
+              changeOrigin: true,
+              ws: true,
+            },
+          },
+        }),
   },
 }))

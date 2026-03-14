@@ -103,6 +103,7 @@ const SettingsUpdateSchema = z
     design: z.enum(["classic", "roboto"]),
     textJustify: z.boolean(),
     colorScheme: z.enum(["gold", "emerald", "sapphire", "crimson"]),
+    streamingEnabled: z.boolean(),
     defaultAuthorNote: z.string(),
     defaultAuthorNoteDepth: z.number().int().min(0).max(100),
     storyDefaults: StoryModulesSchema.partial(),
@@ -174,6 +175,7 @@ settings.put("/", zValidator("json", SettingsUpdateSchema), (c) => {
     ...(update.design !== undefined && { design: update.design }),
     ...(update.textJustify !== undefined && { textJustify: update.textJustify }),
     ...(update.colorScheme !== undefined && { colorScheme: update.colorScheme }),
+    ...(update.streamingEnabled !== undefined && { streamingEnabled: update.streamingEnabled }),
     ...(update.defaultAuthorNote !== undefined && { defaultAuthorNote: update.defaultAuthorNote }),
     ...(update.defaultAuthorNoteDepth !== undefined && { defaultAuthorNoteDepth: update.defaultAuthorNoteDepth }),
     ...(update.storyDefaults && {

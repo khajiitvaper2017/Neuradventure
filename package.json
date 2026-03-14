@@ -4,7 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "tsx watch --tsconfig tsconfig.json src/server/index.ts",
+    "dev": "tsx watch --exclude data/** --exclude dist/** --tsconfig tsconfig.json src/server/index.ts",
     "dev:frontend": "vite build --watch",
     "start": "tsx --tsconfig tsconfig.json src/server/index.ts",
     "build": "vite build",
@@ -23,6 +23,7 @@
     "better-sqlite3": "^11.8.1",
     "hono": "^4.7.4",
     "openai": "^4.86.2",
+    "ws": "^8.18.3",
     "zod": "^4.0.0"
   },
   "devDependencies": {
@@ -30,6 +31,7 @@
     "@tsconfig/svelte": "^5.0.6",
     "@types/better-sqlite3": "^7.6.12",
     "@types/node": "^24.10.1",
+    "@types/ws": "^8.18.1",
     "@typescript-eslint/eslint-plugin": "^8.57.0",
     "@typescript-eslint/parser": "^8.57.0",
     "@vitejs/devtools": "^0.0.0-alpha.33",

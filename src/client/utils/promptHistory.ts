@@ -1,10 +1,20 @@
+import { api } from "../api/client.js"
+import type { PromptHistoryKind } from "../api/promptHistory.js"
+
 const MAX_HISTORY = 12
 
 function normalizePrompt(prompt: string): string {
   return prompt.trim()
 }
 
-export function loadPromptHistory(key: string): string[] {
+function kindFromKey(key: string): PromptHistoryKind | null {
+  const parts = key.split(":")
+  const last = parts[parts.length - 1]?.trim()
+  if (last === "story" || last === "character" || last === "chat") return last
+  return null
+}
+
+function loadLegacyLocalStorage(key: string): string[] {
   if (typeof window === "undefined") return []
   try {
     const raw = window.localStorage.getItem(key)
@@ -17,29 +27,69 @@ export function loadPromptHistory(key: string): string[] {
   }
 }
 
-export function savePromptHistory(key: string, prompt: string, max = MAX_HISTORY): string[] {
-  if (typeof window === "undefined") return []
-  const normalized = normalizePrompt(prompt)
-  if (!normalized) return loadPromptHistory(key)
-  const existing = loadPromptHistory(key).filter((entry) => entry.toLowerCase() !== normalized.toLowerCase())
-  const next = [normalized, ...existing].slice(0, max)
+function clearLegacyLocalStorage(key: string): void {
+  if (typeof window === "undefined") return
   try {
-    window.localStorage.setItem(key, JSON.stringify(next))
+    window.localStorage.removeItem(key)
   } catch {
-    // ignore storage failures
+    // ignore
   }
-  return next
 }
 
-export function removePromptHistory(key: string, prompt: string): string[] {
-  if (typeof window === "undefined") return []
-  const normalized = normalizePrompt(prompt)
-  if (!normalized) return loadPromptHistory(key)
-  const next = loadPromptHistory(key).filter((entry) => entry.toLowerCase() !== normalized.toLowerCase())
+export async function loadPromptHistory(key: string, max = MAX_HISTORY): Promise<string[]> {
+  const kind = kindFromKey(key)
+  if (!kind) return []
   try {
-    window.localStorage.setItem(key, JSON.stringify(next))
+    const items = await api.promptHistory.list(kind, max)
+    if (items.length > 0) return items
+
+    // One-time migration from legacy localStorage.
+    const legacy = loadLegacyLocalStorage(key)
+    if (legacy.length === 0) return items
+    const migrated = await api.promptHistory.bulkAdd(kind, legacy.slice(0, max), max)
+    clearLegacyLocalStorage(key)
+    return migrated
   } catch {
-    // ignore storage failures
+    // If API is unavailable, fall back to legacy localStorage for now.
+    return loadLegacyLocalStorage(key).slice(0, max)
   }
-  return next
+}
+
+export async function savePromptHistory(key: string, prompt: string, max = MAX_HISTORY): Promise<string[]> {
+  const kind = kindFromKey(key)
+  if (!kind) return []
+  const normalized = normalizePrompt(prompt)
+  if (!normalized) return loadPromptHistory(key, max)
+  try {
+    return await api.promptHistory.add(kind, normalized, max)
+  } catch {
+    // fallback to localStorage behavior if server is offline
+    const legacy = loadLegacyLocalStorage(key).filter((entry) => entry.toLowerCase() !== normalized.toLowerCase())
+    const next = [normalized, ...legacy].slice(0, max)
+    try {
+      window.localStorage.setItem(key, JSON.stringify(next))
+    } catch {
+      // ignore
+    }
+    return next
+  }
+}
+
+export async function removePromptHistory(key: string, prompt: string, max = MAX_HISTORY): Promise<string[]> {
+  const kind = kindFromKey(key)
+  if (!kind) return []
+  const normalized = normalizePrompt(prompt)
+  if (!normalized) return loadPromptHistory(key, max)
+  try {
+    return await api.promptHistory.remove(kind, normalized, max)
+  } catch {
+    const legacy = loadLegacyLocalStorage(key).filter((entry) => entry.toLowerCase() !== normalized.toLowerCase())
+    const next = legacy.slice(0, max)
+    try {
+      window.localStorage.setItem(key, JSON.stringify(next))
+    } catch {
+      // ignore
+    }
+    return next
+  }
 }

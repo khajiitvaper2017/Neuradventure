@@ -31,6 +31,8 @@
   import BackgroundEventsReveal from "../../components/ui/BackgroundEventsReveal.svelte"
   import StoryModulesPanel from "../../components/ui/StoryModulesPanel.svelte"
   import ThinkingDots from "../../components/ui/ThinkingDots.svelte"
+  import StreamingTurnPreview from "../../components/ui/StreamingTurnPreview.svelte"
+  import { streamClient } from "../../api/stream.js"
   import {
     currentStoryId,
     currentStoryTitle,
@@ -47,6 +49,7 @@
     resetGame,
     llmUpdateId,
   } from "../../stores/game.js"
+  import { streamingEnabled } from "../../stores/settings.js"
   import { clearPendingTurn, getPendingTurn, setPendingTurn, type PendingTurn } from "./pendingTurn.js"
   import { applyTurnState, appendTurnSummary } from "./actions.js"
 
@@ -108,6 +111,12 @@
   let openingFlashTimer: number | null = null
   let keyboardScrollTimer: number | null = null
   let lastViewportHeight = 0
+  let streamUnsub = $state<null | (() => void)>(null)
+  let streamNarrative = $state("")
+  let streamBackground = $state("")
+  let streamScene = $state("")
+  let streamTime = $state("")
+  let regeneratingTurnId = $state<number | null>(null)
 
   const trackNpcs = $derived($currentStoryModules?.track_npcs ?? true)
   const trackLocations = $derived($currentStoryModules?.track_locations ?? true)
@@ -118,6 +127,36 @@
 
   function lastTurnId(): number | null {
     return $turns.length > 0 ? $turns[$turns.length - 1].id : null
+  }
+
+  function stopTurnStream() {
+    streamUnsub?.()
+    streamUnsub = null
+    streamNarrative = ""
+    streamBackground = ""
+    streamScene = ""
+    streamTime = ""
+  }
+
+  function startTurnStream(requestId: string) {
+    stopTurnStream()
+    if (!$streamingEnabled) return
+    streamUnsub = streamClient.subscribe(requestId, (msg) => {
+      if (msg.type === "subscribed" && msg.snapshot) {
+        const snap = msg.snapshot as Record<string, unknown>
+        if (typeof snap.narrative_text === "string") streamNarrative = snap.narrative_text
+        if (typeof snap.background_events === "string") streamBackground = snap.background_events
+        if (typeof snap.current_scene === "string") streamScene = snap.current_scene
+        if (typeof snap.time_of_day === "string") streamTime = snap.time_of_day
+        return
+      }
+      if (msg.type !== "stream" || msg.event !== "preview") return
+      const patch = msg.patch as Record<string, unknown>
+      if (typeof patch.narrative_text === "string") streamNarrative = patch.narrative_text
+      if (typeof patch.background_events === "string") streamBackground = patch.background_events
+      if (typeof patch.current_scene === "string") streamScene = patch.current_scene
+      if (typeof patch.time_of_day === "string") streamTime = patch.time_of_day
+    })
   }
 
   function triggerSceneFlash() {
@@ -150,6 +189,7 @@
     const text = isEmpty ? "" : normalizePlayerInput(rawText, actionMode)
     if ((!isEmpty && !text) || $isGenerating || !$currentStoryId) return
     const requestId = createRequestId()
+    startTurnStream(requestId)
     setPendingTurn({
       storyId: $currentStoryId,
       actionMode: sendMode,
@@ -179,6 +219,7 @@
       }
     } finally {
       isGenerating.set(false)
+      stopTurnStream()
     }
   }
 
@@ -213,6 +254,7 @@
       return
     }
     isGenerating.set(true)
+    startTurnStream(pending.requestId)
     try {
       const result = await api.turns.take($currentStoryId, pending.playerInput, pending.actionMode, pending.requestId)
       handleLlmWarnings(result.llm_warnings)
@@ -238,6 +280,7 @@
       }
     } finally {
       isGenerating.set(false)
+      stopTurnStream()
     }
   }
 
@@ -262,9 +305,12 @@
     if ($isGenerating || !$currentStoryId || $turns.length === 0) return
     userActed = true
     isGenerating.set(true)
+    const requestId = createRequestId()
+    startTurnStream(requestId)
+    regeneratingTurnId = $turns[$turns.length - 1]?.id ?? null
     try {
       const lastMode = $turns[$turns.length - 1]?.action_mode ?? actionMode
-      const result = await api.turns.regenerateLast($currentStoryId, lastMode)
+      const result = await api.turns.regenerateLast($currentStoryId, lastMode, requestId)
       handleLlmWarnings(result.llm_warnings)
       applyTurnState(result)
       turns.update((t) =>
@@ -292,6 +338,8 @@
       }
     } finally {
       isGenerating.set(false)
+      regeneratingTurnId = null
+      stopTurnStream()
     }
   }
 
@@ -703,6 +751,7 @@
     if (sceneFlashTimer) window.clearTimeout(sceneFlashTimer)
     if (openingFlashTimer) window.clearTimeout(openingFlashTimer)
     if (keyboardScrollTimer) window.clearTimeout(keyboardScrollTimer)
+    stopTurnStream()
   })
 </script>
 
@@ -972,36 +1021,49 @@
 
         <!-- Narrative paragraphs -->
         <div class="narrative-block" class:fresh={userActed && i === $turns.length - 1 && !$isGenerating}>
-          {#if turn.world}
-            <p class="turn-scene">{turn.world.current_scene} · {turn.world.time_of_day}</p>
-          {/if}
+          {#if $isGenerating && regeneratingTurnId === turn.id}
+            <p class="regen-placeholder">Regenerating…</p>
+          {:else}
+            {#if turn.world}
+              <p class="turn-scene">{turn.world.current_scene} · {turn.world.time_of_day}</p>
+            {/if}
 
-          <BackgroundEventsReveal text={turn.background_events} />
+            <BackgroundEventsReveal text={turn.background_events} />
 
-          {#each paragraphs(turn.narrative_text) as para, j}
-            <p class="para" style="animation-delay: {j * 0.06}s">
-              <InlineTokens text={para} />
-            </p>
-          {/each}
+            {#each paragraphs(turn.narrative_text) as para, j}
+              <p class="para" style="animation-delay: {j * 0.06}s">
+                <InlineTokens text={para} />
+              </p>
+            {/each}
 
-          {#if i === $turns.length - 1 && lastTurnVariants.length > 1}
-            <div class="variant-row">
-              <span class="variant-label">Versions</span>
-              {#each lastTurnVariants as variant}
-                <button
-                  class="variant-pill {activeVariantId === variant.id ? 'active' : ''}"
-                  onclick={() => selectVariant(variant.id)}
-                  disabled={$isGenerating}
-                  title={`Version ${variant.variant_index}`}
-                >
-                  {variant.variant_index}
-                </button>
-              {/each}
-            </div>
+            {#if i === $turns.length - 1 && lastTurnVariants.length > 1}
+              <div class="variant-row">
+                <span class="variant-label">Versions</span>
+                {#each lastTurnVariants as variant}
+                  <button
+                    class="variant-pill {activeVariantId === variant.id ? 'active' : ''}"
+                    onclick={() => selectVariant(variant.id)}
+                    disabled={$isGenerating}
+                    title={`Version ${variant.variant_index}`}
+                  >
+                    {variant.variant_index}
+                  </button>
+                {/each}
+              </div>
+            {/if}
           {/if}
         </div>
       {/if}
     {/each}
+
+    {#if $isGenerating && $streamingEnabled}
+      <StreamingTurnPreview
+        narrativeText={streamNarrative}
+        backgroundEvents={streamBackground}
+        currentScene={streamScene}
+        timeOfDay={streamTime}
+      />
+    {/if}
 
     {#if $isGenerating}
       <ThinkingDots />
@@ -1023,13 +1085,19 @@
     onFocus={scheduleKeyboardScroll}
   >
     <div slot="top-controls">
-      <button class="mode-clear" onclick={() => (input = "")} disabled={!input} aria-label="Clear"> × </button>
+      <button class="mode-clear" onclick={() => (input = "")} disabled={!input || $isGenerating} aria-label="Clear">
+        ×
+      </button>
 
       <div class="mode-group" role="group" aria-label="Action mode">
         {#each ACTION_MODES as mode}
-          <button class="mode-pill {actionMode === mode ? 'active' : ''}" onclick={() => (actionMode = mode)}
-            >{mode}</button
+          <button
+            class="mode-pill {actionMode === mode ? 'active' : ''}"
+            onclick={() => (actionMode = mode)}
+            disabled={$isGenerating}
           >
+            {mode}
+          </button>
         {/each}
       </div>
 

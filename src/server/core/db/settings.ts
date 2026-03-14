@@ -66,6 +66,7 @@ export const DEFAULT_SETTINGS: SettingsState = {
   design: "classic",
   textJustify: true,
   colorScheme: "gold",
+  streamingEnabled: false,
   defaultAuthorNote: "Remember the instructions you were given at the beginning of this chat.",
   defaultAuthorNoteDepth: 4,
   storyDefaults: { ...DEFAULT_STORY_MODULES },

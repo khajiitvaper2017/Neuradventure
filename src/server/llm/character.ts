@@ -17,6 +17,7 @@ import { DEFAULT_STORY_MODULES } from "../schemas/story-modules.js"
 export async function generateCharacter(
   description: string,
   storyModules?: StoryModules,
+  options: { onPreviewPatch?: (patch: Record<string, unknown>) => void } = {},
 ): Promise<GenerateCharacterResponse> {
   const modules = storyModules ?? DEFAULT_STORY_MODULES
   const responseSchema = buildGenerateCharacterResponseSchema(modules)
@@ -39,7 +40,7 @@ export async function generateCharacter(
     "GenerateCharacterResponse",
     responseSchema,
     undefined,
-    { disableRepetition: true },
+    { disableRepetition: true, ...(options.onPreviewPatch ? { onPreviewPatch: options.onPreviewPatch } : {}) },
   )
   return result
 }
@@ -100,6 +101,7 @@ export async function generateCharacterPart(
   part: "appearance" | "traits" | "clothing",
   context: CharacterGenerationContext,
   storyModules?: StoryModules,
+  options: { onPreviewPatch?: (patch: Record<string, unknown>) => void } = {},
 ): Promise<GenerateCharacterAppearanceResponse | GenerateCharacterTraitsResponse | GenerateCharacterClothingResponse> {
   const responseSchema =
     part === "appearance"
@@ -138,7 +140,7 @@ export async function generateCharacterPart(
         : "GenerateCharacterClothingResponse",
     responseSchema,
     undefined,
-    { disableRepetition: true },
+    { disableRepetition: true, ...(options.onPreviewPatch ? { onPreviewPatch: options.onPreviewPatch } : {}) },
   )
 
   return result

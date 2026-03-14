@@ -30,22 +30,38 @@ type UndoResult = {
 }
 
 export function appendChatExchange(result: SendResult) {
-  chatMessages.update((list) => [...list, result.player_message, result.ai_message])
+  chatMessages.update((list) => {
+    const existing = new Set(list.map((m) => m.id))
+    const next = [...list]
+    if (!existing.has(result.player_message.id)) next.push(result.player_message)
+    if (!existing.has(result.ai_message.id)) next.push(result.ai_message)
+    return next
+  })
   nextSpeakerIndex.set(result.next_speaker_index)
   canUndoChatCancel.set(false)
 }
 
 export function appendChatMessage(result: ContinueResult) {
-  chatMessages.update((list) => [...list, result.ai_message])
+  chatMessages.update((list) => {
+    if (list.some((m) => m.id === result.ai_message.id)) return list
+    return [...list, result.ai_message]
+  })
   nextSpeakerIndex.set(result.next_speaker_index)
   canUndoChatCancel.set(false)
 }
 
 export function applyRegenerateResult(result: RegenerateResult) {
   if (result.replaced) {
-    chatMessages.update((list) => list.map((m) => (m.id === result.ai_message.id ? result.ai_message : m)))
+    chatMessages.update((list) => {
+      const has = list.some((m) => m.id === result.ai_message.id)
+      if (!has) return [...list, result.ai_message]
+      return list.map((m) => (m.id === result.ai_message.id ? result.ai_message : m))
+    })
   } else {
-    chatMessages.update((list) => [...list, result.ai_message])
+    chatMessages.update((list) => {
+      if (list.some((m) => m.id === result.ai_message.id)) return list
+      return [...list, result.ai_message]
+    })
   }
   nextSpeakerIndex.set(result.next_speaker_index)
   canUndoChatCancel.set(false)
@@ -63,6 +79,6 @@ export function applyUndoCancelResult(result: UndoResult) {
   canUndoChatCancel.set(false)
 }
 
-export async function generateChatFromDescription(prompt: string) {
-  return api.generate.chat(prompt)
+export async function generateChatFromDescription(prompt: string, requestId?: string) {
+  return api.generate.chat(prompt, requestId)
 }

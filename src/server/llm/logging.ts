@@ -1,6 +1,6 @@
 import type OpenAI from "openai"
 import { randomUUID } from "node:crypto"
-import { appendFile, mkdir, writeFile } from "node:fs/promises"
+import { mkdir, writeFile } from "node:fs/promises"
 import { join } from "node:path"
 import { LOG_DIR } from "../utils/log-paths.js"
 
@@ -27,7 +27,6 @@ export type LlmLogEntry = {
   }
 }
 
-const llmLogPath = join(LOG_DIR, "llm.log")
 const llmLastPath = join(LOG_DIR, "llm-last.json")
 const llmLastRequestPath = join(LOG_DIR, "llm-last-request.json")
 
@@ -42,7 +41,6 @@ type LastRequestLog = Pick<LlmLogEntry, "id" | "timestamp" | "mode" | "request_n
 
 async function writeEntry(entry: LlmLogEntry): Promise<void> {
   await mkdir(LOG_DIR, { recursive: true })
-  await appendFile(llmLogPath, `${JSON.stringify(entry)}\n`)
   await writeFile(llmLastPath, JSON.stringify(entry, null, 2))
 
   const requestName = safeFilePart(entry.request_name || entry.schema_name || entry.mode)

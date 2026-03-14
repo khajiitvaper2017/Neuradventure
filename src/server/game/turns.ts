@@ -80,6 +80,7 @@ export async function processTurn(
   playerInput: string,
   actionMode: string,
   requestId?: string,
+  options: { onPreviewPatch?: (patch: Record<string, unknown>) => void } = {},
 ): Promise<TurnResult> {
   const story = db.getStory(storyId)
   if (!story) throw new Error(`Story ${storyId} not found`)
@@ -107,7 +108,7 @@ export async function processTurn(
     modules,
     characterBook,
   )
-  const turnResponse = await callLLM(messages, npcs, modules)
+  const turnResponse = await callLLM(messages, npcs, modules, { onPreviewPatch: options.onPreviewPatch })
   const llmWarnings = collectLlmWarnings(world, npcs, turnResponse)
   const backgroundEvents = turnResponse.background_events ?? null
 
@@ -314,7 +315,12 @@ export function undoCancelLastTurn(storyId: number): UndoCancelResult {
   }
 }
 
-export async function regenerateLastTurn(storyId: number, actionMode?: string): Promise<TurnResult> {
+export async function regenerateLastTurn(
+  storyId: number,
+  actionMode?: string,
+  _requestId?: string,
+  options: { onPreviewPatch?: (patch: Record<string, unknown>) => void } = {},
+): Promise<TurnResult> {
   const story = db.getStory(storyId)
   if (!story) throw new Error(`Story ${storyId} not found`)
   const modules = getStoryModules(story)
@@ -347,7 +353,7 @@ export async function regenerateLastTurn(storyId: number, actionMode?: string): 
     modules,
     characterBook,
   )
-  const turnResponse = await callLLM(messages, snapshot.npcs, modules)
+  const turnResponse = await callLLM(messages, snapshot.npcs, modules, { onPreviewPatch: options.onPreviewPatch })
   const llmWarnings = collectLlmWarnings(snapshot.world, snapshot.npcs, turnResponse)
   const backgroundEvents = turnResponse.background_events ?? null
 

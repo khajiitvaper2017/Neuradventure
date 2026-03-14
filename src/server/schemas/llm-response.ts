@@ -80,7 +80,7 @@ export const BackgroundEventsSection = z.preprocess((value) => {
   if (typeof value !== "string") return value
   const trimmed = value.trim()
   return trimmed.length > 0 ? trimmed : undefined
-}, z.string().min(1).optional())
+}, z.string().min(1)).optional()
 
 export const buildNPCChangesSection = (nameSchema: z.ZodType<string>, flags?: NPCUpdateFlags) => {
   const updateSchema = buildNPCStateUpdateSchema(nameSchema, flags)
@@ -97,7 +97,7 @@ export const TurnResponseSchema = z
     current_clothing: CurrentClothingSection.optional(),
     current_appearance: SetCurrentAppearanceSection.optional(),
     set_current_inventory: SetCurrentInventorySection.optional(),
-    world_state_update: WorldStateUpdateSchema,
+    world_state_update: WorldStateUpdateSchema.optional().default({}),
     npc_changes: NPCChangesSection.optional(),
     npc_introductions: NPCIntroductionsSection.optional(),
   })

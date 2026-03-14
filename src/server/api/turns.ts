@@ -21,6 +21,7 @@ import {
   selectTurnVariant,
   undoCancelLastTurn,
 } from "../game/index.js"
+import { createOrGetSession, publishComplete, publishError, publishPreview } from "../streaming/hub.js"
 
 const turns = new Hono()
 const inFlight = new Map<string, ReturnType<typeof processTurn>>()
@@ -33,6 +34,9 @@ turns.post("/", zValidator("json", TakeTurnRequestSchema), async (c) => {
 
   try {
     const requestId = body.request_id?.trim() || undefined
+    const streamingEnabled = db.getSettings().streamingEnabled
+    const shouldStream = streamingEnabled && !!requestId
+
     if (requestId) {
       const existing = db.getTurnByRequestId(requestId)
       if (existing) return c.json(buildTurnResultFromRow(existing))
@@ -40,16 +44,22 @@ turns.post("/", zValidator("json", TakeTurnRequestSchema), async (c) => {
       if (inflight) return c.json(await inflight)
     }
 
-    const task = processTurn(body.story_id, body.player_input, body.action_mode, requestId)
+    if (shouldStream && requestId) createOrGetSession(requestId, "turn")
+    const task = processTurn(body.story_id, body.player_input, body.action_mode, requestId, {
+      onPreviewPatch: shouldStream && requestId ? (patch) => publishPreview(requestId, patch) : undefined,
+    })
     if (requestId) inFlight.set(requestId, task)
     try {
       const result = await task
+      if (shouldStream && requestId) publishComplete(requestId)
       return c.json(result)
     } finally {
       if (requestId) inFlight.delete(requestId)
     }
   } catch (err) {
     const message = err instanceof Error ? err.message : "Unknown error"
+    const requestId = body.request_id?.trim() || undefined
+    if (requestId && db.getSettings().streamingEnabled) publishError(requestId, message)
     if (message.includes("ECONNREFUSED") || message.includes("fetch failed")) {
       return c.json({ error: "KoboldCpp is not running. Please start KoboldCpp first." }, 503)
     }
@@ -151,10 +161,19 @@ turns.post("/undo-cancel", zValidator("json", UndoCancelRequestSchema), (c) => {
 turns.post("/regenerate-last", zValidator("json", RegenerateLastRequestSchema), async (c) => {
   const body = c.req.valid("json")
   try {
-    const result = await regenerateLastTurn(body.story_id, body.action_mode)
+    const requestId = body.request_id?.trim() || undefined
+    const streamingEnabled = db.getSettings().streamingEnabled
+    const shouldStream = streamingEnabled && !!requestId
+    if (shouldStream && requestId) createOrGetSession(requestId, "turn")
+    const result = await regenerateLastTurn(body.story_id, body.action_mode, requestId, {
+      onPreviewPatch: shouldStream && requestId ? (patch) => publishPreview(requestId, patch) : undefined,
+    })
+    if (shouldStream && requestId) publishComplete(requestId)
     return c.json(result)
   } catch (err) {
     const message = err instanceof Error ? err.message : "Unknown error"
+    const requestId = body.request_id?.trim() || undefined
+    if (requestId && db.getSettings().streamingEnabled) publishError(requestId, message)
     if (message.includes("ECONNREFUSED") || message.includes("fetch failed")) {
       return c.json({ error: "KoboldCpp is not running. Please start KoboldCpp first." }, 503)
     }
@@ -167,10 +186,19 @@ turns.post("/regenerate-last", zValidator("json", RegenerateLastRequestSchema), 
 turns.post("/impersonate", zValidator("json", ImpersonateRequestSchema), async (c) => {
   const body = c.req.valid("json")
   try {
-    const result = await impersonatePlayerAction(body.story_id, body.action_mode)
+    const requestId = body.request_id?.trim() || undefined
+    const streamingEnabled = db.getSettings().streamingEnabled
+    const shouldStream = streamingEnabled && !!requestId
+    if (shouldStream && requestId) createOrGetSession(requestId, "chat.reply")
+    const result = await impersonatePlayerAction(body.story_id, body.action_mode, requestId, {
+      onText: shouldStream && requestId ? (text) => publishPreview(requestId, { content: text }) : undefined,
+    })
+    if (shouldStream && requestId) publishComplete(requestId)
     return c.json(result)
   } catch (err) {
     const message = err instanceof Error ? err.message : "Unknown error"
+    const requestId = body.request_id?.trim() || undefined
+    if (requestId && db.getSettings().streamingEnabled) publishError(requestId, message)
     if (message.includes("ECONNREFUSED") || message.includes("fetch failed")) {
       return c.json({ error: "KoboldCpp is not running. Please start KoboldCpp first." }, 503)
     }

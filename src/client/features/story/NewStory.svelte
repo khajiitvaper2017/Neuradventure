@@ -12,6 +12,9 @@
   import { autoresize } from "../../utils/actions/autoresize.js"
   import { loadStoryById } from "../../utils/storyLoader.js"
   import { loadPromptHistory, savePromptHistory, removePromptHistory } from "../../utils/promptHistory.js"
+  import { createRequestId } from "../../utils/ids.js"
+  import { clearPendingRequest, getPendingRequest, setPendingRequest } from "../../utils/pendingRequests.js"
+  import { streamClient } from "../../api/stream.js"
   import IconDocument from "../../components/icons/IconDocument.svelte"
   import IconPencilSquare from "../../components/icons/IconPencilSquare.svelte"
   import PromptHistoryPanel from "../../components/ui/PromptHistoryPanel.svelte"
@@ -31,7 +34,7 @@
     pendingCharacterImportAvatarDataUrl,
     pendingStoryModules,
   } from "../../stores/game.js"
-  import { storyDefaults } from "../../stores/settings.js"
+  import { storyDefaults, streamingEnabled } from "../../stores/settings.js"
 
   let submitting = false
   let generating = false
@@ -51,8 +54,26 @@
   onMount(() => {
     loadCharacters()
     loadNpcs()
-    storyPromptHistory = loadPromptHistory(STORY_PROMPT_HISTORY_KEY)
+    void loadPromptHistory(STORY_PROMPT_HISTORY_KEY).then((items) => {
+      storyPromptHistory = items
+    })
     if (!$pendingStoryModules) pendingStoryModules.set($storyDefaults)
+    const pending = getPendingRequest<{
+      prompt: string
+      character: Omit<MainCharacterState, "inventory">
+      modules: StoryModules
+    }>("generate.story")
+    if (pending) {
+      pendingStoryGenerateDescription.set(pending.payload.prompt)
+      pendingCharacter.set(pending.payload.character)
+      pendingStoryModules.set(pending.payload.modules)
+      void runGenerateStory(
+        pending.payload.prompt,
+        pending.payload.character,
+        pending.payload.modules,
+        pending.requestId,
+      )
+    }
   })
 
   async function loadCharacters() {
@@ -87,7 +108,9 @@
   }
 
   function deleteStoryPrompt(value: string) {
-    storyPromptHistory = removePromptHistory(STORY_PROMPT_HISTORY_KEY, value)
+    void removePromptHistory(STORY_PROMPT_HISTORY_KEY, value).then((items) => {
+      storyPromptHistory = items
+    })
   }
 
   function setModules(next: StoryModules) {
@@ -207,15 +230,55 @@
       ? $pendingCharacter.name
       : "Select a character"
 
-  async function generate() {
+  async function runGenerateStory(
+    prompt: string,
+    character: Omit<MainCharacterState, "inventory">,
+    modules: StoryModules,
+    requestId: string,
+  ) {
     if (generating) return
-    const prompt = $pendingStoryGenerateDescription.trim()
-    if (!prompt || !$pendingCharacter) return
+    const trimmed = prompt.trim()
+    if (!trimmed) return
     generating = true
+    setPendingRequest({
+      kind: "generate.story",
+      requestId,
+      createdAt: Date.now(),
+      payload: { prompt: trimmed, character, modules },
+    })
+    const unsub = $streamingEnabled
+      ? streamClient.subscribe(requestId, (msg) => {
+          const patch =
+            msg.type === "subscribed"
+              ? ((msg.snapshot ?? {}) as Record<string, unknown>)
+              : msg.type === "stream" && msg.event === "preview"
+                ? (msg.patch as Record<string, unknown>)
+                : null
+          if (!patch) return
+          if (typeof patch.title === "string") pendingStoryTitle.set(patch.title)
+          if (typeof patch.opening_scenario === "string") pendingStoryScenario.set(patch.opening_scenario)
+          if (typeof patch.starting_location === "string") pendingStoryLocation.set(patch.starting_location)
+          if (typeof patch.starting_date === "string") pendingStoryDate.set(patch.starting_date)
+          if (typeof patch.starting_time === "string") pendingStoryTime.set(patch.starting_time)
+          if (typeof patch.general_description === "string" || typeof patch.current_appearance === "string") {
+            pendingCharacter.update((c) => {
+              if (!c) return c
+              return {
+                ...c,
+                ...(typeof patch.general_description === "string"
+                  ? { general_description: patch.general_description }
+                  : {}),
+                ...(modules.character_appearance_clothing && typeof patch.current_appearance === "string"
+                  ? { current_appearance: patch.current_appearance }
+                  : {}),
+              }
+            })
+          }
+        })
+      : null
     try {
-      storyPromptHistory = savePromptHistory(STORY_PROMPT_HISTORY_KEY, prompt)
-      const modules = $pendingStoryModules ?? $storyDefaults
-      const result = await generateStoryFromDescription(prompt, $pendingCharacter, modules)
+      storyPromptHistory = await savePromptHistory(STORY_PROMPT_HISTORY_KEY, trimmed)
+      const result = await generateStoryFromDescription(trimmed, character, modules, requestId)
       pendingStoryTitle.set(result.title)
       pendingStoryScenario.set(result.opening_scenario)
       pendingStoryLocation.set(result.starting_location)
@@ -223,18 +286,29 @@
       pendingStoryTime.set(result.starting_time)
       pendingStoryNPCs.set(result.pregen_npcs ?? [])
       const updatedCharacter = {
-        ...$pendingCharacter,
+        ...character,
         general_description: result.general_description,
         ...(modules.character_appearance_clothing
-          ? { current_appearance: result.current_appearance ?? $pendingCharacter.current_appearance }
+          ? { current_appearance: result.current_appearance ?? character.current_appearance }
           : {}),
       }
       pendingCharacter.set(updatedCharacter)
     } catch (err) {
       showError(err instanceof Error ? err.message : "Generation failed")
     } finally {
+      clearPendingRequest("generate.story", requestId)
       generating = false
+      unsub?.()
     }
+  }
+
+  async function generate() {
+    if (generating) return
+    const prompt = $pendingStoryGenerateDescription.trim()
+    if (!prompt || !$pendingCharacter) return
+    const requestId = createRequestId()
+    const modules = $pendingStoryModules ?? $storyDefaults
+    await runGenerateStory(prompt, $pendingCharacter, modules, requestId)
   }
 
   $: charData = $pendingCharacter
@@ -375,7 +449,13 @@
       <div class="modules-shell">
         <div class="modules-shell-header">
           <span>Story Modules</span>
-          <button class="modules-shell-action" onclick={() => (showModulesPanel = true)}>Edit</button>
+          <button
+            class="modules-shell-action"
+            onclick={() => (showModulesPanel = true)}
+            disabled={generating || submitting}
+          >
+            Edit
+          </button>
         </div>
         <div class="modules-shell-body">
           <div class="modules-shell-summary">
@@ -415,7 +495,7 @@
             id="saved-character"
             class="shared-select-btn"
             onclick={toggleCharacterDropdown}
-            disabled={loadingCharacters || loadingNpcs || !hasPlayableOptions}
+            disabled={generating || submitting || loadingCharacters || loadingNpcs || !hasPlayableOptions}
             aria-haspopup="listbox"
             aria-expanded={showCharacterDropdown}
           >
@@ -437,6 +517,7 @@
                     role="option"
                     aria-selected={selectedPlayableKey === option.key}
                     onclick={() => selectPlayable(option.key)}
+                    disabled={generating || submitting}
                   >
                     <span class="shared-select-name">
                       {option.name}
@@ -449,6 +530,7 @@
                       class="shared-select-item-action"
                       title="Details"
                       aria-label="Character details"
+                      disabled={generating || submitting}
                       onclick={(e) => {
                         e.stopPropagation()
                         const id = characterIdFromKey(option.key)
@@ -465,7 +547,9 @@
             </div>
           {/if}
         </div>
-        <button class="btn-ghost" onclick={() => navigate("char-create")}> New </button>
+        <button class="btn-ghost" onclick={() => navigate("char-create")} disabled={generating || submitting}>
+          New
+        </button>
         <button
           class="btn-ghost btn-icon"
           onclick={() => {
@@ -473,13 +557,17 @@
             showCharacterDropdown = false
             openCharSheetForCharacter(selectedCharacterIdForSheet)
           }}
-          disabled={!selectedCharacterIdForSheet}
+          disabled={generating || submitting || !selectedCharacterIdForSheet}
           title={selectedCharacterIdForSheet ? "Character details" : "Details available for story characters only"}
         >
           <IconDocument size={16} strokeWidth={1.6} />
           Details
         </button>
-        <button class="btn-ghost" onclick={refreshPlayable} disabled={loadingCharacters || loadingNpcs}>
+        <button
+          class="btn-ghost"
+          onclick={refreshPlayable}
+          disabled={generating || submitting || loadingCharacters || loadingNpcs}
+        >
           Refresh
         </button>
       </div>
@@ -496,6 +584,7 @@
         <button
           class="btn-ghost small edit-character-btn"
           onclick={() => navigate("char-create")}
+          disabled={generating || submitting}
           title="Edit character"
           aria-label="Edit character"
         >
@@ -507,7 +596,9 @@
       <div class="shared-summary shared-summary--empty">
         <div class="shared-summary__header">Character</div>
         <div class="shared-summary__details">No character selected yet.</div>
-        <button class="btn-accent small" onclick={() => navigate("char-create")}> New Character </button>
+        <button class="btn-accent small" onclick={() => navigate("char-create")} disabled={generating || submitting}>
+          New Character
+        </button>
       </div>
     {/if}
   </div>
@@ -528,7 +619,7 @@
   {/if}
 
   <div class="actions">
-    <button class="btn-accent full" onclick={startAdventure} disabled={submitting}>
+    <button class="btn-accent full" onclick={startAdventure} disabled={submitting || generating}>
       {submitting ? "Creating..." : "Start Adventure →"}
     </button>
   </div>

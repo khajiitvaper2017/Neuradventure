@@ -1,8 +1,20 @@
 <script lang="ts">
+  import { onDestroy } from "svelte"
   import InlineTokens from "./InlineTokens.svelte"
 
   export let text: string | null | undefined
   export let title = "Background events"
+  let open = false
+
+  function onWindowKeydown(e: KeyboardEvent) {
+    if (!open) return
+    if (e.key === "Escape") open = false
+  }
+
+  if (typeof window !== "undefined") {
+    window.addEventListener("keydown", onWindowKeydown)
+    onDestroy(() => window.removeEventListener("keydown", onWindowKeydown))
+  }
 
   function paragraphs(raw: string): string[] {
     let normalized = raw.replace(/\r\n/g, "\n")
@@ -21,25 +33,35 @@
 </script>
 
 {#if paras.length > 0}
-  <details class="bg-details">
-    <summary class="bg-summary">
-      <span class="bg-left">
-        <span class="bg-caret" aria-hidden="true">▸</span>
-        <span class="bg-title">{title}</span>
-      </span>
-      <span class="bg-meta">hidden</span>
-    </summary>
-    <div class="bg-body">
-      {#each paras as para}
-        <p class="bg-para"><InlineTokens text={para} /></p>
-      {/each}
-    </div>
-  </details>
+  <div class="bg-wrap">
+    <details class="bg-details" bind:open>
+      <summary class="bg-summary">
+        <span class="bg-left">
+          <span class="bg-caret" aria-hidden="true">▸</span>
+          <span class="bg-title">{title}</span>
+        </span>
+        <span class="bg-meta">{open ? "shown" : "hidden"}</span>
+      </summary>
+    </details>
+
+    {#if open}
+      <div class="bg-popover" role="region" aria-label={title}>
+        {#each paras as para}
+          <p class="bg-para"><InlineTokens text={para} /></p>
+        {/each}
+      </div>
+    {/if}
+  </div>
 {/if}
 
 <style>
-  .bg-details {
+  .bg-wrap {
+    position: relative;
     margin-top: 0.65rem;
+    overflow-anchor: none;
+  }
+
+  .bg-details {
     border: 1px solid var(--border);
     border-radius: var(--radius-md);
     background: var(--bg-action);
@@ -113,9 +135,26 @@
     color: var(--accent);
   }
 
-  .bg-body {
+  .bg-popover {
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: calc(100% + 0.4rem);
+    z-index: 20;
     padding: 0.6rem 0.8rem 0.75rem;
-    border-top: 1px solid var(--border);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    background: var(--bg-raised);
+    box-shadow: var(--shadow-sm);
+    max-height: min(42vh, 340px);
+    overflow: auto;
+    overscroll-behavior: contain;
+    outline: none;
+  }
+  .bg-popover:focus-visible {
+    box-shadow:
+      0 0 0 2px var(--focus-glow),
+      var(--shadow-sm);
   }
 
   .bg-para {

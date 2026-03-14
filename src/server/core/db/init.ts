@@ -96,6 +96,25 @@ export function initDb() {
       updated_at  TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now'))
     );
 
+    CREATE TABLE IF NOT EXISTS prompt_history (
+      kind      TEXT NOT NULL,
+      prompt    TEXT NOT NULL,
+      last_used TEXT NOT NULL DEFAULT (datetime('now')),
+      use_count INTEGER NOT NULL DEFAULT 1,
+      PRIMARY KEY (kind, prompt)
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_prompt_history_kind_last_used ON prompt_history(kind, last_used DESC);
+
+    CREATE TABLE IF NOT EXISTS request_results (
+      request_id    TEXT PRIMARY KEY,
+      kind          TEXT NOT NULL,
+      response_json TEXT NOT NULL,
+      created_at    TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_request_results_created ON request_results(created_at);
+
     CREATE TABLE IF NOT EXISTS sampler_presets (
       id          INTEGER PRIMARY KEY AUTOINCREMENT,
       name        TEXT NOT NULL UNIQUE,

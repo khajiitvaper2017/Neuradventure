@@ -266,6 +266,7 @@ export interface AppSettings {
   design: "classic" | "roboto"
   textJustify: boolean
   colorScheme: "gold" | "emerald" | "sapphire" | "crimson"
+  streamingEnabled: boolean
   defaultAuthorNote: string
   defaultAuthorNoteDepth: number
   storyDefaults: StoryModules

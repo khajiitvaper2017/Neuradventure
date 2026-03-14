@@ -13,13 +13,16 @@
     pendingStoryModules,
   } from "../../stores/game.js"
   import { pendingCharacterGenerateDescription } from "../../stores/game.js"
-  import { storyDefaults } from "../../stores/settings.js"
+  import { storyDefaults, streamingEnabled } from "../../stores/settings.js"
   import personalityOptions from "../../../../shared/config/traits.json"
   import serverDefaults from "../../../../shared/config/server-defaults.json"
   import { loadPromptHistory, savePromptHistory, removePromptHistory } from "../../utils/promptHistory.js"
   import { normalizeGender } from "../../utils/text.js"
+  import { createRequestId } from "../../utils/ids.js"
+  import { clearPendingRequest, getPendingRequest, setPendingRequest } from "../../utils/pendingRequests.js"
   import PromptHistoryPanel from "../../components/ui/PromptHistoryPanel.svelte"
   import StoryModulesPanel from "../../components/ui/StoryModulesPanel.svelte"
+  import { streamClient } from "../../api/stream.js"
   import {
     generateCharacterFromDescription,
     generateCharacterAppearance,
@@ -75,24 +78,60 @@
   let promptHistory: string[] = []
 
   onMount(() => {
-    promptHistory = loadPromptHistory(CHARACTER_PROMPT_HISTORY_KEY)
+    void loadPromptHistory(CHARACTER_PROMPT_HISTORY_KEY).then((items) => {
+      promptHistory = items
+    })
     if (!$pendingStoryModules) pendingStoryModules.set($storyDefaults)
+    const pending = getPendingRequest<{ prompt: string; modules: StoryModules }>("generate.character")
+    if (pending) {
+      pendingCharacterGenerateDescription.set(pending.payload.prompt)
+      pendingStoryModules.set(pending.payload.modules)
+      void runGenerate(pending.payload.prompt, pending.payload.modules, pending.requestId)
+    }
   })
 
-  async function generate() {
+  async function runGenerate(prompt: string, modules: StoryModules, requestId: string) {
     if (generating) return
-    const prompt = $pendingCharacterGenerateDescription.trim()
-    if (!prompt) return
+    const trimmed = prompt.trim()
+    if (!trimmed) return
     generating = true
+    setPendingRequest({
+      kind: "generate.character",
+      requestId,
+      createdAt: Date.now(),
+      payload: { prompt: trimmed, modules },
+    })
+    const unsub = $streamingEnabled
+      ? streamClient.subscribe(requestId, (msg) => {
+          const patch =
+            msg.type === "subscribed"
+              ? ((msg.snapshot ?? {}) as Record<string, unknown>)
+              : msg.type === "stream" && msg.event === "preview"
+                ? (msg.patch as Record<string, unknown>)
+                : null
+          if (!patch) return
+          if (typeof patch.name === "string") name = patch.name
+          if (typeof patch.race === "string") race = patch.race
+          if (typeof patch.gender === "string") gender = normalizeGender(patch.gender)
+          if (typeof patch.general_description === "string") generalDescription = patch.general_description
+          if (modules.character_appearance_clothing) {
+            if (typeof patch.baseline_appearance === "string") {
+              baselineAppearance = patch.baseline_appearance
+              if (!currentAppearance.trim()) currentAppearance = patch.baseline_appearance
+            }
+            if (typeof patch.current_clothing === "string") currentClothing = patch.current_clothing
+          }
+        })
+      : null
     try {
-      promptHistory = savePromptHistory(CHARACTER_PROMPT_HISTORY_KEY, prompt)
-      const result = await generateCharacterFromDescription(prompt, activeModules)
+      promptHistory = await savePromptHistory(CHARACTER_PROMPT_HISTORY_KEY, trimmed)
+      const result = await generateCharacterFromDescription(trimmed, modules, requestId)
       name = result.name
       race = result.race
       gender = normalizeGender(result.gender)
       generalDescription = result.general_description ?? generalDescription
 
-      if (activeModules.character_appearance_clothing) {
+      if (modules.character_appearance_clothing) {
         if (result.baseline_appearance) {
           baselineAppearance = result.baseline_appearance
           currentAppearance = result.baseline_appearance
@@ -111,8 +150,17 @@
     } catch (err) {
       showError(err instanceof Error ? err.message : "Generation failed")
     } finally {
+      clearPendingRequest("generate.character", requestId)
       generating = false
+      unsub?.()
     }
+  }
+
+  async function generate() {
+    const prompt = $pendingCharacterGenerateDescription.trim()
+    if (!prompt) return
+    const requestId = createRequestId()
+    await runGenerate(prompt, activeModules, requestId)
   }
 
   const isMissingText = (value: string) => {
@@ -327,7 +375,9 @@
   }
 
   function deletePrompt(value: string) {
-    promptHistory = removePromptHistory(CHARACTER_PROMPT_HISTORY_KEY, value)
+    void removePromptHistory(CHARACTER_PROMPT_HISTORY_KEY, value).then((items) => {
+      promptHistory = items
+    })
   }
 
   function removePerk(t: string) {
@@ -385,14 +435,29 @@
       return
     }
     regeneratingAppearance = true
+    const requestId = createRequestId()
+    const unsub = $streamingEnabled
+      ? streamClient.subscribe(requestId, (msg) => {
+          const patch =
+            msg.type === "subscribed"
+              ? ((msg.snapshot ?? {}) as Record<string, unknown>)
+              : msg.type === "stream" && msg.event === "preview"
+                ? (msg.patch as Record<string, unknown>)
+                : null
+          if (!patch) return
+          if (typeof patch.baseline_appearance === "string") baselineAppearance = patch.baseline_appearance
+          if (typeof patch.current_appearance === "string") currentAppearance = patch.current_appearance
+        })
+      : null
     try {
-      const result = await generateCharacterAppearance(buildCharacterContext(), activeModules)
+      const result = await generateCharacterAppearance(buildCharacterContext(), activeModules, requestId)
       baselineAppearance = result.baseline_appearance
       currentAppearance = result.current_appearance
     } catch (err) {
       showError(err instanceof Error ? err.message : "Regeneration failed")
     } finally {
       regeneratingAppearance = false
+      unsub?.()
     }
   }
 
@@ -425,13 +490,27 @@
       return
     }
     regeneratingClothing = true
+    const requestId = createRequestId()
+    const unsub = $streamingEnabled
+      ? streamClient.subscribe(requestId, (msg) => {
+          const patch =
+            msg.type === "subscribed"
+              ? ((msg.snapshot ?? {}) as Record<string, unknown>)
+              : msg.type === "stream" && msg.event === "preview"
+                ? (msg.patch as Record<string, unknown>)
+                : null
+          if (!patch) return
+          if (typeof patch.current_clothing === "string") currentClothing = patch.current_clothing
+        })
+      : null
     try {
-      const result = await generateCharacterClothing(buildCharacterContext(), activeModules)
+      const result = await generateCharacterClothing(buildCharacterContext(), activeModules, requestId)
       currentClothing = result.current_clothing
     } catch (err) {
       showError(err instanceof Error ? err.message : "Regeneration failed")
     } finally {
       regeneratingClothing = false
+      unsub?.()
     }
   }
 
@@ -755,10 +834,30 @@
   {/if}
 
   <div class="actions">
-    <button class="btn-ghost" onclick={saveCharacter} disabled={savingCharacter}>
+    <button
+      class="btn-ghost"
+      onclick={saveCharacter}
+      disabled={savingCharacter ||
+        generating ||
+        autofilling ||
+        regeneratingAppearance ||
+        regeneratingClothing ||
+        regeneratingTraits}
+    >
       {savingCharacter ? "Saving..." : "Save Character"}
     </button>
-    <button class="btn-accent" onclick={useNow}>Use Now →</button>
+    <button
+      class="btn-accent"
+      onclick={useNow}
+      disabled={savingCharacter ||
+        generating ||
+        autofilling ||
+        regeneratingAppearance ||
+        regeneratingClothing ||
+        regeneratingTraits}
+    >
+      Use Now →
+    </button>
   </div>
 </div>
 

@@ -23,6 +23,7 @@ export async function generatePlayerAction(
   ctxLimitOverride?: number,
   authorNote?: { text: string; depth: number } | null,
   storyModules?: StoryModules,
+  options: { onText?: (text: string) => void } = {},
 ): Promise<string> {
   const messages = buildImpersonateMessages(
     character,
@@ -40,6 +41,7 @@ export async function generatePlayerAction(
     disableRepetition: true,
     stop: ["\n"],
     requestName: "PlayerAction",
+    ...(options.onText ? { onText: options.onText } : {}),
   })
   return sanitizePlayerAction(raw)
 }

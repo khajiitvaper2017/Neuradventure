@@ -21,6 +21,7 @@ export async function generateStory(
     perks?: string[]
   },
   storyModules?: StoryModules,
+  options: { onPreviewPatch?: (patch: Record<string, unknown>) => void } = {},
 ): Promise<StoryResponse> {
   const modules = storyModules ?? DEFAULT_STORY_MODULES
   const flags = resolveModuleFlags(modules)
@@ -84,7 +85,7 @@ export async function generateStory(
     "StoryResponse",
     responseSchema,
     undefined,
-    { disableRepetition: true },
+    { disableRepetition: true, ...(options.onPreviewPatch ? { onPreviewPatch: options.onPreviewPatch } : {}) },
   )
   return result
 }

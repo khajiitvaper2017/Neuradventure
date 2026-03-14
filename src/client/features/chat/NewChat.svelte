@@ -5,10 +5,14 @@
   import { resetChat } from "../../stores/chat.js"
   import { autoresize } from "../../utils/actions/autoresize.js"
   import { loadPromptHistory, savePromptHistory, removePromptHistory } from "../../utils/promptHistory.js"
+  import { createRequestId } from "../../utils/ids.js"
+  import { clearPendingRequest, getPendingRequest, setPendingRequest } from "../../utils/pendingRequests.js"
   import IconDocument from "../../components/icons/IconDocument.svelte"
   import PromptHistoryPanel from "../../components/ui/PromptHistoryPanel.svelte"
   import Select from "../../components/ui/Select.svelte"
   import { generateChatFromDescription } from "./actions.js"
+  import { streamClient } from "../../api/stream.js"
+  import { streamingEnabled } from "../../stores/settings.js"
 
   let title = $state("")
   let description = $state("")
@@ -50,7 +54,14 @@
   onMount(() => {
     resetChat()
     void loadOptions()
-    chatPromptHistory = loadPromptHistory(CHAT_PROMPT_HISTORY_KEY)
+    void loadPromptHistory(CHAT_PROMPT_HISTORY_KEY).then((items) => {
+      chatPromptHistory = items
+    })
+    const pending = getPendingRequest<{ prompt: string }>("generate.chat")
+    if (pending && pending.payload.prompt?.trim()) {
+      if (!description.trim()) description = pending.payload.prompt
+      void runGenerateFromDescription(pending.payload.prompt, pending.requestId)
+    }
   })
 
   async function loadOptions() {
@@ -75,7 +86,9 @@
   }
 
   function deleteChatPrompt(value: string) {
-    chatPromptHistory = removePromptHistory(CHAT_PROMPT_HISTORY_KEY, value)
+    void removePromptHistory(CHAT_PROMPT_HISTORY_KEY, value).then((items) => {
+      chatPromptHistory = items
+    })
   }
 
   type StoryRef = { id: number; title: string; updated_at: string }
@@ -140,7 +153,9 @@
     void refreshGreeting()
   }
 
-  let canSubmit = $derived(!!title.trim() && !!greeting.trim() && !!playerKey && aiKeys.length > 0 && !submitting)
+  let canSubmit = $derived(
+    !!title.trim() && !!greeting.trim() && !!playerKey && aiKeys.length > 0 && !submitting && !generating,
+  )
   let canGenerate = $derived(!!description.trim() && !generating)
 
   let selectedPlayerOption = $derived(optionByKey(playerKey))
@@ -186,24 +201,47 @@
     }
   }
 
-  async function generateFromDescription() {
+  async function runGenerateFromDescription(prompt: string, requestId: string) {
     if (generating) return
-    const prompt = description.trim()
-    if (!prompt) {
-      showError("Description is required")
-      return
-    }
+    const trimmed = prompt.trim()
+    if (!trimmed) return
     generating = true
+    setPendingRequest({ kind: "generate.chat", requestId, createdAt: Date.now(), payload: { prompt: trimmed } })
+    const unsub = $streamingEnabled
+      ? streamClient.subscribe(requestId, (msg) => {
+          const patch =
+            msg.type === "subscribed"
+              ? ((msg.snapshot ?? {}) as Record<string, unknown>)
+              : msg.type === "stream" && msg.event === "preview"
+                ? (msg.patch as Record<string, unknown>)
+                : null
+          if (!patch) return
+          if (typeof patch.title === "string") title = patch.title
+          if (typeof patch.greeting === "string") greeting = patch.greeting
+        })
+      : null
     try {
-      chatPromptHistory = savePromptHistory(CHAT_PROMPT_HISTORY_KEY, prompt)
-      const result = await generateChatFromDescription(prompt)
+      chatPromptHistory = await savePromptHistory(CHAT_PROMPT_HISTORY_KEY, trimmed)
+      const result = await generateChatFromDescription(trimmed, requestId)
       title = result.title
       greeting = result.greeting
     } catch (err) {
       showError(err instanceof Error ? err.message : "Generation failed")
     } finally {
+      clearPendingRequest("generate.chat", requestId)
       generating = false
+      unsub?.()
     }
+  }
+
+  async function generateFromDescription() {
+    const prompt = description.trim()
+    if (!prompt) {
+      showError("Description is required")
+      return
+    }
+    const requestId = createRequestId()
+    await runGenerateFromDescription(prompt, requestId)
   }
 
   async function startChat() {
@@ -349,7 +387,7 @@
               e.stopPropagation()
               togglePlayerDropdown()
             }}
-            disabled={loading || !hasPlayableOptions}
+            disabled={generating || submitting || loading || !hasPlayableOptions}
             aria-haspopup="listbox"
             aria-expanded={showPlayerDropdown}
           >
@@ -374,6 +412,7 @@
                       e.stopPropagation()
                       selectPlayer(option.key)
                     }}
+                    disabled={generating || submitting}
                   >
                     <span class="shared-select-name">
                       {option.name}
@@ -386,6 +425,7 @@
                       class="shared-select-item-action"
                       title="Details"
                       aria-label="Character details"
+                      disabled={generating || submitting}
                       onclick={(e) => {
                         e.stopPropagation()
                         showPlayerDropdown = false
@@ -400,7 +440,9 @@
             </div>
           {/if}
         </div>
-        <button class="btn-ghost" onclick={() => navigate("char-create")}>New</button>
+        <button class="btn-ghost" onclick={() => navigate("char-create")} disabled={generating || submitting}
+          >New</button
+        >
         <button
           class="btn-ghost btn-icon"
           onclick={() => {
@@ -408,13 +450,15 @@
             showPlayerDropdown = false
             openCharSheetForCharacter(selectedPlayerCharId)
           }}
-          disabled={!selectedPlayerCharId}
+          disabled={generating || submitting || !selectedPlayerCharId}
           title={selectedPlayerCharId ? "Character details" : "Details available for story characters only"}
         >
           <IconDocument size={16} strokeWidth={1.6} />
           Details
         </button>
-        <button class="btn-ghost" onclick={refreshPlayable} disabled={loading}>Refresh</button>
+        <button class="btn-ghost" onclick={refreshPlayable} disabled={generating || submitting || loading}
+          >Refresh</button
+        >
       </div>
     </div>
 
@@ -435,7 +479,9 @@
       <div class="shared-summary shared-summary--empty">
         <div class="shared-summary__header">Player Character</div>
         <div class="shared-summary__details">No player selected yet.</div>
-        <button class="btn-accent small" onclick={() => navigate("char-create")}>New Character</button>
+        <button class="btn-accent small" onclick={() => navigate("char-create")} disabled={generating || submitting}>
+          New Character
+        </button>
       </div>
     {/if}
 
@@ -451,7 +497,7 @@
             <label class="ai-row {option.key === playerKey ? 'disabled' : ''}">
               <input
                 type="checkbox"
-                disabled={option.key === playerKey}
+                disabled={generating || submitting || option.key === playerKey}
                 checked={aiKeys.includes(option.key)}
                 onchange={() => toggleAi(option.key)}
               />
@@ -467,6 +513,7 @@
                   class="shared-select-item-action ai-expand"
                   title="Details"
                   aria-label="Character details"
+                  disabled={generating || submitting}
                   onclick={(e) => {
                     e.preventDefault()
                     e.stopPropagation()

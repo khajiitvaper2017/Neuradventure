@@ -32,15 +32,23 @@ export const turns = {
         request_id: requestId,
       }),
     }),
-  regenerateLast: (storyId: number, actionMode: "do" | "say" | "story") =>
+  regenerateLast: (storyId: number, actionMode: "do" | "say" | "story", requestId?: string) =>
     request<TurnResult>("/api/turns/regenerate-last", {
       method: "POST",
-      body: JSON.stringify({ story_id: storyId, action_mode: actionMode }),
+      body: JSON.stringify({
+        story_id: storyId,
+        action_mode: actionMode,
+        ...(requestId ? { request_id: requestId } : {}),
+      }),
     }),
-  impersonate: (storyId: number, actionMode: "do" | "say" | "story") =>
+  impersonate: (storyId: number, actionMode: "do" | "say" | "story", requestId?: string) =>
     request<ImpersonateResult>("/api/turns/impersonate", {
       method: "POST",
-      body: JSON.stringify({ story_id: storyId, action_mode: actionMode }),
+      body: JSON.stringify({
+        story_id: storyId,
+        action_mode: actionMode,
+        ...(requestId ? { request_id: requestId } : {}),
+      }),
     }),
   cancelLast: (storyId: number) =>
     request<CancelLastResult>("/api/turns/cancel-last", {

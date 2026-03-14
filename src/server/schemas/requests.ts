@@ -91,11 +91,13 @@ export const TakeTurnRequestSchema = z
 export const RegenerateLastRequestSchema = z.object({
   story_id: z.number().int(),
   action_mode: z.enum(["do", "say", "story"]).optional(),
+  request_id: z.string().min(1).optional(),
 })
 
 export const ImpersonateRequestSchema = z.object({
   story_id: z.number().int(),
   action_mode: z.enum(["do", "say", "story"]).default("do"),
+  request_id: z.string().min(1).optional(),
 })
 
 export const CancelLastRequestSchema = z.object({
@@ -138,6 +140,7 @@ export const CreateChatRequestSchema = z.object({
 export const SendChatMessageRequestSchema = z.object({
   chat_id: z.number().int(),
   content: z.string().min(1),
+  request_id: z.string().min(1).optional(),
 })
 
 export const UpdateChatRequestSchema = z.object({
@@ -150,6 +153,7 @@ export const UpdateChatMessageRequestSchema = z.object({
 
 export const ChatIdRequestSchema = z.object({
   chat_id: z.number().int(),
+  request_id: z.string().min(1).optional(),
 })
 
 export const SetNextChatSpeakerRequestSchema = z.object({

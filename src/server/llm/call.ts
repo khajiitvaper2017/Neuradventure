@@ -10,6 +10,7 @@ import { parseJsonFromContent } from "./parse.js"
 import { createLlmLogBase, logLlmEntry } from "./logging.js"
 import { getClient, getConnector, getGenerationParams, getCachedSupportedParameters } from "./client.js"
 import { injectSchemaDescriptions } from "./inject-schema-descriptions.js"
+import { createStructuredPreviewExtractor } from "./structured-preview.js"
 
 function isAsyncIterable(value: unknown): value is AsyncIterable<unknown> {
   if (!value || typeof value !== "object") return false
@@ -139,19 +140,49 @@ function repairTurnResponseShape(value: unknown): unknown {
   return root
 }
 
-async function readStreamedContent(stream: AsyncIterable<unknown>): Promise<string> {
+function extractTextDeltaFromContent(value: unknown): string {
+  if (typeof value === "string") return value
+  if (!Array.isArray(value)) return ""
+  const parts = value
+    .map((p) => (p && typeof p === "object" ? (p as Record<string, unknown>) : null))
+    .filter((p): p is Record<string, unknown> => !!p)
+  const textParts = parts
+    .map((p) => {
+      const type = p.type
+      if (type === "text" && typeof p.text === "string") return p.text
+      return null
+    })
+    .filter((t): t is string => typeof t === "string" && t.length > 0)
+  return textParts.join("")
+}
+
+function extractTextDeltaFromStreamChunk(chunk: unknown): string {
+  if (!chunk || typeof chunk !== "object") return ""
+  const choices = (chunk as Record<string, unknown>).choices
+  if (!Array.isArray(choices) || choices.length === 0) return ""
+  const first = (choices[0] ?? null) as Record<string, unknown> | null
+  if (!first) return ""
+
+  const delta = first.delta as Record<string, unknown> | undefined
+  const deltaContent = delta?.content
+  const deltaText = extractTextDeltaFromContent(deltaContent)
+  if (deltaText) return deltaText
+
+  const message = first.message as Record<string, unknown> | undefined
+  const msgContent = message?.content
+  return extractTextDeltaFromContent(msgContent)
+}
+
+async function readStreamedText(
+  stream: AsyncIterable<unknown>,
+  onDelta?: (delta: string, full: string) => void,
+): Promise<string> {
   let out = ""
   for await (const chunk of stream) {
-    if (!chunk || typeof chunk !== "object") continue
-    const choices = (chunk as Record<string, unknown>).choices
-    if (!Array.isArray(choices) || choices.length === 0) continue
-    const first = choices[0] as Record<string, unknown>
-    const delta = first.delta as Record<string, unknown> | undefined
-    const deltaContent = delta?.content
-    if (typeof deltaContent === "string" && deltaContent) out += deltaContent
-    const message = first.message as Record<string, unknown> | undefined
-    const msgContent = message?.content
-    if (typeof msgContent === "string" && msgContent) out += msgContent
+    const delta = extractTextDeltaFromStreamChunk(chunk)
+    if (!delta) continue
+    out += delta
+    onDelta?.(delta, out)
   }
   return out
 }
@@ -336,7 +367,7 @@ async function readReadableStreamText(stream: ReadableStreamLike, limitBytes = 2
 }
 
 async function extractContentFromUnknown(res: unknown): Promise<string | null> {
-  if (isAsyncIterable(res)) return await readStreamedContent(res)
+  if (isAsyncIterable(res)) return await readStreamedText(res)
 
   const errMsg = extractErrorMessage(res)
   if (errMsg) throw new Error(`LLM returned error payload: ${errMsg}`)
@@ -394,13 +425,28 @@ function formatZodIssues(error: z.ZodError): string {
   return issues.join("; ")
 }
 
+function shouldRetryWithoutStream(err: unknown): boolean {
+  const msg = err instanceof Error ? err.message : String(err)
+  if (!msg) return false
+  if (!/stream/i.test(msg)) return false
+  return /(unknown|unrecognized|unsupported|unexpected|additional property|not allowed|invalid)/i.test(msg)
+}
+
 export async function callLLM(
   messages: OpenAI.ChatCompletionMessageParam[],
   knownNpcs: NPCState[] = [],
   storyModules?: StoryModules,
+  options: { onPreviewPatch?: (patch: Record<string, unknown>) => void } = {},
 ): Promise<TurnResponse> {
   const turnSchema = buildTurnResponseSchema(knownNpcs, storyModules)
-  return await callLLMRaw(messages, "TurnResponse", turnSchema)
+  const includeBackgroundEvents = !!storyModules?.track_background_events
+  const previewKeys = includeBackgroundEvents
+    ? ["narrative_text", "background_events", "current_scene", "time_of_day"]
+    : ["narrative_text", "current_scene", "time_of_day"]
+  return await callLLMRaw(messages, "TurnResponse", turnSchema, undefined, {
+    ...options,
+    previewKeys,
+  })
 }
 
 export async function generateNpcCreation(
@@ -428,7 +474,11 @@ export async function callLLMRaw<TSchema extends z.ZodTypeAny>(
   schemaName: string,
   zodSchema: TSchema,
   maxTokensOverride?: number,
-  options: { disableRepetition?: boolean } = {},
+  options: {
+    disableRepetition?: boolean
+    onPreviewPatch?: (patch: Record<string, unknown>) => void
+    previewKeys?: string[]
+  } = {},
 ): Promise<z.infer<TSchema>> {
   const gen = getGenerationParams()
   const connector = getConnector()
@@ -458,6 +508,31 @@ export async function callLLMRaw<TSchema extends z.ZodTypeAny>(
   let requestPayload: Record<string, unknown> | undefined
 
   const model = connector.type === "openrouter" ? connector.model : "local"
+  const shouldStream = typeof options.onPreviewPatch === "function"
+  const previewKeys =
+    options.previewKeys ??
+    (schemaName === "TurnResponse"
+      ? ["narrative_text", "background_events", "current_scene", "time_of_day"]
+      : schemaName === "GenerateCharacterResponse"
+        ? ["name", "race", "gender", "general_description", "baseline_appearance", "current_clothing"]
+        : schemaName === "GenerateCharacterAppearanceResponse"
+          ? ["baseline_appearance", "current_appearance"]
+          : schemaName === "GenerateCharacterClothingResponse"
+            ? ["current_clothing"]
+            : schemaName === "StoryResponse"
+              ? [
+                  "title",
+                  "opening_scenario",
+                  "starting_location",
+                  "starting_date",
+                  "starting_time",
+                  "general_description",
+                  "current_appearance",
+                ]
+              : schemaName === "GenerateChatResponse"
+                ? ["title", "greeting"]
+                : [])
+  const previewExtractor = shouldStream && previewKeys.length > 0 ? createStructuredPreviewExtractor(previewKeys) : null
 
   try {
     const schemaDescriptions: Record<string, string> = {
@@ -475,7 +550,7 @@ export async function callLLMRaw<TSchema extends z.ZodTypeAny>(
       model,
       messages,
       ...sampling,
-      stream: false,
+      stream: shouldStream,
     }
 
     const initialReq =
@@ -538,6 +613,10 @@ export async function callLLMRaw<TSchema extends z.ZodTypeAny>(
         delete (fallbackReq as unknown as Record<string, unknown>).response_format
         requestPayload = fallbackReq as unknown as Record<string, unknown>
         res = await getClient().chat.completions.create(fallbackReq as OpenAI.ChatCompletionCreateParams)
+      } else if (shouldStream && shouldRetryWithoutStream(err)) {
+        const fallbackReq = { ...initialReq, stream: false }
+        requestPayload = fallbackReq as unknown as Record<string, unknown>
+        res = await getClient().chat.completions.create(fallbackReq as OpenAI.ChatCompletionCreateParams)
       } else {
         throw err
       }
@@ -546,7 +625,30 @@ export async function callLLMRaw<TSchema extends z.ZodTypeAny>(
     if (connector.type === "openrouter") maybeLogOpenRouterResolvedModel(model, res)
 
     const shape = describeResponseShape(res)
-    responseContent = (await extractContentFromUnknown(res)) ?? undefined
+    if (shouldStream && previewExtractor && isAsyncIterable(res)) {
+      try {
+        responseContent = await readStreamedText(res, (delta) => {
+          const patch = previewExtractor.push(delta)
+          if (patch) options.onPreviewPatch?.(patch)
+        })
+      } catch (err) {
+        if (!shouldRetryWithoutStream(err)) throw err
+        const fallbackReq = { ...initialReq, stream: false } as OpenAI.ChatCompletionCreateParams
+        requestPayload = fallbackReq as unknown as Record<string, unknown>
+        const fallbackRes = await getClient().chat.completions.create(fallbackReq)
+        responseContent = (await extractContentFromUnknown(fallbackRes)) ?? undefined
+        if (responseContent) {
+          const patch = previewExtractor.push(responseContent)
+          if (patch) options.onPreviewPatch?.(patch)
+        }
+      }
+    } else {
+      responseContent = (await extractContentFromUnknown(res)) ?? undefined
+      if (shouldStream && previewExtractor && responseContent) {
+        const patch = previewExtractor.push(responseContent)
+        if (patch) options.onPreviewPatch?.(patch)
+      }
+    }
 
     if (!responseContent) throw new Error(`LLM returned empty response. Shape: ${shape}`)
     const parsedRaw = parseJsonFromContent(responseContent, schemaName)
@@ -587,7 +689,12 @@ export async function callLLMRaw<TSchema extends z.ZodTypeAny>(
 export async function callLLMText(
   messages: OpenAI.ChatCompletionMessageParam[],
   maxTokensOverride?: number,
-  options: { disableRepetition?: boolean; stop?: string[]; requestName?: string } = {},
+  options: {
+    disableRepetition?: boolean
+    stop?: string[]
+    requestName?: string
+    onText?: (text: string) => void
+  } = {},
 ): Promise<string> {
   const gen = getGenerationParams()
   const connector = getConnector()
@@ -604,6 +711,7 @@ export async function callLLMText(
   const logBase = createLlmLogBase("text", requestName, messages, sampling, undefined, stop)
   let responseContent: string | undefined
   let requestPayload: Record<string, unknown> | undefined
+  const shouldStream = typeof options.onText === "function"
 
   try {
     const req: OpenAI.ChatCompletionCreateParams = {
@@ -611,12 +719,40 @@ export async function callLLMText(
       messages,
       ...sampling,
       stop,
+      stream: shouldStream,
     }
     requestPayload = req as unknown as Record<string, unknown>
-    const res = await getClient().chat.completions.create(req)
+    let res: unknown
+    try {
+      res = await getClient().chat.completions.create(req)
+    } catch (err) {
+      if (shouldStream && shouldRetryWithoutStream(err)) {
+        const fallbackReq = { ...req, stream: false }
+        requestPayload = fallbackReq as unknown as Record<string, unknown>
+        res = await getClient().chat.completions.create(fallbackReq)
+      } else {
+        throw err
+      }
+    }
 
     const shape = describeResponseShape(res)
-    responseContent = (await extractContentFromUnknown(res)) ?? undefined
+    if (shouldStream && isAsyncIterable(res)) {
+      try {
+        responseContent = await readStreamedText(res, (_delta, full) => {
+          options.onText?.(full)
+        })
+      } catch (err) {
+        if (!shouldRetryWithoutStream(err)) throw err
+        const fallbackReq = { ...req, stream: false }
+        requestPayload = fallbackReq as unknown as Record<string, unknown>
+        const fallbackRes = await getClient().chat.completions.create(fallbackReq)
+        responseContent = (await extractContentFromUnknown(fallbackRes)) ?? undefined
+        if (responseContent) options.onText?.(responseContent)
+      }
+    } else {
+      responseContent = (await extractContentFromUnknown(res)) ?? undefined
+      if (shouldStream && responseContent) options.onText?.(responseContent)
+    }
 
     if (!responseContent) throw new Error(`LLM returned empty response. Shape: ${shape}`)
     logLlmEntry({

@@ -159,12 +159,21 @@ export function sanitizeChatReply(text: string, speakerName: string): string {
 export async function generateChatReply(
   messages: OpenAI.ChatCompletionMessageParam[],
   stopTokens: string[],
+  options: { onText?: (text: string) => void } = {},
 ): Promise<string> {
   const cleanedStops = stopTokens.filter((token) => token.trim().length > 0)
-  return callLLMText(messages, undefined, { disableRepetition: true, stop: cleanedStops, requestName: "ChatReply" })
+  return callLLMText(messages, undefined, {
+    disableRepetition: true,
+    stop: cleanedStops,
+    requestName: "ChatReply",
+    ...(options.onText ? { onText: options.onText } : {}),
+  })
 }
 
-export async function generateChat(description: string): Promise<GenerateChatResponse> {
+export async function generateChat(
+  description: string,
+  options: { onPreviewPatch?: (patch: Record<string, unknown>) => void } = {},
+): Promise<GenerateChatResponse> {
   const prompt = getGenerateChatPrompt()
   const result = await callLLMRaw(
     [
@@ -174,7 +183,7 @@ export async function generateChat(description: string): Promise<GenerateChatRes
     "GenerateChatResponse",
     GenerateChatResponseSchema,
     undefined,
-    { disableRepetition: true },
+    { disableRepetition: true, ...(options.onPreviewPatch ? { onPreviewPatch: options.onPreviewPatch } : {}) },
   )
   return result
 }

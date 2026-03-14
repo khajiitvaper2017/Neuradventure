@@ -40,20 +40,20 @@ export const chats = {
       content: string
     }
   }) => request<{ id: number }>("/api/chats", { method: "POST", body: JSON.stringify(data) }),
-  send: (id: number, content: string) =>
+  send: (id: number, content: string, requestId?: string) =>
     request<ChatSendResult>(`/api/chats/${id}/messages`, {
       method: "POST",
-      body: JSON.stringify({ chat_id: id, content }),
+      body: JSON.stringify({ chat_id: id, content, ...(requestId ? { request_id: requestId } : {}) }),
     }),
-  continue: (id: number) =>
+  continue: (id: number, requestId?: string) =>
     request<ChatContinueResult>(`/api/chats/${id}/continue`, {
       method: "POST",
-      body: JSON.stringify({ chat_id: id }),
+      body: JSON.stringify({ chat_id: id, ...(requestId ? { request_id: requestId } : {}) }),
     }),
-  regenerateLast: (id: number) =>
+  regenerateLast: (id: number, requestId?: string) =>
     request<ChatRegenerateResult>(`/api/chats/${id}/regenerate`, {
       method: "POST",
-      body: JSON.stringify({ chat_id: id }),
+      body: JSON.stringify({ chat_id: id, ...(requestId ? { request_id: requestId } : {}) }),
     }),
   cancelLast: (id: number) =>
     request<ChatCancelResult>(`/api/chats/${id}/cancel-last`, {

@@ -17,6 +17,10 @@
   --accent-hover: #ddbf85;
   --danger: #b54040;
 
+  /* Selection */
+  --selection-bg: rgba(255, 255, 255, 0.18);
+  --selection-text: var(--text);
+
   /* Interaction */
   --safe-top: env(safe-area-inset-top, 0px);
   --safe-bottom: env(safe-area-inset-bottom, 0px);
@@ -153,8 +157,21 @@ input {
 }
 
 ::selection {
-  background: var(--accent-dim);
-  color: var(--text);
+  background: var(--selection-bg);
+  color: var(--selection-text);
+}
+::-moz-selection {
+  background: var(--selection-bg);
+  color: var(--selection-text);
+}
+
+@media (forced-colors: active) {
+  ::selection,
+  ::-moz-selection {
+    background: Highlight;
+    color: HighlightText;
+    text-shadow: none;
+  }
 }
 
 input[type="checkbox"] {
@@ -472,9 +489,72 @@ button.btn-icon {
 .mode-pill:hover {
   color: var(--text);
 }
+.mode-pill:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
 .mode-pill.active {
   background: var(--accent);
   color: #0d0b08;
+}
+.mode-pill.active:disabled {
+  background: var(--accent-dim);
+  color: var(--text);
+}
+
+.stream-lock-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.18rem 0.5rem;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--border);
+  background: var(--bg-action);
+  color: var(--text-dim);
+  font-size: 0.62rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+.stream-lock-pill::before {
+  content: "";
+  width: 0.4rem;
+  height: 0.4rem;
+  border-radius: 999px;
+  background: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-dim);
+}
+@media (prefers-reduced-motion: no-preference) {
+  .stream-lock-pill::before {
+    animation: stream-lock-pulse 1.15s var(--ease-out) infinite;
+  }
+}
+@keyframes stream-lock-pulse {
+  0% {
+    transform: scale(0.92);
+    opacity: 0.55;
+  }
+  55% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(0.92);
+    opacity: 0.55;
+  }
+}
+
+.regen-placeholder {
+  font-family: var(--font-ui);
+  font-size: 0.7rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+  opacity: 0.85;
+}
+.regen-placeholder::before {
+  content: "↻ ";
+  color: var(--accent);
 }
 
 /* ── Small choice pills (e.g., Versions, Greetings) ── */
@@ -1796,4 +1876,40 @@ button.chip:disabled {
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
+}
+
+/* ── Streaming previews ───────────────────────────────── */
+.stream-preview {
+  margin-top: 0.85rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--bg-action);
+  padding: 0.75rem 0.85rem;
+  box-shadow: 0 0 0 0 rgba(0, 0, 0, 0);
+  transition:
+    border-color 0.15s var(--ease-out),
+    background 0.15s var(--ease-out);
+}
+
+.stream-preview:hover {
+  border-color: var(--border-hover);
+}
+
+.stream-preview__scene {
+  font-size: 0.78rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-scene);
+  margin-bottom: 0.45rem;
+}
+
+.stream-preview__para {
+  color: var(--text-action);
+  font-family: var(--font-story);
+  line-height: var(--story-line);
+  font-size: var(--story-size);
+}
+
+.stream-preview__para + .stream-preview__para {
+  margin-top: 0.6rem;
 }

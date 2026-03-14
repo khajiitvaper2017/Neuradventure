@@ -4,7 +4,12 @@ import { generatePlayerAction, getCtxLimitCached } from "../llm/index.js"
 import { parseInitialStorySnapshot } from "./snapshots.js"
 import { getAuthorNote, getStoryModules } from "./helpers.js"
 
-export async function impersonatePlayerAction(storyId: number, actionMode: string): Promise<{ player_action: string }> {
+export async function impersonatePlayerAction(
+  storyId: number,
+  actionMode: string,
+  _requestId?: string,
+  options: { onText?: (text: string) => void } = {},
+): Promise<{ player_action: string }> {
   const story = db.getStory(storyId)
   if (!story) throw new Error(`Story ${storyId} not found`)
   const modules = getStoryModules(story)
@@ -27,6 +32,7 @@ export async function impersonatePlayerAction(storyId: number, actionMode: strin
     ctxLimit,
     authorNote,
     modules,
+    { onText: options.onText },
   )
   if (!action.trim()) throw new Error("LLM returned empty player action")
   return { player_action: action.trim() }

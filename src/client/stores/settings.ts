@@ -85,6 +85,7 @@ const themeStore = writable<Theme>("default")
 const designStore = writable<Design>("classic")
 const textJustifyStore = writable<boolean>(true)
 const colorSchemeStore = writable<"gold" | "emerald" | "sapphire" | "crimson">("gold")
+const streamingEnabledStore = writable<boolean>(false)
 const connectorStore = writable<LLMConnector>({ ...DEFAULT_CONNECTOR })
 const generationStore = writable<GenerationParams>({ ...DEFAULT_GENERATION })
 const ctxLimitDetectedStore = writable<number>(0)
@@ -101,6 +102,7 @@ let current: AppSettings = {
   design: "classic",
   textJustify: true,
   colorScheme: "gold",
+  streamingEnabled: false,
   defaultAuthorNote: "Remember the instructions you were given at the beginning of this chat.",
   defaultAuthorNoteDepth: 4,
   storyDefaults: { ...DEFAULT_STORY_MODULES },
@@ -115,6 +117,7 @@ function applySettings(settings: AppSettings) {
   designStore.set(settings.design)
   textJustifyStore.set(settings.textJustify)
   colorSchemeStore.set(settings.colorScheme)
+  streamingEnabledStore.set(settings.streamingEnabled ?? false)
   defaultAuthorNoteStore.set(settings.defaultAuthorNote)
   defaultAuthorNoteDepthStore.set(settings.defaultAuthorNoteDepth)
   storyDefaultsStore.set(settings.storyDefaults)
@@ -165,6 +168,11 @@ colorSchemeStore.subscribe((value) => {
   if (!suppressSync) void persistSettings({ colorScheme: value })
 })
 
+streamingEnabledStore.subscribe((value) => {
+  current = { ...current, streamingEnabled: value }
+  if (!suppressSync) void persistSettings({ streamingEnabled: value })
+})
+
 defaultAuthorNoteStore.subscribe((value) => {
   current = { ...current, defaultAuthorNote: value }
   if (!suppressSync) void persistSettings({ defaultAuthorNote: value })
@@ -194,6 +202,7 @@ export const theme = themeStore
 export const design = designStore
 export const textJustify = textJustifyStore
 export const colorScheme = colorSchemeStore
+export const streamingEnabled = streamingEnabledStore
 export const defaultAuthorNote = defaultAuthorNoteStore
 export const defaultAuthorNoteDepth = defaultAuthorNoteDepthStore
 export const storyDefaults = storyDefaultsStore

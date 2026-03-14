@@ -4,6 +4,9 @@
   import { normalizeChatInput } from "../../utils/inputNormalize.js"
   import { scrollToBottom } from "../../utils/scroll.js"
   import { showConfirm, showError, goBack } from "../../stores/ui.js"
+  import { createRequestId } from "../../utils/ids.js"
+  import { clearPendingRequest, getPendingRequest, setPendingRequest } from "../../utils/pendingRequests.js"
+  import { streamClient } from "../../api/stream.js"
   import {
     canUndoChatCancel,
     chatMembers,
@@ -13,6 +16,7 @@
     isChatGenerating,
     nextSpeakerIndex,
   } from "../../stores/chat.js"
+  import { streamingEnabled } from "../../stores/settings.js"
   import { autoresize } from "../../utils/actions/autoresize.js"
   import {
     appendChatExchange,
@@ -49,8 +53,21 @@
   let greetingApplyNonce = 0
   let greetingIndex = $state<number>(0)
   let lastGreetingCharId: number | null = null
+  let streamUnsub = $state<null | (() => void)>(null)
+  let streamReply = $state("")
+  let resumeAttemptedFor = ""
+  let streamPreviewMode = $state<"append" | "replace">("append")
+  let regeneratingMessageId = $state<number | null>(null)
 
   let visibleMessages = $derived($chatMessages.filter((m) => m.role !== "system"))
+
+  function lastAssistantMessageId(): number | null {
+    for (let i = visibleMessages.length - 1; i >= 0; i--) {
+      const msg = visibleMessages[i]
+      if (msg?.role === "assistant") return msg.id
+    }
+    return null
+  }
 
   function participantLabel() {
     return $chatMembers.map((m) => m.name).join(" · ")
@@ -71,6 +88,27 @@
     return list[safeIndex]?.name ?? "Unknown"
   }
 
+  function stopChatStream() {
+    streamUnsub?.()
+    streamUnsub = null
+    streamReply = ""
+  }
+
+  function startChatStream(requestId: string) {
+    stopChatStream()
+    if (!$streamingEnabled) return
+    streamUnsub = streamClient.subscribe(requestId, (msg) => {
+      if (msg.type === "subscribed" && msg.snapshot) {
+        const snap = msg.snapshot as Record<string, unknown>
+        if (typeof snap.content === "string") streamReply = snap.content
+        return
+      }
+      if (msg.type !== "stream" || msg.event !== "preview") return
+      const patch = msg.patch as Record<string, unknown>
+      if (typeof patch.content === "string") streamReply = patch.content
+    })
+  }
+
   $effect(() => {
     if (visibleMessages.length === 0) return
     tick().then(() => scrollToBottom(logEl))
@@ -78,6 +116,54 @@
 
   onMount(() => {
     tick().then(() => scrollToBottom(logEl))
+  })
+
+  type PendingChatPayload = { chatId: number; content?: string }
+
+  async function resumePendingChat(kind: "chat.send" | "chat.continue" | "chat.regenerate") {
+    if (!$currentChatId || $isChatGenerating) return
+    const pending = getPendingRequest<PendingChatPayload>(kind)
+    if (!pending) return
+    if (pending.payload.chatId !== $currentChatId) return
+    if (pending.requestId === resumeAttemptedFor) return
+    resumeAttemptedFor = pending.requestId
+
+    streamPreviewMode = kind === "chat.regenerate" ? "replace" : "append"
+    regeneratingMessageId = kind === "chat.regenerate" ? lastAssistantMessageId() : null
+    isChatGenerating.set(true)
+    startChatStream(pending.requestId)
+    try {
+      if (kind === "chat.send") {
+        const content = pending.payload.content ?? ""
+        const result = await api.chats.send($currentChatId, content, pending.requestId)
+        appendChatExchange(result)
+      } else if (kind === "chat.continue") {
+        const result = await api.chats.continue($currentChatId, pending.requestId)
+        appendChatMessage(result)
+      } else {
+        const result = await api.chats.regenerateLast($currentChatId, pending.requestId)
+        applyRegenerateResult(result)
+      }
+      await tick()
+      scrollToBottom(logEl)
+    } catch (err) {
+      showError(err instanceof Error ? err.message : "Failed to resume generation")
+    } finally {
+      clearPendingRequest(kind, pending.requestId)
+      isChatGenerating.set(false)
+      stopChatStream()
+      streamPreviewMode = "append"
+      regeneratingMessageId = null
+    }
+  }
+
+  $effect(() => {
+    if (typeof window === "undefined") return
+    if (!$currentChatId) return
+    if ($isChatGenerating) return
+    void resumePendingChat("chat.send")
+    void resumePendingChat("chat.continue")
+    void resumePendingChat("chat.regenerate")
   })
 
   function startEditTitle() {
@@ -229,16 +315,32 @@
     if (!$currentChatId || $isChatGenerating) return
     const raw = input
     const trimmed = raw.trim()
+    streamPreviewMode = "append"
+    regeneratingMessageId = null
     isChatGenerating.set(true)
     input = ""
+    const requestId = createRequestId()
+    startChatStream(requestId)
     try {
       if (trimmed) {
         const content = normalizeChatInput(trimmed, actionMode)
         if (!content) return
-        const result = await api.chats.send($currentChatId, content)
+        setPendingRequest({
+          kind: "chat.send",
+          requestId,
+          createdAt: Date.now(),
+          payload: { chatId: $currentChatId, content },
+        })
+        const result = await api.chats.send($currentChatId, content, requestId)
         appendChatExchange(result)
       } else {
-        const result = await api.chats.continue($currentChatId)
+        setPendingRequest({
+          kind: "chat.continue",
+          requestId,
+          createdAt: Date.now(),
+          payload: { chatId: $currentChatId },
+        })
+        const result = await api.chats.continue($currentChatId, requestId)
         appendChatMessage(result)
       }
       await tick()
@@ -246,22 +348,41 @@
     } catch (err) {
       showError(err instanceof Error ? err.message : "Failed to send message")
     } finally {
+      clearPendingRequest("chat.send", requestId)
+      clearPendingRequest("chat.continue", requestId)
       isChatGenerating.set(false)
+      stopChatStream()
+      streamPreviewMode = "append"
+      regeneratingMessageId = null
     }
   }
 
   async function regenerateLast() {
     if (!$currentChatId || $isChatGenerating || visibleMessages.length === 0) return
+    streamPreviewMode = "replace"
+    regeneratingMessageId = lastAssistantMessageId()
     isChatGenerating.set(true)
+    const requestId = createRequestId()
+    startChatStream(requestId)
     try {
-      const result = await api.chats.regenerateLast($currentChatId)
+      setPendingRequest({
+        kind: "chat.regenerate",
+        requestId,
+        createdAt: Date.now(),
+        payload: { chatId: $currentChatId },
+      })
+      const result = await api.chats.regenerateLast($currentChatId, requestId)
       applyRegenerateResult(result)
       await tick()
       scrollToBottom(logEl)
     } catch (err) {
       showError(err instanceof Error ? err.message : "Failed to regenerate reply")
     } finally {
+      clearPendingRequest("chat.regenerate", requestId)
       isChatGenerating.set(false)
+      stopChatStream()
+      streamPreviewMode = "append"
+      regeneratingMessageId = null
     }
   }
 
@@ -477,31 +598,51 @@
               </button>
             </div>
           {:else}
-            <div class="chat-text"><InlineTokens text={message.content} /></div>
-            {#if message.id === seededGreetingMessageId && hasSingleAiCharacter && (greetingOptions.length > 1 || greetingIndex < 0)}
-              <div class="variant-row" role="group" aria-label="Greeting options">
-                <span class="variant-label">Greetings</span>
-                {#if greetingIndex < 0}
-                  <button class="variant-pill active" disabled title="Current greeting is custom">custom</button>
+            {#if $isChatGenerating && streamPreviewMode === "replace" && regeneratingMessageId === message.id}
+              {#if $streamingEnabled && streamReply.trim().length > 0}
+                <div class="chat-text streaming-preview"><InlineTokens text={streamReply} /></div>
+              {:else}
+                <div class="chat-text regen-placeholder">Regenerating…</div>
+              {/if}
+            {:else}
+              <div class="chat-text"><InlineTokens text={message.content} /></div>
+            {/if}
+
+            {#if !(streamPreviewMode === "replace" && $isChatGenerating && regeneratingMessageId === message.id)}
+              {#if message.id === seededGreetingMessageId && hasSingleAiCharacter && (greetingOptions.length > 1 || greetingIndex < 0)}
+                <div class="variant-row" role="group" aria-label="Greeting options">
+                  <span class="variant-label">Greetings</span>
+                  {#if greetingIndex < 0}
+                    <button class="variant-pill active" disabled title="Current greeting is custom">custom</button>
+                  {/if}
+                  {#each greetingOptions as _, i}
+                    <button
+                      class="variant-pill {greetingIndex === i ? 'active' : ''}"
+                      onclick={() => selectGreeting(i)}
+                      disabled={$isChatGenerating || greetingApplying}
+                      title={i === 0 ? "Greeting 1 (first_mes)" : `Greeting ${i + 1}`}
+                    >
+                      {i + 1}
+                    </button>
+                  {/each}
+                </div>
+                {#if greetingApplying}
+                  <div class="editor-hint" aria-live="polite">Applying greeting...</div>
                 {/if}
-                {#each greetingOptions as _, i}
-                  <button
-                    class="variant-pill {greetingIndex === i ? 'active' : ''}"
-                    onclick={() => selectGreeting(i)}
-                    disabled={$isChatGenerating || greetingApplying}
-                    title={i === 0 ? "Greeting 1 (first_mes)" : `Greeting ${i + 1}`}
-                  >
-                    {i + 1}
-                  </button>
-                {/each}
-              </div>
-              {#if greetingApplying}
-                <div class="editor-hint" aria-live="polite">Applying greeting...</div>
               {/if}
             {/if}
           {/if}
         </div>
       {/each}
+    {/if}
+
+    {#if $isChatGenerating && $streamingEnabled && streamPreviewMode === "append" && streamReply.trim().length > 0}
+      <div class="chat-message from-ai streaming-preview">
+        <div class="chat-speaker">
+          <span>{nextSpeakerName()}</span>
+        </div>
+        <div class="chat-text"><InlineTokens text={streamReply} /></div>
+      </div>
     {/if}
 
     {#if $isChatGenerating}
@@ -520,12 +661,18 @@
     onSend={sendMessage}
   >
     <div slot="top-controls">
-      <button class="mode-clear" onclick={() => (input = "")} disabled={!input} aria-label="Clear"> × </button>
+      <button class="mode-clear" onclick={() => (input = "")} disabled={!input || $isChatGenerating} aria-label="Clear">
+        ×
+      </button>
       <div class="mode-group" role="group" aria-label="Action mode">
         {#each ACTION_MODES as mode}
-          <button class="mode-pill {actionMode === mode ? 'active' : ''}" onclick={() => (actionMode = mode)}
-            >{mode}</button
+          <button
+            class="mode-pill {actionMode === mode ? 'active' : ''}"
+            onclick={() => (actionMode = mode)}
+            disabled={$isChatGenerating}
           >
+            {mode}
+          </button>
         {/each}
       </div>
       <button

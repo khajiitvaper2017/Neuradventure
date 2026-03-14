@@ -5,6 +5,7 @@ export async function generateStoryFromDescription(
   prompt: string,
   character: Omit<MainCharacterState, "inventory">,
   modules: StoryModules,
+  requestId?: string,
 ) {
-  return api.generate.story(prompt, character, modules)
+  return api.generate.story(prompt, character, modules, requestId)
 }

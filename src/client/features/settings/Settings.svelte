@@ -7,6 +7,7 @@
     design,
     textJustify,
     colorScheme,
+    streamingEnabled,
     defaultAuthorNote,
     defaultAuthorNoteDepth,
     storyDefaults,
@@ -14,6 +15,8 @@
     generation,
     ctxLimitDetected,
   } from "../../stores/settings.js"
+  import { isGenerating } from "../../stores/game.js"
+  import { isChatGenerating } from "../../stores/chat.js"
   import type {
     GenerationParams,
     LLMConnector,
@@ -72,6 +75,11 @@
   }
 
   let activeTab: SettingsTab = $state(loadInitialTab())
+  let generationLockActive = $state(false)
+
+  $effect(() => {
+    generationLockActive = $isGenerating || $isChatGenerating
+  })
 
   const connectorTypeOptions = [
     { value: "koboldcpp", label: "KoboldCpp" },
@@ -1161,9 +1169,19 @@
       {/if}
 
       <!-- Connection -->
-      <div class="section-label">Connection</div>
+      <div class="section-label section-label--with-pill">
+        Connection
+        {#if generationLockActive}
+          <span
+            class="stream-lock-pill"
+            title="A generation is in progress; connection controls are locked until it completes"
+          >
+            Generating…
+          </span>
+        {/if}
+      </div>
 
-      <div class="row row-input">
+      <div class="row row-input" class:control-row--disabled={generationLockActive}>
         <span class="row-text">
           <span class="row-title">Backend</span>
           <span class="row-sub">Provider for the OpenAI-compatible API endpoint</span>
@@ -1173,24 +1191,37 @@
           options={connectorTypeOptions}
           ariaLabel="Backend"
           width="200px"
+          disabled={generationLockActive}
           onChange={setConnectorType}
         />
       </div>
 
-      <div class="row row-input">
+      <div class="row row-input" class:control-row--disabled={generationLockActive}>
         <span class="row-text">
           <span class="row-title">Ctx Limit (Detected)</span>
           <span class="row-sub">Fetched from the current provider (cached)</span>
         </span>
         <div class="ctx-limit-actions">
           <span class="connector-badge">{$ctxLimitDetected > 0 ? $ctxLimitDetected : "Unknown"}</span>
-          <button class="preset-btn ctx-refresh" disabled={ctxRefreshLoading} onclick={refreshCtxLimitDetected}>
+          <button
+            class="preset-btn ctx-refresh"
+            disabled={ctxRefreshLoading || generationLockActive}
+            onclick={refreshCtxLimitDetected}
+          >
             {ctxRefreshLoading ? "Refreshing…" : "Refresh"}
           </button>
         </div>
       </div>
 
-      <label class="row row-input">
+      <label class="row" class:control-row--disabled={generationLockActive}>
+        <span class="row-text">
+          <span class="row-title">Use streaming</span>
+          <span class="row-sub">Stream model output while generating (enables partial output via WebSocket)</span>
+        </span>
+        <input type="checkbox" bind:checked={$streamingEnabled} disabled={generationLockActive} />
+      </label>
+
+      <label class="row row-input" class:control-row--disabled={generationLockActive}>
         <span class="row-text">
           <span class="row-title">API URL</span>
         </span>
@@ -1198,6 +1229,7 @@
           class="text-input"
           type="text"
           bind:value={connectorUrl}
+          disabled={generationLockActive}
           onblur={commitConnector}
           onkeydown={(e) => {
             if (e.key === "Enter") (e.target as HTMLInputElement).blur()
@@ -1205,7 +1237,7 @@
         />
       </label>
 
-      <label class="row row-input">
+      <label class="row row-input" class:control-row--disabled={generationLockActive}>
         <span class="row-text">
           <span class="row-title">API Key</span>
         </span>
@@ -1213,6 +1245,7 @@
           class="text-input"
           type="text"
           bind:value={connectorApiKey}
+          disabled={generationLockActive}
           onblur={commitConnector}
           onkeydown={(e) => {
             if (e.key === "Enter") (e.target as HTMLInputElement).blur()
@@ -1221,7 +1254,7 @@
       </label>
 
       {#if $connector.type === "openrouter"}
-        <label class="row row-input">
+        <label class="row row-input" class:control-row--disabled={generationLockActive}>
           <span class="row-text">
             <span class="row-title">Model ID</span>
             <span class="row-sub">Example: openrouter/free</span>
@@ -1230,6 +1263,7 @@
             class="text-input model-id-input"
             type="text"
             bind:value={openrouterModelDraft}
+            disabled={generationLockActive}
             onblur={commitOpenRouterModel}
             onkeydown={(e) => {
               if (e.key === "Enter") (e.target as HTMLInputElement).blur()
@@ -1237,7 +1271,7 @@
           />
         </label>
 
-        <div class="row row-input row-stack">
+        <div class="row row-input row-stack" class:control-row--disabled={generationLockActive}>
           <span class="row-text">
             <span class="row-title">Search Models</span>
             <span class="row-sub">Queries /models via server proxy (cached)</span>
@@ -1249,22 +1283,23 @@
               type="text"
               placeholder="Search model id…"
               bind:value={modelSearchQuery}
+              disabled={generationLockActive}
               onkeydown={(e) => {
                 if (e.key === "Enter") void searchModels()
               }}
             />
-            <button class="preset-btn" disabled={modelSearchLoading} onclick={searchModels}>
+            <button class="preset-btn" disabled={modelSearchLoading || generationLockActive} onclick={searchModels}>
               {modelSearchLoading ? "Searching…" : "Search"}
             </button>
           </div>
 
           <div class="model-filters">
             <label class="filter-toggle">
-              <input type="checkbox" bind:checked={modelSearchOnlyFree} />
+              <input type="checkbox" bind:checked={modelSearchOnlyFree} disabled={generationLockActive} />
               <span>Free only</span>
             </label>
             <label class="filter-toggle">
-              <input type="checkbox" bind:checked={modelSearchOnlyJsonSchema} />
+              <input type="checkbox" bind:checked={modelSearchOnlyJsonSchema} disabled={generationLockActive} />
               <span>JSON Schema only</span>
             </label>
             {#if modelSearchResults.length > 0 && (modelSearchOnlyFree || modelSearchOnlyJsonSchema)}
@@ -1280,6 +1315,7 @@
             placeholder={modelSearchResults.length ? "Select model…" : "No results yet"}
             options={buildModelSelectOptions(filterModelResults(modelSearchResults), $connector.model)}
             ariaLabel="OpenRouter model"
+            disabled={generationLockActive}
             onChange={(v) => pickOpenRouterModel(String(v))}
           />
 
@@ -1817,6 +1853,11 @@
     letter-spacing: 0.1em;
     color: var(--accent);
   }
+  .section-label--with-pill {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
 
   .row {
     display: flex;
@@ -1830,6 +1871,12 @@
   }
   .row:hover {
     background: var(--bg-action);
+  }
+  .row.control-row--disabled {
+    cursor: not-allowed;
+  }
+  .row.control-row--disabled:hover {
+    background: transparent;
   }
 
   .row-text {

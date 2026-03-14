@@ -15,8 +15,10 @@ import { generateChatReply } from "../../llm/index.js"
 import { chatToPlaintext, chatToTavernJSONL } from "../../utils/converters/tavern.js"
 import { TavernCardV2Schema, type TavernCardV2 } from "../../utils/converters/tavern.js"
 import { badRequest, notFound, serverError } from "./http.js"
+import { createOrGetSession, publishComplete, publishError, publishPreview } from "../../streaming/hub.js"
 
 const chats = new Hono()
+const inFlight = new Map<string, Promise<unknown>>()
 
 function parseMemberState(raw: string): db.ChatMemberState | null {
   try {
@@ -418,30 +420,61 @@ chats.post("/:id/messages", zValidator("json", SendChatMessageRequestSchema), as
   const messages = buildChatMessages(chatMembersForPrompt, history, nextSpeakerName, { speakerCard })
 
   try {
-    const rawReply = await generateChatReply(messages, stopTokens)
-    const replyText = sanitizeChatReply(rawReply, nextSpeakerName)
-    if (!replyText) return serverError(c, "LLM returned empty response")
-
-    const aiMessageIndex = playerMessageIndex + 1
-    const aiMessageId = db.appendChatMessage(chatId, aiMessageIndex, nextSpeaker.id, "assistant", replyText)
-
-    const nextIndex = (safeIndex + 1) % aiMembers.length
-    db.advanceChatSpeaker(chatId, nextIndex)
-
-    const playerMessage = db.getChatMessage(playerMessageId)
-    const aiMessage = db.getChatMessage(aiMessageId)
-
-    if (!playerMessage || !aiMessage) {
-      return serverError(c, "Failed to persist chat messages")
+    const requestId = body.request_id?.trim() || undefined
+    if (requestId) {
+      const cached = db.getRequestResult(requestId)
+      if (cached) {
+        if (cached.kind !== "chat.send") {
+          return c.json({ error: `request_id already used for: ${cached.kind}` }, 409)
+        }
+        return c.json(JSON.parse(cached.response_json))
+      }
+      const inflight = inFlight.get(requestId)
+      if (inflight) return c.json(await inflight)
     }
+    const streamingEnabled = db.getSettings().streamingEnabled
+    const shouldStream = streamingEnabled && !!requestId
+    if (shouldStream && requestId) createOrGetSession(requestId, "chat.reply")
+    const task = (async () => {
+      const rawReply = await generateChatReply(messages, stopTokens, {
+        onText: shouldStream && requestId ? (text) => publishPreview(requestId, { content: text }) : undefined,
+      })
+      const replyText = sanitizeChatReply(rawReply, nextSpeakerName)
+      if (!replyText) throw new Error("LLM returned empty response")
 
-    return c.json({
-      player_message: buildMessagePayload(playerMessage, members),
-      ai_message: buildMessagePayload(aiMessage, members),
-      next_speaker_index: nextIndex,
-    })
+      const aiMessageIndex = playerMessageIndex + 1
+      const aiMessageId = db.appendChatMessage(chatId, aiMessageIndex, nextSpeaker.id, "assistant", replyText)
+
+      const nextIndex = (safeIndex + 1) % aiMembers.length
+      db.advanceChatSpeaker(chatId, nextIndex)
+
+      const playerMessage = db.getChatMessage(playerMessageId)
+      const aiMessage = db.getChatMessage(aiMessageId)
+
+      if (!playerMessage || !aiMessage) {
+        throw new Error("Failed to persist chat messages")
+      }
+
+      return {
+        player_message: buildMessagePayload(playerMessage, members),
+        ai_message: buildMessagePayload(aiMessage, members),
+        next_speaker_index: nextIndex,
+      }
+    })()
+
+    if (requestId) inFlight.set(requestId, task)
+    try {
+      const result = await task
+      if (requestId) db.setRequestResult(requestId, "chat.send", result)
+      if (shouldStream && requestId) publishComplete(requestId)
+      return c.json(result)
+    } finally {
+      if (requestId) inFlight.delete(requestId)
+    }
   } catch (err) {
     const message = err instanceof Error ? err.message : "Unknown error"
+    const requestId = body.request_id?.trim() || undefined
+    if (requestId && db.getSettings().streamingEnabled) publishError(requestId, message)
     if (message.includes("ECONNREFUSED") || message.includes("fetch failed")) {
       return c.json({ error: "KoboldCpp is not running. Please start KoboldCpp first." }, 503)
     }
@@ -478,27 +511,58 @@ chats.post("/:id/continue", zValidator("json", ChatIdRequestSchema), async (c) =
   })
 
   try {
-    const rawReply = await generateChatReply(messages, stopTokens)
-    const replyText = sanitizeChatReply(rawReply, nextSpeakerName)
-    if (!replyText) return serverError(c, "LLM returned empty response")
-
-    const aiMessageIndex = db.getNextChatMessageIndex(chatId)
-    const aiMessageId = db.appendChatMessage(chatId, aiMessageIndex, nextSpeaker.id, "assistant", replyText)
-    const nextIndex = (safeIndex + 1) % aiMembers.length
-    db.advanceChatSpeaker(chatId, nextIndex)
-    db.clearCanceledChatExchange(chatId)
-
-    const aiMessage = db.getChatMessage(aiMessageId)
-    if (!aiMessage) {
-      return serverError(c, "Failed to persist chat message")
+    const requestId = body.request_id?.trim() || undefined
+    if (requestId) {
+      const cached = db.getRequestResult(requestId)
+      if (cached) {
+        if (cached.kind !== "chat.continue") {
+          return c.json({ error: `request_id already used for: ${cached.kind}` }, 409)
+        }
+        return c.json(JSON.parse(cached.response_json))
+      }
+      const inflight = inFlight.get(requestId)
+      if (inflight) return c.json(await inflight)
     }
+    const streamingEnabled = db.getSettings().streamingEnabled
+    const shouldStream = streamingEnabled && !!requestId
+    if (shouldStream && requestId) createOrGetSession(requestId, "chat.reply")
+    const task = (async () => {
+      const rawReply = await generateChatReply(messages, stopTokens, {
+        onText: shouldStream && requestId ? (text) => publishPreview(requestId, { content: text }) : undefined,
+      })
+      const replyText = sanitizeChatReply(rawReply, nextSpeakerName)
+      if (!replyText) throw new Error("LLM returned empty response")
 
-    return c.json({
-      ai_message: buildMessagePayload(aiMessage, members),
-      next_speaker_index: nextIndex,
-    })
+      const aiMessageIndex = db.getNextChatMessageIndex(chatId)
+      const aiMessageId = db.appendChatMessage(chatId, aiMessageIndex, nextSpeaker.id, "assistant", replyText)
+      const nextIndex = (safeIndex + 1) % aiMembers.length
+      db.advanceChatSpeaker(chatId, nextIndex)
+      db.clearCanceledChatExchange(chatId)
+
+      const aiMessage = db.getChatMessage(aiMessageId)
+      if (!aiMessage) {
+        throw new Error("Failed to persist chat message")
+      }
+
+      return {
+        ai_message: buildMessagePayload(aiMessage, members),
+        next_speaker_index: nextIndex,
+      }
+    })()
+
+    if (requestId) inFlight.set(requestId, task)
+    try {
+      const result = await task
+      if (requestId) db.setRequestResult(requestId, "chat.continue", result)
+      if (shouldStream && requestId) publishComplete(requestId)
+      return c.json(result)
+    } finally {
+      if (requestId) inFlight.delete(requestId)
+    }
   } catch (err) {
     const message = err instanceof Error ? err.message : "Unknown error"
+    const requestId = body.request_id?.trim() || undefined
+    if (requestId && db.getSettings().streamingEnabled) publishError(requestId, message)
     if (message.includes("ECONNREFUSED") || message.includes("fetch failed")) {
       return c.json({ error: "KoboldCpp is not running. Please start KoboldCpp first." }, 503)
     }
@@ -549,36 +613,67 @@ chats.post("/:id/regenerate", zValidator("json", ChatIdRequestSchema), async (c)
   })
 
   try {
-    const rawReply = await generateChatReply(prompt, stopTokens)
-    const replyText = sanitizeChatReply(rawReply, speakerName)
-    if (!replyText) return serverError(c, "LLM returned empty response")
-
-    let aiMessageId: number
-    let nextIndex = chat.next_speaker_index
-
-    if (replaced) {
-      db.updateChatMessage(lastMessage.id, replyText)
-      aiMessageId = lastMessage.id
-    } else {
-      const aiMessageIndex = db.getNextChatMessageIndex(chatId)
-      aiMessageId = db.appendChatMessage(chatId, aiMessageIndex, speakerMember.id, "assistant", replyText)
-      const speakerIndex = aiMembers.findIndex((m) => m.id === speakerMember?.id)
-      nextIndex = speakerIndex >= 0 ? (speakerIndex + 1) % aiMembers.length : chat.next_speaker_index
-      db.advanceChatSpeaker(chatId, nextIndex)
+    const requestId = body.request_id?.trim() || undefined
+    if (requestId) {
+      const cached = db.getRequestResult(requestId)
+      if (cached) {
+        if (cached.kind !== "chat.regenerate") {
+          return c.json({ error: `request_id already used for: ${cached.kind}` }, 409)
+        }
+        return c.json(JSON.parse(cached.response_json))
+      }
+      const inflight = inFlight.get(requestId)
+      if (inflight) return c.json(await inflight)
     }
+    const streamingEnabled = db.getSettings().streamingEnabled
+    const shouldStream = streamingEnabled && !!requestId
+    if (shouldStream && requestId) createOrGetSession(requestId, "chat.reply")
+    const task = (async () => {
+      const rawReply = await generateChatReply(prompt, stopTokens, {
+        onText: shouldStream && requestId ? (text) => publishPreview(requestId, { content: text }) : undefined,
+      })
+      const replyText = sanitizeChatReply(rawReply, speakerName)
+      if (!replyText) throw new Error("LLM returned empty response")
 
-    db.clearCanceledChatExchange(chatId)
+      let aiMessageId: number
+      let nextIndex = chat.next_speaker_index
 
-    const aiMessage = db.getChatMessage(aiMessageId)
-    if (!aiMessage) return serverError(c, "Failed to persist chat message")
+      if (replaced) {
+        db.updateChatMessage(lastMessage.id, replyText)
+        aiMessageId = lastMessage.id
+      } else {
+        const aiMessageIndex = db.getNextChatMessageIndex(chatId)
+        aiMessageId = db.appendChatMessage(chatId, aiMessageIndex, speakerMember.id, "assistant", replyText)
+        const speakerIndex = aiMembers.findIndex((m) => m.id === speakerMember?.id)
+        nextIndex = speakerIndex >= 0 ? (speakerIndex + 1) % aiMembers.length : chat.next_speaker_index
+        db.advanceChatSpeaker(chatId, nextIndex)
+      }
 
-    return c.json({
-      ai_message: buildMessagePayload(aiMessage, members),
-      next_speaker_index: nextIndex,
-      replaced,
-    })
+      db.clearCanceledChatExchange(chatId)
+
+      const aiMessage = db.getChatMessage(aiMessageId)
+      if (!aiMessage) throw new Error("Failed to persist chat message")
+
+      return {
+        ai_message: buildMessagePayload(aiMessage, members),
+        next_speaker_index: nextIndex,
+        replaced,
+      }
+    })()
+
+    if (requestId) inFlight.set(requestId, task)
+    try {
+      const result = await task
+      if (requestId) db.setRequestResult(requestId, "chat.regenerate", result)
+      if (shouldStream && requestId) publishComplete(requestId)
+      return c.json(result)
+    } finally {
+      if (requestId) inFlight.delete(requestId)
+    }
   } catch (err) {
     const message = err instanceof Error ? err.message : "Unknown error"
+    const requestId = body.request_id?.trim() || undefined
+    if (requestId && db.getSettings().streamingEnabled) publishError(requestId, message)
     if (message.includes("ECONNREFUSED") || message.includes("fetch failed")) {
       return c.json({ error: "KoboldCpp is not running. Please start KoboldCpp first." }, 503)
     }

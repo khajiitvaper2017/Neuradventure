@@ -78,6 +78,14 @@ export {
   type CanceledChatExchangePayload,
 } from "./db/chats.js"
 export { getSettings, updateSettings } from "./db/settings.js"
+export { getRequestResult, setRequestResult, type RequestResultRow } from "./db/request-results.js"
+export {
+  listPromptHistory,
+  upsertPromptHistory,
+  upsertPromptHistoryMany,
+  deletePromptHistory,
+  type PromptHistoryKind,
+} from "./db/prompt-history.js"
 export {
   PROMPT_CONFIG_KEYS,
   getMergedPromptConfig,
