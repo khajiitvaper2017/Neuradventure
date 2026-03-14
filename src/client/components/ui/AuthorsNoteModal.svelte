@@ -1,5 +1,6 @@
 <script lang="ts">
   import { autoresize } from "../../utils/actions/autoresize.js"
+  import Select from "./Select.svelte"
 
   export let open = false
   export let disabled = false
@@ -14,6 +15,18 @@
   export let onCancel: (() => void) | undefined = undefined
   export let onSave: (() => void) | undefined = undefined
 
+  const positionOptions = [
+    { value: 2, label: "Before scenario" },
+    { value: 1, label: "In chat" },
+    { value: 0, label: "After scenario" },
+  ]
+
+  const roleOptions = [
+    { value: 0, label: "System" },
+    { value: 1, label: "User" },
+    { value: 2, label: "Assistant" },
+  ]
+
   function onBackdropClick(e: MouseEvent) {
     if (disabled) return
     const el = e.currentTarget
@@ -21,7 +34,18 @@
     if (el !== e.target) return
     onCancel?.()
   }
+
+  function onKeydown(e: KeyboardEvent) {
+    if (!open) return
+    if (disabled) return
+    if (e.key === "Escape") {
+      e.preventDefault()
+      onCancel?.()
+    }
+  }
 </script>
+
+<svelte:window onkeydown={onKeydown} />
 
 {#if open}
   <!-- svelte-ignore a11y_click_events_have_key_events -->
@@ -31,55 +55,81 @@
       <h3 class="modal__title">Author's Note</h3>
       <p class="modal__message">Injected into the prompt using SillyTavern-style position/depth rules.</p>
 
-      <textarea
-        class="edit-textarea"
-        bind:value={note}
-        rows="4"
-        placeholder="e.g. Focus on dialogue and character emotions"
-        {disabled}
-        use:autoresize={note}
-      ></textarea>
+      <div class="field">
+        <label for="an-note">
+          Note <span class="hint">(optional)</span>
+        </label>
+        <textarea
+          id="an-note"
+          class="edit-textarea"
+          bind:value={note}
+          rows="4"
+          placeholder="e.g. Focus on dialogue and character emotions"
+          {disabled}
+          use:autoresize={note}
+        ></textarea>
+      </div>
 
-      <div class="meta-grid" role="group" aria-label="Author's note injection settings">
-        <div class="meta-row">
-          <label class="meta-label" for="an-position">Position</label>
-          <select id="an-position" bind:value={position} class="meta-input" {disabled}>
-            <option value={2}>Before scenario</option>
-            <option value={1}>In chat</option>
-            <option value={0}>After scenario</option>
-          </select>
-        </div>
-
-        <div class="meta-row">
-          <label class="meta-label" for="an-depth">Depth</label>
-          <input id="an-depth" type="number" min="0" max="100" bind:value={depth} class="meta-input" {disabled} />
-        </div>
-
-        <div class="meta-row">
-          <label class="meta-label" for="an-interval">Interval</label>
-          <input
-            id="an-interval"
-            type="number"
-            min="0"
-            max="1000"
-            bind:value={interval}
-            class="meta-input"
+      <div class="an-grid" role="group" aria-label="Author's note injection settings">
+        <div class="field">
+          <label for="an-position">Position</label>
+          <Select
+            id="an-position"
+            ariaLabel="Author note position"
+            width="100%"
+            options={positionOptions}
+            bind:value={position}
             {disabled}
           />
         </div>
 
-        <div class="meta-row">
-          <label class="meta-label" for="an-role">Role</label>
-          <select id="an-role" bind:value={role} class="meta-input" {disabled}>
-            <option value={0}>System</option>
-            <option value={1}>User</option>
-            <option value={2}>Assistant</option>
-          </select>
+        <div class="field">
+          <label for="an-depth">Depth</label>
+          <input
+            id="an-depth"
+            class="text-input text-input--fluid"
+            type="number"
+            min="0"
+            max="100"
+            bind:value={depth}
+            {disabled}
+          />
         </div>
 
-        <div class="meta-row meta-row--toggle">
-          <label class="meta-label" for="an-embed">Embed state blocks</label>
-          <input id="an-embed" type="checkbox" bind:checked={embedState} {disabled} />
+        <div class="field">
+          <label for="an-interval">Interval</label>
+          <input
+            id="an-interval"
+            class="text-input text-input--fluid"
+            type="number"
+            min="0"
+            max="1000"
+            bind:value={interval}
+            {disabled}
+          />
+          <div class="help-text">0 disables author note text injection.</div>
+        </div>
+
+        <div class="field">
+          <label for="an-role">Role</label>
+          <Select
+            id="an-role"
+            ariaLabel="Author note role"
+            width="100%"
+            options={roleOptions}
+            bind:value={role}
+            {disabled}
+          />
+        </div>
+
+        <div class="field an-toggle">
+          <div class="label-row">
+            <label for="an-embed">Embed state blocks</label>
+            <input id="an-embed" type="checkbox" bind:checked={embedState} {disabled} />
+          </div>
+          <div class="help-text">
+            If enabled, state blocks (player/npc context) are placed inside the author note section.
+          </div>
         </div>
       </div>
 
@@ -92,60 +142,21 @@
 {/if}
 
 <style>
-  .meta-grid {
-    --an-gap: 0.5rem;
-    --an-font: 0.82rem;
-    --an-input-bg: var(--bg-input);
-    --an-border: var(--border);
-    --an-text: var(--text);
-    --an-text-dim: var(--text-dim);
-
+  .an-grid {
     display: grid;
-    grid-template-columns: 1fr;
-    gap: var(--an-gap);
-    margin-top: 0.5rem;
-    font-size: var(--an-font);
-    color: var(--an-text-dim);
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.75rem;
   }
 
-  .meta-row {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: var(--an-gap);
+  .an-toggle {
+    grid-column: 1 / -1;
+    padding-top: 0.25rem;
+    border-top: 1px solid var(--border);
   }
 
-  .meta-row--toggle {
-    padding-top: 0.2rem;
-    border-top: 1px solid var(--an-border);
-  }
-
-  .meta-label {
-    min-width: 140px;
-  }
-
-  .meta-input {
-    width: 180px;
-    padding: 0.3rem 0.5rem;
-    background: var(--an-input-bg);
-    border: 1px solid var(--an-border);
-    border-radius: 4px;
-    color: var(--an-text);
-    font-size: var(--an-font);
-  }
-
-  @media (max-width: 520px) {
-    .meta-row {
-      flex-direction: column;
-      align-items: stretch;
-    }
-
-    .meta-label {
-      min-width: 0;
-    }
-
-    .meta-input {
-      width: 100%;
+  @media (max-width: 560px) {
+    .an-grid {
+      grid-template-columns: 1fr;
     }
   }
 </style>
