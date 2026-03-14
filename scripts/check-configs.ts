@@ -28,6 +28,17 @@ function assertNonEmptyArray(value: unknown, label: string): void {
   }
 }
 
+function assertIncludesAll(value: unknown, needles: string[], label: string): void {
+  if (typeof value !== "string") {
+    throw new Error(`Expected string for ${label}`)
+  }
+  for (const needle of needles) {
+    if (!value.includes(needle)) {
+      throw new Error(`Missing "${needle}" in ${label}: ${value}`)
+    }
+  }
+}
+
 function assertNoLocationsInTurnSchema(): void {
   const modulesNoLocations = { ...DEFAULT_STORY_MODULES, track_locations: false }
   const zod = buildTurnResponseSchema([], modulesNoLocations)
@@ -106,6 +117,18 @@ function main() {
   const llmStrings = getLlmStrings()
   assertNonEmpty(llmStrings.contextLabels?.nameRaceGender, "llm-strings.contextLabels.nameRaceGender")
   assertNonEmpty(llmStrings.sections?.storySoFar, "llm-strings.sections.storySoFar")
+  assertIncludesAll(
+    llmStrings.contextLabels?.nameRaceGender,
+    ["{race}", "{gender}"],
+    "llm-strings.contextLabels.nameRaceGender",
+  )
+  assertIncludesAll(
+    llmStrings.generateCharacter?.userPrompt,
+    ["{description}"],
+    "llm-strings.generateCharacter.userPrompt",
+  )
+  assertIncludesAll(llmStrings.contextLabels?.race, ["{value}"], "llm-strings.contextLabels.race")
+  assertIncludesAll(llmStrings.contextLabels?.gender, ["{value}"], "llm-strings.contextLabels.gender")
 
   const promptConfig = getConfig()
   assertNonEmptyArray(promptConfig.systemPromptLines?.base, "prompts.systemPromptLines.base")
