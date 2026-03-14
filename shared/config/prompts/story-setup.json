@@ -1,13 +1,18 @@
 {
   "generateStoryPrompt": {
     "base": [
-      "You are a story designer for a text adventure game. Your output shapes the entire player experience — precision and consistency are mandatory.",
-      "TASK: Given a brief description and a character, generate a title, opening scenario, starting location, and player character updates.",
+      "ROLE: You are a story setup engine for a text adventure game.",
+      "OUTPUT: Return ONLY a single JSON object that exactly matches the provided JSON schema.",
+      "TASK: Given a brief description and a character, generate the story setup fields.",
       "In general, be as creative as possible. However, if a world background is provided by the user, stay true to the genre of the world and avoid introducing anachronistic or out-of-place elements (for example, supernatural entities are allowed in a magical world but aren't allowed in a non-magical world).",
       "Also, if generating entity names or stories, avoid these overused words/phrases: Elara, Whispering ___, Obsidian ___, Crimson ___, Emerald ___, Emily Carter, Old Man Hemlock, Silas, Lyra, Anya, Seraphina, Shadow reaver/weaver, dimly lit, leather-bound journal, broken/cracked mirror. (These phrases have been deemed cliche and are forbidden; use alternative wordings instead).",
-      "PLAYER CHARACTER UPDATES:",
-      "starting_location: {starting_location}",
-      "- general_description: {story.general_description}",
+      "FIELDS (follow schema; do not invent absent fields):",
+      "title: {story.title}",
+      "opening_scenario: {story.opening_scenario}",
+      "starting_location: {story.starting_location}",
+      "starting_date: {story.starting_date}",
+      "starting_time: {story.starting_time}",
+      "general_description: {story.general_description}",
       "CONSISTENCY CHECK — verify before output:",
       "- title is specific and tied to the scenario.",
       "- starting_location matches opening_scenario.",
@@ -18,7 +23,7 @@
         "on": [
           "TASK: Also generate pregenerated NPCs for the opening setup.",
           "PREGENERATED NPCs:",
-          "- pregen_npcs: {pregen_npcs}"
+          "pregen_npcs: {story.pregen_npcs}"
         ],
         "off": []
       },
@@ -30,52 +35,58 @@
       },
       "character_appearance_clothing": {
         "on": [
-          "- current_appearance: {current_appearance}"
+          "current_appearance: {current_appearance}"
         ],
         "off": []
       },
       "npc_appearance_clothing": {
         "on": [
-          "- NPC appearance: ",
-          "- baseline_appearance: {baseline_appearance}",
-          "- current_clothing: {current_clothing}",
-          "- current_appearance: {current_appearance}"
+          "Within each pregen_npcs entry (when present), include:",
+          "baseline_appearance: {baseline_appearance}",
+          "current_clothing: {current_clothing}",
+          "current_appearance: {current_appearance}"
         ],
         "off": []
       },
       "npc_personality_traits": {
         "on": [
-          "- personality_traits: {personality_traits}"
+          "Within each pregen_npcs entry (when present), include:",
+          "personality_traits: {personality_traits}"
         ],
         "off": []
       },
       "npc_major_flaws": {
         "on": [
-          "- major_flaws: {major_flaws}"
+          "Within each pregen_npcs entry (when present), include:",
+          "major_flaws: {major_flaws}"
         ],
         "off": []
       },
       "npc_quirks": {
         "on": [
-          "- quirks: {quirks}"
+          "Within each pregen_npcs entry (when present), include:",
+          "quirks: {quirks}"
         ],
         "off": []
       },
       "npc_perks": {
         "on": [
-          "- perks: {perks}"
+          "Within each pregen_npcs entry (when present), include:",
+          "perks: {perks}"
         ],
         "off": []
       },
       "npc_location": {
         "on": [
-          "- current_location: {character.current_location}"
+          "Within each pregen_npcs entry (when present), include:",
+          "current_location: {character.current_location}"
         ],
         "off": []
       },
       "npc_activity": {
         "on": [
-          "- current_activity: {current_activity}"
+          "Within each pregen_npcs entry (when present), include:",
+          "current_activity: {current_activity}"
         ],
         "off": []
       }

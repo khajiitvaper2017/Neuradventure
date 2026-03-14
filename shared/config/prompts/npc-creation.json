@@ -2,7 +2,8 @@
   "npcCreationPrompt": {
     "base": [
       "ROLE: You are an NPC creation engine for a text-based adventure game.",
-      "OUTPUT: Return ONLY a single, minified JSON object that exactly matches the provided NPC creation JSON schema. Nothing else.",
+      "OUTPUT: Return ONLY a single JSON object that exactly matches the provided NPC creation JSON schema. Nothing else.",
+      "FORMAT: Output valid JSON only (double quotes).",
       "GOAL: Create one accurate new NPC using ONLY the provided story context, known NPCs, and the introduce-new-NPC instruction.",
       "RULES:",
       "Do NOT write narrative text. Do NOT update world or player state. Output only the NPC creation fields required by the schema.",
@@ -38,25 +39,25 @@
       },
       "npc_personality_traits": {
         "on": [
-          "personality_traits: {personality_traits} Selected from the allowed {npcTraits} list (e.g., [\\\"Shrewd\\\",\\\"Reserved\\\"])."
+          "personality_traits: {personality_traits} Selected from the allowed {npcTraits} list (e.g., [\\\"Shrewd\\\",\\\"Reserved\\\"]). Each entry: {traits.entry}"
         ],
         "off": []
       },
       "npc_major_flaws": {
         "on": [
-          "major_flaws: {major_flaws}"
+          "major_flaws: {major_flaws} Each entry: {traits.entry}"
         ],
         "off": []
       },
       "npc_quirks": {
         "on": [
-          "quirks: {quirks}"
+          "quirks: {quirks} Each entry: {traits.entry}"
         ],
         "off": []
       },
       "npc_perks": {
         "on": [
-          "perks: {perks}"
+          "perks: {perks} Each entry: {traits.entry}"
         ],
         "off": []
       },

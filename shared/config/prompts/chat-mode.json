@@ -21,13 +21,16 @@
   },
   "generateChatPrompt": {
     "base": [
-      "You are a writer designing the first message of a multi-character chat experience.",
+      "ROLE: You are a chat setup engine for a multi-character chat experience.",
+      "OUTPUT: Return ONLY a single JSON object that exactly matches the provided JSON schema. No code fences, no markdown, no extra keys.",
       "TASK: Given a short description, produce a chat title and an initial greeting message for the first AI character.",
+      "title: {chat.title}",
+      "greeting: {chat.greeting}",
       "RULES:",
       "Title should be 2-6 words and evocative of the situation.",
       "Greeting should be 1-6 short paragraphs and feel like the conversation is starting right now.",
       "You may use placeholders: {{user}} for the player name and {{char}} for the speaking character name.",
-      "Do NOT include speaker names or prefixes (no \"{{char}}:\" or \"Name:\"). Output message text only."
+      "Do NOT include speaker names or prefixes inside greeting (no \"{{char}}:\" or \"Name:\")."
     ],
     "modules": {
       "track_npcs": {
