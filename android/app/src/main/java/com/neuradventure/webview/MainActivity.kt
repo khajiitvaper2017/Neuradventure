@@ -97,7 +97,7 @@ class MainActivity : AppCompatActivity() {
         webView.requestFocusFromTouch()
         try {
             webView.evaluateJavascript("window.dispatchEvent(new Event('na-resume'))", null)
-        } catch {
+        } catch (_: Throwable) {
             // ignore
         }
         scheduleResponsivenessWatchdog()
@@ -118,7 +118,7 @@ class MainActivity : AppCompatActivity() {
         try {
             webView.stopLoading()
             webView.destroy()
-        } catch {
+        } catch (_: Throwable) {
             // ignore
         }
         super.onDestroy()
@@ -324,7 +324,7 @@ class MainActivity : AppCompatActivity() {
             val foundAddress = withTimeoutOrNull(10000) {
                 withContext(Dispatchers.IO) {
                     // Try default port 3001 first across subnet
-                    fun scanPort(port: Int): Pair<String, Int>? {
+                    suspend fun scanPort(port: Int): Pair<String, Int>? {
                         val batchSize = 32
                         val ips = (1..254).toList()
                         for (batch in ips.chunked(batchSize)) {
@@ -377,7 +377,7 @@ class MainActivity : AppCompatActivity() {
                         webView.evaluateJavascript("1") {
                             if (cont.isActive) cont.resume(true)
                         }
-                    } catch {
+                    } catch (_: Throwable) {
                         if (cont.isActive) cont.resume(false)
                     }
                 }
@@ -404,7 +404,7 @@ class MainActivity : AppCompatActivity() {
                 webContainer.removeView(webView)
                 webView.stopLoading()
                 webView.destroy()
-            } catch {
+            } catch (_: Throwable) {
                 // ignore
             }
 
