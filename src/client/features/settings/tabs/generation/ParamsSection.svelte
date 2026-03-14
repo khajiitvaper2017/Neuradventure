@@ -139,6 +139,27 @@
     }
   })
 
+  function keyMeta(key: keyof GenerationParams): {
+    status: OpenRouterParamStatus
+    badge: { label: string; kind: "warning" | "neutral" } | null
+    title: string
+  } {
+    const status = paramStatus(key)
+    const badge = badgeForStatus(status)
+    return { status, badge, title: titleForStatus(status) }
+  }
+
+  let eosMeta = $derived.by(() => keyMeta("ban_eos_token"))
+  let renderMeta = $derived.by(() => keyMeta("render_special"))
+  let orderMeta = $derived.by(() => keyMeta("sampler_order"))
+  let smoothingFactorMeta = $derived.by(() => keyMeta("smoothing_factor"))
+  let smoothingCurveMeta = $derived.by(() => keyMeta("smoothing_curve"))
+  let adaptiveTargetMeta = $derived.by(() => keyMeta("adaptive_target"))
+  let adaptiveDecayMeta = $derived.by(() => keyMeta("adaptive_decay"))
+  let bannedTokensMeta = $derived.by(() => keyMeta("banned_tokens"))
+  let logitBiasMeta = $derived.by(() => keyMeta("logit_bias"))
+  let dryBreakersMeta = $derived.by(() => keyMeta("dry_sequence_breakers"))
+
   function commitSamplerOrder() {
     const parsed = parseSamplerOrder(samplerOrderDraft)
     if (!parsed) {
@@ -462,15 +483,16 @@
 
 <div class="control-section-label">Advanced</div>
 
-{@const eosStatus = paramStatus("ban_eos_token")}
-{@const eosBadge = badgeForStatus(eosStatus)}
-<label class="control-row control-row--input">
+<label
+  class="control-row control-row--input"
+  class:param-ignored={eosMeta.status === "unsupported" || eosMeta.status === "not_sent"}
+>
   <span class="control-row-text">
     <span class="control-row-title">
       Ban EOS Token
-      {#if eosBadge}
-        <span class="badge" class:badge--warning={eosBadge.kind === "warning"} title={titleForStatus(eosStatus)}>
-          {eosBadge.label}
+      {#if eosMeta.badge}
+        <span class="badge" class:badge--warning={eosMeta.badge.kind === "warning"} title={eosMeta.title}>
+          {eosMeta.badge.label}
         </span>
       {/if}
     </span>
@@ -483,15 +505,16 @@
   />
 </label>
 
-{@const renderStatus = paramStatus("render_special")}
-{@const renderBadge = badgeForStatus(renderStatus)}
-<label class="control-row control-row--input">
+<label
+  class="control-row control-row--input"
+  class:param-ignored={renderMeta.status === "unsupported" || renderMeta.status === "not_sent"}
+>
   <span class="control-row-text">
     <span class="control-row-title">
       Render Special Tokens
-      {#if renderBadge}
-        <span class="badge" class:badge--warning={renderBadge.kind === "warning"} title={titleForStatus(renderStatus)}>
-          {renderBadge.label}
+      {#if renderMeta.badge}
+        <span class="badge" class:badge--warning={renderMeta.badge.kind === "warning"} title={renderMeta.title}>
+          {renderMeta.badge.label}
         </span>
       {/if}
     </span>
@@ -504,15 +527,16 @@
   />
 </label>
 
-{@const orderStatus = paramStatus("sampler_order")}
-{@const orderBadge = badgeForStatus(orderStatus)}
-<label class="control-row control-row--input">
+<label
+  class="control-row control-row--input"
+  class:param-ignored={orderMeta.status === "unsupported" || orderMeta.status === "not_sent"}
+>
   <span class="control-row-text">
     <span class="control-row-title">
       Sampler Order
-      {#if orderBadge}
-        <span class="badge" class:badge--warning={orderBadge.kind === "warning"} title={titleForStatus(orderStatus)}>
-          {orderBadge.label}
+      {#if orderMeta.badge}
+        <span class="badge" class:badge--warning={orderMeta.badge.kind === "warning"} title={orderMeta.title}>
+          {orderMeta.badge.label}
         </span>
       {/if}
     </span>
@@ -532,19 +556,20 @@
 <div class="divider"></div>
 
 <div class="control-section-label">Smooth Sampling</div>
-{@const smoothingFactorStatus = paramStatus("smoothing_factor")}
-{@const smoothingFactorBadge = badgeForStatus(smoothingFactorStatus)}
-<label class="control-row control-row--input">
+<label
+  class="control-row control-row--input"
+  class:param-ignored={smoothingFactorMeta.status === "unsupported" || smoothingFactorMeta.status === "not_sent"}
+>
   <span class="control-row-text">
     <span class="control-row-title">
       Smoothing Factor
-      {#if smoothingFactorBadge}
+      {#if smoothingFactorMeta.badge}
         <span
           class="badge"
-          class:badge--warning={smoothingFactorBadge.kind === "warning"}
-          title={titleForStatus(smoothingFactorStatus)}
+          class:badge--warning={smoothingFactorMeta.badge.kind === "warning"}
+          title={smoothingFactorMeta.title}
         >
-          {smoothingFactorBadge.label}
+          {smoothingFactorMeta.badge.label}
         </span>
       {/if}
     </span>
@@ -561,19 +586,20 @@
   />
 </label>
 
-{@const smoothingCurveStatus = paramStatus("smoothing_curve")}
-{@const smoothingCurveBadge = badgeForStatus(smoothingCurveStatus)}
-<label class="control-row control-row--input">
+<label
+  class="control-row control-row--input"
+  class:param-ignored={smoothingCurveMeta.status === "unsupported" || smoothingCurveMeta.status === "not_sent"}
+>
   <span class="control-row-text">
     <span class="control-row-title">
       Smoothing Curve
-      {#if smoothingCurveBadge}
+      {#if smoothingCurveMeta.badge}
         <span
           class="badge"
-          class:badge--warning={smoothingCurveBadge.kind === "warning"}
-          title={titleForStatus(smoothingCurveStatus)}
+          class:badge--warning={smoothingCurveMeta.badge.kind === "warning"}
+          title={smoothingCurveMeta.title}
         >
-          {smoothingCurveBadge.label}
+          {smoothingCurveMeta.badge.label}
         </span>
       {/if}
     </span>
@@ -593,19 +619,20 @@
 <div class="divider"></div>
 
 <div class="control-section-label">Adaptive Sampling</div>
-{@const adaptiveTargetStatus = paramStatus("adaptive_target")}
-{@const adaptiveTargetBadge = badgeForStatus(adaptiveTargetStatus)}
-<label class="control-row control-row--input">
+<label
+  class="control-row control-row--input"
+  class:param-ignored={adaptiveTargetMeta.status === "unsupported" || adaptiveTargetMeta.status === "not_sent"}
+>
   <span class="control-row-text">
     <span class="control-row-title">
       Adaptive Target
-      {#if adaptiveTargetBadge}
+      {#if adaptiveTargetMeta.badge}
         <span
           class="badge"
-          class:badge--warning={adaptiveTargetBadge.kind === "warning"}
-          title={titleForStatus(adaptiveTargetStatus)}
+          class:badge--warning={adaptiveTargetMeta.badge.kind === "warning"}
+          title={adaptiveTargetMeta.title}
         >
-          {adaptiveTargetBadge.label}
+          {adaptiveTargetMeta.badge.label}
         </span>
       {/if}
     </span>
@@ -622,19 +649,20 @@
   />
 </label>
 
-{@const adaptiveDecayStatus = paramStatus("adaptive_decay")}
-{@const adaptiveDecayBadge = badgeForStatus(adaptiveDecayStatus)}
-<label class="control-row control-row--input">
+<label
+  class="control-row control-row--input"
+  class:param-ignored={adaptiveDecayMeta.status === "unsupported" || adaptiveDecayMeta.status === "not_sent"}
+>
   <span class="control-row-text">
     <span class="control-row-title">
       Adaptive Decay
-      {#if adaptiveDecayBadge}
+      {#if adaptiveDecayMeta.badge}
         <span
           class="badge"
-          class:badge--warning={adaptiveDecayBadge.kind === "warning"}
-          title={titleForStatus(adaptiveDecayStatus)}
+          class:badge--warning={adaptiveDecayMeta.badge.kind === "warning"}
+          title={adaptiveDecayMeta.title}
         >
-          {adaptiveDecayBadge.label}
+          {adaptiveDecayMeta.badge.label}
         </span>
       {/if}
     </span>
@@ -655,19 +683,20 @@
 
 <div class="control-section-label">Bans & Bias</div>
 
-{@const bannedTokensStatus = paramStatus("banned_tokens")}
-{@const bannedTokensBadge = badgeForStatus(bannedTokensStatus)}
-<label class="control-row control-row--input control-row--stack">
+<label
+  class="control-row control-row--input control-row--stack"
+  class:param-ignored={bannedTokensMeta.status === "unsupported" || bannedTokensMeta.status === "not_sent"}
+>
   <span class="control-row-text">
     <span class="control-row-title">
       Banned Tokens
-      {#if bannedTokensBadge}
+      {#if bannedTokensMeta.badge}
         <span
           class="badge"
-          class:badge--warning={bannedTokensBadge.kind === "warning"}
-          title={titleForStatus(bannedTokensStatus)}
+          class:badge--warning={bannedTokensMeta.badge.kind === "warning"}
+          title={bannedTokensMeta.title}
         >
-          {bannedTokensBadge.label}
+          {bannedTokensMeta.badge.label}
         </span>
       {/if}
     </span>
@@ -676,19 +705,16 @@
   <textarea class="text-input" rows="4" bind:value={bannedTokensDraft} onblur={commitBannedTokens}></textarea>
 </label>
 
-{@const logitBiasStatus = paramStatus("logit_bias")}
-{@const logitBiasBadge = badgeForStatus(logitBiasStatus)}
-<label class="control-row control-row--input control-row--stack">
+<label
+  class="control-row control-row--input control-row--stack"
+  class:param-ignored={logitBiasMeta.status === "unsupported" || logitBiasMeta.status === "not_sent"}
+>
   <span class="control-row-text">
     <span class="control-row-title">
       Logit Bias
-      {#if logitBiasBadge}
-        <span
-          class="badge"
-          class:badge--warning={logitBiasBadge.kind === "warning"}
-          title={titleForStatus(logitBiasStatus)}
-        >
-          {logitBiasBadge.label}
+      {#if logitBiasMeta.badge}
+        <span class="badge" class:badge--warning={logitBiasMeta.badge.kind === "warning"} title={logitBiasMeta.title}>
+          {logitBiasMeta.badge.label}
         </span>
       {/if}
     </span>
@@ -697,19 +723,20 @@
   <textarea class="text-input" rows="4" bind:value={logitBiasDraft} onblur={commitLogitBias}></textarea>
 </label>
 
-{@const dryBreakersStatus = paramStatus("dry_sequence_breakers")}
-{@const dryBreakersBadge = badgeForStatus(dryBreakersStatus)}
-<label class="control-row control-row--input control-row--stack">
+<label
+  class="control-row control-row--input control-row--stack"
+  class:param-ignored={dryBreakersMeta.status === "unsupported" || dryBreakersMeta.status === "not_sent"}
+>
   <span class="control-row-text">
     <span class="control-row-title">
       DRY Sequence Breakers
-      {#if dryBreakersBadge}
+      {#if dryBreakersMeta.badge}
         <span
           class="badge"
-          class:badge--warning={dryBreakersBadge.kind === "warning"}
-          title={titleForStatus(dryBreakersStatus)}
+          class:badge--warning={dryBreakersMeta.badge.kind === "warning"}
+          title={dryBreakersMeta.title}
         >
-          {dryBreakersBadge.label}
+          {dryBreakersMeta.badge.label}
         </span>
       {/if}
     </span>

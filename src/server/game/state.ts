@@ -33,9 +33,7 @@ export function applyPlayerUpdate(
   return {
     ...character,
     ...appearance,
-    inventory: flags.useCharInventory
-      ? (turnResponse.current_inventory ?? character.inventory)
-      : character.inventory,
+    inventory: flags.useCharInventory ? (turnResponse.current_inventory ?? character.inventory) : character.inventory,
   }
 }
 
@@ -151,9 +149,7 @@ export function applyNPCUpdates(npcs: NPCState[], updates: NPCStateUpdate[], fla
       current_clothing: flags.useNpcAppearance
         ? (patch.current_clothing ?? npc.current_clothing)
         : npc.current_clothing,
-      current_activity: flags.useNpcActivity
-        ? (patch.current_activity ?? npc.current_activity)
-        : npc.current_activity,
+      current_activity: flags.useNpcActivity ? (patch.current_activity ?? npc.current_activity) : npc.current_activity,
     }
   })
 }
