@@ -87,5 +87,9 @@ export function buildTurnResponseSchema(
     schema = schema.omit({ set_current_inventory: true })
   }
 
+  if (!modules.track_background_events) {
+    schema = schema.omit({ background_events: true })
+  }
+
   return schema as unknown as z.ZodType<TurnResponse, unknown>
 }

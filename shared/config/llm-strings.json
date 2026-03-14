@@ -68,6 +68,7 @@
     "npcCurrentStates": "npc_current_states",
     "storyContext": "story_context",
     "storySoFar": "story_so_far",
+    "backgroundEvents": "background_events",
     "storyContinuation": "story_continuation",
     "playersAction": "players_action",
     "introduceNewNpc": "introduce_new_npc",

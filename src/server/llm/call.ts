@@ -90,6 +90,16 @@ function repairTurnResponseShape(value: unknown): unknown {
   delete root.flags
   delete root.environment_changes
 
+  // Fix common field name mismatches
+  if (root.backgroundEvents !== undefined && root.background_events === undefined) {
+    root.background_events = root.backgroundEvents
+    delete root.backgroundEvents
+  }
+  if (root.background_event !== undefined && root.background_events === undefined) {
+    root.background_events = root.background_event
+    delete root.background_event
+  }
+
   const wsu = root.world_state_update
   if (!wsu || typeof wsu !== "object") {
     root.world_state_update = {}
@@ -104,6 +114,10 @@ function repairTurnResponseShape(value: unknown): unknown {
     if (wsuObj.npc_introductions !== undefined && root.npc_introductions === undefined) {
       root.npc_introductions = wsuObj.npc_introductions
       delete wsuObj.npc_introductions
+    }
+    if (wsuObj.background_events !== undefined && root.background_events === undefined) {
+      root.background_events = wsuObj.background_events
+      delete wsuObj.background_events
     }
 
     // Fix common field name mismatches

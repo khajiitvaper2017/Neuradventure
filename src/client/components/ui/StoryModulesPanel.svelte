@@ -36,6 +36,18 @@
         onchange={(e) => updateModule("track_locations", (e.target as HTMLInputElement).checked)}
       />
     </label>
+
+    <label class="control-row">
+      <span class="control-row-text">
+        <span class="control-row-title">Track background events</span>
+        <span class="control-row-sub">Generate hidden off-screen events per turn</span>
+      </span>
+      <input
+        type="checkbox"
+        checked={modules.track_background_events}
+        onchange={(e) => updateModule("track_background_events", (e.target as HTMLInputElement).checked)}
+      />
+    </label>
   </div>
 
   <div class="modules-group">

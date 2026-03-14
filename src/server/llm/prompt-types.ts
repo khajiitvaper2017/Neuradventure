@@ -13,6 +13,7 @@ export const PromptModulesSchema = z
   .object({
     track_npcs: PromptModuleBlockSchema.optional(),
     track_locations: PromptModuleBlockSchema.optional(),
+    track_background_events: PromptModuleBlockSchema.optional(),
     character_appearance_clothing: PromptModuleBlockSchema.optional(),
     character_personality_traits: PromptModuleBlockSchema.optional(),
     character_major_flaws: PromptModuleBlockSchema.optional(),

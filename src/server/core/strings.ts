@@ -99,6 +99,7 @@ type LlmStrings = {
     npcCurrentStates: string
     storyContext: string
     storySoFar: string
+    backgroundEvents: string
     storyContinuation: string
     playersAction: string
     introduceNewNpc: string

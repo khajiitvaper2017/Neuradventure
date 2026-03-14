@@ -28,6 +28,7 @@
   import IconUsers from "../../components/icons/IconUsers.svelte"
   import ConversationInput from "../../components/ui/ConversationInput.svelte"
   import InlineTokens from "../../components/ui/InlineTokens.svelte"
+  import BackgroundEventsReveal from "../../components/ui/BackgroundEventsReveal.svelte"
   import StoryModulesPanel from "../../components/ui/StoryModulesPanel.svelte"
   import ThinkingDots from "../../components/ui/ThinkingDots.svelte"
   import {
@@ -81,6 +82,7 @@
   let modulesDraft = $state<StoryModules>({
     track_npcs: true,
     track_locations: true,
+    track_background_events: false,
     character_appearance_clothing: true,
     character_personality_traits: true,
     character_major_flaws: true,
@@ -268,7 +270,13 @@
       turns.update((t) =>
         t.map((turn) =>
           turn.id === result.turn_id
-            ? { ...turn, narrative_text: result.narrative_text, action_mode: lastMode, world: result.world }
+            ? {
+                ...turn,
+                narrative_text: result.narrative_text,
+                background_events: result.background_events,
+                action_mode: lastMode,
+                world: result.world,
+              }
             : turn,
         ),
       )
@@ -423,6 +431,7 @@
     modulesDraft = $currentStoryModules ?? {
       track_npcs: true,
       track_locations: true,
+      track_background_events: false,
       character_appearance_clothing: true,
       character_personality_traits: true,
       character_major_flaws: true,
@@ -571,6 +580,7 @@
             ? {
                 ...turn,
                 narrative_text: result.narrative_text,
+                background_events: result.background_events,
                 active_variant_id: result.active_variant_id,
                 world: result.world,
               }
@@ -965,6 +975,9 @@
           {#if turn.world}
             <p class="turn-scene">{turn.world.current_scene} · {turn.world.time_of_day}</p>
           {/if}
+
+          <BackgroundEventsReveal text={turn.background_events} />
+
           {#each paragraphs(turn.narrative_text) as para, j}
             <p class="para" style="animation-delay: {j * 0.06}s">
               <InlineTokens text={para} />

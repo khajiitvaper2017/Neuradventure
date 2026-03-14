@@ -10,6 +10,7 @@ export interface TurnRow {
   request_id: string | null
   player_input: string
   narrative_text: string
+  background_events: string | null
   character_snapshot_json: string
   world_snapshot_json: string
   npc_snapshot_json: string
@@ -21,6 +22,7 @@ export interface TurnVariantRow {
   turn_id: number
   variant_index: number
   narrative_text: string
+  background_events: string | null
   character_snapshot_json: string
   world_snapshot_json: string
   npc_snapshot_json: string
@@ -30,6 +32,7 @@ export interface TurnVariantRow {
 export interface CanceledTurnVariantPayload {
   variant_index: number
   narrative_text: string
+  background_events: string | null
   character: MainCharacterState
   world: WorldState
   npcs: NPCState[]
@@ -41,6 +44,7 @@ export interface CanceledTurnPayload {
   active_variant_index: number | null
   player_input: string
   narrative_text: string
+  background_events: string | null
   character: MainCharacterState
   world: WorldState
   npcs: NPCState[]
@@ -79,15 +83,16 @@ export function createTurn(
   request_id: string | null,
   player_input: string,
   narrative_text: string,
+  background_events: string | null,
   character: MainCharacterState,
   world: WorldState,
   npcs: NPCState[],
 ): number {
   const result = getDb()
     .prepare(
-      `INSERT INTO turns (story_id, turn_number, action_mode, request_id, player_input, narrative_text,
+      `INSERT INTO turns (story_id, turn_number, action_mode, request_id, player_input, narrative_text, background_events,
        character_snapshot_json, world_snapshot_json, npc_snapshot_json)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     )
     .run(
       story_id,
@@ -96,6 +101,7 @@ export function createTurn(
       request_id,
       player_input,
       narrative_text,
+      background_events,
       JSON.stringify(character),
       JSON.stringify(world),
       JSON.stringify(npcs),
@@ -136,6 +142,7 @@ export function updateTurnSnapshot(
   id: number,
   fields: {
     narrative_text: string
+    background_events: string | null
     character: MainCharacterState
     world: WorldState
     npcs: NPCState[]
@@ -145,12 +152,14 @@ export function updateTurnSnapshot(
 ): boolean {
   const updates: string[] = [
     "narrative_text = ?",
+    "background_events = ?",
     "character_snapshot_json = ?",
     "world_snapshot_json = ?",
     "npc_snapshot_json = ?",
   ]
   const values: unknown[] = [
     fields.narrative_text,
+    fields.background_events,
     JSON.stringify(fields.character),
     JSON.stringify(fields.world),
     JSON.stringify(fields.npcs),
@@ -188,6 +197,7 @@ export function getTurnVariant(id: number): TurnVariantRow | undefined {
 export function createTurnVariant(
   turn_id: number,
   narrative_text: string,
+  background_events: string | null,
   character: MainCharacterState,
   world: WorldState,
   npcs: NPCState[],
@@ -201,13 +211,22 @@ export function createTurnVariant(
         turn_id,
         variant_index,
         narrative_text,
+        background_events,
         character_snapshot_json,
         world_snapshot_json,
         npc_snapshot_json
       )
-      VALUES (?, ?, ?, ?, ?, ?)`,
+      VALUES (?, ?, ?, ?, ?, ?, ?)`,
     )
-    .run(turn_id, next.next, narrative_text, JSON.stringify(character), JSON.stringify(world), JSON.stringify(npcs))
+    .run(
+      turn_id,
+      next.next,
+      narrative_text,
+      background_events,
+      JSON.stringify(character),
+      JSON.stringify(world),
+      JSON.stringify(npcs),
+    )
   return { id: result.lastInsertRowid as number, variant_index: next.next }
 }
 

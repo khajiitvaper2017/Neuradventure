@@ -35,6 +35,9 @@ function resolvePrompt(prompt: ModularPrompt | undefined, modules?: StoryModules
   if (blocks?.track_locations) {
     pushLines(active.track_locations ? blocks.track_locations.on : blocks.track_locations.off)
   }
+  if (blocks?.track_background_events) {
+    pushLines(active.track_background_events ? blocks.track_background_events.on : blocks.track_background_events.off)
+  }
   if (blocks?.character_appearance_clothing) {
     pushLines(
       active.character_appearance_clothing

@@ -162,7 +162,9 @@ function buildContextBlock(opts: ContextBlockOpts): string {
   ])
 
   const baseTokens = estimateTokens(joinSections([stableBlock, storyHeader, afterHistory]))
-  const { summary, history } = buildHistoryBlock(recentTurns, world, ctxLimit, baseTokens, authorNote)
+  const { summary, history } = buildHistoryBlock(recentTurns, world, ctxLimit, baseTokens, authorNote, {
+    includeBackgroundEvents: modules.track_background_events,
+  })
 
   const storySoFarHeader = history ? storyHeader : null
   return joinSections([stableBlock, summary || null, storySoFarHeader, history || null, afterHistory || null])

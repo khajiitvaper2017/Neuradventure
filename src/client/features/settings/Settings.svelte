@@ -267,7 +267,6 @@
       typeof model.context_length === "number" && Number.isFinite(model.context_length) ? model.context_length : null
     if (ctx) parts.push(`${ctx.toLocaleString()} ctx`)
 
-
     const tags: string[] = []
     if (isFreeModel(model)) tags.push("free")
     if (supportsJsonSchema(model)) tags.push("json_schema")

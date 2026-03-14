@@ -11,6 +11,7 @@ type TurnAppendPayload = TurnStatePayload & {
   turn_id: number
   turn_number: number
   narrative_text: string
+  background_events: string | null
 }
 
 type ActionMode = TurnSummary["action_mode"]
@@ -35,6 +36,7 @@ export function appendTurnSummary(params: {
     action_mode: actionMode,
     player_input: playerInput,
     narrative_text: result.narrative_text,
+    background_events: result.background_events,
     world: result.world,
     created_at: new Date().toISOString(),
   }

@@ -76,6 +76,12 @@ export const CurrentClothingSection = z.string().min(1)
 
 export const SetCurrentInventorySection = z.array(InventoryItemSchema)
 
+export const BackgroundEventsSection = z.preprocess((value) => {
+  if (typeof value !== "string") return value
+  const trimmed = value.trim()
+  return trimmed.length > 0 ? trimmed : undefined
+}, z.string().min(1).optional())
+
 export const buildNPCChangesSection = (nameSchema: z.ZodType<string>, flags?: NPCUpdateFlags) => {
   const updateSchema = buildNPCStateUpdateSchema(nameSchema, flags)
   return z.array(updateSchema)
@@ -87,6 +93,7 @@ export const NPCIntroductionsSection = z.array(NPCCreationSchema)
 export const TurnResponseSchema = z
   .object({
     narrative_text: z.string().min(1),
+    background_events: BackgroundEventsSection,
     current_clothing: CurrentClothingSection.optional(),
     current_appearance: SetCurrentAppearanceSection.optional(),
     set_current_inventory: SetCurrentInventorySection.optional(),

@@ -49,6 +49,7 @@ export function initDb() {
       request_id                TEXT,
       player_input              TEXT NOT NULL,
       narrative_text            TEXT NOT NULL,
+      background_events         TEXT,
       character_snapshot_json   TEXT NOT NULL,
       world_snapshot_json       TEXT NOT NULL,
       npc_snapshot_json         TEXT NOT NULL,
@@ -62,6 +63,7 @@ export function initDb() {
       turn_id                   INTEGER NOT NULL REFERENCES turns(id) ON DELETE CASCADE,
       variant_index             INTEGER NOT NULL,
       narrative_text            TEXT NOT NULL,
+      background_events         TEXT,
       character_snapshot_json   TEXT NOT NULL,
       world_snapshot_json       TEXT NOT NULL,
       npc_snapshot_json         TEXT NOT NULL,
@@ -145,6 +147,15 @@ export function initDb() {
   }
   database.exec("CREATE INDEX IF NOT EXISTS idx_stories_character ON stories(character_id)")
   database.exec("CREATE UNIQUE INDEX IF NOT EXISTS idx_turns_request_id ON turns(request_id)")
+
+  const turnCols = database.prepare("PRAGMA table_info(turns)").all() as Array<{ name: string }>
+  if (!turnCols.some((c) => c.name === "background_events")) {
+    database.exec("ALTER TABLE turns ADD COLUMN background_events TEXT")
+  }
+  const variantCols = database.prepare("PRAGMA table_info(turn_variants)").all() as Array<{ name: string }>
+  if (!variantCols.some((c) => c.name === "background_events")) {
+    database.exec("ALTER TABLE turn_variants ADD COLUMN background_events TEXT")
+  }
 
   const settingsRow = database.prepare("SELECT settings_json FROM settings WHERE id = 1").get() as
     | { settings_json: string }

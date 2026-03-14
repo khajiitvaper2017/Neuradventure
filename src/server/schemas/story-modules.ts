@@ -4,6 +4,7 @@ export const StoryModulesSchema = z
   .object({
     track_npcs: z.boolean(),
     track_locations: z.boolean(),
+    track_background_events: z.boolean(),
     character_appearance_clothing: z.boolean(),
     character_personality_traits: z.boolean(),
     character_major_flaws: z.boolean(),
@@ -25,6 +26,7 @@ export type StoryModules = z.infer<typeof StoryModulesSchema>
 export const DEFAULT_STORY_MODULES: StoryModules = {
   track_npcs: true,
   track_locations: true,
+  track_background_events: false,
   character_appearance_clothing: true,
   character_personality_traits: true,
   character_major_flaws: true,
@@ -81,6 +83,8 @@ export function normalizeStoryModules(value: unknown, fallback: StoryModules): S
   return {
     track_npcs: typeof raw.track_npcs === "boolean" ? raw.track_npcs : fallback.track_npcs,
     track_locations: typeof raw.track_locations === "boolean" ? raw.track_locations : fallback.track_locations,
+    track_background_events:
+      typeof raw.track_background_events === "boolean" ? raw.track_background_events : fallback.track_background_events,
     character_appearance_clothing:
       typeof raw.character_appearance_clothing === "boolean"
         ? raw.character_appearance_clothing

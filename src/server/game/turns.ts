@@ -30,6 +30,7 @@ export interface TurnResult {
   story_id: number
   turn_number: number
   narrative_text: string
+  background_events: string | null
   character: MainCharacterState
   world: WorldState
   npcs: NPCState[]
@@ -108,6 +109,7 @@ export async function processTurn(
   )
   const turnResponse = await callLLM(messages, npcs, modules)
   const llmWarnings = collectLlmWarnings(world, npcs, turnResponse)
+  const backgroundEvents = turnResponse.background_events ?? null
 
   const updated = applyTurnResponse({ character, world, npcs }, turnResponse, modules, {
     syncCharacterLocation: true,
@@ -123,6 +125,7 @@ export async function processTurn(
     requestId ?? null,
     playerInput,
     turnResponse.narrative_text,
+    backgroundEvents,
     updated.character,
     updated.world,
     updated.npcs,
@@ -130,6 +133,7 @@ export async function processTurn(
   const variant = db.createTurnVariant(
     turnId,
     turnResponse.narrative_text,
+    backgroundEvents,
     updated.character,
     updated.world,
     updated.npcs,
@@ -141,6 +145,7 @@ export async function processTurn(
     story_id: storyId,
     turn_number: turnNumber,
     narrative_text: turnResponse.narrative_text,
+    background_events: backgroundEvents,
     character: updated.character,
     world: updated.world,
     npcs: updated.npcs,
@@ -155,6 +160,7 @@ export function buildTurnResultFromRow(turn: db.TurnRow): TurnResult {
     story_id: turn.story_id,
     turn_number: turn.turn_number,
     narrative_text: turn.narrative_text,
+    background_events: turn.background_events ?? null,
     character: snapshot.character,
     world: snapshot.world,
     npcs: snapshot.npcs,
@@ -175,6 +181,7 @@ export interface UndoCancelResult {
   action_mode: string
   player_input: string
   narrative_text: string
+  background_events: string | null
   active_variant_id: number | null
   character: MainCharacterState
   world: WorldState
@@ -202,6 +209,7 @@ export function cancelLastTurn(storyId: number): CancelLastResult {
     return {
       variant_index: variant.variant_index,
       narrative_text: variant.narrative_text,
+      background_events: variant.background_events ?? null,
       character: snapshot.character,
       world: snapshot.world,
       npcs: snapshot.npcs,
@@ -213,6 +221,7 @@ export function cancelLastTurn(storyId: number): CancelLastResult {
     active_variant_index: activeVariantIndex,
     player_input: lastTurn.player_input,
     narrative_text: lastTurn.narrative_text,
+    background_events: lastTurn.background_events ?? null,
     character: lastSnapshot.character,
     world: lastSnapshot.world,
     npcs: lastSnapshot.npcs,
@@ -256,6 +265,7 @@ export function undoCancelLastTurn(storyId: number): UndoCancelResult {
     null,
     canceled.player_input,
     canceled.narrative_text,
+    canceled.background_events ?? null,
     canceled.character,
     canceled.world,
     canceled.npcs,
@@ -265,7 +275,14 @@ export function undoCancelLastTurn(storyId: number): UndoCancelResult {
   let lastVariantId: number | null = null
   const sortedVariants = [...canceled.variants].sort((a, b) => a.variant_index - b.variant_index)
   for (const variant of sortedVariants) {
-    const created = db.createTurnVariant(turnId, variant.narrative_text, variant.character, variant.world, variant.npcs)
+    const created = db.createTurnVariant(
+      turnId,
+      variant.narrative_text,
+      variant.background_events ?? null,
+      variant.character,
+      variant.world,
+      variant.npcs,
+    )
     lastVariantId = created.id
     if (canceled.active_variant_index !== null && variant.variant_index === canceled.active_variant_index) {
       activeVariantId = created.id
@@ -289,6 +306,7 @@ export function undoCancelLastTurn(storyId: number): UndoCancelResult {
     action_mode: canceled.action_mode,
     player_input: canceled.player_input,
     narrative_text: canceled.narrative_text,
+    background_events: canceled.background_events ?? null,
     active_variant_id: activeVariantId,
     character: canceled.character,
     world: canceled.world,
@@ -331,6 +349,7 @@ export async function regenerateLastTurn(storyId: number, actionMode?: string): 
   )
   const turnResponse = await callLLM(messages, snapshot.npcs, modules)
   const llmWarnings = collectLlmWarnings(snapshot.world, snapshot.npcs, turnResponse)
+  const backgroundEvents = turnResponse.background_events ?? null
 
   const updated = applyTurnResponse(snapshot, turnResponse, modules)
 
@@ -338,12 +357,14 @@ export async function regenerateLastTurn(storyId: number, actionMode?: string): 
   const variant = db.createTurnVariant(
     lastTurn.id,
     turnResponse.narrative_text,
+    backgroundEvents,
     updated.character,
     updated.world,
     updated.npcs,
   )
   db.updateTurnSnapshot(lastTurn.id, {
     narrative_text: turnResponse.narrative_text,
+    background_events: backgroundEvents,
     character: updated.character,
     world: updated.world,
     npcs: updated.npcs,
@@ -356,6 +377,7 @@ export async function regenerateLastTurn(storyId: number, actionMode?: string): 
     story_id: storyId,
     turn_number: lastTurn.turn_number,
     narrative_text: turnResponse.narrative_text,
+    background_events: backgroundEvents,
     character: updated.character,
     world: updated.world,
     npcs: updated.npcs,
@@ -368,6 +390,7 @@ export interface SelectVariantResult {
   story_id: number
   turn_number: number
   narrative_text: string
+  background_events: string | null
   character: MainCharacterState
   world: WorldState
   npcs: NPCState[]
@@ -389,6 +412,7 @@ export function selectTurnVariant(turnId: number, variantId: number): SelectVari
   db.updateStory(turn.story_id, snapshot.character, snapshot.world, snapshot.npcs)
   db.updateTurnSnapshot(turn.id, {
     narrative_text: variant.narrative_text,
+    background_events: variant.background_events ?? null,
     character: snapshot.character,
     world: snapshot.world,
     npcs: snapshot.npcs,
@@ -400,6 +424,7 @@ export function selectTurnVariant(turnId: number, variantId: number): SelectVari
     story_id: turn.story_id,
     turn_number: turn.turn_number,
     narrative_text: variant.narrative_text,
+    background_events: variant.background_events ?? null,
     character: snapshot.character,
     world: snapshot.world,
     npcs: snapshot.npcs,

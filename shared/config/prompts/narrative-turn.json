@@ -19,17 +19,27 @@
       "Then evaluate every possible state change caused by the action."
     ],
     "modules": {
-      "track_locations": {
-        "on": [
-          "If world_state_update.locations is provided, keep it consistent with current_scene and character/NPC presence."
-        ],
-        "off": []
-      },
-      "character_appearance_clothing": {
-        "on": [
-          "When appearance/clothing fields are in use, current_appearance and current_clothing must be precise, surgical, and complete when present.",
-          "current_appearance: {current_appearance}",
-          "current_clothing: {current_clothing}",
+    "track_locations": {
+      "on": [
+        "If world_state_update.locations is provided, keep it consistent with current_scene and character/NPC presence."
+      ],
+      "off": []
+    },
+    "track_background_events": {
+      "on": [
+        "After writing narrative_text, optionally write background_events: hidden off-screen events happening in parallel.",
+        "background_events: {turn_response.background_events}",
+        "background_events may include information the player character does not know yet.",
+        "Keep background_events concise (1-2 short paragraphs, separated by a literal \\n\\n).",
+        "If nothing notable happens off-screen, omit the background_events field entirely."
+      ],
+      "off": []
+    },
+    "character_appearance_clothing": {
+      "on": [
+        "When appearance/clothing fields are in use, current_appearance and current_clothing must be precise, surgical, and complete when present.",
+        "current_appearance: {current_appearance}",
+        "current_clothing: {current_clothing}",
           "current_appearance must describe visible anatomy only and never mention clothing, coverage, or exposure.",
           "Never output 'None' for current_appearance or current_clothing. If unchanged, omit the field."
         ],

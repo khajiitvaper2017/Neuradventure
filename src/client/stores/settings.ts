@@ -65,6 +65,7 @@ const DEFAULT_GENERATION: GenerationParams = {
 const DEFAULT_STORY_MODULES: StoryModules = {
   track_npcs: true,
   track_locations: true,
+  track_background_events: false,
   character_appearance_clothing: true,
   character_personality_traits: true,
   character_major_flaws: true,

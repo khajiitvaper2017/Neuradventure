@@ -141,6 +141,7 @@ export interface TurnResult {
   story_id: number
   turn_number: number
   narrative_text: string
+  background_events: string | null
   character: MainCharacterState
   world: WorldState
   npcs: NPCState[]
@@ -176,6 +177,7 @@ export interface UndoCancelResult {
   action_mode: "do" | "say" | "story"
   player_input: string
   narrative_text: string
+  background_events: string | null
   active_variant_id: number | null
   character: MainCharacterState
   world: WorldState

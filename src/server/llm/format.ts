@@ -107,9 +107,18 @@ export function formatLocations(locations: WorldState["locations"]): string {
     .join("\n\n")
 }
 
-export function formatHistoryEntries(turns: TurnRow[]): string[] {
+export function formatHistoryEntries(turns: TurnRow[], options: { includeBackgroundEvents?: boolean } = {}): string[] {
   if (turns.length === 0) return []
-  return turns.map((t) => `> ${t.player_input}\n\n${t.narrative_text}`)
+  const includeBackgroundEvents = options.includeBackgroundEvents === true
+  const backgroundTag = includeBackgroundEvents ? getLlmStrings().sections.backgroundEvents : null
+  return turns.map((t) => {
+    let entry = `> ${t.player_input}\n\n${t.narrative_text}`
+    if (includeBackgroundEvents) {
+      const bg = typeof t.background_events === "string" ? t.background_events.trim() : ""
+      if (bg) entry += `\n\n${wrapSection(backgroundTag ?? "background_events", bg)}`
+    }
+    return entry
+  })
 }
 
 export function injectAuthorNote(
@@ -132,8 +141,9 @@ export function buildHistoryBlock(
   ctxLimit: number,
   baseTokens: number,
   authorNote?: { text: string; depth: number } | null,
+  options: { includeBackgroundEvents?: boolean } = {},
 ): { summary: string | null; history: string | null } {
-  const rawEntries = formatHistoryEntries(turns)
+  const rawEntries = formatHistoryEntries(turns, options)
   const entries = injectAuthorNote(rawEntries, authorNote)
   if (entries.length === 0) return { summary: null, history: null }
 

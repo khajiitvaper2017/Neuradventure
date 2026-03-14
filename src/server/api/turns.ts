@@ -99,6 +99,7 @@ turns.get("/:storyId", (c) => {
       active_variant_id: t.active_variant_id,
       player_input: t.player_input,
       narrative_text: t.narrative_text,
+      background_events: t.background_events,
       world: WorldStateStoredSchema.parse(JSON.parse(t.world_snapshot_json)),
       created_at: t.created_at,
     })),

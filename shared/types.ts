@@ -40,6 +40,7 @@ export interface NPCState extends CharacterState {
 export interface StoryModules {
   track_npcs: boolean
   track_locations: boolean
+  track_background_events: boolean
   character_appearance_clothing: boolean
   character_personality_traits: boolean
   character_major_flaws: boolean
@@ -117,6 +118,7 @@ export interface TurnSummary {
   active_variant_id?: number | null
   player_input: string
   narrative_text: string
+  background_events?: string | null
   world: WorldState
   created_at: string
 }
