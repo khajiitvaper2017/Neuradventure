@@ -1,106 +1,28 @@
 import { z } from "zod"
-import { buildJsonSchemaResponseFormat, derefJsonSchema, zodSchemaToJsonSchema } from "@/engine/utils/json-schema"
+import { buildJsonSchemaResponseFormat } from "@/engine/utils/json-schema"
 import { buildNpcCreationSchema } from "@/engine/schemas/npc-creation"
 import { DEFAULT_STORY_MODULES, resolveModuleFlags } from "@/engine/schemas/story-modules"
 import { type NPCState, type NPCCreation, type StoryModules, type TurnResponse } from "@/engine/core/models"
 import { buildTurnResponseSchema } from "@/engine/llm/schema"
 import { buildSamplingParams } from "@/engine/llm/sampling"
-import { parseJsonFromContent } from "@/engine/llm/parse"
 import { createLlmLogBase, logLlmEntry } from "@/engine/llm/logging"
 import { getCachedSupportedParameters, getClient, getConnector, getGenerationParams } from "@/engine/llm/client"
-import { injectSchemaDescriptions } from "@/engine/llm/inject-schema-descriptions"
-import { createStructuredPreviewExtractor } from "@/engine/llm/structured-preview"
-import { injectOutputSchemaIntoMessages } from "@/engine/llm/schema-in-prompt"
+import { logOpenRouterJsonObjectFallback } from "@/engine/llm/openrouter-routing"
+import { buildInjectedJsonSchema, warnOnMissingSchemaDescriptions } from "@/engine/llm/call/schema-pipeline"
+import { getDefaultPreviewKeys, maybeCreatePreviewExtractor } from "@/engine/llm/call/preview"
 import {
-  describeResponseShape,
-  extractContentFromUnknown,
-  isAsyncIterable,
-  readStreamedText,
-  shouldRetryWithoutStream,
-} from "@/engine/llm/response-extract"
-import {
-  extractOpenRouterNoEndpointMessage,
-  formatOpenRouterRoutingDiagnostics,
-  logOpenRouterJsonObjectFallback,
-  maybeLogOpenRouterResolvedModel,
-  maybeLogOpenRouterSupportedParametersForSelection,
-  shortErrorForLog,
-  shouldDropResponseFormat,
-  shouldFallbackFromJsonSchema,
-} from "@/engine/llm/openrouter-routing"
+  buildInitialRequest,
+  buildOpenRouterReq,
+  chooseInitialOpenRouterMode,
+  type OpenRouterMode,
+} from "@/engine/llm/call/request-builder"
+import { runStructuredChatCompletion, runTextChatCompletion } from "@/engine/llm/call/completion-runner"
+import { parseAndValidateJson } from "@/engine/llm/call/validate"
 import type {
   ChatCompletionCreateParams,
   ChatCompletionMessageParam,
   ResponseFormatJSONSchema,
-  ResponseFormatJSONObject,
 } from "@/engine/llm/openai-types"
-
-function repairTurnResponseShape(value: unknown): unknown {
-  if (!value || typeof value !== "object") return value
-  const root = value as Record<string, unknown>
-
-  // Remove invalid fields at root level that LLMs sometimes hallucinate
-  delete root.location
-  delete root.inventory_changes
-  delete root.flags
-  delete root.environment_changes
-
-  // Fix common field name mismatches
-  if (root.backgroundEvents !== undefined && root.background_events === undefined) {
-    root.background_events = root.backgroundEvents
-    delete root.backgroundEvents
-  }
-  if (root.background_event !== undefined && root.background_events === undefined) {
-    root.background_events = root.background_event
-    delete root.background_event
-  }
-
-  const wsu = root.world_state_update
-  if (!wsu || typeof wsu !== "object") {
-    root.world_state_update = {}
-  } else {
-    const wsuObj = wsu as Record<string, unknown>
-
-    // Move npc_changes and npc_introductions from world_state_update to root
-    if (wsuObj.npc_changes !== undefined && root.npc_changes === undefined) {
-      root.npc_changes = wsuObj.npc_changes
-      delete wsuObj.npc_changes
-    }
-    if (wsuObj.npc_introductions !== undefined && root.npc_introductions === undefined) {
-      root.npc_introductions = wsuObj.npc_introductions
-      delete wsuObj.npc_introductions
-    }
-    if (wsuObj.background_events !== undefined && root.background_events === undefined) {
-      root.background_events = wsuObj.background_events
-      delete wsuObj.background_events
-    }
-
-    // Fix common field name mismatches
-    if (wsuObj.location !== undefined && wsuObj.current_scene === undefined) {
-      wsuObj.current_scene = wsuObj.location
-      delete wsuObj.location
-    }
-    if (wsuObj.time !== undefined && wsuObj.time_of_day === undefined) {
-      wsuObj.time_of_day = wsuObj.time
-      delete wsuObj.time
-    }
-
-    // Remove invalid fields that LLMs sometimes hallucinate
-    delete wsuObj.environment_changes
-    delete wsuObj.inventory_changes
-    delete wsuObj.flags
-  }
-
-  return root
-}
-
-function formatZodIssues(error: z.ZodError): string {
-  const issues = error.issues.map((issue) => {
-    const path = issue.path.length > 0 ? issue.path.join(".") : "(root)"
-    return `${path}: ${issue.message}`
-  })
-  return issues.join("; ")
-}
 
 export async function callLLM(
   messages: ChatCompletionMessageParam[],
@@ -160,18 +82,9 @@ export async function callLLMRaw<TSchema extends z.ZodTypeAny>(
     ...(supportedParams ? { supportedParameters: supportedParams } : {}),
   })
 
-  const schema = zodSchemaToJsonSchema(zodSchema, schemaName)
-  const deref = derefJsonSchema(schema)
-  const injected = injectSchemaDescriptions(schemaName, deref)
-  const jsonSchema = injected.schema
-  if (injected.missing.length > 0) {
-    const sample = injected.missing.slice(0, 12).map((m) => m.path)
-    console.warn(
-      `[llm-schema] Missing descriptions for ${schemaName}: ${injected.missing.length} field(s). Examples: ${sample.join(
-        ", ",
-      )}`,
-    )
-  }
+  const { jsonSchema, missing } = buildInjectedJsonSchema(schemaName, zodSchema)
+  warnOnMissingSchemaDescriptions(schemaName, missing)
+
   const logBase = createLlmLogBase("json", schemaName, messages, sampling, schemaName, undefined, jsonSchema)
   let responseContent: string | undefined
   let parsedCandidate: unknown | undefined
@@ -182,30 +95,8 @@ export async function callLLMRaw<TSchema extends z.ZodTypeAny>(
   const supportsResponseFormat = supportedParamSet ? supportedParamSet.has("response_format") : null
   const supportsStructuredOutputs = supportedParamSet ? supportedParamSet.has("structured_outputs") : null
   const shouldStream = typeof options.onPreviewPatch === "function"
-  const previewKeys =
-    options.previewKeys ??
-    (schemaName === "TurnResponse"
-      ? ["narrative_text", "background_events", "current_scene", "time_of_day"]
-      : schemaName === "GenerateCharacterResponse"
-        ? ["name", "race", "gender", "general_description", "baseline_appearance", "current_clothing"]
-        : schemaName === "GenerateCharacterAppearanceResponse"
-          ? ["baseline_appearance", "current_appearance"]
-          : schemaName === "GenerateCharacterClothingResponse"
-            ? ["current_clothing"]
-            : schemaName === "StoryResponse"
-              ? [
-                  "title",
-                  "opening_scenario",
-                  "starting_location",
-                  "starting_date",
-                  "starting_time",
-                  "general_description",
-                  "current_appearance",
-                ]
-              : schemaName === "GenerateChatResponse"
-                ? ["title", "greeting"]
-                : [])
-  const previewExtractor = shouldStream && previewKeys.length > 0 ? createStructuredPreviewExtractor(previewKeys) : null
+  const previewKeys = options.previewKeys ?? getDefaultPreviewKeys(schemaName)
+  const previewExtractor = maybeCreatePreviewExtractor(shouldStream, previewKeys)
 
   try {
     const schemaDescriptions: Record<string, string> = {
@@ -220,29 +111,9 @@ export async function callLLMRaw<TSchema extends z.ZodTypeAny>(
       description: schemaDescriptions[schemaName],
     }) as ResponseFormatJSONSchema
 
-    const baseReq: ChatCompletionCreateParams = {
-      model,
-      messages,
-      ...sampling,
-      stream: shouldStream,
-    }
-
-    type OpenRouterMode = "json_schema" | "json_object" | "none"
-    const buildOpenRouterReq = (mode: OpenRouterMode): ChatCompletionCreateParams => {
-      const nextMessages =
-        mode === "json_schema" ? messages : injectOutputSchemaIntoMessages(messages, schemaName, jsonSchema)
-      const req: ChatCompletionCreateParams = { ...baseReq, messages: nextMessages }
-      if (mode === "json_schema") {
-        req.response_format = responseFormat
-      } else if (mode === "json_object") {
-        req.response_format = { type: "json_object" } as ResponseFormatJSONObject
-      }
-      return req
-    }
-
     let openRouterMode: OpenRouterMode = "json_schema"
-    if (connector.type === "openrouter" && supportsStructuredOutputs === false) {
-      openRouterMode = supportsResponseFormat === false ? "none" : "json_object"
+    if (connector.type === "openrouter") {
+      openRouterMode = chooseInitialOpenRouterMode({ supportsResponseFormat, supportsStructuredOutputs })
     }
     if (connector.type === "openrouter" && openRouterMode === "json_object") {
       logOpenRouterJsonObjectFallback(schemaName, model, "model_lacks_structured_outputs", {
@@ -251,158 +122,54 @@ export async function callLLMRaw<TSchema extends z.ZodTypeAny>(
       })
     }
 
-    const initialReq =
-      connector.type === "koboldcpp"
-        ? ({
-            ...baseReq,
-            response_format: responseFormat,
-            // Ensure KoboldCpp applies schema-derived grammar even if response_format is ignored.
-            json_schema: jsonSchema,
-            grammar_lazy: false,
-            grammar_triggers: [],
-          } as ChatCompletionCreateParams & {
-            json_schema: object
-            grammar_lazy: boolean
-            grammar_triggers: unknown[]
-          })
-        : connector.type === "openrouter"
-          ? buildOpenRouterReq(openRouterMode)
-          : ({
-              ...baseReq,
-              response_format: responseFormat,
-            } as ChatCompletionCreateParams)
+    const { baseReq, initialReq } = buildInitialRequest({
+      connector,
+      model,
+      messages,
+      sampling,
+      shouldStream,
+      schemaName,
+      jsonSchema,
+      responseFormat,
+      openRouterMode,
+    })
 
-    let res: unknown
-    try {
-      requestPayload = initialReq as unknown as Record<string, unknown>
-      if (connector.type === "openrouter") {
-        maybeLogOpenRouterSupportedParametersForSelection(model, requestPayload, schemaName, supportedParams)
-      }
-      res = await getClient().chat.completions.create(initialReq)
-    } catch (err) {
-      const msg = String(err)
-
-      const openRouterNoEndpointMessage =
-        connector.type === "openrouter" ? extractOpenRouterNoEndpointMessage(err) : null
-      if (
-        connector.type === "openrouter" &&
-        openRouterMode === "json_schema" &&
-        (shouldFallbackFromJsonSchema(err) || !!openRouterNoEndpointMessage)
-      ) {
-        const fallbackMode: OpenRouterMode = supportsResponseFormat === false ? "none" : "json_object"
-        try {
-          if (fallbackMode === "json_object") {
-            logOpenRouterJsonObjectFallback(schemaName, model, "request_rejected_json_schema", {
-              error: shortErrorForLog(err),
-              supports_response_format: supportsResponseFormat,
-              supports_structured_outputs: supportsStructuredOutputs,
-            })
-          }
-          const fallbackReq = buildOpenRouterReq(fallbackMode)
-          requestPayload = fallbackReq as unknown as Record<string, unknown>
-          openRouterMode = fallbackMode
-          res = await getClient().chat.completions.create(fallbackReq)
-        } catch (err2) {
-          if (fallbackMode === "json_object" && shouldDropResponseFormat(err2)) {
-            console.info(
-              `[llm-openrouter] fallback=drop_response_format_after_json_object schema=${schemaName} model=${model} error=${shortErrorForLog(err2)}`,
-            )
-            const fallbackReq2 = buildOpenRouterReq("none")
-            requestPayload = fallbackReq2 as unknown as Record<string, unknown>
-            openRouterMode = "none"
-            res = await getClient().chat.completions.create(fallbackReq2)
-          } else if (openRouterNoEndpointMessage) {
-            const diagnostics = formatOpenRouterRoutingDiagnostics(
-              initialReq as unknown as Record<string, unknown>,
+    const buildOpenRouter =
+      connector.type === "openrouter"
+        ? (mode: OpenRouterMode) =>
+            buildOpenRouterReq({
+              mode,
+              baseReq,
+              messages,
               schemaName,
-              model,
-              supportedParams,
-            )
-            throw new Error(`OpenRouter routing failed (404): ${openRouterNoEndpointMessage}\n${diagnostics}`, {
-              cause: err2 as unknown,
+              jsonSchema,
+              responseFormat,
             })
-          } else {
-            throw err2
-          }
-        }
-      } else if (connector.type === "openrouter" && openRouterMode === "json_object" && shouldDropResponseFormat(err)) {
-        console.info(
-          `[llm-openrouter] fallback=drop_response_format_after_json_object schema=${schemaName} model=${model} error=${shortErrorForLog(err)}`,
-        )
-        const fallbackReq = buildOpenRouterReq("none")
-        requestPayload = fallbackReq as unknown as Record<string, unknown>
-        openRouterMode = "none"
-        res = await getClient().chat.completions.create(fallbackReq)
-      } else if (openRouterNoEndpointMessage) {
-        const diagnostics = formatOpenRouterRoutingDiagnostics(
-          initialReq as unknown as Record<string, unknown>,
-          schemaName,
-          model,
-          supportedParams,
-        )
-        throw new Error(`OpenRouter routing failed (404): ${openRouterNoEndpointMessage}\n${diagnostics}`, {
-          cause: err as unknown,
-        })
-      }
+        : undefined
 
-      if (
-        connector.type === "koboldcpp" &&
-        (msg.includes("response_format") || msg.includes("json_schema") || msg.includes("strict"))
-      ) {
-        // If the backend rejects `response_format`, fall back to grammar-only mode.
-        // KoboldCpp should still honor `json_schema` via grammar conversion.
-        const fallbackReq = { ...initialReq }
-        delete (fallbackReq as unknown as Record<string, unknown>).response_format
-        requestPayload = fallbackReq as unknown as Record<string, unknown>
-        res = await getClient().chat.completions.create(fallbackReq as ChatCompletionCreateParams)
-      } else if (shouldStream && shouldRetryWithoutStream(err)) {
-        const fallbackReq = { ...initialReq, stream: false }
-        requestPayload = fallbackReq as unknown as Record<string, unknown>
-        res = await getClient().chat.completions.create(fallbackReq as ChatCompletionCreateParams)
-      } else {
-        throw err
-      }
-    }
+    const result = await runStructuredChatCompletion({
+      connector,
+      schemaName,
+      model,
+      supportedParams,
+      supportsResponseFormat,
+      supportsStructuredOutputs,
+      initialReq,
+      openRouterMode: connector.type === "openrouter" ? openRouterMode : null,
+      buildOpenRouterReq: buildOpenRouter,
+      create: (req) => getClient().chat.completions.create(req),
+      shouldStream,
+      previewExtractor,
+      onPreviewPatch: options.onPreviewPatch,
+    })
 
-    if (connector.type === "openrouter") maybeLogOpenRouterResolvedModel(model, res)
+    requestPayload = result.requestPayload
+    responseContent = result.responseContent
 
-    const shape = describeResponseShape(res)
-    if (shouldStream && previewExtractor && isAsyncIterable(res)) {
-      try {
-        responseContent = await readStreamedText(res, (delta) => {
-          const patch = previewExtractor.push(delta)
-          if (patch) options.onPreviewPatch?.(patch)
-        })
-      } catch (err) {
-        if (!shouldRetryWithoutStream(err)) throw err
-        const fallbackReq = { ...initialReq, stream: false } as ChatCompletionCreateParams
-        requestPayload = fallbackReq as unknown as Record<string, unknown>
-        const fallbackRes = await getClient().chat.completions.create(fallbackReq)
-        responseContent = (await extractContentFromUnknown(fallbackRes)) ?? undefined
-        if (responseContent) {
-          const patch = previewExtractor.push(responseContent)
-          if (patch) options.onPreviewPatch?.(patch)
-        }
-      }
-    } else {
-      responseContent = (await extractContentFromUnknown(res)) ?? undefined
-      if (shouldStream && previewExtractor && responseContent) {
-        const patch = previewExtractor.push(responseContent)
-        if (patch) options.onPreviewPatch?.(patch)
-      }
-    }
+    const validated = parseAndValidateJson({ schemaName, zodSchema, responseContent })
+    const parsed = validated.parsed
+    parsedCandidate = validated.parsedCandidate
 
-    if (!responseContent) throw new Error(`LLM returned empty response. Shape: ${shape}`)
-    const parsedRaw = parseJsonFromContent(responseContent, schemaName)
-    parsedCandidate = schemaName === "TurnResponse" ? repairTurnResponseShape(parsedRaw) : parsedRaw
-
-    const validated = zodSchema.safeParse(parsedCandidate)
-    if (!validated.success) {
-      const issues = formatZodIssues(validated.error)
-      throw new Error(`LLM returned JSON that failed validation for ${schemaName}: ${issues}`)
-    }
-
-    const parsed = validated.data
     logLlmEntry({
       ...logBase,
       request: requestPayload,
@@ -463,40 +230,17 @@ export async function callLLMText(
       stop,
       stream: shouldStream,
     }
-    requestPayload = req as unknown as Record<string, unknown>
-    let res: unknown
-    try {
-      res = await getClient().chat.completions.create(req)
-    } catch (err) {
-      if (shouldStream && shouldRetryWithoutStream(err)) {
-        const fallbackReq = { ...req, stream: false }
-        requestPayload = fallbackReq as unknown as Record<string, unknown>
-        res = await getClient().chat.completions.create(fallbackReq)
-      } else {
-        throw err
-      }
-    }
 
-    const shape = describeResponseShape(res)
-    if (shouldStream && isAsyncIterable(res)) {
-      try {
-        responseContent = await readStreamedText(res, (_delta, full) => {
-          options.onText?.(full)
-        })
-      } catch (err) {
-        if (!shouldRetryWithoutStream(err)) throw err
-        const fallbackReq = { ...req, stream: false }
-        requestPayload = fallbackReq as unknown as Record<string, unknown>
-        const fallbackRes = await getClient().chat.completions.create(fallbackReq)
-        responseContent = (await extractContentFromUnknown(fallbackRes)) ?? undefined
-        if (responseContent) options.onText?.(responseContent)
-      }
-    } else {
-      responseContent = (await extractContentFromUnknown(res)) ?? undefined
-      if (shouldStream && responseContent) options.onText?.(responseContent)
-    }
+    const result = await runTextChatCompletion({
+      create: (r) => getClient().chat.completions.create(r),
+      req,
+      shouldStream,
+      onText: options.onText,
+    })
 
-    if (!responseContent) throw new Error(`LLM returned empty response. Shape: ${shape}`)
+    requestPayload = result.requestPayload
+    responseContent = result.responseContent
+
     logLlmEntry({
       ...logBase,
       request: requestPayload,

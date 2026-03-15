@@ -1,4 +1,5 @@
 import { exportDbBytes, flushDb, restoreDbBytes } from "@/engine/db/connection"
+import { downloadText } from "@/utils/downloadText"
 
 type NeuradventureBackupV1 = {
   v: 1
@@ -22,19 +23,6 @@ function base64ToBytes(base64: string): Uint8Array {
   const bytes = new Uint8Array(bin.length)
   for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i)
   return bytes
-}
-
-function downloadText(filename: string, text: string, mime: string): void {
-  if (typeof window === "undefined") return
-  const blob = new Blob([text], { type: mime })
-  const url = URL.createObjectURL(blob)
-  const a = document.createElement("a")
-  a.href = url
-  a.download = filename
-  document.body.appendChild(a)
-  a.click()
-  a.remove()
-  window.setTimeout(() => URL.revokeObjectURL(url), 1500)
 }
 
 function fileTimestamp(d: Date): string {
