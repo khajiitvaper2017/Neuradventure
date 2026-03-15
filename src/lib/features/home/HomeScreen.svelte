@@ -42,7 +42,7 @@
   import { resetChat } from "@/stores/chat"
   import { loadStoryById } from "@/utils/storyLoader"
   import IconUser from "@/components/icons/IconUser.svelte"
-    import { Book } from "@lucide/svelte"
+  import { Book } from "@lucide/svelte"
 
   let stories: StoryMeta[] = []
   let loading = true

@@ -123,7 +123,7 @@
       </div>
     {/if}
 
-    <ScrollArea class="min-h-0 flex-1" orientation="horizontal">
+    <ScrollArea class="min-h-0 flex-1">
       <div class="px-4 py-4">
         <Tabs.Content value="appearance">
           <div class="space-y-4">
