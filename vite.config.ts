@@ -44,12 +44,8 @@ export default defineConfig(() => ({
           },
         ],
       },
-      kit: {
-        adapterFallback: "200.html",
-      },
       workbox: {
         // Ensure SPA deep-links still boot offline (and include sql.js WASM in precache).
-        navigateFallback: "/200.html",
         globPatterns: ["client/**/*.{js,css,ico,png,svg,webp,webmanifest,wasm}", "prerendered/**/*.{html,json}"],
         runtimeCaching: [
           {

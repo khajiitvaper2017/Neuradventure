@@ -6,7 +6,6 @@ export default {
   preprocess: vitePreprocess(),
   kit: {
     adapter: adapter({
-      fallback: "200.html",
       precompress: true,
     }),
     alias: {
