@@ -7,7 +7,7 @@ export default {
   kit: {
     adapter: adapter({
       fallback: "200.html",
-      precompress: true
+      precompress: true,
     }),
     alias: {
       "@": "src/lib",
@@ -17,13 +17,13 @@ export default {
       register: false,
     },
     prerender: {
-      entries: ['*'],
+      entries: ["*"],
       crawl: true,
-      handleHttpError: 'warn'
+      handleHttpError: "warn",
     },
     inlineStyleThreshold: 1024,
     output: {
-      bundleStrategy: 'single'
+      bundleStrategy: "split",
     },
   },
 }
