@@ -77,6 +77,12 @@ export npm_config_audit=false
 echo "Installing dependencies (no lockfile)..."
 npm install --no-package-lock
 
-echo "Building + serving the static app on http://localhost:${PORT:-3001} ..."
+HOST_VALUE="${HOST:-0.0.0.0}"
+PORT_VALUE="${PORT:-3001}"
+
+echo "Building the static app..."
+npm run build
+
+echo "Serving the static app on http://localhost:${PORT_VALUE} ..."
 echo "(Set PORT/HOST env vars to customize.)"
-npm run preview
+npm run preview -- --host "${HOST_VALUE}" --port "${PORT_VALUE}"

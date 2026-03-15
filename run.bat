@@ -62,10 +62,15 @@ echo Installing dependencies (no lockfile)...
 call npm install --no-package-lock
 if errorlevel 1 exit /b 1
 
+if "%HOST%"=="" set "HOST=0.0.0.0"
 if "%PORT%"=="" set "PORT=3001"
-echo Building ^+ serving the static app on http://localhost:%PORT% ...
+echo Building the static app...
+call npm run build
+if errorlevel 1 exit /b 1
+
+echo Serving the static app on http://localhost:%PORT% ...
 echo (Set PORT/HOST env vars to customize.)
-call npm run preview
+call npm run preview -- --host %HOST% --port %PORT%
 exit /b %errorlevel%
 
 :install_help

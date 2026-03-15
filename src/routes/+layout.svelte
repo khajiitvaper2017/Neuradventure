@@ -68,6 +68,8 @@
 
   let restoringStory = $state(false)
   let restoringChat = $state(false)
+  let bootstrapped = $state(false)
+  let bootstrapError = $state<string | null>(null)
 
   function updateSiteIcon() {
     if (typeof document === "undefined") return
@@ -106,6 +108,7 @@
   })
 
   $effect(() => {
+    if (!bootstrapped) return
     if ($activeScreen !== "game") return
     if (!$routeStoryId) return
     if ($currentStoryId === $routeStoryId) return
@@ -122,6 +125,7 @@
   })
 
   $effect(() => {
+    if (!bootstrapped) return
     if ($activeScreen !== "chat") return
     if (!$routeChatId) return
     if ($currentChatId === $routeChatId) return
@@ -156,6 +160,8 @@
   }
 
   async function bootstrap() {
+    bootstrapped = false
+    bootstrapError = null
     try {
       const status = await ensurePersistentStorage()
       if (status.supported && !status.granted) {
@@ -169,6 +175,8 @@
       await initEngine()
     } catch (err) {
       console.error("[engine] Failed to initialize local engine", err)
+      bootstrapError = "Failed to initialize local database."
+      return
     }
 
     try {
@@ -176,6 +184,8 @@
     } catch (err) {
       console.error("[settings] Failed to initialize settings", err)
     }
+
+    bootstrapped = true
 
     // Detect context length in the background (network-dependent).
     void initCtxLimit()
@@ -227,42 +237,62 @@
   class:collapse-locations={$collapseLocationsPanel || !trackLocations}
   bind:this={appEl}
 >
-  {#if gameActive}
-    {#if $isDesktop && !$collapseCharSheet && gameReady}
-      <div class="sidebar-slot left">
-        <CharSheet inline />
-      </div>
-    {/if}
-
-    <div class="game-slot">
-      {#if gameReady}
-        {@render children()}
-      {:else}
-        <div style="padding: 16px; color: var(--text-dim)">Loading story…</div>
+  {#if bootstrapped}
+    {#if gameActive}
+      {#if $isDesktop && !$collapseCharSheet && gameReady}
+        <div class="sidebar-slot left">
+          <CharSheet inline />
+        </div>
       {/if}
-    </div>
 
-    {#if $isDesktop && !$collapseNPCTracker && trackNpcs && gameReady}
-      <div class="sidebar-slot right-1">
-        <NPCTracker inline />
+      <div class="game-slot">
+        {#if gameReady}
+          {@render children()}
+        {:else}
+          <div style="padding: 16px; color: var(--text-dim)">Loading story…</div>
+        {/if}
       </div>
+
+      {#if $isDesktop && !$collapseNPCTracker && trackNpcs && gameReady}
+        <div class="sidebar-slot right-1">
+          <NPCTracker inline />
+        </div>
+      {/if}
+
+      {#if $isDesktop && !$collapseLocationsPanel && trackLocations && gameReady}
+        <div class="sidebar-slot right-2">
+          <LocationsPanel inline />
+        </div>
+      {/if}
+    {:else}
+      {@render children()}
     {/if}
 
-    {#if $isDesktop && !$collapseLocationsPanel && trackLocations && gameReady}
-      <div class="sidebar-slot right-2">
-        <LocationsPanel inline />
-      </div>
+    <CharSheet />
+    {#if trackNpcs}
+      <NPCTracker />
+    {/if}
+    {#if trackLocations}
+      <LocationsPanel />
     {/if}
   {:else}
-    {@render children()}
-  {/if}
-
-  <CharSheet />
-  {#if trackNpcs}
-    <NPCTracker />
-  {/if}
-  {#if trackLocations}
-    <LocationsPanel />
+    <div class="boot-screen" data-scroll-root="screen">
+      {#if bootstrapError}
+        <h1 class="boot-title">Initialization failed</h1>
+        <p class="boot-text">{bootstrapError}</p>
+        <button
+          type="button"
+          class="btn-ghost"
+          onclick={() => {
+            if (typeof location !== "undefined") location.reload()
+          }}
+        >
+          Reload
+        </button>
+      {:else}
+        <div class="boot-text">Loading…</div>
+      {/if}
+    </div>
   {/if}
 
   {#if $errorMessage}
@@ -282,6 +312,27 @@
     height: 100dvh;
     position: relative;
     background: var(--bg);
+  }
+
+  .boot-screen {
+    padding: 22px 16px;
+    color: var(--text-dim);
+    display: grid;
+    gap: 12px;
+    align-content: start;
+  }
+
+  .boot-title {
+    margin: 0;
+    font-size: 1.05rem;
+    color: var(--text);
+    letter-spacing: 0.01em;
+  }
+
+  .boot-text {
+    margin: 0;
+    max-width: 64ch;
+    line-height: 1.45;
   }
 
   /* ── Desktop game: three-column grid ──────────────── */

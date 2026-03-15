@@ -1,10 +1,10 @@
 node_modules/
-.env
-*.local
-*.log
 .claude/
 .references_source_code/
 .svelte-kit/
+build/
 
-CLAUDE.md
 package-lock.json
+.env
+*.local
+*.log

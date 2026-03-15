@@ -67,7 +67,8 @@
   async function loadStories() {
     try {
       stories = await storiesService.list()
-    } catch {
+    } catch (err) {
+      console.error("[home] Failed to load stories", err)
       showError("Failed to load stories")
     } finally {
       loading = false
@@ -78,7 +79,8 @@
     loadingCharacters = true
     try {
       storyCharacters = await storiesService.characters()
-    } catch {
+    } catch (err) {
+      console.error("[home] Failed to load characters", err)
       showError("Failed to load characters")
     } finally {
       loadingCharacters = false
@@ -89,7 +91,8 @@
     loadingChats = true
     try {
       chats = await chatsService.list()
-    } catch {
+    } catch (err) {
+      console.error("[home] Failed to load chats", err)
       showError("Failed to load chats")
     } finally {
       loadingChats = false
