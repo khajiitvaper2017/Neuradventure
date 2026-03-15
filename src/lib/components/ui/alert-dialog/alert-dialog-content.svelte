@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { AlertDialog } from "bits-ui"
+  import { AlertDialog as AlertDialogPrimitive } from "bits-ui"
   import AlertDialogPortal from "./alert-dialog-portal.svelte"
   import AlertDialogOverlay from "./alert-dialog-overlay.svelte"
   import { cn, type WithoutChild, type WithoutChildrenOrChild } from "@/utils.js"
@@ -10,14 +10,14 @@
     class: className,
     portalProps,
     ...restProps
-  }: WithoutChild<AlertDialog.ContentProps> & {
+  }: WithoutChild<AlertDialogPrimitive.ContentProps> & {
     portalProps?: WithoutChildrenOrChild<ComponentProps<typeof AlertDialogPortal>>
   } = $props()
 </script>
 
 <AlertDialogPortal {...portalProps}>
   <AlertDialogOverlay />
-  <AlertDialog.Content
+  <AlertDialogPrimitive.Content
     bind:ref
     data-slot="alert-dialog-content"
     class={cn(

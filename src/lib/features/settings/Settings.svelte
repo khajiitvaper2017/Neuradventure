@@ -1,6 +1,6 @@
 <script lang="ts">
   import { navigate } from "@/stores/ui"
-  import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
+  import * as Tabs from "@/components/ui/tabs/index.js"
   import { Button } from "@/components/ui/button"
   import { ScrollArea } from "@/components/ui/scroll-area"
   import AppearanceTab from "@/features/settings/tabs/AppearanceTab.svelte"
@@ -67,9 +67,9 @@
   const tabs: Array<{ value: SettingsTab; label: string }> = [
     { value: "appearance", label: "Appearance" },
     { value: "data", label: "Data" },
-    { value: "generation", label: "Text Generation" },
+    { value: "generation", label: "LLM" },
     { value: "prompts", label: "Prompts" },
-    { value: "modules", label: "Story Modules" },
+    { value: "modules", label: "Modules" },
   ]
 
   const generationSectionTabs: Array<{ value: GenerationSection; label: string }> = [
@@ -86,53 +86,75 @@
     <h2 class="text-base font-semibold text-foreground">Settings</h2>
   </header>
 
-  <div class="border-b px-4 py-3">
-    <Tabs value={activeTab} onValueChange={(next) => (activeTab = next as SettingsTab)}>
-      <TabsList aria-label="Settings tabs" class="w-full">
-        {#each tabs as t (t.value)}
-          <TabsTrigger value={t.value} class="flex-1 text-xs font-medium uppercase tracking-wider">
-            {t.label}
-          </TabsTrigger>
-        {/each}
-      </TabsList>
-    </Tabs>
-  </div>
-
-  {#if activeTab === "generation"}
+  <Tabs.Root value={activeTab} onValueChange={(next) => (activeTab = next as SettingsTab)} class="min-h-0 flex-1 gap-0">
     <div class="border-b px-4 py-3">
-      <Tabs value={generationSection} onValueChange={(next) => (generationSection = next as GenerationSection)}>
-        <TabsList aria-label="Text generation sections" class="w-full">
-          {#each generationSectionTabs as t (t.value)}
-            <TabsTrigger value={t.value} class="flex-1 text-xs font-medium uppercase tracking-wider">
-              {t.label}
-            </TabsTrigger>
-          {/each}
-        </TabsList>
-      </Tabs>
+      <Tabs.List
+        aria-label="Settings tabs"
+        class="w-full justify-start overflow-x-auto overflow-y-hidden sm:justify-center sm:overflow-x-visible"
+      >
+        {#each tabs as t (t.value)}
+          <Tabs.Trigger
+            value={t.value}
+            class="min-w-max flex-1 px-3 text-xs font-medium uppercase tracking-wider sm:min-w-0 sm:px-2"
+          >
+            {t.label}
+          </Tabs.Trigger>
+        {/each}
+      </Tabs.List>
     </div>
-  {/if}
 
-  <ScrollArea class="min-h-0 flex-1">
-    <div class="px-4 py-4">
-      <div class="space-y-4" hidden={activeTab !== "appearance"} aria-hidden={activeTab !== "appearance"}>
-        <AppearanceTab />
+    {#if activeTab === "generation"}
+      <div class="border-b px-4 py-3">
+        <Tabs.Root value={generationSection} onValueChange={(next) => (generationSection = next as GenerationSection)}>
+          <Tabs.List
+            aria-label="Text generation sections"
+            class="w-full justify-start overflow-x-auto overflow-y-hidden sm:justify-center sm:overflow-x-visible"
+          >
+            {#each generationSectionTabs as t (t.value)}
+              <Tabs.Trigger
+                value={t.value}
+                class="min-w-max flex-1 px-3 text-xs font-medium uppercase tracking-wider sm:min-w-0 sm:px-2"
+              >
+                {t.label}
+              </Tabs.Trigger>
+            {/each}
+          </Tabs.List>
+        </Tabs.Root>
       </div>
+    {/if}
 
-      <div class="space-y-4" hidden={activeTab !== "data"} aria-hidden={activeTab !== "data"}>
-        <DataTab />
-      </div>
+    <ScrollArea class="min-h-0 flex-1" orientation="horizontal">
+      <div class="px-4 py-4">
+        <Tabs.Content value="appearance">
+          <div class="space-y-4">
+            <AppearanceTab />
+          </div>
+        </Tabs.Content>
 
-      <div class="space-y-4" hidden={activeTab !== "generation"} aria-hidden={activeTab !== "generation"}>
-        <GenerationTab active={activeTab === "generation"} section={generationSection} />
-      </div>
+        <Tabs.Content value="data">
+          <div class="space-y-4">
+            <DataTab />
+          </div>
+        </Tabs.Content>
 
-      <div class="space-y-4" hidden={activeTab !== "prompts"} aria-hidden={activeTab !== "prompts"}>
-        <PromptsTab active={activeTab === "prompts"} />
-      </div>
+        <Tabs.Content value="generation">
+          <div class="space-y-4">
+            <GenerationTab active={activeTab === "generation"} section={generationSection} />
+          </div>
+        </Tabs.Content>
 
-      <div class="space-y-4" hidden={activeTab !== "modules"} aria-hidden={activeTab !== "modules"}>
-        <ModulesTab />
+        <Tabs.Content value="prompts">
+          <div class="space-y-4">
+            <PromptsTab active={activeTab === "prompts"} />
+          </div>
+        </Tabs.Content>
+
+        <Tabs.Content value="modules">
+          <div class="space-y-4">
+            <ModulesTab />
+          </div>
+        </Tabs.Content>
       </div>
-    </div>
-  </ScrollArea>
+    </ScrollArea>
+  </Tabs.Root>
 </div>

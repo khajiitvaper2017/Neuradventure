@@ -2,6 +2,8 @@
   import type { GenerationParams, ModelInfo } from "@/shared/api-types"
   import { connector } from "@/stores/settings"
   import { Badge } from "@/components/ui/badge"
+  import { Button } from "@/components/ui/button"
+  import { Card, CardContent } from "@/components/ui/card"
   import {
     dynatempParams,
     dryParams,
@@ -13,6 +15,7 @@
   } from "@/features/settings/lib/generationParamDefs"
   import { getSelectedModel } from "@/features/settings/tabs/generation/openRouterParamSupport"
   import { getOpenRouterParamStatus, type OpenRouterParamStatus } from "@/features/settings/lib/openrouterParams"
+  import { BadgeCheck, ChevronDown, ChevronUp, CircleSlash, Info, Send, TriangleAlert } from "@lucide/svelte"
 
   type Props = {
     modelSearchResults?: ModelInfo[]
@@ -76,67 +79,133 @@
       modelId: $connector.model,
       modelHasMeta: !!model?.supported_parameters && model.supported_parameters.length > 0,
       notSent,
+      unknown,
+      supported,
       unsupported,
       sentKeys,
     }
   })
+
+  let showDetails = $state(false)
+  $effect(() => {
+    const id = openRouterSummary?.modelId
+    if (!id) return
+    showDetails = false
+  })
 </script>
 
 {#if openRouterSummary}
-  <div class="rounded-lg border bg-card p-4 text-sm text-card-foreground" role="note">
-    <div class="flex gap-3">
-      <div class="mt-0.5 text-muted-foreground" aria-hidden="true">ℹ</div>
-      <div class="space-y-2">
-        <div class="font-medium">OpenRouter parameter support</div>
-        <div class="text-xs text-muted-foreground">
-          Some settings are ignored by OpenRouter, either because they are KoboldCpp-only or not supported by the
-          selected model. Badges explain what happens.
-        </div>
-        <ul class="list-disc space-y-1 pl-4 text-xs text-muted-foreground">
-          <li><Badge variant="secondary">kobold-only</Badge> not sent to OpenRouter</li>
-          <li><Badge variant="outline">ignored</Badge> sent, but model does not support</li>
-          <li>Model support metadata can be missing until models are fetched</li>
-        </ul>
-      </div>
-    </div>
-  </div>
+  <Card class="border-border/70 bg-card text-card-foreground">
+    <CardContent class="space-y-2 p-3">
+      <div class="flex items-start justify-between gap-3">
+        <div class="min-w-0">
+          <div class="flex flex-wrap items-center gap-2">
+            <Info class="size-4 text-muted-foreground" aria-hidden="true" />
+            <div class="text-sm font-medium leading-none">OpenRouter param support</div>
+            <Badge
+              variant="outline"
+              class="max-w-[55vw] truncate font-mono text-[11px] text-muted-foreground"
+              title={openRouterSummary.modelId}
+            >
+              {openRouterSummary.modelId}
+            </Badge>
+          </div>
 
-  <details class="mt-3 overflow-hidden rounded-lg border bg-card text-sm text-card-foreground">
-    <summary class="cursor-pointer select-none px-4 py-3 font-medium">
-      What will be used for <span class="font-mono text-xs">{openRouterSummary.modelId}</span>
-    </summary>
-    <div class="space-y-3 border-t px-4 py-4">
-      <div class="text-xs text-muted-foreground">
-        {openRouterSummary.sentKeys.length} setting(s) are sent to OpenRouter. {openRouterSummary.notSent.length} are KoboldCpp-only.
-        {#if openRouterSummary.modelHasMeta}
-          {openRouterSummary.unsupported.length} are unsupported by this model.
-        {:else}
-          Model support metadata is not loaded.
-        {/if}
-      </div>
+          <div class="mt-2 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+            <Badge variant="secondary" class="gap-1 px-2 py-0 text-[11px] font-medium" title="Applied by OpenRouter">
+              <BadgeCheck class="size-3.5" aria-hidden="true" />
+              {openRouterSummary.supported.length} applied
+            </Badge>
 
-      <div class="grid gap-4 sm:grid-cols-2">
-        <div class="space-y-2">
-          <div class="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Sent</div>
-          <div class="flex flex-wrap gap-2">
-            {#each openRouterSummary.sentKeys as k}
-              <Badge variant="secondary" class="px-2 py-0 text-[11px] font-medium">
-                {labelForKey(k)}
-              </Badge>
-            {/each}
+            <Badge
+              variant="outline"
+              class="gap-1 px-2 py-0 text-[11px] font-medium"
+              title={openRouterSummary.modelHasMeta
+                ? "Sent, but not supported by this model"
+                : "Model metadata not loaded; support may be unknown"}
+            >
+              <CircleSlash class="size-3.5" aria-hidden="true" />
+              {openRouterSummary.modelHasMeta ? openRouterSummary.unsupported.length : "—"} ignored
+            </Badge>
+
+            <Badge variant="secondary" class="gap-1 px-2 py-0 text-[11px] font-medium" title="Not sent to OpenRouter">
+              <Send class="size-3.5" aria-hidden="true" />
+              {openRouterSummary.notSent.length} not sent
+            </Badge>
+
+            <Badge
+              variant="outline"
+              class="gap-1 px-2 py-0 text-[11px] font-medium opacity-80"
+              title={openRouterSummary.modelHasMeta ? "Sent, but metadata has no match" : "Model metadata not loaded"}
+            >
+              <TriangleAlert class="size-3.5" aria-hidden="true" />
+              {openRouterSummary.modelHasMeta ? openRouterSummary.unknown.length : "meta"} unknown
+            </Badge>
           </div>
         </div>
-        <div class="space-y-2">
-          <div class="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Not sent</div>
-          <div class="flex flex-wrap gap-2">
-            {#each openRouterSummary.notSent as k}
-              <Badge variant="outline" class="px-2 py-0 text-[11px] font-medium opacity-70">
-                {labelForKey(k)}
-              </Badge>
-            {/each}
+
+        <Button
+          size="sm"
+          variant="outline"
+          class="shrink-0"
+          onclick={() => (showDetails = !showDetails)}
+          aria-expanded={showDetails}
+        >
+          {#if showDetails}
+            <ChevronUp class="size-4" aria-hidden="true" />
+            <span class="sr-only">Hide details</span>
+          {:else}
+            <ChevronDown class="size-4" aria-hidden="true" />
+            <span class="sr-only">Show details</span>
+          {/if}
+        </Button>
+      </div>
+
+      {#if showDetails}
+        <div class="max-h-56 overflow-auto rounded-lg border bg-background/30 p-3">
+          <div class="grid gap-4 sm:grid-cols-3">
+            <div class="space-y-2">
+              <div class="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Applied</div>
+              <div class="flex flex-wrap gap-2">
+                {#each openRouterSummary.supported as k (k)}
+                  <Badge variant="secondary" class="px-2 py-0 text-[11px] font-medium">
+                    {labelForKey(k)}
+                  </Badge>
+                {/each}
+              </div>
+            </div>
+
+            <div class="space-y-2">
+              <div class="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                Sent (unknown/ignored)
+              </div>
+              <div class="flex flex-wrap gap-2">
+                {#each openRouterSummary.unsupported as k (k)}
+                  <Badge variant="outline" class="px-2 py-0 text-[11px] font-medium">
+                    {labelForKey(k)}
+                  </Badge>
+                {/each}
+                {#each openRouterSummary.unknown as k (k)}
+                  <Badge variant="outline" class="px-2 py-0 text-[11px] font-medium opacity-70">
+                    {labelForKey(k)}
+                  </Badge>
+                {/each}
+              </div>
+            </div>
+
+            <div class="space-y-2">
+              <div class="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Not sent</div>
+              <div class="flex flex-wrap gap-2">
+                {#each openRouterSummary.notSent as k (k)}
+                  <Badge variant="secondary" class="px-2 py-0 text-[11px] font-medium opacity-70">
+                    {labelForKey(k)}
+                  </Badge>
+                {/each}
+              </div>
+            </div>
           </div>
         </div>
-      </div>
-    </div>
-  </details>
+      {/if}
+    </CardContent>
+  </Card>
 {/if}

@@ -1,6 +1,7 @@
 <script lang="ts">
-  import { AlertDialog } from "bits-ui"
-  let { open = $bindable(false), ...restProps }: AlertDialog.RootProps = $props()
+  import { AlertDialog as AlertDialogPrimitive } from "bits-ui"
+
+  let { open = $bindable(false), ...restProps }: AlertDialogPrimitive.RootProps = $props()
 </script>
 
-<AlertDialog.Root bind:open {...restProps} />
+<AlertDialogPrimitive.Root bind:open {...restProps} />

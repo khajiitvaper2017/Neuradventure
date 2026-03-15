@@ -8,7 +8,6 @@
   import IconDots from "@/components/icons/IconDots.svelte"
   import IconDocument from "@/components/icons/IconDocument.svelte"
   import IconGear from "@/components/icons/IconGear.svelte"
-  import IconPlus from "@/components/icons/IconPlus.svelte"
   import IconUsers from "@/components/icons/IconUsers.svelte"
   import { Badge } from "@/components/ui/badge"
   import { Button } from "@/components/ui/button"
@@ -23,7 +22,7 @@
   import { Input } from "@/components/ui/input"
   import { Label } from "@/components/ui/label"
   import * as Select from "@/components/ui/select"
-  import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
+  import * as Tabs from "@/components/ui/tabs/index.js"
   import { ScrollArea } from "@/components/ui/scroll-area"
   import {
     resetActiveStory,
@@ -42,6 +41,8 @@
   } from "@/stores/game"
   import { resetChat } from "@/stores/chat"
   import { loadStoryById } from "@/utils/storyLoader"
+  import IconUser from "@/components/icons/IconUser.svelte"
+    import { Book } from "@lucide/svelte"
 
   let stories: StoryMeta[] = []
   let loading = true
@@ -57,12 +58,6 @@
   const sortOptions = [
     { value: "recent", label: "Recent" },
     { value: "az", label: "A–Z" },
-  ]
-
-  $: sectionTabs = [
-    { value: "stories" as const, label: "Stories", badge: stories.length },
-    { value: "chats" as const, label: "Chats", badge: chats.length },
-    { value: "characters" as const, label: "Characters", badge: storyCharacters.length },
   ]
 
   $: sortLabel = sortOptions.find((o) => o.value === sort)?.label ?? "Sort"
@@ -366,48 +361,52 @@
     </Button>
   </header>
 
-  <div class="grid gap-2 border-b px-4 py-3 sm:grid-cols-3">
+  <div class="grid gap-2 border-b px-4 py-3 grid-cols-3">
     <Button variant="outline" onclick={startNew} class="justify-center">
-      <IconPlus size={14} strokeWidth={2.5} />
+      <Book size={14} strokeWidth={2.5} />
       New Story
+    </Button>
+    <Button variant="outline" onclick={startNewCharacter} class="justify-center">
+      <IconUser size={14} strokeWidth={2.5} />
+      New Character
     </Button>
     <Button variant="outline" onclick={startNewChat} class="justify-center">
       <IconUsers size={14} strokeWidth={2.5} />
       New Chat
     </Button>
-    <Button variant="outline" onclick={startNewCharacter} class="justify-center">
-      <IconPlus size={14} strokeWidth={2.5} />
-      New Character
-    </Button>
   </div>
 
   <div class="border-b px-4 py-3">
     <div class="flex flex-col gap-3">
-      <Tabs value={section} onValueChange={(next) => setSection(next as LibrarySection)}>
-        <TabsList aria-label="Library section" class="w-full">
-          {#each sectionTabs as t (t.value)}
-            <TabsTrigger
-              value={t.value}
-              class="flex-1 text-xs font-medium uppercase tracking-wider"
-              aria-label={`${t.label} (${t.badge})`}
-            >
-              <span class="min-w-0 truncate">{t.label}</span>
-              <span
-                class="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-background/60 px-1 text-[11px] text-muted-foreground ring-1 ring-border"
-              >
-                {t.badge}
-              </span>
-            </TabsTrigger>
-          {/each}
-        </TabsList>
-      </Tabs>
+      <Tabs.Root value={section} onValueChange={(next) => setSection(next as LibrarySection)}>
+        <Tabs.List aria-label="Library section" class="w-full">
+          <Tabs.Trigger value="stories" class="flex-1 text-xs font-medium uppercase tracking-wider">
+            {stories.length}
+            {stories.length === 1 ? "Story" : "Stories"}
+          </Tabs.Trigger>
+          <Tabs.Trigger value="chats" class="flex-1 text-xs font-medium uppercase tracking-wider">
+            {chats.length}
+            {chats.length === 1 ? "Chat" : "Chats"}
+          </Tabs.Trigger>
+          <Tabs.Trigger value="characters" class="flex-1 text-xs font-medium uppercase tracking-wider">
+            {storyCharacters.length}
+            {storyCharacters.length === 1 ? "Character" : "Characters"}
+          </Tabs.Trigger>
+        </Tabs.List>
+      </Tabs.Root>
 
-      <div class="flex flex-col gap-2 sm:flex-row sm:items-center">
-        <div class="flex-1">
+      <div class="flex items-center gap-2">
+        <div class="min-w-0 flex-1">
           <Label class="sr-only" for="home-search">Search</Label>
-          <Input id="home-search" type="search" placeholder={`Search ${section}...`} bind:value={query} />
+          <Input
+            id="home-search"
+            class="w-full"
+            type="search"
+            placeholder={`Search ${section}...`}
+            bind:value={query}
+          />
         </div>
-        <div class="w-full sm:w-40">
+        <div class="w-32 shrink-0 sm:w-40">
           <Label class="sr-only" for="home-sort">Sort</Label>
           <Select.Root type="single" bind:value={sort} items={sortOptions}>
             <Select.Trigger id="home-sort" class="w-full" aria-label="Sort">

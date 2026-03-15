@@ -1,11 +1,11 @@
 <script lang="ts">
-  import { Tabs } from "bits-ui"
+  import { Tabs as TabsPrimitive } from "bits-ui"
   import { cn } from "@/utils.js"
 
-  let { ref = $bindable(null), class: className, ...restProps }: Tabs.ListProps = $props()
+  let { ref = $bindable(null), class: className, ...restProps }: TabsPrimitive.ListProps = $props()
 </script>
 
-<Tabs.List
+<TabsPrimitive.List
   bind:ref
   data-slot="tabs-list"
   class={cn(

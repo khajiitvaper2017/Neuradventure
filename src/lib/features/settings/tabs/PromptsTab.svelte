@@ -5,7 +5,7 @@
   import { Button } from "@/components/ui/button"
   import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
   import { Label } from "@/components/ui/label"
-  import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
+  import * as Tabs from "@/components/ui/tabs/index.js"
   import { Textarea } from "@/components/ui/textarea"
   import { sectionFormat } from "@/stores/settings"
 
@@ -213,24 +213,24 @@
       {#if promptFiles.length === 0}
         <div class="text-sm text-muted-foreground">{promptLoading ? "Loading…" : "No prompt templates found."}</div>
       {:else}
-        <Tabs
+        <Tabs.Root
           value={promptSelected}
           onValueChange={(next) => selectPromptFile(next as PromptConfigFile["name"])}
           class="gap-3"
         >
           <div class="overflow-x-auto pb-1">
-            <TabsList aria-label="Prompt templates" class="w-max">
+            <Tabs.List aria-label="Prompt templates" class="w-max">
               {#each promptFiles as p (p.name)}
-                <TabsTrigger value={p.name} disabled={promptLoading || promptSaving} class="flex-none text-xs">
+                <Tabs.Trigger value={p.name} disabled={promptLoading || promptSaving} class="flex-none text-xs">
                   <span class="whitespace-nowrap">{PROMPT_LABELS[p.name] ?? p.name}</span>
                   {#if p.name === promptSelected && promptDirty}
                     <span class="text-[10px]" title="Unsaved changes" aria-label="Unsaved changes">●</span>
                   {/if}
-                </TabsTrigger>
+                </Tabs.Trigger>
               {/each}
-            </TabsList>
+            </Tabs.List>
           </div>
-        </Tabs>
+        </Tabs.Root>
       {/if}
 
       <div class="space-y-2">

@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { ScrollArea } from "bits-ui"
+  import { ScrollArea as ScrollAreaPrimitive } from "bits-ui"
   import { cn, type WithoutChild } from "@/utils.js"
 
   let {
@@ -8,10 +8,10 @@
     orientation = "vertical",
     children,
     ...restProps
-  }: WithoutChild<ScrollArea.ScrollbarProps> = $props()
+  }: WithoutChild<ScrollAreaPrimitive.ScrollbarProps> = $props()
 </script>
 
-<ScrollArea.Scrollbar
+<ScrollAreaPrimitive.Scrollbar
   bind:ref
   data-slot="scroll-area-scrollbar"
   {orientation}
@@ -24,5 +24,5 @@
   {...restProps}
 >
   {@render children?.()}
-  <ScrollArea.Thumb data-slot="scroll-area-thumb" class="bg-border relative flex-1 rounded-full" />
-</ScrollArea.Scrollbar>
+  <ScrollAreaPrimitive.Thumb data-slot="scroll-area-thumb" class="bg-border relative flex-1 rounded-full" />
+</ScrollAreaPrimitive.Scrollbar>
