@@ -5,13 +5,25 @@ import adapter from "@sveltejs/adapter-static"
 export default {
   preprocess: vitePreprocess(),
   kit: {
-    adapter: adapter({ fallback: "200.html" }),
+    adapter: adapter({
+      fallback: "200.html",
+      precompress: true
+    }),
     alias: {
       "@": "src/lib",
       "@/*": "./src/lib/*",
     },
     serviceWorker: {
       register: false,
+    },
+    prerender: {
+      entries: ['*'],
+      crawl: true,
+      handleHttpError: 'warn'
+    },
+    inlineStyleThreshold: 1024,
+    output: {
+      bundleStrategy: 'single'
     },
   },
 }
