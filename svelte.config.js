@@ -5,7 +5,7 @@ import adapter from "@sveltejs/adapter-static"
 export default {
   preprocess: vitePreprocess(),
   kit: {
-    adapter: adapter({ fallback: "index.html" }),
+    adapter: adapter({ fallback: "200.html" }),
     alias: {
       "@": "src/lib",
       "@/*": "./src/lib/*",
