@@ -138,6 +138,20 @@ export async function flushDb(): Promise<void> {
   }
 }
 
+export function exportDbBytes(): Uint8Array {
+  const current = requireDb()
+  return current.export()
+}
+
+export async function restoreDbBytes(bytes: Uint8Array): Promise<void> {
+  const SQL = await getSql()
+  const next = new SQL.Database(bytes)
+  await savePersistedBytes(bytes)
+  db = next
+  dirty = false
+  persistTimer = null
+}
+
 export function getDb(): EngineDb {
   const database = requireDb()
 

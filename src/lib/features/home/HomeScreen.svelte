@@ -2,9 +2,10 @@
   import { onMount, tick } from "svelte"
   import { stories as storiesService } from "@/services/stories"
   import { chats as chatsService } from "@/services/chats"
+  import { backup as backupService } from "@/services/backup"
   import type { StoryMeta, ChatSummary } from "@/shared/types"
   import type { StoryCharacterGroup, CharacterImportResult } from "@/shared/api-types"
-  import { navigate, openCharSheetForCharacter, showError, showConfirm } from "@/stores/ui"
+  import { navigate, openCharSheetForCharacter, showError, showConfirm, showQuietNotice } from "@/stores/ui"
   import { theme } from "@/stores/settings"
   import IconDots from "@/components/icons/IconDots.svelte"
   import IconDocument from "@/components/icons/IconDocument.svelte"
@@ -276,6 +277,42 @@
     } catch (err) {
       showError(err instanceof Error ? err.message : "Failed to export character")
     }
+  }
+
+  async function exportBackup() {
+    try {
+      await backupService.exportAllAndDownload()
+      showQuietNotice("Backup downloaded")
+    } catch (err) {
+      showError(err instanceof Error ? err.message : "Failed to export backup")
+    }
+  }
+
+  async function restoreBackup() {
+    const confirmed = await showConfirm({
+      title: "Restore backup",
+      message:
+        "Restore a backup file and overwrite your local library on this device for this site? This cannot be undone.",
+      confirmLabel: "Restore",
+      danger: true,
+    })
+    if (!confirmed) return
+
+    const input = document.createElement("input")
+    input.type = "file"
+    input.accept = ".ndbackup,.json,application/json"
+    input.onchange = async () => {
+      const file = input.files?.[0]
+      if (!file) return
+      try {
+        await backupService.restoreAllFromFile(file)
+        showQuietNotice("Backup restored — reloading…")
+        window.setTimeout(() => location.reload(), 250)
+      } catch (err) {
+        showError(err instanceof Error ? err.message : "Failed to restore backup")
+      }
+    }
+    input.click()
   }
 
   function setSection(next: LibrarySection) {
@@ -756,6 +793,8 @@
   <footer>
     <button class="btn-ghost" onclick={importStory}>Import Story</button>
     <button class="btn-ghost" onclick={importCharacter}>Import Character</button>
+    <button class="btn-ghost" onclick={exportBackup}>Export Backup</button>
+    <button class="btn-ghost" onclick={restoreBackup}>Restore Backup</button>
   </footer>
 </div>
 
