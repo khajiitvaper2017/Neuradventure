@@ -30,6 +30,16 @@
     showMenu = false
     fn?.()
   }
+
+  async function exportStory(format: "neuradventure" | "tavern" | "plaintext") {
+    showMenu = false
+    if (!$currentStoryId) return
+    try {
+      await api.stories.exportAndDownload($currentStoryId, format)
+    } catch (err) {
+      console.error("[export] Failed to export story", err)
+    }
+  }
 </script>
 
 <header>
@@ -108,11 +118,15 @@
           <button onclick={() => openAndClose(onOpenAuthorNoteEditor)}>Author's Note</button>
           <button onclick={() => openAndClose(onOpenModulesEditor)}>Story Modules</button>
           {#if $currentStoryId}
-            <a href={api.stories.exportUrl($currentStoryId, "neuradventure")} download class="dropdown-link"
-              >Export JSON</a
-            >
-            <a href={api.stories.exportUrl($currentStoryId, "tavern")} download class="dropdown-link">Export ST Chat</a>
-            <a href={api.stories.exportUrl($currentStoryId, "plaintext")} download class="dropdown-link">Export Text</a>
+            <button class="dropdown-link" type="button" onclick={() => void exportStory("neuradventure")}>
+              Export JSON
+            </button>
+            <button class="dropdown-link" type="button" onclick={() => void exportStory("tavern")}>
+              Export ST Chat
+            </button>
+            <button class="dropdown-link" type="button" onclick={() => void exportStory("plaintext")}>
+              Export Text
+            </button>
           {/if}
         </div>
       {/if}

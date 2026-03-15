@@ -6,7 +6,6 @@
     collapseLocationsPanel,
     collapseNPCTracker,
     errorMessage,
-    initRouter,
     isDesktop,
     navigate,
     quietNotice,
@@ -14,7 +13,7 @@
     routeChatId,
     showError,
   } from "./stores/ui.js"
-  import { theme, design, textJustify, colorScheme, initSettings } from "./stores/settings.js"
+  import { theme, design, textJustify, colorScheme } from "./stores/settings.js"
   import { currentStoryId, currentStoryModules } from "./stores/game.js"
   import { currentChatId } from "./stores/chat.js"
   import HomeScreen from "./features/home/HomeScreen.svelte"
@@ -26,6 +25,7 @@
   import CharSheet from "./features/character/CharSheet.svelte"
   import NPCTracker from "./features/npc/NPCTracker.svelte"
   import LocationsPanel from "./components/ui/LocationsPanel.svelte"
+  import PwaPrompts from "./components/ui/PwaPrompts.svelte"
   import Settings from "./features/settings/Settings.svelte"
   import ConfirmDialog from "./components/ui/ConfirmDialog.svelte"
   import { loadStoryById } from "./utils/storyLoader.js"
@@ -58,15 +58,10 @@
     e.preventDefault()
   }
 
-  let appReady = $state(false)
   let restoringStory = $state(false)
   let restoringChat = $state(false)
 
   onMount(() => {
-    initRouter()
-    initSettings().finally(() => {
-      appReady = true
-    })
     window.addEventListener("wheel", handleWheel, { passive: false })
     return () => window.removeEventListener("wheel", handleWheel)
   })
@@ -125,52 +120,50 @@
   class:collapse-locations={$collapseLocationsPanel || !trackLocations}
   bind:this={appEl}
 >
-  {#if appReady}
-    {#if gameReady}
-      {#if $isDesktop && !$collapseCharSheet}
-        <div class="sidebar-slot left">
-          <CharSheet inline />
-        </div>
-      {/if}
-
-      <div class="game-slot">
-        <GameScreen />
+  {#if gameReady}
+    {#if $isDesktop && !$collapseCharSheet}
+      <div class="sidebar-slot left">
+        <CharSheet inline />
       </div>
-
-      {#if $isDesktop && !$collapseNPCTracker && trackNpcs}
-        <div class="sidebar-slot right-1">
-          <NPCTracker inline />
-        </div>
-      {/if}
-
-      {#if $isDesktop && !$collapseLocationsPanel && trackLocations}
-        <div class="sidebar-slot right-2">
-          <LocationsPanel inline />
-        </div>
-      {/if}
-    {:else if !gameActive}
-      {#if $activeScreen === "home"}
-        <HomeScreen />
-      {:else if $activeScreen === "char-create"}
-        <CharCreate />
-      {:else if $activeScreen === "new-story"}
-        <NewStory />
-      {:else if $activeScreen === "new-chat"}
-        <NewChat />
-      {:else if $activeScreen === "chat"}
-        <ChatScreen />
-      {:else if $activeScreen === "settings"}
-        <Settings />
-      {/if}
     {/if}
 
-    <CharSheet />
-    {#if trackNpcs}
-      <NPCTracker />
+    <div class="game-slot">
+      <GameScreen />
+    </div>
+
+    {#if $isDesktop && !$collapseNPCTracker && trackNpcs}
+      <div class="sidebar-slot right-1">
+        <NPCTracker inline />
+      </div>
     {/if}
-    {#if trackLocations}
-      <LocationsPanel />
+
+    {#if $isDesktop && !$collapseLocationsPanel && trackLocations}
+      <div class="sidebar-slot right-2">
+        <LocationsPanel inline />
+      </div>
     {/if}
+  {:else if !gameActive}
+    {#if $activeScreen === "home"}
+      <HomeScreen />
+    {:else if $activeScreen === "char-create"}
+      <CharCreate />
+    {:else if $activeScreen === "new-story"}
+      <NewStory />
+    {:else if $activeScreen === "new-chat"}
+      <NewChat />
+    {:else if $activeScreen === "chat"}
+      <ChatScreen />
+    {:else if $activeScreen === "settings"}
+      <Settings />
+    {/if}
+  {/if}
+
+  <CharSheet />
+  {#if trackNpcs}
+    <NPCTracker />
+  {/if}
+  {#if trackLocations}
+    <LocationsPanel />
   {/if}
 
   {#if $errorMessage}
@@ -181,6 +174,7 @@
     <div class="corner-note">{$quietNotice}</div>
   {/if}
 
+  <PwaPrompts />
   <ConfirmDialog />
 </div>
 

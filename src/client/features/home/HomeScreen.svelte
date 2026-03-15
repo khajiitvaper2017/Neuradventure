@@ -270,8 +270,12 @@
     input.click()
   }
 
-  function exportCharacter(group: StoryCharacterGroup, format: "neuradventure" | "tavern-card") {
-    window.open(api.stories.exportCharacter(group.id, format), "_blank")
+  async function exportCharacter(group: StoryCharacterGroup, format: "neuradventure" | "tavern-card") {
+    try {
+      await api.stories.exportCharacterAndDownload(group.id, format)
+    } catch (err) {
+      showError(err instanceof Error ? err.message : "Failed to export character")
+    }
   }
 
   function setSection(next: LibrarySection) {
@@ -472,15 +476,42 @@
                   </button>
                   {#if openStoryMenuId === story.id}
                     <div class="dropdown lib-dropdown" class:lib-dropdown--up={isMenuUp("story", story.id)}>
-                      <a href={api.stories.exportUrl(story.id, "neuradventure")} download class="dropdown-link">
+                      <button
+                        type="button"
+                        class="dropdown-link"
+                        onclick={() => {
+                          openStoryMenuId = null
+                          void api.stories
+                            .exportAndDownload(story.id, "neuradventure")
+                            .catch((err) => showError(err instanceof Error ? err.message : "Failed to export"))
+                        }}
+                      >
                         Export JSON
-                      </a>
-                      <a href={api.stories.exportUrl(story.id, "tavern")} download class="dropdown-link">
+                      </button>
+                      <button
+                        type="button"
+                        class="dropdown-link"
+                        onclick={() => {
+                          openStoryMenuId = null
+                          void api.stories
+                            .exportAndDownload(story.id, "tavern")
+                            .catch((err) => showError(err instanceof Error ? err.message : "Failed to export"))
+                        }}
+                      >
                         Export ST Chat
-                      </a>
-                      <a href={api.stories.exportUrl(story.id, "plaintext")} download class="dropdown-link">
+                      </button>
+                      <button
+                        type="button"
+                        class="dropdown-link"
+                        onclick={() => {
+                          openStoryMenuId = null
+                          void api.stories
+                            .exportAndDownload(story.id, "plaintext")
+                            .catch((err) => showError(err instanceof Error ? err.message : "Failed to export"))
+                        }}
+                      >
                         Export Text
-                      </a>
+                      </button>
                       <button class="danger-item" onclick={() => deleteStory(story.id)}>Delete</button>
                     </div>
                   {/if}
@@ -539,15 +570,42 @@
                   </button>
                   {#if openChatMenuId === chat.id}
                     <div class="dropdown lib-dropdown" class:lib-dropdown--up={isMenuUp("chat", chat.id)}>
-                      <a href={api.chats.exportUrl(chat.id, "neuradventure")} download class="dropdown-link">
+                      <button
+                        type="button"
+                        class="dropdown-link"
+                        onclick={() => {
+                          openChatMenuId = null
+                          void api.chats
+                            .exportAndDownload(chat.id, "neuradventure")
+                            .catch((err) => showError(err instanceof Error ? err.message : "Failed to export"))
+                        }}
+                      >
                         Export JSON
-                      </a>
-                      <a href={api.chats.exportUrl(chat.id, "tavern")} download class="dropdown-link">
+                      </button>
+                      <button
+                        type="button"
+                        class="dropdown-link"
+                        onclick={() => {
+                          openChatMenuId = null
+                          void api.chats
+                            .exportAndDownload(chat.id, "tavern")
+                            .catch((err) => showError(err instanceof Error ? err.message : "Failed to export"))
+                        }}
+                      >
                         Export ST Chat
-                      </a>
-                      <a href={api.chats.exportUrl(chat.id, "plaintext")} download class="dropdown-link">
+                      </button>
+                      <button
+                        type="button"
+                        class="dropdown-link"
+                        onclick={() => {
+                          openChatMenuId = null
+                          void api.chats
+                            .exportAndDownload(chat.id, "plaintext")
+                            .catch((err) => showError(err instanceof Error ? err.message : "Failed to export"))
+                        }}
+                      >
                         Export Text
-                      </a>
+                      </button>
                       <button class="danger-item" onclick={() => deleteChat(chat.id)}>Delete</button>
                     </div>
                   {/if}
@@ -654,7 +712,7 @@
                     <button
                       onclick={() => {
                         openCharacterMenuId = null
-                        exportCharacter(group, "tavern-card")
+                        void exportCharacter(group, "tavern-card")
                       }}
                     >
                       Export ST
@@ -662,7 +720,7 @@
                     <button
                       onclick={() => {
                         openCharacterMenuId = null
-                        exportCharacter(group, "neuradventure")
+                        void exportCharacter(group, "neuradventure")
                       }}
                     >
                       Export JSON
@@ -735,11 +793,6 @@
   }
   .settings-btn:hover {
     color: var(--text);
-  }
-  .brand-flame {
-    font-size: 1.8rem;
-    opacity: 0.75;
-    margin-bottom: 0.25rem;
   }
   h1 {
     font-family: var(--font-brand);
