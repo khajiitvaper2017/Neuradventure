@@ -3,6 +3,7 @@
   import { get } from "svelte/store"
   import { AppError } from "@/errors"
   import type { StoryModules, TurnSummary, TurnVariantSummary } from "@/shared/types"
+  import { DEFAULT_STORY_MODULES } from "@/engine/schemas/story-modules"
   import { stories } from "@/services/stories"
   import { turns as turnsService } from "@/services/turns"
   import { streamClient } from "@/services/stream"
@@ -65,24 +66,7 @@
   let authorNoteRoleDraft = $state(0)
   let authorNoteEmbedStateDraft = $state(false)
   let showModulesEditor = $state(false)
-  let modulesDraft = $state<StoryModules>({
-    track_npcs: true,
-    track_locations: true,
-    track_background_events: false,
-    character_appearance_clothing: true,
-    character_personality_traits: true,
-    character_major_flaws: true,
-    character_quirks: true,
-    character_perks: true,
-    character_inventory: true,
-    npc_appearance_clothing: true,
-    npc_personality_traits: true,
-    npc_major_flaws: true,
-    npc_quirks: true,
-    npc_perks: true,
-    npc_location: true,
-    npc_activity: true,
-  })
+  let modulesDraft = $state<StoryModules>({ ...DEFAULT_STORY_MODULES })
   let flashScene = $state(false)
   let flashOpening = $state(false)
   let isImpersonating = $state(false)
@@ -512,24 +496,7 @@
   }
 
   function openModulesEditor() {
-    modulesDraft = $currentStoryModules ?? {
-      track_npcs: true,
-      track_locations: true,
-      track_background_events: false,
-      character_appearance_clothing: true,
-      character_personality_traits: true,
-      character_major_flaws: true,
-      character_quirks: true,
-      character_perks: true,
-      character_inventory: true,
-      npc_appearance_clothing: true,
-      npc_personality_traits: true,
-      npc_major_flaws: true,
-      npc_quirks: true,
-      npc_perks: true,
-      npc_location: true,
-      npc_activity: true,
-    }
+    modulesDraft = $currentStoryModules ?? { ...DEFAULT_STORY_MODULES }
     showModulesEditor = true
   }
 
