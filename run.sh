@@ -77,6 +77,6 @@ export npm_config_audit=false
 echo "Installing dependencies (no lockfile)..."
 npm install --no-package-lock
 
-echo "Building + starting production server on http://localhost:${PORT:-3001} ..."
+echo "Building + serving the static app on http://localhost:${PORT:-3001} ..."
 echo "(Set PORT/HOST env vars to customize.)"
 npm run preview

@@ -1,12 +1,13 @@
 import { defineConfig } from "vite"
-import { svelte } from "@sveltejs/vite-plugin-svelte"
-import { VitePWA } from "vite-plugin-pwa"
+import { sveltekit } from "@sveltejs/kit/vite"
+import { SvelteKitPWA } from "@vite-pwa/sveltekit"
+import { fileURLToPath, URL } from "node:url"
 
 // https://vite.dev/config/
 export default defineConfig(() => ({
   plugins: [
-    svelte(),
-    VitePWA({
+    sveltekit(),
+    SvelteKitPWA({
       registerType: "prompt",
       includeAssets: ["icons/apple-touch-icon.png"],
       manifest: {
@@ -43,10 +44,13 @@ export default defineConfig(() => ({
           },
         ],
       },
+      kit: {
+        adapterFallback: "index.html",
+      },
       workbox: {
         // Ensure SPA deep-links still boot offline (and include sql.js WASM in precache).
         navigateFallback: "/index.html",
-        globPatterns: ["**/*.{js,css,html,ico,png,svg,webmanifest,wasm}"],
+        globPatterns: ["client/**/*.{js,css,ico,png,svg,webp,webmanifest,wasm}", "prerendered/**/*.{html,json}"],
         runtimeCaching: [
           {
             urlPattern: /^https:\/\/fonts\.googleapis\.com\/.*/i,
@@ -74,7 +78,9 @@ export default defineConfig(() => ({
     }),
   ],
   resolve: {
-    tsconfigPaths: true,
+    alias: {
+      "@": fileURLToPath(new URL("./src/lib", import.meta.url)),
+    },
   },
   server: {
     host: true,

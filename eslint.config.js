@@ -28,7 +28,7 @@ export default [
     },
   },
   {
-    files: ["src/client/**/*.svelte"],
+    files: ["src/**/*.svelte"],
     languageOptions: {
       parser: svelteParser,
       parserOptions: {

@@ -63,7 +63,7 @@ call npm install --no-package-lock
 if errorlevel 1 exit /b 1
 
 if "%PORT%"=="" set "PORT=3001"
-echo Building ^+ starting production server on http://localhost:%PORT% ...
+echo Building ^+ serving the static app on http://localhost:%PORT% ...
 echo (Set PORT/HOST env vars to customize.)
 call npm run preview
 exit /b %errorlevel%
