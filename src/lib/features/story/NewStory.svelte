@@ -14,12 +14,15 @@
   import IconPencilSquare from "@/components/icons/IconPencilSquare.svelte"
   import PromptHistoryPanel from "@/components/panels/PromptHistoryPanel.svelte"
   import StoryModulesPanel from "@/components/panels/StoryModulesPanel.svelte"
+  import NpcLibraryPicker from "@/features/story/NpcLibraryPicker.svelte"
   import { generateStoryFromDescription } from "@/features/story/actions"
+  import { characterToNpc } from "@/utils/characterToNpc"
   import {
     pendingCharacter,
     pendingStoryTitle,
     pendingStoryScenario,
     pendingStoryNPCs,
+    pendingStoryNpcCharacterIds,
     pendingStoryLocation,
     pendingStoryDate,
     pendingStoryTime,
@@ -110,6 +113,11 @@
 
   function setModules(next: StoryModules) {
     pendingStoryModules.set(next)
+  }
+
+  function setNpcCharacterIds(nextIds: number[]) {
+    const unique = Array.from(new Set(nextIds)).filter((id) => Number.isFinite(id) && id > 0)
+    pendingStoryNpcCharacterIds.set(unique)
   }
 
   const PLAYER_MODULE_KEYS: (keyof StoryModules)[] = [
@@ -217,6 +225,10 @@
   }
 
   $: selectedCharacterIdForSheet = characterIdFromKey(selectedPlayableKey)
+
+  $: if ($pendingCharacterId && $pendingStoryNpcCharacterIds.includes($pendingCharacterId)) {
+    pendingStoryNpcCharacterIds.set($pendingStoryNpcCharacterIds.filter((id) => id !== $pendingCharacterId))
+  }
 
   $: selectedOption = playableOptions.find((o) => o.key === selectedPlayableKey) ?? null
   $: selectedCharacterLabel = selectedOption
@@ -334,6 +346,25 @@
 
     submitting = true
     try {
+      const npcFromLibrary = activeModules.track_npcs
+        ? savedCharacters
+            .filter((g) => $pendingStoryNpcCharacterIds.includes(g.id))
+            .map((g) => characterToNpc(g.character))
+        : []
+      const npcCandidates = activeModules.track_npcs ? [...$pendingStoryNPCs, ...npcFromLibrary] : []
+      const dedupedNpcs = (() => {
+        const seen = new Set<string>()
+        const out: NPCState[] = []
+        for (const npc of npcCandidates) {
+          const key = (npc.name || "").trim().toLowerCase()
+          if (!key) continue
+          if (seen.has(key)) continue
+          seen.add(key)
+          out.push(npc)
+        }
+        return out
+      })()
+
       const payload: {
         title: string
         opening_scenario: string
@@ -352,7 +383,7 @@
         starting_scene: $pendingStoryLocation.trim() || undefined,
         starting_date: $pendingStoryDate.trim() || undefined,
         starting_time: $pendingStoryTime.trim() || undefined,
-        npcs: $pendingStoryNPCs,
+        npcs: dedupedNpcs,
         story_modules: $pendingStoryModules ?? $storyDefaults,
       }
       if ($pendingCharacterId) {
@@ -372,6 +403,7 @@
       pendingStoryTitle.set("")
       pendingStoryScenario.set("")
       pendingStoryNPCs.set([])
+      pendingStoryNpcCharacterIds.set([])
       pendingStoryLocation.set("")
       pendingStoryDate.set("")
       pendingStoryTime.set("")
@@ -462,9 +494,21 @@
       </div>
     </div>
 
+    <div class="field">
+      <NpcLibraryPicker
+        characters={savedCharacters}
+        selectedIds={$pendingStoryNpcCharacterIds}
+        disabled={!activeModules.track_npcs}
+        locked={generating || submitting}
+        excludeCharacterId={$pendingCharacterId}
+        onChange={setNpcCharacterIds}
+        onOpenModules={() => (showModulesPanel = true)}
+      />
+    </div>
+
     {#if $pendingStoryNPCs.length > 0}
       <div class="shared-summary shared-summary--roomy">
-        <div class="shared-summary__header">Pre-generated Characters</div>
+        <div class="shared-summary__header">Generated NPCs</div>
         <div class="shared-summary__list">
           {#each $pendingStoryNPCs as npc}
             <div class="shared-card">
