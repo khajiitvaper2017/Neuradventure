@@ -72,10 +72,7 @@ function mergeSettings(current: AppSettings, patch: Partial<AppSettings>): AppSe
 
   const next: AppSettings = {
     ...current,
-    ...(patch.theme !== undefined && { theme: patch.theme }),
-    ...(patch.design !== undefined && { design: patch.design }),
-    ...(patch.textJustify !== undefined && { textJustify: patch.textJustify }),
-    ...(patch.colorScheme !== undefined && { colorScheme: patch.colorScheme }),
+    ...(patch.colorMode !== undefined && { colorMode: patch.colorMode }),
     ...(patch.streamingEnabled !== undefined && { streamingEnabled: patch.streamingEnabled }),
     ...(patch.sectionFormat !== undefined && { sectionFormat: patch.sectionFormat }),
     ...(patch.timeouts ? { timeouts: { ...current.timeouts, ...patch.timeouts } } : {}),

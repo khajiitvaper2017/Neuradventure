@@ -6,13 +6,20 @@
   import { streamClient } from "@/services/stream"
   import { goBack, navigate, openCharSheetForCharacter, showError } from "@/stores/ui"
   import { resetChat } from "@/stores/chat"
-  import { autoresize } from "@/utils/actions/autoresize"
   import { loadPromptHistory, savePromptHistory, removePromptHistory } from "@/utils/promptHistory"
   import { createRequestId } from "@/utils/ids"
   import { clearPendingRequest, getPendingRequest, setPendingRequest } from "@/utils/pendingRequests"
+  import { cn } from "@/utils.js"
   import IconDocument from "@/components/icons/IconDocument.svelte"
   import PromptHistoryPanel from "@/components/panels/PromptHistoryPanel.svelte"
-  import Select from "@/components/controls/Select.svelte"
+  import * as Select from "@/components/ui/select"
+  import { Button } from "@/components/ui/button"
+  import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+  import { Checkbox } from "@/components/ui/checkbox"
+  import { Input } from "@/components/ui/input"
+  import { Label } from "@/components/ui/label"
+  import { Textarea } from "@/components/ui/textarea"
+  import { ScrollArea } from "@/components/ui/scroll-area"
   import { generateChatFromDescription } from "@/features/chat/actions"
   import { streamingEnabled } from "@/stores/settings"
 
@@ -22,7 +29,6 @@
   let loading = $state(false)
   let submitting = $state(false)
   let generating = $state(false)
-  let showPlayerDropdown = $state(false)
   let chatPromptHistory = $state<string[]>([])
 
   let savedCharacters = $state<StoryCharacterGroup[]>([])
@@ -41,6 +47,9 @@
       value: i,
       label: i === 0 ? "Greeting 1 (first_mes)" : `Greeting ${i + 1}`,
     })),
+  )
+  let greetingTemplateLabel = $derived(
+    greetingTemplateOptions.find((o) => o.value === seedGreetingIndex)?.label ?? "Greeting 1 (first_mes)",
   )
 
   const CHAT_PROMPT_HISTORY_KEY = "na:prompt_history:chat"
@@ -133,15 +142,9 @@
 
   let hasPlayableOptions = $derived(playableOptions.length > 0)
 
-  function togglePlayerDropdown() {
-    if (loading || !hasPlayableOptions) return
-    showPlayerDropdown = !showPlayerDropdown
-  }
-
   function selectPlayer(key: string) {
     playerKey = key
     aiKeys = aiKeys.filter((k) => k !== key)
-    showPlayerDropdown = false
     maybeAutofillTitle()
     void refreshGreeting()
   }
@@ -190,8 +193,11 @@
 
   let selectedPlayerOption = $derived(optionByKey(playerKey))
   let selectedPlayerCharId = $derived(selectedPlayerOption?.character_id ?? null)
-  let selectedPlayerLabel = $derived(
-    selectedPlayerOption ? `${selectedPlayerOption.name} — ${selectedPlayerOption.description}` : "Select a character",
+  let playerSelectOptions = $derived(
+    playableOptions.map((o) => ({
+      value: o.key,
+      label: `${o.name}${o.kind === "npc" ? " (NPC)" : ""}`,
+    })),
   )
   let selectedAiOptions = $derived(
     aiKeys.map((key) => optionByKey(key)).filter((entry): entry is PlayableOption => !!entry),
@@ -344,307 +350,257 @@
   }
 </script>
 
-<svelte:window on:click={() => (showPlayerDropdown = false)} />
-
-<div class="screen new-chat">
-  <header class="screen-header">
-    <button class="back-btn" onclick={() => goBack("home")} aria-label="Back">←</button>
-    <h2 class="screen-title">New Chat</h2>
+<div class="mx-auto flex h-dvh w-full max-w-3xl flex-col">
+  <header class="flex items-center gap-3 border-b px-4 py-3">
+    <Button variant="ghost" class="-ml-2" onclick={() => goBack("home")} aria-label="Back">← Back</Button>
+    <h2 class="text-base font-semibold text-foreground">New Chat</h2>
   </header>
 
-  <div class="form-scroll" data-scroll-root="screen">
-    <div class="field generate-field">
-      <label for="chat-generate">Generate from Description</label>
-      <div class="generate-row">
-        <textarea
-          id="chat-generate"
-          bind:value={description}
-          placeholder="e.g. a tense council meeting in a storm-battered keep"
-          rows="2"
-          use:autoresize={description}
-        ></textarea>
-        <button class="btn-ghost generate-btn" onclick={generateFromDescription} disabled={!canGenerate}>
-          {generating ? "Generating..." : "✦ Generate"}
-        </button>
-      </div>
-      <PromptHistoryPanel items={chatPromptHistory} onUse={useChatPrompt} onDelete={deleteChatPrompt} />
-    </div>
-
-    <div class="field">
-      <label for="chat-title">Title</label>
-      <input
-        id="chat-title"
-        type="text"
-        bind:value={title}
-        placeholder="e.g. Fireside Council"
-        oninput={() => (titleWasAutofilled = false)}
-      />
-    </div>
-
-    {#if greetingLoading}
-      <div class="field">
-        <div class="empty">Loading character greetings...</div>
-      </div>
-    {:else if greetingOptions.length > 0}
-      <div class="field">
-        <label for="greeting-template-select">Greeting Template (SillyTavern)</label>
-        <Select
-          id="greeting-template-select"
-          width="100%"
-          value={seedGreetingIndex}
-          options={greetingTemplateOptions}
-          ariaLabel="Greeting template"
-          onChange={(next: number) => {
-            seedGreetingIndex = Number(next)
-            greeting = greetingOptions[seedGreetingIndex] ?? greeting
-          }}
-        />
-        <div class="help-text">Selecting a template fills the greeting text below.</div>
-      </div>
-    {/if}
-
-    <div class="field">
-      <label for="chat-greeting">Greeting</label>
-      <textarea
-        id="chat-greeting"
-        rows="4"
-        bind:value={greeting}
-        placeholder="Seeds the first AI message to start the chat."
-        use:autoresize={greeting}
-      ></textarea>
-      <div class="help-text">Supports placeholders: {"{{user}}"} (player), {"{{char}}"} (AI speaker).</div>
-    </div>
-
-    <div class="field">
-      <label for="saved-player">Use Character From Stories</label>
-      <div class="shared-select-row">
-        <div class="shared-select-wrap">
-          <button
-            id="saved-player"
-            class="shared-select-btn"
-            onclick={(e) => {
-              e.stopPropagation()
-              togglePlayerDropdown()
-            }}
-            disabled={generating || submitting || loading || !hasPlayableOptions}
-            aria-haspopup="listbox"
-            aria-expanded={showPlayerDropdown}
-          >
-            <span
-              >{loading
-                ? "Loading characters..."
-                : !hasPlayableOptions
-                  ? "No characters yet"
-                  : selectedPlayerLabel}</span
-            >
-            <span class="shared-select-caret"></span>
-          </button>
-          {#if showPlayerDropdown}
-            <div class="shared-select-menu" role="listbox" tabindex="-1">
-              {#each playableOptions as option (option.key)}
-                <div class="shared-select-item-row">
-                  <button
-                    class="shared-select-item"
-                    role="option"
-                    aria-selected={playerKey === option.key}
-                    onclick={(e) => {
-                      e.stopPropagation()
-                      selectPlayer(option.key)
-                    }}
-                    disabled={generating || submitting}
-                  >
-                    <span class="shared-select-name">
-                      {option.name}
-                      {option.kind === "npc" ? " (NPC)" : ""}
-                    </span>
-                    <span class="shared-select-meta">{option.description}</span>
-                  </button>
-                  {#if option.kind === "character" && option.character_id}
-                    <button
-                      class="shared-select-item-action"
-                      title="Details"
-                      aria-label="Character details"
-                      disabled={generating || submitting}
-                      onclick={(e) => {
-                        e.stopPropagation()
-                        showPlayerDropdown = false
-                        openCharSheetForCharacter(option.character_id)
-                      }}
-                    >
-                      <IconDocument size={16} strokeWidth={1.6} />
-                    </button>
-                  {/if}
-                </div>
-              {/each}
-            </div>
-          {/if}
-        </div>
-        <button class="btn-ghost" onclick={() => navigate("char-create")} disabled={generating || submitting}
-          >New</button
-        >
-        <button
-          class="btn-ghost btn-icon"
-          onclick={() => {
-            if (!selectedPlayerCharId) return
-            showPlayerDropdown = false
-            openCharSheetForCharacter(selectedPlayerCharId)
-          }}
-          disabled={generating || submitting || !selectedPlayerCharId}
-          title={selectedPlayerCharId ? "Character details" : "Details available for story characters only"}
-        >
-          <IconDocument size={16} strokeWidth={1.6} />
-          Details
-        </button>
-        <button class="btn-ghost" onclick={refreshPlayable} disabled={generating || submitting || loading}
-          >Refresh</button
-        >
-      </div>
-    </div>
-
-    {#if selectedPlayerOption}
-      <div class="shared-summary shared-summary--tight">
-        <div class="shared-summary__header">Player Character</div>
-        <div class="shared-summary__name shared-summary__name--lg">{selectedPlayerOption.name}</div>
-        <div class="shared-summary__details">
-          {selectedPlayerOption.state.gender || "Unknown"} ·
-          {[
-            ...selectedPlayerOption.state.personality_traits,
-            ...selectedPlayerOption.state.quirks,
-            ...selectedPlayerOption.state.perks,
-          ].join(", ") || "No traits"}
-        </div>
-      </div>
-    {:else}
-      <div class="shared-summary shared-summary--empty">
-        <div class="shared-summary__header">Player Character</div>
-        <div class="shared-summary__details">No player selected yet.</div>
-        <button class="btn-accent small" onclick={() => navigate("char-create")} disabled={generating || submitting}>
-          New Character
-        </button>
-      </div>
-    {/if}
-
-    <div class="field">
-      <div class="section-label">AI Members</div>
-      {#if loading}
-        <div class="empty">Loading characters...</div>
-      {:else if playableOptions.length === 0}
-        <div class="empty">No characters available yet.</div>
-      {:else}
-        <div class="ai-list">
-          {#each playableOptions as option (option.key)}
-            <label class="surface ai-row {option.key === playerKey ? 'disabled' : ''}">
-              <input
-                type="checkbox"
-                disabled={generating || submitting || option.key === playerKey}
-                checked={aiKeys.includes(option.key)}
-                onchange={() => toggleAi(option.key)}
+  <ScrollArea class="min-h-0 flex-1">
+    <div class="px-4 py-4">
+      <div class="space-y-6">
+        <Card>
+          <CardHeader>
+            <CardTitle>Generate from description</CardTitle>
+            <CardDescription>Optional: generate a title, greeting, and members from a prompt.</CardDescription>
+          </CardHeader>
+          <CardContent class="space-y-3">
+            <div class="flex items-start gap-2">
+              <Textarea
+                id="chat-generate"
+                bind:value={description}
+                placeholder="e.g. a tense council meeting in a storm-battered keep"
+                rows={2}
               />
-              <span class="ai-info">
-                <span class="ai-name">
-                  {option.name}
-                  {option.kind === "npc" ? " (NPC)" : ""}
-                </span>
-                <span class="ai-meta">{option.description}</span>
-              </span>
-              {#if option.kind === "character" && option.character_id}
-                <button
-                  class="shared-select-item-action ai-expand"
-                  title="Details"
-                  aria-label="Character details"
-                  disabled={generating || submitting}
-                  onclick={(e) => {
-                    e.preventDefault()
-                    e.stopPropagation()
-                    openCharSheetForCharacter(option.character_id)
+              <Button variant="outline" class="shrink-0" onclick={generateFromDescription} disabled={!canGenerate}>
+                {generating ? "Generating..." : "✦ Generate"}
+              </Button>
+            </div>
+            <PromptHistoryPanel items={chatPromptHistory} onUse={useChatPrompt} onDelete={deleteChatPrompt} />
+          </CardContent>
+        </Card>
+
+        <div class="space-y-2">
+          <Label for="chat-title">Title</Label>
+          <Input
+            id="chat-title"
+            type="text"
+            bind:value={title}
+            placeholder="e.g. Fireside Council"
+            oninput={() => (titleWasAutofilled = false)}
+          />
+        </div>
+
+        {#if greetingLoading}
+          <div class="rounded-lg border bg-card p-4 text-sm text-muted-foreground">Loading character greetings...</div>
+        {:else if greetingOptions.length > 0}
+          <div class="space-y-2">
+            <Label for="greeting-template-select">Greeting Template (SillyTavern)</Label>
+            <Select.Root
+              type="single"
+              value={String(seedGreetingIndex)}
+              onValueChange={(next) => {
+                seedGreetingIndex = Number(next)
+                greeting = greetingOptions[seedGreetingIndex] ?? greeting
+              }}
+            >
+              <Select.Trigger id="greeting-template-select" class="w-full" aria-label="Greeting template">
+                {greetingTemplateLabel}
+              </Select.Trigger>
+              <Select.Content>
+                {#each greetingTemplateOptions as option (option.value)}
+                  <Select.Item value={String(option.value)} label={option.label} />
+                {/each}
+              </Select.Content>
+            </Select.Root>
+            <div class="text-xs text-muted-foreground">Selecting a template fills the greeting text below.</div>
+          </div>
+        {/if}
+
+        <div class="space-y-2">
+          <Label for="chat-greeting">Greeting</Label>
+          <Textarea
+            id="chat-greeting"
+            rows={4}
+            bind:value={greeting}
+            placeholder="Seeds the first AI message to start the chat."
+          />
+          <div class="text-xs text-muted-foreground">
+            Supports placeholders: {"{{user}}"} (player), {"{{char}}"} (AI speaker).
+          </div>
+        </div>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Player</CardTitle>
+            <CardDescription>Pick a character from stories. Create a new one anytime.</CardDescription>
+          </CardHeader>
+          <CardContent class="space-y-3">
+            {#if loading}
+              <div class="rounded-lg border bg-card p-4 text-sm text-muted-foreground">Loading characters…</div>
+            {:else if !hasPlayableOptions}
+              <div class="rounded-lg border border-dashed bg-card p-6 text-center text-sm text-muted-foreground">
+                No characters yet.
+              </div>
+            {:else}
+              <div class="flex flex-wrap items-center gap-2">
+                <div class="min-w-[14rem] flex-1">
+                  <Select.Root
+                    type="single"
+                    value={playerKey ?? ""}
+                    items={playerSelectOptions}
+                    disabled={generating || submitting || loading || !hasPlayableOptions}
+                    onValueChange={(next) => selectPlayer(next)}
+                  >
+                    <Select.Trigger
+                      class="w-full"
+                      aria-label="Player character"
+                      data-placeholder={!playerKey ? true : undefined}
+                    >
+                      {playerKey
+                        ? (playerSelectOptions.find((o) => o.value === playerKey)?.label ?? playerKey)
+                        : "Select a character…"}
+                    </Select.Trigger>
+                    <Select.Content>
+                      {#each playerSelectOptions as option (option.value)}
+                        <Select.Item {...option} />
+                      {/each}
+                    </Select.Content>
+                  </Select.Root>
+                </div>
+                <Button variant="outline" onclick={() => navigate("char-create")} disabled={generating || submitting}
+                  >New</Button
+                >
+                <Button
+                  variant="outline"
+                  onclick={() => {
+                    if (!selectedPlayerCharId) return
+                    openCharSheetForCharacter(selectedPlayerCharId)
                   }}
+                  disabled={generating || submitting || !selectedPlayerCharId}
+                  title={selectedPlayerCharId ? "Character details" : "Details available for story characters only"}
                 >
                   <IconDocument size={16} strokeWidth={1.6} />
-                </button>
-              {/if}
-            </label>
-          {/each}
-        </div>
-      {/if}
-      {#if playerKey && aiKeys.length === 0}
-        <div class="help-text">Select at least one AI member.</div>
-      {/if}
-    </div>
+                  Details
+                </Button>
+                <Button variant="outline" onclick={refreshPlayable} disabled={generating || submitting || loading}
+                  >Refresh</Button
+                >
+              </div>
+            {/if}
 
-    {#if selectedAiOptions.length > 0}
-      <div class="shared-summary shared-summary--roomy">
-        <div class="shared-summary__header">AI Members</div>
-        <div class="shared-summary__list">
-          {#each selectedAiOptions as member (member.key)}
-            <div class="shared-card">
-              <div class="shared-summary__name">{member.name}</div>
-              <div class="shared-summary__details">
-                {member.state.race || "Unknown"} · {member.state.gender || "Unknown"}
+            {#if selectedPlayerOption}
+              <div class="rounded-lg border bg-card p-4">
+                <div class="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Player Character</div>
+                <div class="mt-2 text-lg font-semibold text-foreground">{selectedPlayerOption.name}</div>
+                <div class="mt-1 text-sm text-muted-foreground">
+                  {selectedPlayerOption.state.gender || "Unknown"} ·
+                  {[
+                    ...selectedPlayerOption.state.personality_traits,
+                    ...selectedPlayerOption.state.quirks,
+                    ...selectedPlayerOption.state.perks,
+                  ].join(", ") || "No traits"}
+                </div>
               </div>
-              <div class="shared-summary__details">
-                {[...member.state.personality_traits, ...member.state.quirks, ...member.state.perks].join(", ") ||
-                  "No traits"}
+            {:else}
+              <div class="rounded-lg border border-dashed bg-card p-4">
+                <div class="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Player Character</div>
+                <div class="mt-2 text-sm text-muted-foreground">No player selected yet.</div>
+                <Button class="mt-3" onclick={() => navigate("char-create")} disabled={generating || submitting}
+                  >New Character</Button
+                >
               </div>
-            </div>
-          {/each}
-        </div>
+            {/if}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>AI Members</CardTitle>
+            <CardDescription>Select at least one AI member for the chat.</CardDescription>
+          </CardHeader>
+          <CardContent class="space-y-3">
+            {#if loading}
+              <div class="rounded-lg border bg-card p-4 text-sm text-muted-foreground">Loading characters…</div>
+            {:else if playableOptions.length === 0}
+              <div class="rounded-lg border border-dashed bg-card p-6 text-center text-sm text-muted-foreground">
+                No characters available yet.
+              </div>
+            {:else}
+              <div class="grid gap-2">
+                {#each playableOptions as option (option.key)}
+                  {@const rowDisabled = generating || submitting || option.key === playerKey}
+                  <div
+                    class={cn("flex items-start gap-3 rounded-lg border bg-card p-3", rowDisabled && "opacity-60")}
+                    aria-disabled={rowDisabled}
+                  >
+                    <Checkbox
+                      checked={aiKeys.includes(option.key)}
+                      disabled={rowDisabled}
+                      onCheckedChange={() => toggleAi(option.key)}
+                    />
+                    <span class="min-w-0 flex-1">
+                      <span class="flex items-center gap-2">
+                        <span class="truncate text-sm font-medium text-foreground">
+                          {option.name}{option.kind === "npc" ? " (NPC)" : ""}
+                        </span>
+                      </span>
+                      <span class="mt-0.5 block truncate text-xs text-muted-foreground">{option.description}</span>
+                    </span>
+                    {#if option.kind === "character" && option.character_id}
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        class="h-9 w-9"
+                        title="Details"
+                        aria-label="Character details"
+                        disabled={generating || submitting}
+                        onclick={(e) => {
+                          e.preventDefault()
+                          e.stopPropagation()
+                          openCharSheetForCharacter(option.character_id)
+                        }}
+                      >
+                        <IconDocument size={16} strokeWidth={1.6} />
+                      </Button>
+                    {/if}
+                  </div>
+                {/each}
+              </div>
+            {/if}
+            {#if playerKey && aiKeys.length === 0}
+              <div class="text-xs text-muted-foreground">Select at least one AI member.</div>
+            {/if}
+
+            {#if selectedAiOptions.length > 0}
+              <div class="rounded-lg border bg-card p-4">
+                <div class="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Selected</div>
+                <div class="mt-3 grid gap-3 sm:grid-cols-2">
+                  {#each selectedAiOptions as member (member.key)}
+                    <div class="rounded-lg border bg-background p-3">
+                      <div class="text-sm font-medium text-foreground">{member.name}</div>
+                      <div class="mt-1 text-xs text-muted-foreground">
+                        {member.state.race || "Unknown"} · {member.state.gender || "Unknown"}
+                      </div>
+                      <div class="mt-1 text-xs text-muted-foreground">
+                        {[...member.state.personality_traits, ...member.state.quirks, ...member.state.perks].join(
+                          ", ",
+                        ) || "No traits"}
+                      </div>
+                    </div>
+                  {/each}
+                </div>
+              </div>
+            {/if}
+          </CardContent>
+        </Card>
       </div>
-    {/if}
-  </div>
+    </div>
+  </ScrollArea>
 
-  <div class="actions">
-    <button class="btn-accent full" onclick={startChat} disabled={!canSubmit}>
+  <div class="border-t px-4 py-4">
+    <Button class="w-full" onclick={startChat} disabled={!canSubmit}>
       {submitting ? "Creating..." : "Start Chat →"}
-    </button>
+    </Button>
   </div>
 </div>
-
-<style>
-  .new-chat {
-    background: var(--bg);
-    display: flex;
-    flex-direction: column;
-    height: 100%;
-  }
-
-  .ai-list {
-    display: grid;
-    gap: 0.35rem;
-  }
-  .ai-row {
-    display: grid;
-    grid-template-columns: auto 1fr auto;
-    gap: 0.6rem;
-    align-items: center;
-    padding: 0.45rem 0.6rem;
-    cursor: pointer;
-  }
-  .ai-row input {
-    margin: 0.15rem 0 0;
-  }
-  .ai-row.disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-  }
-  .ai-row.disabled input {
-    cursor: not-allowed;
-  }
-  .ai-info {
-    display: flex;
-    flex-direction: column;
-    gap: 0.15rem;
-  }
-  .ai-expand {
-    margin: 0;
-    min-width: 36px;
-    min-height: 36px;
-  }
-  .ai-name {
-    font-size: 0.9rem;
-    color: var(--text);
-  }
-  .ai-meta {
-    font-size: 0.75rem;
-    color: var(--text-dim);
-  }
-</style>

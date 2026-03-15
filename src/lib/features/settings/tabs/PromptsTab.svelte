@@ -1,7 +1,12 @@
 <script lang="ts">
   import { settings as settingsService } from "@/services/settings"
   import type { PromptConfigFile } from "@/shared/api-types"
-  import Select from "@/components/controls/Select.svelte"
+  import * as Select from "@/components/ui/select"
+  import { Button } from "@/components/ui/button"
+  import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
+  import { Label } from "@/components/ui/label"
+  import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
+  import { Textarea } from "@/components/ui/textarea"
   import { sectionFormat } from "@/stores/settings"
 
   type Props = {
@@ -172,194 +177,99 @@
   })
 </script>
 
-<div class="control-section-label">Prompt Formatting</div>
+<div class="space-y-4">
+  <Card>
+    <CardHeader>
+      <CardTitle>Prompt Formatting</CardTitle>
+      <CardDescription>
+        Controls how context sections are wrapped in prompts sent to the model. This does not change the required JSON
+        output format.
+      </CardDescription>
+    </CardHeader>
+    <CardContent class="space-y-2">
+      <Label>Section wrapper format</Label>
+      <Select.Root type="single" bind:value={$sectionFormat} items={SECTION_FORMAT_OPTIONS}>
+        <Select.Trigger class="w-full" aria-label="Section wrapper format">
+          {SECTION_FORMAT_OPTIONS.find((o) => o.value === $sectionFormat)?.label ?? "Select…"}
+        </Select.Trigger>
+        <Select.Content>
+          {#each SECTION_FORMAT_OPTIONS as option (option.value)}
+            <Select.Item {...option} />
+          {/each}
+        </Select.Content>
+      </Select.Root>
+      <div class="text-xs text-muted-foreground">Global setting (applies to all prompts).</div>
+    </CardContent>
+  </Card>
 
-<div class="prompt-hint">
-  Controls how context sections are wrapped in prompts sent to the model. Does not change the required JSON output
-  format.
-</div>
-
-<label class="control-row control-row--input">
-  <span class="control-row-text">
-    <span class="control-row-title">Section wrapper format</span>
-    <span class="control-row-sub">Global setting (applies to all prompts)</span>
-  </span>
-  <Select bind:value={$sectionFormat} options={SECTION_FORMAT_OPTIONS} ariaLabel="Section wrapper format" />
-</label>
-
-<div class="divider"></div>
-
-<div class="control-section-label">Prompt Templates</div>
-
-<div class="prompt-hint">Advanced: edit JSON stored in SQLite. Changes affect future generations immediately.</div>
-
-<div class="prompt-rail" aria-label="Prompt file picker">
-  {#if promptFiles.length === 0}
-    <div class="prompt-rail-empty">{promptLoading ? "Loading…" : "No prompt templates found."}</div>
-  {:else}
-    {#each promptFiles as p (p.name)}
-      <button
-        type="button"
-        class="prompt-pill"
-        class:active={p.name === promptSelected}
-        disabled={promptLoading || promptSaving}
-        aria-pressed={p.name === promptSelected}
-        onclick={() => selectPromptFile(p.name)}
+  <Card>
+    <CardHeader>
+      <CardTitle>Prompt Templates</CardTitle>
+      <CardDescription
+        >Advanced: edit JSON stored in SQLite. Changes affect future generations immediately.</CardDescription
       >
-        <span class="prompt-pill-label">{PROMPT_LABELS[p.name] ?? p.name}</span>
-        {#if p.name === promptSelected && promptDirty}
-          <span class="prompt-pill-dirty" title="Unsaved changes" aria-label="Unsaved changes">●</span>
-        {/if}
-      </button>
-    {/each}
-  {/if}
+    </CardHeader>
+    <CardContent class="space-y-4">
+      {#if promptFiles.length === 0}
+        <div class="text-sm text-muted-foreground">{promptLoading ? "Loading…" : "No prompt templates found."}</div>
+      {:else}
+        <Tabs
+          value={promptSelected}
+          onValueChange={(next) => selectPromptFile(next as PromptConfigFile["name"])}
+          class="gap-3"
+        >
+          <div class="overflow-x-auto pb-1">
+            <TabsList aria-label="Prompt templates" class="w-max">
+              {#each promptFiles as p (p.name)}
+                <TabsTrigger value={p.name} disabled={promptLoading || promptSaving} class="flex-none text-xs">
+                  <span class="whitespace-nowrap">{PROMPT_LABELS[p.name] ?? p.name}</span>
+                  {#if p.name === promptSelected && promptDirty}
+                    <span class="text-[10px]" title="Unsaved changes" aria-label="Unsaved changes">●</span>
+                  {/if}
+                </TabsTrigger>
+              {/each}
+            </TabsList>
+          </div>
+        </Tabs>
+      {/if}
+
+      <div class="space-y-2">
+        <div class="space-y-1">
+          <Label>Config (JSON)</Label>
+          <div class="text-xs text-muted-foreground">
+            {promptLoading
+              ? "Loading…"
+              : promptSelectedRow?.updated_at
+                ? `Updated: ${promptSelectedRow.updated_at}`
+                : "Not loaded"}
+          </div>
+        </div>
+
+        <Textarea
+          class="min-h-[420px] w-full font-mono text-xs leading-relaxed"
+          rows={18}
+          bind:value={promptDraft}
+          spellcheck={false}
+          disabled={promptLoading || promptSaving}
+          oninput={() => (promptDirty = true)}
+        />
+      </div>
+
+      {#if promptError}
+        <div class="rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">
+          {promptError}
+        </div>
+      {/if}
+    </CardContent>
+    <CardFooter class="flex flex-wrap gap-2">
+      <Button disabled={!promptDirty || promptSaving || promptLoading} onclick={savePromptFile}>
+        {promptSaving ? "Saving…" : "Save"}
+      </Button>
+      <Button variant="outline" disabled={promptSaving || promptLoading} onclick={formatPromptDraft}>Format</Button>
+      <Button variant="outline" disabled={promptSaving || promptLoading} onclick={resetPromptFile}>Reset</Button>
+      <Button variant="destructive" disabled={promptSaving || promptLoading} onclick={resetAllPromptFiles}>
+        Reset All
+      </Button>
+    </CardFooter>
+  </Card>
 </div>
-
-<label class="control-row control-row--input control-row--stack">
-  <span class="control-row-text">
-    <span class="control-row-title">Config (JSON)</span>
-    <span class="control-row-sub">
-      {promptLoading
-        ? "Loading…"
-        : promptSelectedRow?.updated_at
-          ? `Updated: ${promptSelectedRow.updated_at}`
-          : "Not loaded"}
-    </span>
-  </span>
-  <textarea
-    class="text-input prompt-editor"
-    rows="18"
-    bind:value={promptDraft}
-    spellcheck="false"
-    disabled={promptLoading || promptSaving}
-    oninput={() => (promptDirty = true)}
-  ></textarea>
-</label>
-
-{#if promptError}
-  <div class="prompt-error">{promptError}</div>
-{/if}
-
-<div class="prompt-actions">
-  <button
-    type="button"
-    class="btn-primary small"
-    disabled={!promptDirty || promptSaving || promptLoading}
-    onclick={savePromptFile}
-  >
-    {promptSaving ? "Saving…" : "Save"}
-  </button>
-  <button type="button" class="btn-ghost small" disabled={promptSaving || promptLoading} onclick={formatPromptDraft}>
-    Format
-  </button>
-  <button type="button" class="btn-ghost small" disabled={promptSaving || promptLoading} onclick={resetPromptFile}>
-    Reset
-  </button>
-  <button
-    type="button"
-    class="btn-ghost small prompt-danger"
-    disabled={promptSaving || promptLoading}
-    onclick={resetAllPromptFiles}
-  >
-    Reset All
-  </button>
-</div>
-
-<div class="settings-bottom-pad"></div>
-
-<style>
-  .prompt-hint {
-    padding: 0.45rem 1rem 0.15rem;
-    color: var(--text-dim);
-    font-size: 0.8rem;
-    line-height: 1.4;
-  }
-
-  .prompt-rail {
-    display: flex;
-    gap: 0.5rem;
-    padding: 0.5rem 1rem 0.4rem;
-    overflow-x: auto;
-    -webkit-overflow-scrolling: touch;
-  }
-
-  .prompt-rail-empty {
-    padding: 0.15rem 0;
-    color: var(--text-dim);
-    font-size: 0.8rem;
-    line-height: 1.3;
-  }
-
-  .prompt-pill {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.45rem;
-    padding: 0.38rem 0.65rem;
-    border-radius: var(--radius-pill);
-    border: 1px solid var(--border);
-    background: var(--bg-input);
-    color: var(--text-dim);
-    font-family: var(--font-ui);
-    font-size: 0.8rem;
-    cursor: pointer;
-    white-space: nowrap;
-    transition:
-      border-color 0.15s var(--ease-out),
-      color 0.15s var(--ease-out),
-      background 0.15s var(--ease-out);
-  }
-
-  .prompt-pill:hover:not(:disabled) {
-    color: var(--text);
-    border-color: var(--border-hover);
-    background: rgba(255, 255, 255, 0.02);
-  }
-
-  .prompt-pill:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-  }
-
-  .prompt-pill.active {
-    color: var(--accent);
-    border-color: var(--accent);
-    background: var(--accent-dim);
-  }
-
-  .prompt-pill-dirty {
-    color: var(--danger);
-    font-size: 0.7rem;
-    line-height: 1;
-    transform: translateY(-0.5px);
-  }
-
-  .prompt-editor {
-    width: 100%;
-    font-family: var(--font-mono);
-  }
-
-  .prompt-actions {
-    display: flex;
-    gap: 0.6rem;
-    padding: 0.6rem 1rem 0.2rem;
-    flex-wrap: wrap;
-  }
-
-  .prompt-danger {
-    color: var(--danger);
-    border-color: rgba(181, 64, 64, 0.5);
-  }
-
-  .prompt-danger:hover:not(:disabled) {
-    color: var(--danger);
-    border-color: var(--danger);
-    background: rgba(181, 64, 64, 0.08);
-  }
-
-  .prompt-error {
-    padding: 0.2rem 1rem 0.6rem;
-    color: var(--danger);
-    font-size: 0.85rem;
-    line-height: 1.35;
-  }
-</style>

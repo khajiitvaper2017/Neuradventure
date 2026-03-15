@@ -83,7 +83,8 @@ export default defineConfig(() => ({
     },
   },
   server: {
-    host: true,
+    host: "0.0.0.0",
+    allowedHosts: true as const,
     forwardConsole: {
       unhandledErrors: true,
       logLevels: ["error", "warn", "info", "log", "debug"],

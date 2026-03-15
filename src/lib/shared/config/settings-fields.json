@@ -1,10 +1,7 @@
 {
   "settings": {
     "update": {
-      "theme": "Updated theme.",
-      "design": "Updated typography style.",
-      "textJustify": "Updated text justification setting.",
-      "colorScheme": "Updated accent color scheme.",
+      "colorMode": "Updated light/dark appearance.",
       "streamingEnabled": "Toggle streaming responses over WebSocket.",
       "sectionFormat": "Global wrapper format for context sections.",
       "timeouts": "Advanced timing and timeout settings.",

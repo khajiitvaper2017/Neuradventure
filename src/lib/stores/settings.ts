@@ -10,8 +10,7 @@ import type {
 } from "@/shared/api-types"
 import type { StoryModules } from "@/shared/types"
 
-export type Theme = "default" | "amoled"
-export type Design = "classic" | "roboto"
+export type ColorMode = "light" | "dark" | "system"
 
 const DEFAULT_KOBOLD_CONNECTOR: KoboldCppConnector = {
   type: "koboldcpp",
@@ -99,10 +98,7 @@ export const DEFAULT_TIMEOUTS: TimeoutSettings = {
   fieldWatchDebounceMs: 50,
 }
 
-const themeStore = writable<Theme>("amoled")
-const designStore = writable<Design>("classic")
-const textJustifyStore = writable<boolean>(true)
-const colorSchemeStore = writable<"gold" | "emerald" | "sapphire" | "crimson">("crimson")
+const colorModeStore = writable<ColorMode>("dark")
 const streamingEnabledStore = writable<boolean>(false)
 const sectionFormatStore = writable<SectionFormat>("markdown")
 const timeoutsStore = writable<TimeoutSettings>({ ...DEFAULT_TIMEOUTS })
@@ -123,10 +119,7 @@ const storyDefaultsStore = writable<StoryModules>({ ...DEFAULT_STORY_MODULES })
 let initialized = false
 let suppressSync = true
 let current: AppSettings = {
-  theme: "amoled",
-  design: "classic",
-  textJustify: true,
-  colorScheme: "crimson",
+  colorMode: "dark",
   streamingEnabled: false,
   sectionFormat: "markdown",
   timeouts: { ...DEFAULT_TIMEOUTS },
@@ -145,10 +138,7 @@ let current: AppSettings = {
 function applySettings(settings: AppSettings) {
   suppressSync = true
   current = settings
-  themeStore.set(settings.theme)
-  designStore.set(settings.design)
-  textJustifyStore.set(settings.textJustify)
-  colorSchemeStore.set(settings.colorScheme)
+  colorModeStore.set(settings.colorMode)
   streamingEnabledStore.set(settings.streamingEnabled ?? false)
   sectionFormatStore.set(settings.sectionFormat ?? "markdown")
   timeoutsStore.set(settings.timeouts ?? DEFAULT_TIMEOUTS)
@@ -187,24 +177,9 @@ export async function initSettings() {
   }
 }
 
-themeStore.subscribe((value) => {
-  current = { ...current, theme: value }
-  if (!suppressSync) void persistSettings({ theme: value })
-})
-
-designStore.subscribe((value) => {
-  current = { ...current, design: value }
-  if (!suppressSync) void persistSettings({ design: value })
-})
-
-textJustifyStore.subscribe((value) => {
-  current = { ...current, textJustify: value }
-  if (!suppressSync) void persistSettings({ textJustify: value })
-})
-
-colorSchemeStore.subscribe((value) => {
-  current = { ...current, colorScheme: value }
-  if (!suppressSync) void persistSettings({ colorScheme: value })
+colorModeStore.subscribe((value) => {
+  current = { ...current, colorMode: value }
+  if (!suppressSync) void persistSettings({ colorMode: value })
 })
 
 streamingEnabledStore.subscribe((value) => {
@@ -272,10 +247,7 @@ generationStore.subscribe((value) => {
   if (!suppressSync) void persistSettings({ generation: value })
 })
 
-export const theme = themeStore
-export const design = designStore
-export const textJustify = textJustifyStore
-export const colorScheme = colorSchemeStore
+export const colorMode = colorModeStore
 export const streamingEnabled = streamingEnabledStore
 export const sectionFormat = sectionFormatStore
 export const timeouts = timeoutsStore

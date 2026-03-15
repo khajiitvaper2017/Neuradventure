@@ -4,6 +4,9 @@
   import { registerSW } from "virtual:pwa-register"
   import { pwaInfo } from "virtual:pwa-info"
 
+  import "@fontsource/geist-sans/latin.css"
+  import "@fontsource/geist-mono/latin.css"
+  import "@fontsource/cinzel/latin.css"
   import "@/styles/app.css"
 
   import {
@@ -21,7 +24,7 @@
     showQuietNotice,
     syncRouteFromUrl,
   } from "@/stores/ui"
-  import { theme, design, textJustify, colorScheme } from "@/stores/settings"
+  import { colorMode } from "@/stores/settings"
   import { currentStoryId, currentStoryModules } from "@/stores/game"
   import { currentChatId } from "@/stores/chat"
   import CharSheet from "@/features/character/CharSheet.svelte"
@@ -36,10 +39,15 @@
   import { getCtxLimitCached, initCtxLimit } from "@/engine/llm"
   import { setPwaNeedRefresh, setPwaOfflineReady } from "@/stores/pwa"
   import { ensurePersistentStorage } from "@/utils/storagePersistence"
+  import { cn } from "@/utils.js"
+  import { Button } from "@/components/ui/button"
+  import { ScrollArea } from "@/components/ui/scroll-area"
 
   let { children } = $props()
 
   let appEl: HTMLDivElement | null = null
+  const SIDEBAR_WIDTH = 350
+  const GAME_WIDTH = 800
 
   function isVisible(el: HTMLElement): boolean {
     return !!(el.offsetWidth || el.offsetHeight || el.getClientRects().length)
@@ -76,11 +84,15 @@
     if (!appEl) return
 
     const computed = getComputedStyle(appEl)
-    const bg = computed.getPropertyValue("--bg").trim() || "#000000"
-    const accent = computed.getPropertyValue("--accent").trim() || "#c85c5c"
-    const border = computed.getPropertyValue("--border").trim() || "rgba(255, 255, 255, 0.12)"
+    const bg = computed.getPropertyValue("--background").trim() || "0 0% 0%"
+    const primary = computed.getPropertyValue("--primary").trim() || "0 0% 100%"
+    const border = computed.getPropertyValue("--border").trim() || "0 0% 50%"
 
-    const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><rect width="64" height="64" rx="14" fill="${bg}"/><rect x="1.5" y="1.5" width="61" height="61" rx="12.5" fill="none" stroke="${border}" stroke-width="3"/><path d="M18 46V18h6l16 20V18h6v28h-6L24 26v20z" fill="${accent}"/></svg>`
+    const bgCss = `hsl(${bg})`
+    const primaryCss = `hsl(${primary})`
+    const borderCss = `hsl(${border})`
+
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><rect width="64" height="64" rx="14" fill="${bgCss}"/><rect x="1.5" y="1.5" width="61" height="61" rx="12.5" fill="none" stroke="${borderCss}" stroke-width="3"/><path d="M18 46V18h6l16 20V18h6v28h-6L24 26v20z" fill="${primaryCss}"/></svg>`
     const href = `data:image/svg+xml,${encodeURIComponent(svg)}`
 
     let link = document.querySelector('link[rel="icon"][data-neuradventure="dynamic"]') as HTMLLinkElement | null
@@ -94,7 +106,7 @@
     link.href = href
 
     const themeMeta = document.querySelector('meta[name="theme-color"]') as HTMLMetaElement | null
-    if (themeMeta) themeMeta.content = bg
+    if (themeMeta) themeMeta.content = bgCss
   }
 
   $effect(() => {
@@ -102,9 +114,25 @@
   })
 
   $effect(() => {
-    void $theme
-    void $colorScheme
+    void $colorMode
     queueMicrotask(() => updateSiteIcon())
+  })
+
+  $effect(() => {
+    if (typeof window === "undefined") return
+    const root = document.documentElement
+    const mq = window.matchMedia("(prefers-color-scheme: dark)")
+
+    const apply = () => {
+      const mode = $colorMode
+      const isDark = mode === "dark" || (mode === "system" && mq.matches)
+      root.classList.toggle("dark", isDark)
+    }
+
+    apply()
+    const onChange = () => apply()
+    mq.addEventListener("change", onChange)
+    return () => mq.removeEventListener("change", onChange)
   })
 
   $effect(() => {
@@ -146,6 +174,14 @@
   let desktopGame = $derived(gameReady && $isDesktop)
   let trackNpcs = $derived($currentStoryModules?.track_npcs ?? true)
   let trackLocations = $derived($currentStoryModules?.track_locations ?? true)
+
+  let gridStyle = $derived.by(() => {
+    if (!desktopGame) return undefined
+    const left = $collapseCharSheet ? 0 : SIDEBAR_WIDTH
+    const right1 = $collapseNPCTracker || !trackNpcs ? 0 : SIDEBAR_WIDTH
+    const right2 = $collapseLocationsPanel || !trackLocations ? 0 : SIDEBAR_WIDTH
+    return `grid-template-columns:${left}px minmax(0, ${GAME_WIDTH}px) ${right1}px ${right2}px;grid-template-rows:100dvh;`
+  })
 
   function bootstrapPwa() {
     const updateServiceWorker = registerSW({
@@ -223,44 +259,37 @@
 />
 
 <div
-  class="app"
-  class:theme-amoled={$theme === "amoled"}
-  class:design-roboto={$design === "roboto"}
-  class:text-justify={$textJustify}
-  class:scheme-gold={$colorScheme === "gold"}
-  class:scheme-emerald={$colorScheme === "emerald"}
-  class:scheme-sapphire={$colorScheme === "sapphire"}
-  class:scheme-crimson={$colorScheme === "crimson"}
-  class:game-active={desktopGame}
-  class:collapse-char={$collapseCharSheet}
-  class:collapse-npc={$collapseNPCTracker || !trackNpcs}
-  class:collapse-locations={$collapseLocationsPanel || !trackLocations}
+  class={cn(
+    "relative h-dvh w-full overflow-hidden bg-background text-foreground",
+    desktopGame && "mx-auto grid max-w-[1800px] justify-center",
+  )}
+  style={gridStyle}
   bind:this={appEl}
 >
   {#if bootstrapped}
     {#if gameActive}
       {#if $isDesktop && !$collapseCharSheet && gameReady}
-        <div class="sidebar-slot left">
+        <div class="h-dvh overflow-hidden border-r bg-card">
           <CharSheet inline />
         </div>
       {/if}
 
-      <div class="game-slot">
+      <div class={desktopGame ? "" : ""}>
         {#if gameReady}
           {@render children()}
         {:else}
-          <div style="padding: 16px; color: var(--text-dim)">Loading story…</div>
+          <div class="p-4 text-sm text-muted-foreground">Loading story…</div>
         {/if}
       </div>
 
       {#if $isDesktop && !$collapseNPCTracker && trackNpcs && gameReady}
-        <div class="sidebar-slot right-1">
+        <div class="h-dvh overflow-hidden border-l bg-card">
           <NPCTracker inline />
         </div>
       {/if}
 
       {#if $isDesktop && !$collapseLocationsPanel && trackLocations && gameReady}
-        <div class="sidebar-slot right-2">
+        <div class="h-dvh overflow-hidden border-l bg-card">
           <LocationsPanel inline />
         </div>
       {/if}
@@ -276,105 +305,45 @@
       <LocationsPanel />
     {/if}
   {:else}
-    <div class="boot-screen" data-scroll-root="screen">
-      {#if bootstrapError}
-        <h1 class="boot-title">Initialization failed</h1>
-        <p class="boot-text">{bootstrapError}</p>
-        <button
-          type="button"
-          class="btn-ghost"
-          onclick={() => {
-            if (typeof location !== "undefined") location.reload()
-          }}
-        >
-          Reload
-        </button>
-      {:else}
-        <div class="boot-text">Loading…</div>
-      {/if}
-    </div>
+    <ScrollArea class="h-full w-full">
+      <div class="grid gap-3 p-6 text-muted-foreground">
+        {#if bootstrapError}
+          <h1 class="text-base font-semibold text-foreground">Initialization failed</h1>
+          <p class="text-sm leading-relaxed">{bootstrapError}</p>
+          <div class="w-fit">
+            <Button
+              type="button"
+              variant="outline"
+              onclick={() => {
+                if (typeof location !== "undefined") location.reload()
+              }}
+            >
+              Reload
+            </Button>
+          </div>
+        {:else}
+          <div class="text-sm">Loading…</div>
+        {/if}
+      </div>
+    </ScrollArea>
   {/if}
 
   {#if $errorMessage}
-    <div class="toast">{$errorMessage}</div>
+    <div
+      class="fixed bottom-4 left-1/2 z-50 w-[min(92vw,40rem)] -translate-x-1/2 rounded-md border bg-background/95 px-4 py-3 text-sm shadow-md backdrop-blur supports-[backdrop-filter]:bg-background/60"
+    >
+      {$errorMessage}
+    </div>
   {/if}
 
   {#if $quietNotice}
-    <div class="corner-note">{$quietNotice}</div>
+    <div
+      class="fixed bottom-4 right-4 z-50 max-w-[min(92vw,20rem)] rounded-md border bg-background/95 px-3 py-2 text-xs text-muted-foreground shadow-md backdrop-blur supports-[backdrop-filter]:bg-background/60"
+    >
+      {$quietNotice}
+    </div>
   {/if}
 
   <PwaPrompts />
   <ConfirmDialog />
 </div>
-
-<style>
-  .app {
-    height: 100dvh;
-    position: relative;
-    background: var(--bg);
-  }
-
-  .boot-screen {
-    padding: 22px 16px;
-    color: var(--text-dim);
-    display: grid;
-    gap: 12px;
-    align-content: start;
-  }
-
-  .boot-title {
-    margin: 0;
-    font-size: 1.05rem;
-    color: var(--text);
-    letter-spacing: 0.01em;
-  }
-
-  .boot-text {
-    margin: 0;
-    max-width: 64ch;
-    line-height: 1.45;
-  }
-
-  /* ── Desktop game: three-column grid ──────────────── */
-  .app.game-active {
-    --sidebar-left: var(--sidebar-width);
-    --sidebar-right-1: var(--sidebar-width);
-    --sidebar-right-2: var(--sidebar-width);
-    --game-width: 800px;
-    display: grid;
-    justify-content: center;
-    grid-template-columns:
-      var(--sidebar-left) minmax(0, var(--game-width)) var(--sidebar-right-1)
-      var(--sidebar-right-2);
-    grid-template-rows: 100dvh;
-    max-width: 1800px;
-    margin: 0 auto;
-  }
-  .app.game-active .game-slot {
-    grid-column: 2;
-    min-width: 0;
-  }
-  .app.game-active .sidebar-slot {
-    height: 100dvh;
-  }
-  .app.game-active .sidebar-slot.left {
-    grid-column: 1;
-  }
-  .app.game-active .sidebar-slot.right-1 {
-    grid-column: 3;
-  }
-  .app.game-active .sidebar-slot.right-2 {
-    grid-column: 4;
-  }
-  .app.game-active.collapse-char {
-    --sidebar-left: 0px;
-  }
-  .app.game-active.collapse-npc {
-    --sidebar-right-1: 0px;
-  }
-  .app.game-active.collapse-locations {
-    --sidebar-right-2: 0px;
-  }
-
-  /* Toast + corner-note styles live in shared.css */
-</style>

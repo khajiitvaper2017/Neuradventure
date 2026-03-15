@@ -2,10 +2,15 @@
   import { showLocations } from "@/stores/ui"
   import { worldState } from "@/stores/game"
   import type { Location } from "@/shared/types"
+  import { cn } from "@/utils.js"
   import IconMapPin from "@/components/icons/IconMapPin.svelte"
   import IconUsers from "@/components/icons/IconUsers.svelte"
   import IconCube from "@/components/icons/IconCube.svelte"
   import IconDocument from "@/components/icons/IconDocument.svelte"
+  import { Badge } from "@/components/ui/badge"
+  import { Button } from "@/components/ui/button"
+  import { Sheet, SheetContent } from "@/components/ui/sheet"
+  import { ScrollArea } from "@/components/ui/scroll-area"
 
   let { inline = false }: { inline?: boolean } = $props()
 
@@ -36,142 +41,82 @@
   }
 </script>
 
-{#if inline}
-  <div class="sidebar">
-    <div class="sidebar-header">
-      <IconMapPin size={16} strokeWidth={1.5} className="location-header-icon" />
-      <span>Locations ({sortedLocations.length})</span>
+{#snippet LocationsBody()}
+  {#if !$worldState}
+    <div class="grid place-items-center rounded-md border border-dashed p-8 text-center text-sm text-muted-foreground">
+      No active story.
     </div>
-    <div class="sidebar-body" data-scroll-root="modal">
-      {#if !$worldState}
-        <div class="empty">No active story.</div>
-      {:else if sortedLocations.length === 0}
-        <div class="empty">No locations yet.</div>
-      {:else}
-        {#each sortedLocations as location (location.name)}
-          <div class="surface location-card" class:current={location.name.trim().toLowerCase() === currentSceneKey}>
-            <div class="location-title">
-              <span class="location-name">{location.name}</span>
-              {#if location.name.trim().toLowerCase() === currentSceneKey}
-                <span class="badge">Current</span>
-              {/if}
+  {:else if sortedLocations.length === 0}
+    <div class="grid place-items-center rounded-md border border-dashed p-8 text-center text-sm text-muted-foreground">
+      No locations yet.
+    </div>
+  {:else}
+    <div class="space-y-3">
+      {#each sortedLocations as location (location.name)}
+        {@const isCurrent = location.name.trim().toLowerCase() === currentSceneKey}
+        <div class={cn("rounded-lg border bg-card/50 p-3", isCurrent && "border-primary/70 ring-1 ring-primary/30")}>
+          <div class="flex items-start justify-between gap-2">
+            <div class="min-w-0">
+              <div class="truncate text-sm font-semibold text-foreground">{location.name}</div>
             </div>
+            {#if isCurrent}
+              <Badge variant="secondary" class="text-[10px] uppercase tracking-wider">Current</Badge>
+            {/if}
+          </div>
 
-            <div class="location-row">
-              <IconDocument size={13} strokeWidth={1.5} className="location-icon" />
+          <div class="mt-2 space-y-2">
+            <div class="flex items-start gap-2 text-xs leading-snug text-foreground/90">
+              <IconDocument size={13} strokeWidth={1.5} className="mt-0.5 shrink-0 text-muted-foreground" />
               <span>{location.description}</span>
             </div>
 
-            <div class="location-row">
-              <IconUsers size={13} strokeWidth={1.5} className="location-icon" />
+            <div class="flex items-start gap-2 text-xs leading-snug text-muted-foreground">
+              <IconUsers size={13} strokeWidth={1.5} className="mt-0.5 shrink-0 text-muted-foreground" />
               <span>{listLabel(location.characters)}</span>
             </div>
 
-            <div class="location-row muted">
-              <IconCube size={13} strokeWidth={1.5} className="location-icon" />
+            <div class="flex items-start gap-2 text-xs leading-snug text-muted-foreground">
+              <IconCube size={13} strokeWidth={1.5} className="mt-0.5 shrink-0 text-muted-foreground" />
               <span>{itemLabel(location.available_items)}</span>
             </div>
           </div>
-        {/each}
-      {/if}
+        </div>
+      {/each}
     </div>
+  {/if}
+{/snippet}
+
+{#if inline}
+  <div class="flex h-dvh flex-col overflow-hidden border-r bg-card">
+    <div
+      class="flex items-center gap-2 border-b px-4 py-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground"
+    >
+      <IconMapPin size={16} strokeWidth={1.5} className="shrink-0 opacity-70" />
+      <span>Locations ({sortedLocations.length})</span>
+    </div>
+    <ScrollArea class="min-h-0 flex-1">
+      <div class="p-4">
+        {@render LocationsBody()}
+      </div>
+    </ScrollArea>
   </div>
 {:else if $showLocations}
-  <!-- svelte-ignore a11y_click_events_have_key_events -->
-  <!-- svelte-ignore a11y_no_static_element_interactions -->
-  <div class="overlay" onclick={() => showLocations.set(false)}></div>
-  <div class="panel">
-    <div class="panel-header">
-      <IconMapPin size={16} strokeWidth={1.5} className="location-header-icon" />
-      <span>Locations ({sortedLocations.length})</span>
-      <button class="panel-close" onclick={() => showLocations.set(false)} aria-label="Close">×</button>
-    </div>
-    <div class="panel-body" data-scroll-root="modal">
-      {#if !$worldState}
-        <div class="empty">No active story.</div>
-      {:else if sortedLocations.length === 0}
-        <div class="empty">No locations yet.</div>
-      {:else}
-        {#each sortedLocations as location (location.name)}
-          <div class="surface location-card" class:current={location.name.trim().toLowerCase() === currentSceneKey}>
-            <div class="location-title">
-              <span class="location-name">{location.name}</span>
-              {#if location.name.trim().toLowerCase() === currentSceneKey}
-                <span class="badge">Current</span>
-              {/if}
-            </div>
-
-            <div class="location-row">
-              <IconDocument size={13} strokeWidth={1.5} className="location-icon" />
-              <span>{location.description}</span>
-            </div>
-
-            <div class="location-row">
-              <IconUsers size={13} strokeWidth={1.5} className="location-icon" />
-              <span>{listLabel(location.characters)}</span>
-            </div>
-
-            <div class="location-row muted">
-              <IconCube size={13} strokeWidth={1.5} className="location-icon" />
-              <span>{itemLabel(location.available_items)}</span>
-            </div>
-          </div>
-        {/each}
-      {/if}
-    </div>
-  </div>
+  <Sheet open={$showLocations} onOpenChange={(next) => showLocations.set(next)}>
+    <SheetContent side="right" class="p-0">
+      <div class="flex items-center justify-between gap-3 border-b px-4 py-3">
+        <div class="flex min-w-0 items-center gap-2">
+          <IconMapPin size={16} strokeWidth={1.5} className="shrink-0 opacity-70" />
+          <div class="truncate text-sm font-semibold text-foreground">Locations ({sortedLocations.length})</div>
+        </div>
+        <Button variant="ghost" size="icon" class="h-9 w-9" onclick={() => showLocations.set(false)} aria-label="Close">
+          ×
+        </Button>
+      </div>
+      <ScrollArea class="max-h-[calc(100dvh-3.25rem)]">
+        <div class="p-4">
+          {@render LocationsBody()}
+        </div>
+      </ScrollArea>
+    </SheetContent>
+  </Sheet>
 {/if}
-
-<style>
-  :global(.location-header-icon) {
-    color: var(--text);
-    flex-shrink: 0;
-    margin-right: 0.4rem;
-    opacity: 0.6;
-  }
-
-  .location-card {
-    display: flex;
-    flex-direction: column;
-    gap: 0.35rem;
-  }
-
-  .location-card.current {
-    border-color: var(--accent);
-    box-shadow: 0 0 0 1px var(--accent);
-  }
-
-  .location-title {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 0.5rem;
-  }
-
-  .location-name {
-    font-weight: 600;
-    font-family: var(--font-story);
-    color: var(--text);
-    font-size: 0.95rem;
-  }
-
-  .location-row {
-    display: flex;
-    align-items: flex-start;
-    gap: 0.45rem;
-    font-size: 0.78rem;
-    color: var(--text);
-    line-height: 1.35;
-  }
-
-  .location-row.muted {
-    color: var(--text-dim);
-  }
-
-  :global(.location-icon) {
-    color: var(--text);
-    flex-shrink: 0;
-    opacity: 0.5;
-    margin-top: 0.1rem;
-  }
-</style>

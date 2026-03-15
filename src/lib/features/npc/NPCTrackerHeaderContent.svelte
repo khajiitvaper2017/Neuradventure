@@ -1,5 +1,6 @@
 <script lang="ts">
   import IconUsers from "@/components/icons/IconUsers.svelte"
+  import { Button } from "@/components/ui/button"
 
   let {
     count,
@@ -20,13 +21,25 @@
   } = $props()
 </script>
 
-<IconUsers size={16} strokeWidth={1.5} className="npc-header-icon" />
-<span>Known NPCs ({count})</span>
-{#if useNpcAppearance}
-  <button class="btn-ghost small" onclick={onToggleBaseline} disabled={disableBaselineToggle}>
-    {showBaselineDetails ? "Hide Baseline" : "Show Baseline"}
-  </button>
-{/if}
-{#if showClose}
-  <button class="panel-close" onclick={onClose} aria-label="Close">×</button>
-{/if}
+<div class="flex w-full items-center gap-2">
+  <IconUsers size={16} strokeWidth={1.5} className="shrink-0 opacity-70" />
+  <span class="min-w-0 truncate text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+    Known NPCs ({count})
+  </span>
+  <div class="ml-auto flex items-center gap-2">
+    {#if useNpcAppearance}
+      <Button
+        variant="outline"
+        size="sm"
+        class="h-8 rounded-full px-3"
+        onclick={onToggleBaseline}
+        disabled={disableBaselineToggle}
+      >
+        {showBaselineDetails ? "Hide Baseline" : "Show Baseline"}
+      </Button>
+    {/if}
+    {#if showClose}
+      <Button variant="ghost" size="icon" class="h-9 w-9" onclick={onClose} aria-label="Close">×</Button>
+    {/if}
+  </div>
+</div>

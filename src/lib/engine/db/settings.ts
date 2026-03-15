@@ -74,10 +74,7 @@ const DEFAULT_OPENROUTER_CONNECTOR: OpenRouterConnector = {
 }
 
 export const DEFAULT_SETTINGS: SettingsState = {
-  theme: "amoled",
-  design: "classic",
-  textJustify: true,
-  colorScheme: "crimson",
+  colorMode: "dark",
   streamingEnabled: false,
   sectionFormat: "markdown",
   timeouts: {
@@ -107,6 +104,13 @@ export const DEFAULT_SETTINGS: SettingsState = {
     ...DEFAULT_KOBOLD_CONNECTOR,
   },
   generation: { ...DEFAULT_GENERATION },
+}
+
+function coerceColorMode(raw: unknown): SettingsState["colorMode"] {
+  if (raw === "light" || raw === "dark" || raw === "system") return raw
+  // Legacy values from pre-shadcn settings.
+  if (raw === "amoled" || raw === "default") return "dark"
+  return DEFAULT_SETTINGS.colorMode
 }
 
 function coerceConnector(raw: unknown): LLMConnector {
@@ -208,15 +212,47 @@ export function getSettings(): SettingsState {
     | undefined
   if (!row) return DEFAULT_SETTINGS
   try {
-    const stored = JSON.parse(row.settings_json) as Partial<SettingsState>
+    const stored = JSON.parse(row.settings_json) as Record<string, unknown>
+    const legacyTheme = stored.theme
+
     const base: SettingsState = {
-      ...DEFAULT_SETTINGS,
-      ...stored,
-      storyDefaults: normalizeStoryModules(stored.storyDefaults, DEFAULT_SETTINGS.storyDefaults),
-      connector: coerceConnector(stored.connector),
-      generation: { ...DEFAULT_SETTINGS.generation, ...(stored.generation ?? {}) },
+      colorMode: coerceColorMode(stored.colorMode ?? legacyTheme),
+      streamingEnabled:
+        typeof stored.streamingEnabled === "boolean" ? stored.streamingEnabled : DEFAULT_SETTINGS.streamingEnabled,
       sectionFormat: coerceSectionFormat(stored.sectionFormat),
       timeouts: coerceTimeoutSettings(stored.timeouts),
+      authorNoteEnabled:
+        typeof stored.authorNoteEnabled === "boolean" ? stored.authorNoteEnabled : DEFAULT_SETTINGS.authorNoteEnabled,
+      defaultAuthorNote:
+        typeof stored.defaultAuthorNote === "string" ? stored.defaultAuthorNote : DEFAULT_SETTINGS.defaultAuthorNote,
+      defaultAuthorNoteDepth:
+        typeof stored.defaultAuthorNoteDepth === "number"
+          ? stored.defaultAuthorNoteDepth
+          : DEFAULT_SETTINGS.defaultAuthorNoteDepth,
+      defaultAuthorNotePosition:
+        typeof stored.defaultAuthorNotePosition === "number"
+          ? stored.defaultAuthorNotePosition
+          : DEFAULT_SETTINGS.defaultAuthorNotePosition,
+      defaultAuthorNoteInterval:
+        typeof stored.defaultAuthorNoteInterval === "number"
+          ? stored.defaultAuthorNoteInterval
+          : DEFAULT_SETTINGS.defaultAuthorNoteInterval,
+      defaultAuthorNoteRole:
+        typeof stored.defaultAuthorNoteRole === "number"
+          ? stored.defaultAuthorNoteRole
+          : DEFAULT_SETTINGS.defaultAuthorNoteRole,
+      defaultAuthorNoteEmbedState:
+        typeof stored.defaultAuthorNoteEmbedState === "boolean"
+          ? stored.defaultAuthorNoteEmbedState
+          : DEFAULT_SETTINGS.defaultAuthorNoteEmbedState,
+      storyDefaults: normalizeStoryModules(stored.storyDefaults, DEFAULT_SETTINGS.storyDefaults),
+      connector: coerceConnector(stored.connector),
+      generation: {
+        ...DEFAULT_SETTINGS.generation,
+        ...(stored.generation && typeof stored.generation === "object" && !Array.isArray(stored.generation)
+          ? (stored.generation as Record<string, unknown>)
+          : {}),
+      } as SettingsState["generation"],
     }
 
     const koboldSecret = hasCachedConnectorApiKey("koboldcpp") ? getCachedConnectorApiKey("koboldcpp") : null

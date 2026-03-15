@@ -5,6 +5,10 @@
 <script lang="ts">
   import type { TimeoutSettings } from "@/shared/api-types"
   import { DEFAULT_TIMEOUTS, timeouts } from "@/stores/settings"
+  import { cn } from "@/utils.js"
+  import { Badge } from "@/components/ui/badge"
+  import { Button } from "@/components/ui/button"
+  import { Input } from "@/components/ui/input"
 
   type Props = {
     disabled?: boolean
@@ -230,27 +234,33 @@
   ])
 </script>
 
-<div class="control-section-label section-head">
-  <span>Timeouts</span>
-  <div class="section-head__actions">
-    <div class="chips" aria-label="Timeout summary">
-      {#each summaryChips as chip (chip.label)}
-        <span class="chip chip--kv" title={chip.label}>
-          <span class="chip-k">{chip.label}</span>
-          <span class="chip-v">{chip.value}</span>
-        </span>
-      {/each}
+<div class="pt-4">
+  <div class="flex flex-wrap items-center justify-between gap-3">
+    <div class="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Timeouts</div>
+    <div class="flex items-center gap-2">
+      <div class="flex flex-wrap gap-2" aria-label="Timeout summary">
+        {#each summaryChips as chip (chip.label)}
+          <span
+            class="inline-flex items-center gap-1 rounded-full border bg-muted px-2 py-0.5 font-mono text-[11px] text-muted-foreground"
+            title={chip.label}
+          >
+            <span class="text-foreground/80">{chip.label}</span>
+            <span class="tabular-nums">{chip.value}</span>
+          </span>
+        {/each}
+      </div>
+      <Button size="sm" variant="outline" {disabled} onclick={resetAll} title="Reset all timeouts">Reset</Button>
     </div>
-    <button type="button" class="btn-ghost small" {disabled} onclick={resetAll} title="Reset all timeouts">
-      Reset
-    </button>
   </div>
 </div>
 
 {#if warnings.length > 0}
-  <div class="notice notice--warning" role="note">
-    <div class="notice__title">Heads up</div>
-    <ul class="notice__list">
+  <div
+    class="mt-3 rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 text-sm text-amber-700 dark:text-amber-300"
+    role="note"
+  >
+    <div class="font-medium text-foreground">Heads up</div>
+    <ul class="mt-2 list-disc space-y-1 pl-5 text-sm text-muted-foreground">
       {#each warnings as warning (warning)}
         <li>{warning}</li>
       {/each}
@@ -258,82 +268,67 @@
   </div>
 {/if}
 
+{#snippet Row(field)}
+  <div class={cn("flex items-start justify-between gap-4 border-b py-3", disabled && "opacity-60")}>
+    <div class="min-w-0 flex-1 space-y-1">
+      <div class="text-sm font-medium text-foreground">{field.label} ({UNIT[field.unit].suffix})</div>
+      <div class="text-xs text-muted-foreground">{field.sub}</div>
+    </div>
+    <div class="w-28">
+      <Input
+        type="number"
+        min={field.min}
+        max={field.max}
+        step={field.step}
+        bind:value={drafts[field.key]}
+        {disabled}
+        onblur={() => commitField(field)}
+        onkeydown={blurOnEnter}
+      />
+    </div>
+  </div>
+{/snippet}
+
 {#each CORE_FIELDS as field (field.key)}
-  <label class="control-row control-row--input" class:control-row--disabled={disabled}>
-    <span class="control-row-text">
-      <span class="control-row-title">{field.label} ({UNIT[field.unit].suffix})</span>
-      <span class="control-row-sub">{field.sub}</span>
-    </span>
-    <input
-      class="num-input"
-      type="number"
-      min={field.min}
-      max={field.max}
-      step={field.step}
-      bind:value={drafts[field.key]}
-      {disabled}
-      onblur={() => commitField(field)}
-      onkeydown={blurOnEnter}
-    />
-  </label>
+  {@render Row(field)}
 {/each}
 
-<details class="disclosure" data-disabled={disabled ? "true" : "false"}>
+<details class="mt-4 rounded-lg border bg-card">
   <summary
-    class="disclosure__summary"
     aria-disabled={disabled}
     tabindex={disabled ? -1 : 0}
     onclick={preventToggleIfDisabled}
+    class={cn(
+      "flex cursor-pointer list-none items-center justify-between px-4 py-3 text-sm font-medium text-foreground transition-colors hover:bg-accent",
+      disabled && "cursor-not-allowed opacity-60 hover:bg-transparent",
+    )}
   >
-    UI & Resume
+    <span>UI &amp; Resume</span>
+    <Badge variant="outline" class="font-mono text-[11px] text-muted-foreground">Advanced</Badge>
   </summary>
-  {#each UX_FIELDS as field (field.key)}
-    <label class="control-row control-row--input" class:control-row--disabled={disabled}>
-      <span class="control-row-text">
-        <span class="control-row-title">{field.label} ({UNIT[field.unit].suffix})</span>
-        <span class="control-row-sub">{field.sub}</span>
-      </span>
-      <input
-        class="num-input"
-        type="number"
-        min={field.min}
-        max={field.max}
-        step={field.step}
-        bind:value={drafts[field.key]}
-        {disabled}
-        onblur={() => commitField(field)}
-        onkeydown={blurOnEnter}
-      />
-    </label>
-  {/each}
+  <div class="px-4 pb-2">
+    {#each UX_FIELDS as field (field.key)}
+      {@render Row(field)}
+    {/each}
+  </div>
 </details>
 
-<details class="disclosure" data-disabled={disabled ? "true" : "false"}>
+<details class="mt-3 rounded-lg border bg-card">
   <summary
-    class="disclosure__summary"
     aria-disabled={disabled}
     tabindex={disabled ? -1 : 0}
     onclick={preventToggleIfDisabled}
+    class={cn(
+      "flex cursor-pointer list-none items-center justify-between px-4 py-3 text-sm font-medium text-foreground transition-colors hover:bg-accent",
+      disabled && "cursor-not-allowed opacity-60 hover:bg-transparent",
+    )}
   >
-    Caches & Watchers
+    <span>Caches &amp; Watchers</span>
+    <Badge variant="outline" class="font-mono text-[11px] text-muted-foreground">Advanced</Badge>
   </summary>
-  {#each CACHE_FIELDS as field (field.key)}
-    <label class="control-row control-row--input" class:control-row--disabled={disabled}>
-      <span class="control-row-text">
-        <span class="control-row-title">{field.label} ({UNIT[field.unit].suffix})</span>
-        <span class="control-row-sub">{field.sub}</span>
-      </span>
-      <input
-        class="num-input"
-        type="number"
-        min={field.min}
-        max={field.max}
-        step={field.step}
-        bind:value={drafts[field.key]}
-        {disabled}
-        onblur={() => commitField(field)}
-        onkeydown={blurOnEnter}
-      />
-    </label>
-  {/each}
+  <div class="px-4 pb-2">
+    {#each CACHE_FIELDS as field (field.key)}
+      {@render Row(field)}
+    {/each}
+  </div>
 </details>

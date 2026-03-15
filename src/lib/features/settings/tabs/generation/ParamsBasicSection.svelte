@@ -12,6 +12,7 @@
   } from "@/features/settings/lib/generationParamDefs"
   import ParamNumberRow from "@/features/settings/tabs/generation/ParamNumberRow.svelte"
   import OpenRouterParamNotice from "@/features/settings/tabs/generation/OpenRouterParamNotice.svelte"
+  import { Separator } from "@/components/ui/separator"
   import {
     badgeForStatus,
     paramStatus,
@@ -39,7 +40,7 @@
 
 <OpenRouterParamNotice {modelSearchResults} />
 
-<div class="control-section-label">Sampling</div>
+<div class="pt-4 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Sampling</div>
 {#each samplingParams as p}
   {@const status = paramStatus(p.key, $connector, modelSearchResults)}
   {@const badge = badgeForStatus(status)}
@@ -57,9 +58,9 @@
   />
 {/each}
 
-<div class="divider"></div>
+<Separator class="my-4" />
 
-<div class="control-section-label">Repetition Penalties</div>
+<div class="pt-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Repetition Penalties</div>
 {#each repetitionParams as p}
   {@const status = paramStatus(p.key, $connector, modelSearchResults)}
   {@const badge = badgeForStatus(status)}
@@ -77,9 +78,11 @@
   />
 {/each}
 
-<div class="divider"></div>
+<Separator class="my-4" />
 
-<div class="control-section-label">DRY (Diverse Repetition Penalty)</div>
+<div class="pt-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+  DRY (Diverse Repetition Penalty)
+</div>
 {#each dryParams as p}
   {@const status = paramStatus(p.key, $connector, modelSearchResults)}
   {@const badge = badgeForStatus(status)}
@@ -97,9 +100,9 @@
   />
 {/each}
 
-<div class="divider"></div>
+<Separator class="my-4" />
 
-<div class="control-section-label">Mirostat</div>
+<div class="pt-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Mirostat</div>
 {#each mirostatParams as p}
   {@const status = paramStatus(p.key, $connector, modelSearchResults)}
   {@const badge = badgeForStatus(status)}
@@ -117,9 +120,9 @@
   />
 {/each}
 
-<div class="divider"></div>
+<Separator class="my-4" />
 
-<div class="control-section-label">Dynamic Temperature</div>
+<div class="pt-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Dynamic Temperature</div>
 {#each dynatempParams as p}
   {@const status = paramStatus(p.key, $connector, modelSearchResults)}
   {@const badge = badgeForStatus(status)}
@@ -137,9 +140,9 @@
   />
 {/each}
 
-<div class="divider"></div>
+<Separator class="my-4" />
 
-<div class="control-section-label">XTC (Token Cutting)</div>
+<div class="pt-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">XTC (Token Cutting)</div>
 {#each xtcParams as p}
   {@const status = paramStatus(p.key, $connector, modelSearchResults)}
   {@const badge = badgeForStatus(status)}
@@ -157,9 +160,9 @@
   />
 {/each}
 
-<div class="divider"></div>
+<Separator class="my-4" />
 
-<div class="control-section-label">Other</div>
+<div class="pt-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Other</div>
 {#each otherParams.filter((p) => p.key !== "ctx_limit") as p}
   {@const status = paramStatus(p.key, $connector, modelSearchResults)}
   {@const badge = badgeForStatus(status)}
@@ -177,4 +180,4 @@
   />
 {/each}
 
-<div class="settings-bottom-pad"></div>
+<div class="h-10"></div>

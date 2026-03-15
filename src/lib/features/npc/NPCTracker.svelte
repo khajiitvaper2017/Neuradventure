@@ -13,6 +13,7 @@
   import { getDiffSegments } from "@/utils/textDiff"
   import EditableFieldList from "@/components/inputs/EditableFieldList.svelte"
   import type { EditField } from "@/components/inputs/editableFieldTypes"
+  import { cn } from "@/utils.js"
   import IconMale from "@/components/icons/IconMale.svelte"
   import IconFemale from "@/components/icons/IconFemale.svelte"
   import IconIntersex from "@/components/icons/IconIntersex.svelte"
@@ -25,6 +26,11 @@
   import IconPencilSquare from "@/components/icons/IconPencilSquare.svelte"
   import IconTrash from "@/components/icons/IconTrash.svelte"
   import NPCTrackerHeaderContent from "@/features/npc/NPCTrackerHeaderContent.svelte"
+  import { Badge } from "@/components/ui/badge"
+  import { Button } from "@/components/ui/button"
+  import { Input } from "@/components/ui/input"
+  import { Sheet, SheetContent } from "@/components/ui/sheet"
+  import { ScrollArea } from "@/components/ui/scroll-area"
 
   let { inline = false }: { inline?: boolean } = $props()
   let showBaselineDetails = $state(false)
@@ -309,8 +315,8 @@
   let flashTimer: number | null = null
   let npcChangeIds = $state(new Map<string, number>())
   let sortedNpcs = $state<NPCState[]>([])
-  let sidebarBodyEl = $state<HTMLElement | null>(null)
-  let panelBodyEl = $state<HTMLElement | null>(null)
+  let sidebarBodyEl = $state<HTMLDivElement | null>(null)
+  let panelBodyEl = $state<HTMLDivElement | null>(null)
   let lastSortSig = $state("")
   let editingNpcName = $state<string | null>(null)
   let savingNpc = $state(false)
@@ -514,161 +520,168 @@
 </script>
 
 {#snippet npcContent()}
-  <div class="npc-add">
-    <input
-      class="text-input npc-add-input"
-      type="text"
-      placeholder="Add NPC by name"
-      bind:value={newNpcName}
-      disabled={$isGenerating || addingNpc || !$currentStoryId}
-      onkeydown={(e) => {
-        if (e.key === "Enter") addNpc()
-      }}
-    />
-    <button
-      class="btn-accent small npc-add-btn"
-      onclick={addNpc}
-      disabled={$isGenerating || addingNpc || !$currentStoryId || !newNpcName.trim()}
-    >
-      {addingNpc ? "Adding..." : "Add"}
-    </button>
-  </div>
-  {#if $npcs.length === 0}
-    <div class="empty">No known characters yet.</div>
-  {:else}
-    {#each sortedNpcs as npc (npc.name)}
-      <div class="surface npc-card" class:flash={flashNpcNames.includes(npc.name)}>
-        <div class="npc-header">
-          <div class="npc-identity">
-            <div class="npc-name">
-              {npc.name}
-              {#if genderIcon(npc.gender) === "male"}
-                <IconMale size={14} strokeWidth={2} className="gender-icon" />
-              {:else if genderIcon(npc.gender) === "female"}
-                <IconFemale size={14} strokeWidth={2} className="gender-icon" />
-              {:else if genderIcon(npc.gender) === "intersex"}
-                <IconIntersex size={14} strokeWidth={2} className="gender-icon" />
-              {:else if genderIcon(npc.gender) === "transgender"}
-                <IconTransgender size={14} strokeWidth={2} className="gender-icon" />
-              {/if}
+  <div class="space-y-3">
+    <div class="flex items-center gap-2">
+      <Input
+        type="text"
+        placeholder="Add NPC by name"
+        bind:value={newNpcName}
+        disabled={$isGenerating || addingNpc || !$currentStoryId}
+        onkeydown={(e) => {
+          if (e.key === "Enter") addNpc()
+        }}
+      />
+      <Button onclick={addNpc} disabled={$isGenerating || addingNpc || !$currentStoryId || !newNpcName.trim()}>
+        {addingNpc ? "Adding..." : "Add"}
+      </Button>
+    </div>
+    {#if $npcs.length === 0}
+      <div
+        class="grid place-items-center rounded-md border border-dashed p-8 text-center text-sm text-muted-foreground"
+      >
+        No known characters yet.
+      </div>
+    {:else}
+      {#each sortedNpcs as npc (npc.name)}
+        <div class={cn("rounded-lg border bg-card p-4", flashNpcNames.includes(npc.name) && "ring-2 ring-primary/30")}>
+          <div class="flex items-start justify-between gap-3">
+            <div class="min-w-0">
+              <div class="flex items-center gap-2">
+                <div class="truncate text-base font-semibold text-foreground">{npc.name}</div>
+                {#if genderIcon(npc.gender) === "male"}
+                  <IconMale size={14} strokeWidth={2} className="shrink-0 opacity-60" />
+                {:else if genderIcon(npc.gender) === "female"}
+                  <IconFemale size={14} strokeWidth={2} className="shrink-0 opacity-60" />
+                {:else if genderIcon(npc.gender) === "intersex"}
+                  <IconIntersex size={14} strokeWidth={2} className="shrink-0 opacity-60" />
+                {:else if genderIcon(npc.gender) === "transgender"}
+                  <IconTransgender size={14} strokeWidth={2} className="shrink-0 opacity-60" />
+                {/if}
+              </div>
+              <div class="mt-0.5 text-sm italic text-muted-foreground">
+                {npc.race}{npc.gender ? ` · ${npc.gender}` : ""}
+              </div>
             </div>
-            <div class="npc-race">{npc.race}{npc.gender ? ` · ${npc.gender}` : ""}</div>
-          </div>
-          <div class="npc-header-actions">
-            <button
-              class="btn-ghost small"
-              onclick={() => startNpcEdit(npc)}
-              disabled={savingNpc ||
-                editingNpcName === npc.name ||
-                (editingNpcName && editingNpcName !== npc.name) ||
-                deletingNpcName === npc.name ||
-                !$currentStoryId}
-              title={editingNpcName === npc.name ? "Editing NPC" : "Edit NPC"}
-              aria-label={editingNpcName === npc.name ? "Editing NPC" : "Edit NPC"}
-            >
-              <IconPencilSquare size={12} strokeWidth={2} />
-            </button>
-            <button
-              class="btn-ghost btn-ghost--danger small"
-              onclick={() => deleteNpc(npc)}
-              disabled={savingNpc || deletingNpcName !== null || !$currentStoryId}
-              title="Delete NPC"
-              aria-label="Delete NPC"
-            >
-              <IconTrash size={12} strokeWidth={2} className="npc-trash-icon" />
-            </button>
-          </div>
-        </div>
-
-        {#if editingNpcName === npc.name}
-          <div class="npc-edit">
-            <EditableFieldList fields={npcEditFields(npc)} />
-            <div class="modal__actions">
-              <button class="btn-ghost" onclick={cancelNpcEdit} disabled={savingNpc}>Cancel</button>
-              <button class="btn-primary" onclick={saveNpcEdit} disabled={savingNpc || !$currentStoryId}>
-                {savingNpc ? "Saving..." : "Save"}
-              </button>
+            <div class="flex items-center gap-1">
+              <Button
+                variant="outline"
+                size="icon"
+                class="h-8 w-8"
+                onclick={() => startNpcEdit(npc)}
+                disabled={savingNpc ||
+                  editingNpcName === npc.name ||
+                  (editingNpcName && editingNpcName !== npc.name) ||
+                  deletingNpcName === npc.name ||
+                  !$currentStoryId}
+                title={editingNpcName === npc.name ? "Editing NPC" : "Edit NPC"}
+                aria-label={editingNpcName === npc.name ? "Editing NPC" : "Edit NPC"}
+              >
+                <IconPencilSquare size={12} strokeWidth={2} />
+              </Button>
+              <Button
+                variant="outline"
+                size="icon"
+                class="h-8 w-8 border-destructive/40 text-destructive hover:bg-destructive/10 hover:text-destructive"
+                onclick={() => deleteNpc(npc)}
+                disabled={savingNpc || deletingNpcName !== null || !$currentStoryId}
+                title="Delete NPC"
+                aria-label="Delete NPC"
+              >
+                <IconTrash size={12} strokeWidth={2} />
+              </Button>
             </div>
           </div>
-        {:else}
-          {#if useNpcLocation}
-            <div class="npc-detail-row">
-              <IconMapPin size={13} strokeWidth={1.5} className="npc-icon" />
-              <span>{npc.current_location}</span>
+
+          {#if editingNpcName === npc.name}
+            <div class="mt-4 space-y-4">
+              <EditableFieldList fields={npcEditFields(npc)} />
+              <div class="flex items-center justify-end gap-2">
+                <Button variant="outline" onclick={cancelNpcEdit} disabled={savingNpc}>Cancel</Button>
+                <Button onclick={saveNpcEdit} disabled={savingNpc || !$currentStoryId}>
+                  {savingNpc ? "Saving..." : "Save"}
+                </Button>
+              </div>
             </div>
-          {/if}
-
-          <div class="npc-detail-row">
-            <IconDocument size={13} strokeWidth={1.5} className="npc-icon" />
-            <span>{npc.general_description || "Unknown description"}</span>
-          </div>
-
-          {#if useNpcAppearance}
-            {#if showBaselineDetails}
-              <div class="npc-detail-row">
-                <IconFace size={13} strokeWidth={1.5} className="npc-icon" />
-                <span>{npc.baseline_appearance}</span>
+          {:else}
+            {#if useNpcLocation}
+              <div class="mt-4 flex items-start gap-2 text-sm text-foreground">
+                <IconMapPin size={13} strokeWidth={1.5} className="mt-0.5 shrink-0 text-muted-foreground" />
+                <span>{npc.current_location}</span>
               </div>
             {/if}
 
-            <div class="npc-detail-row">
-              <IconFace size={13} strokeWidth={1.5} className="npc-icon" />
-              <span class="npc-diff">
-                {#each getDiffSegments(npc.baseline_appearance, npc.current_appearance) as segment}
-                  <span class:diff-added={segment.added}>{segment.text}</span>
-                {/each}
-              </span>
+            <div class="mt-3 flex items-start gap-2 text-sm text-foreground">
+              <IconDocument size={13} strokeWidth={1.5} className="mt-0.5 shrink-0 text-muted-foreground" />
+              <span>{npc.general_description || "Unknown description"}</span>
             </div>
 
-            <div class="npc-detail-row muted">
-              <IconShirt size={13} strokeWidth={1.5} className="npc-icon" />
-              <span>{npc.current_clothing}</span>
-            </div>
-          {/if}
+            {#if useNpcAppearance}
+              {#if showBaselineDetails}
+                <div class="mt-3 flex items-start gap-2 text-sm text-foreground">
+                  <IconFace size={13} strokeWidth={1.5} className="mt-0.5 shrink-0 text-muted-foreground" />
+                  <span>{npc.baseline_appearance}</span>
+                </div>
+              {/if}
 
-          {#if useNpcActivity}
-            <div class="npc-detail-row">
-              <IconDocument size={13} strokeWidth={1.5} className="npc-icon" />
-              <span>{npc.current_activity}</span>
-            </div>
-          {/if}
-
-          {#if (useNpcPersonalityTraits && npc.personality_traits.length > 0) || (useNpcMajorFlaws && npc.major_flaws.length > 0) || (useNpcQuirks && npc.quirks.length > 0) || (useNpcPerks && npc.perks.length > 0)}
-            <div class="npc-traits">
-              <IconStar size={13} strokeWidth={1.5} className="npc-icon npc-traits-icon" />
-              <div class="chips">
-                {#if useNpcPersonalityTraits}
-                  {#each npc.personality_traits as trait}
-                    <span class="chip">{trait}</span>
+              <div class="mt-3 flex items-start gap-2 text-sm text-foreground">
+                <IconFace size={13} strokeWidth={1.5} className="mt-0.5 shrink-0 text-muted-foreground" />
+                <span>
+                  {#each getDiffSegments(npc.baseline_appearance, npc.current_appearance) as segment}
+                    <span class={cn(segment.added && "font-semibold text-primary")}>{segment.text}</span>
                   {/each}
-                {/if}
-                {#if useNpcMajorFlaws}
-                  {#each npc.major_flaws as trait}
-                    <span class="chip">{trait}</span>
-                  {/each}
-                {/if}
-                {#if useNpcQuirks}
-                  {#each npc.quirks as trait}
-                    <span class="chip">{trait}</span>
-                  {/each}
-                {/if}
-                {#if useNpcPerks}
-                  {#each npc.perks as trait}
-                    <span class="chip">{trait}</span>
-                  {/each}
-                {/if}
+                </span>
               </div>
-            </div>
+
+              <div class="mt-3 flex items-start gap-2 text-sm italic text-muted-foreground">
+                <IconShirt size={13} strokeWidth={1.5} className="mt-0.5 shrink-0 text-muted-foreground" />
+                <span>{npc.current_clothing}</span>
+              </div>
+            {/if}
+
+            {#if useNpcActivity}
+              <div class="mt-3 flex items-start gap-2 text-sm text-foreground">
+                <IconDocument size={13} strokeWidth={1.5} className="mt-0.5 shrink-0 text-muted-foreground" />
+                <span>{npc.current_activity}</span>
+              </div>
+            {/if}
+
+            {#if (useNpcPersonalityTraits && npc.personality_traits.length > 0) || (useNpcMajorFlaws && npc.major_flaws.length > 0) || (useNpcQuirks && npc.quirks.length > 0) || (useNpcPerks && npc.perks.length > 0)}
+              <div class="mt-3 flex items-start gap-2">
+                <IconStar size={13} strokeWidth={1.5} className="mt-0.5 shrink-0 text-muted-foreground" />
+                <div class="flex flex-wrap gap-2">
+                  {#if useNpcPersonalityTraits}
+                    {#each npc.personality_traits as trait}
+                      <Badge variant="outline" class="rounded-full font-mono text-[11px]">{trait}</Badge>
+                    {/each}
+                  {/if}
+                  {#if useNpcMajorFlaws}
+                    {#each npc.major_flaws as trait}
+                      <Badge variant="outline" class="rounded-full font-mono text-[11px]">{trait}</Badge>
+                    {/each}
+                  {/if}
+                  {#if useNpcQuirks}
+                    {#each npc.quirks as trait}
+                      <Badge variant="outline" class="rounded-full font-mono text-[11px]">{trait}</Badge>
+                    {/each}
+                  {/if}
+                  {#if useNpcPerks}
+                    {#each npc.perks as trait}
+                      <Badge variant="outline" class="rounded-full font-mono text-[11px]">{trait}</Badge>
+                    {/each}
+                  {/if}
+                </div>
+              </div>
+            {/if}
           {/if}
-        {/if}
-      </div>
-    {/each}
-  {/if}
+        </div>
+      {/each}
+    {/if}
+  </div>
 {/snippet}
 
 {#if inline}
-  <div class="sidebar">
-    <div class="sidebar-header">
+  <div class="flex h-dvh flex-col overflow-hidden border-l bg-card">
+    <div class="border-b px-4 py-3">
       <NPCTrackerHeaderContent
         count={$npcs.length}
         {useNpcAppearance}
@@ -677,168 +690,31 @@
         onToggleBaseline={() => (showBaselineDetails = !showBaselineDetails)}
       />
     </div>
-    <div class="sidebar-body" data-scroll-root="modal" bind:this={sidebarBodyEl}>
-      {@render npcContent()}
-    </div>
+    <ScrollArea class="min-h-0 flex-1" bind:viewportRef={sidebarBodyEl}>
+      <div class="p-4">
+        {@render npcContent()}
+      </div>
+    </ScrollArea>
   </div>
-{:else if $showNPCTracker}
-  <!-- svelte-ignore a11y_click_events_have_key_events -->
-  <!-- svelte-ignore a11y_no_static_element_interactions -->
-  <div class="overlay" onclick={() => showNPCTracker.set(false)}></div>
-  <div class="panel">
-    <div class="panel-header">
-      <NPCTrackerHeaderContent
-        count={$npcs.length}
-        {useNpcAppearance}
-        {showBaselineDetails}
-        disableBaselineToggle={$npcs.length === 0}
-        showClose
-        onToggleBaseline={() => (showBaselineDetails = !showBaselineDetails)}
-        onClose={() => showNPCTracker.set(false)}
-      />
-    </div>
-    <div class="panel-body" data-scroll-root="modal" bind:this={panelBodyEl}>
-      {@render npcContent()}
-    </div>
-  </div>
+{:else}
+  <Sheet open={$showNPCTracker} onOpenChange={(next) => showNPCTracker.set(next)}>
+    <SheetContent side="right" class="p-0">
+      <div class="border-b px-4 py-3">
+        <NPCTrackerHeaderContent
+          count={$npcs.length}
+          {useNpcAppearance}
+          {showBaselineDetails}
+          disableBaselineToggle={$npcs.length === 0}
+          showClose
+          onToggleBaseline={() => (showBaselineDetails = !showBaselineDetails)}
+          onClose={() => showNPCTracker.set(false)}
+        />
+      </div>
+      <ScrollArea class="max-h-[calc(100dvh-3.25rem)]" bind:viewportRef={panelBodyEl}>
+        <div class="p-4">
+          {@render npcContent()}
+        </div>
+      </ScrollArea>
+    </SheetContent>
+  </Sheet>
 {/if}
-
-<style>
-  /* ── Desktop sidebar ──────────────────────────────── */
-  .sidebar {
-    border-left: 1px solid var(--border);
-  }
-
-  /* ── Header icon ───────────────────────────────────── */
-  :global(.npc-header-icon) {
-    color: var(--text);
-    flex-shrink: 0;
-    margin-right: 0.4rem;
-    opacity: 0.6;
-  }
-
-  /* ── Shared content styles ────────────────────────── */
-  .sidebar-body,
-  .panel-body {
-    padding: 0.75rem;
-    gap: 0.75rem;
-  }
-
-  .npc-add {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-  }
-
-  .npc-add-input {
-    flex: 1;
-    width: auto;
-  }
-
-  .npc-add-btn {
-    flex-shrink: 0;
-  }
-
-  /* ── NPC Card ──────────────────────────────────────── */
-  .npc-card {
-    display: flex;
-    flex-direction: column;
-    gap: 0.35rem;
-  }
-
-  .npc-header {
-    display: flex;
-    align-items: flex-start;
-    justify-content: space-between;
-    gap: 0.5rem;
-  }
-
-  .npc-header-actions {
-    display: flex;
-    align-items: center;
-    gap: 0.35rem;
-  }
-
-  :global(.npc-trash-icon) {
-    color: currentColor;
-  }
-
-  .npc-identity {
-    display: flex;
-    flex-direction: column;
-    gap: 0.1rem;
-  }
-
-  .npc-name {
-    font-weight: 600;
-    font-family: var(--font-story);
-    color: var(--text);
-    font-size: 1rem;
-    display: flex;
-    align-items: center;
-    gap: 0.35rem;
-  }
-  :global(.gender-icon) {
-    color: var(--text);
-    flex-shrink: 0;
-    opacity: 0.5;
-  }
-  .npc-race {
-    font-size: 0.8rem;
-    color: var(--text-dim);
-    font-style: italic;
-  }
-
-  /* ── Detail rows with icons ────────────────────────── */
-  .npc-detail-row {
-    display: flex;
-    align-items: flex-start;
-    gap: 0.4rem;
-    font-size: 0.85rem;
-    color: var(--text);
-    line-height: 1.4;
-  }
-  .npc-detail-row.muted {
-    color: var(--text-dim);
-    font-style: italic;
-  }
-
-  .npc-diff {
-    display: inline;
-  }
-
-  .npc-diff .diff-added {
-    color: var(--accent, var(--text));
-    font-weight: 700;
-  }
-
-  :global(.npc-icon) {
-    color: var(--text);
-    flex-shrink: 0;
-    margin-top: 2px;
-    opacity: 0.35;
-  }
-
-  .npc-edit {
-    display: flex;
-    flex-direction: column;
-    gap: 0.65rem;
-    margin-top: 0.5rem;
-  }
-
-  .npc-traits {
-    display: flex;
-    align-items: flex-start;
-    gap: 0.4rem;
-    margin-top: 0.1rem;
-  }
-
-  .npc-traits :global(.chips) {
-    gap: 0.35rem;
-  }
-
-  :global(.npc-traits-icon) {
-    margin-top: 2px;
-    opacity: 0.45;
-  }
-</style>

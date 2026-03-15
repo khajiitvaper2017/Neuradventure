@@ -5,15 +5,23 @@
   import { stories as storiesService } from "@/services/stories"
   import { streamClient } from "@/services/stream"
   import { navigate, openCharSheetForCharacter, showError } from "@/stores/ui"
-  import { autoresize } from "@/utils/actions/autoresize"
   import { loadStoryById } from "@/utils/storyLoader"
   import { loadPromptHistory, savePromptHistory, removePromptHistory } from "@/utils/promptHistory"
   import { createRequestId } from "@/utils/ids"
   import { clearPendingRequest, getPendingRequest, setPendingRequest } from "@/utils/pendingRequests"
+  import { cn } from "@/utils.js"
   import IconDocument from "@/components/icons/IconDocument.svelte"
   import IconPencilSquare from "@/components/icons/IconPencilSquare.svelte"
   import PromptHistoryPanel from "@/components/panels/PromptHistoryPanel.svelte"
   import StoryModulesPanel from "@/components/panels/StoryModulesPanel.svelte"
+  import * as Select from "@/components/ui/select"
+  import { Button } from "@/components/ui/button"
+  import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+  import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+  import { Input } from "@/components/ui/input"
+  import { Label } from "@/components/ui/label"
+  import { Textarea } from "@/components/ui/textarea"
+  import { ScrollArea } from "@/components/ui/scroll-area"
   import NpcLibraryPicker from "@/features/story/NpcLibraryPicker.svelte"
   import { generateStoryFromDescription } from "@/features/story/actions"
   import { characterToNpc } from "@/utils/characterToNpc"
@@ -40,7 +48,6 @@
   let savedCharacters: StoryCharacterGroup[] = []
   let loadingCharacters = false
   let loadingNpcs = false
-  let showCharacterDropdown = false
   let savedNpcs: StoryNpcGroup[] = []
   let selectedPlayableKey: string | null = null
   let selectedCharacterIdForSheet: number | null = null
@@ -186,11 +193,6 @@
 
   $: hasPlayableOptions = playableOptions.length > 0
 
-  function toggleCharacterDropdown() {
-    if (loadingCharacters || loadingNpcs || !hasPlayableOptions) return
-    showCharacterDropdown = !showCharacterDropdown
-  }
-
   function selectPlayable(key: string) {
     const option = playableOptions.find((o) => o.key === key)
     if (!option) return
@@ -208,7 +210,6 @@
       }
     }
     selectedPlayableKey = key
-    showCharacterDropdown = false
   }
 
   function characterIdFromKey(key: string | null): number | null {
@@ -231,11 +232,11 @@
   }
 
   $: selectedOption = playableOptions.find((o) => o.key === selectedPlayableKey) ?? null
-  $: selectedCharacterLabel = selectedOption
-    ? `${selectedOption.name} — ${selectedOption.storyLabel}${selectedOption.kind === "npc" ? " (NPC)" : ""}`
-    : $pendingCharacter
-      ? $pendingCharacter.name
-      : "Select a character"
+  $: playableSelectOptions = playableOptions.map((o) => ({
+    value: o.key,
+    label: `${o.name}${o.kind === "npc" ? " (NPC)" : ""}`,
+  }))
+  $: playableSelectLabel = playableSelectOptions.find((o) => o.value === selectedPlayableKey)?.label ?? ""
 
   async function runGenerateStory(
     prompt: string,
@@ -417,262 +418,224 @@
   }
 </script>
 
-<svelte:window on:click={() => (showCharacterDropdown = false)} />
-
-<div class="screen new-story">
-  <header class="screen-header">
-    <button class="back-btn" onclick={() => navigate("home")}>← Back</button>
-    <h2 class="screen-title">New Story</h2>
+<div class="mx-auto flex h-dvh w-full max-w-3xl flex-col">
+  <header class="flex items-center gap-3 border-b px-4 py-3">
+    <Button variant="ghost" class="-ml-2" onclick={() => navigate("home")}>← Back</Button>
+    <h2 class="text-base font-semibold text-foreground">New Story</h2>
   </header>
 
-  <div class="form-scroll" data-scroll-root="screen">
-    <div class="field generate-field">
-      <label for="story-generate">Generate from Description</label>
-      <div class="generate-row">
-        <textarea
-          id="story-generate"
-          bind:value={$pendingStoryGenerateDescription}
-          placeholder="e.g. a heist in a magical library full of forbidden knowledge"
-          rows="2"
-          use:autoresize={$pendingStoryGenerateDescription}
-        ></textarea>
-        <button
-          class="btn-ghost generate-btn"
-          onclick={generate}
-          disabled={generating || !$pendingStoryGenerateDescription.trim()}
-          >{generating ? "Generating..." : "✦ Generate"}</button
-        >
-      </div>
-      <PromptHistoryPanel items={storyPromptHistory} onUse={useStoryPrompt} onDelete={deleteStoryPrompt} />
-    </div>
-
-    <div class="field">
-      <label for="story-title">Story Title</label>
-      <input id="story-title" type="text" bind:value={$pendingStoryTitle} placeholder="Name your adventure..." />
-    </div>
-
-    <div class="field">
-      <label for="story-scenario">Opening Scenario</label>
-      <textarea
-        id="story-scenario"
-        bind:value={$pendingStoryScenario}
-        placeholder="Describe the starting situation. Where is your character? What's happening?"
-        rows="6"
-        use:autoresize={$pendingStoryScenario}
-      ></textarea>
-    </div>
-
-    <div class="field">
-      <label for="story-location">Starting Location</label>
-      <input
-        id="story-location"
-        type="text"
-        bind:value={$pendingStoryLocation}
-        placeholder="e.g. The lower decks of the airship"
-      />
-    </div>
-
-    <div class="field">
-      <div class="modules-shell">
-        <div class="modules-shell-header">
-          <span>Story Modules</span>
-          <button
-            class="modules-shell-action"
-            onclick={() => (showModulesPanel = true)}
-            disabled={generating || submitting}
-          >
-            Edit
-          </button>
-        </div>
-        <div class="modules-shell-body">
-          <div class="modules-shell-summary">
-            <div class="modules-shell-line">{modulesPreviewCore}</div>
-            <div class="modules-shell-line">{modulesPreviewPlayer}</div>
-            <div class="modules-shell-line">{modulesPreviewNpc}</div>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <div class="field">
-      <NpcLibraryPicker
-        characters={savedCharacters}
-        selectedIds={$pendingStoryNpcCharacterIds}
-        disabled={!activeModules.track_npcs}
-        locked={generating || submitting}
-        excludeCharacterId={$pendingCharacterId}
-        onChange={setNpcCharacterIds}
-        onOpenModules={() => (showModulesPanel = true)}
-      />
-    </div>
-
-    {#if $pendingStoryNPCs.length > 0}
-      <div class="shared-summary shared-summary--roomy">
-        <div class="shared-summary__header">Generated NPCs</div>
-        <div class="shared-summary__list">
-          {#each $pendingStoryNPCs as npc}
-            <div class="shared-card">
-              <div class="shared-summary__name">{npc.name}</div>
-              <div class="shared-summary__details">
-                {npc.race} · {npc.current_location || "Unknown"}
-              </div>
-              <div class="shared-summary__details">
-                {[...npc.personality_traits, ...npc.quirks, ...npc.perks].join(", ") || "No traits"}
-              </div>
+  <ScrollArea class="min-h-0 flex-1">
+    <div class="px-4 py-4">
+      <div class="space-y-6">
+        <Card>
+          <CardHeader>
+            <CardTitle>Generate from description</CardTitle>
+            <CardDescription>Optional: generate modules, character, and NPCs from a prompt.</CardDescription>
+          </CardHeader>
+          <CardContent class="space-y-3">
+            <div class="flex items-start gap-2">
+              <Textarea
+                id="story-generate"
+                bind:value={$pendingStoryGenerateDescription}
+                placeholder="e.g. a heist in a magical library full of forbidden knowledge"
+                rows={2}
+              />
+              <Button
+                variant="outline"
+                class="shrink-0"
+                onclick={generate}
+                disabled={generating || !$pendingStoryGenerateDescription.trim()}
+              >
+                {generating ? "Generating..." : "✦ Generate"}
+              </Button>
             </div>
-          {/each}
-        </div>
-      </div>
-    {/if}
+            <PromptHistoryPanel items={storyPromptHistory} onUse={useStoryPrompt} onDelete={deleteStoryPrompt} />
+          </CardContent>
+        </Card>
 
-    <div class="field">
-      <label for="saved-character">Use Character From Stories</label>
-      <div class="shared-select-row">
-        <!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions -->
-        <div class="shared-select-wrap" onclick={(e) => e.stopPropagation()}>
-          <button
-            id="saved-character"
-            class="shared-select-btn"
-            onclick={toggleCharacterDropdown}
-            disabled={generating || submitting || loadingCharacters || loadingNpcs || !hasPlayableOptions}
-            aria-haspopup="listbox"
-            aria-expanded={showCharacterDropdown}
-          >
-            <span
-              >{loadingCharacters || loadingNpcs
-                ? "Loading characters..."
-                : !hasPlayableOptions
-                  ? "No characters yet"
-                  : selectedCharacterLabel}</span
-            >
-            <span class="shared-select-caret"></span>
-          </button>
-          {#if showCharacterDropdown}
-            <div class="shared-select-menu" role="listbox">
-              {#each playableOptions as option (option.key)}
-                <div class="shared-select-item-row">
-                  <button
-                    class="shared-select-item"
-                    role="option"
-                    aria-selected={selectedPlayableKey === option.key}
-                    onclick={() => selectPlayable(option.key)}
-                    disabled={generating || submitting}
-                  >
-                    <span class="shared-select-name">
-                      {option.name}
-                      {option.kind === "npc" ? " (NPC)" : ""}
-                    </span>
-                    <span class="shared-select-meta">{option.storyLabel}</span>
-                  </button>
-                  {#if option.kind === "character"}
-                    <button
-                      class="shared-select-item-action"
-                      title="Details"
-                      aria-label="Character details"
-                      disabled={generating || submitting}
-                      onclick={(e) => {
-                        e.stopPropagation()
-                        const id = characterIdFromKey(option.key)
-                        if (!id) return
-                        showCharacterDropdown = false
-                        openCharSheetForCharacter(id)
-                      }}
-                    >
-                      <IconDocument size={16} strokeWidth={1.6} />
-                    </button>
-                  {/if}
+        <div class="space-y-2">
+          <Label for="story-title">Story Title</Label>
+          <Input id="story-title" type="text" bind:value={$pendingStoryTitle} placeholder="Name your adventure..." />
+        </div>
+
+        <div class="space-y-2">
+          <Label for="story-scenario">Opening Scenario</Label>
+          <Textarea
+            id="story-scenario"
+            bind:value={$pendingStoryScenario}
+            placeholder="Describe the starting situation. Where is your character? What's happening?"
+            rows={6}
+          />
+        </div>
+
+        <div class="space-y-2">
+          <Label for="story-location">Starting Location</Label>
+          <Input
+            id="story-location"
+            type="text"
+            bind:value={$pendingStoryLocation}
+            placeholder="e.g. The lower decks of the airship"
+          />
+        </div>
+
+        <Card>
+          <CardHeader class="flex-row items-start justify-between gap-3 space-y-0">
+            <div class="space-y-1">
+              <CardTitle>Story Modules</CardTitle>
+              <CardDescription>Configure which systems are active for this story.</CardDescription>
+            </div>
+            <Button variant="outline" onclick={() => (showModulesPanel = true)} disabled={generating || submitting}>
+              Edit
+            </Button>
+          </CardHeader>
+          <CardContent class="space-y-1 text-sm text-muted-foreground">
+            <div>{modulesPreviewCore}</div>
+            <div>{modulesPreviewPlayer}</div>
+            <div>{modulesPreviewNpc}</div>
+          </CardContent>
+        </Card>
+
+        <NpcLibraryPicker
+          characters={savedCharacters}
+          selectedIds={$pendingStoryNpcCharacterIds}
+          disabled={!activeModules.track_npcs}
+          locked={generating || submitting}
+          excludeCharacterId={$pendingCharacterId}
+          onChange={setNpcCharacterIds}
+          onOpenModules={() => (showModulesPanel = true)}
+        />
+
+        {#if $pendingStoryNPCs.length > 0}
+          <Card>
+            <CardHeader>
+              <CardTitle>Generated NPCs</CardTitle>
+            </CardHeader>
+            <CardContent class="grid gap-3 sm:grid-cols-2">
+              {#each $pendingStoryNPCs as npc}
+                <div class="rounded-lg border bg-card p-3">
+                  <div class="text-sm font-medium text-foreground">{npc.name}</div>
+                  <div class="mt-1 text-xs text-muted-foreground">{npc.race} · {npc.current_location || "Unknown"}</div>
+                  <div class="mt-1 text-xs text-muted-foreground">
+                    {[...npc.personality_traits, ...npc.quirks, ...npc.perks].join(", ") || "No traits"}
+                  </div>
                 </div>
               {/each}
-            </div>
-          {/if}
-        </div>
-        <button class="btn-ghost" onclick={() => navigate("char-create")} disabled={generating || submitting}>
-          New
-        </button>
-        <button
-          class="btn-ghost btn-icon"
-          onclick={() => {
-            if (!selectedCharacterIdForSheet) return
-            showCharacterDropdown = false
-            openCharSheetForCharacter(selectedCharacterIdForSheet)
-          }}
-          disabled={generating || submitting || !selectedCharacterIdForSheet}
-          title={selectedCharacterIdForSheet ? "Character details" : "Details available for story characters only"}
-        >
-          <IconDocument size={16} strokeWidth={1.6} />
-          Details
-        </button>
-        <button
-          class="btn-ghost"
-          onclick={refreshPlayable}
-          disabled={generating || submitting || loadingCharacters || loadingNpcs}
-        >
-          Refresh
-        </button>
+            </CardContent>
+          </Card>
+        {/if}
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Character</CardTitle>
+            <CardDescription>Pick a saved character (or NPC) to play as.</CardDescription>
+          </CardHeader>
+          <CardContent class="space-y-3">
+            {#if loadingCharacters || loadingNpcs}
+              <div class="rounded-lg border bg-card p-4 text-sm text-muted-foreground">Loading characters…</div>
+            {:else if !hasPlayableOptions}
+              <div class="rounded-lg border border-dashed bg-card p-6 text-center text-sm text-muted-foreground">
+                No characters yet.
+              </div>
+            {:else}
+              <div class="flex flex-wrap items-center gap-2">
+                <div class="min-w-[14rem] flex-1">
+                  <Select.Root
+                    type="single"
+                    value={selectedPlayableKey ?? ""}
+                    items={playableSelectOptions}
+                    disabled={generating || submitting || loadingCharacters || loadingNpcs || !hasPlayableOptions}
+                    onValueChange={(next) => selectPlayable(next)}
+                  >
+                    <Select.Trigger
+                      class="w-full"
+                      aria-label="Character"
+                      data-placeholder={!selectedPlayableKey ? true : undefined}
+                    >
+                      {selectedPlayableKey ? playableSelectLabel : "Select a character…"}
+                    </Select.Trigger>
+                    <Select.Content>
+                      {#each playableSelectOptions as option (option.value)}
+                        <Select.Item {...option} />
+                      {/each}
+                    </Select.Content>
+                  </Select.Root>
+                </div>
+                <Button variant="outline" onclick={() => navigate("char-create")} disabled={generating || submitting}
+                  >New</Button
+                >
+                <Button
+                  variant="outline"
+                  onclick={() => {
+                    if (!selectedCharacterIdForSheet) return
+                    openCharSheetForCharacter(selectedCharacterIdForSheet)
+                  }}
+                  disabled={generating || submitting || !selectedCharacterIdForSheet}
+                  title={selectedCharacterIdForSheet
+                    ? "Character details"
+                    : "Details available for story characters only"}
+                >
+                  <IconDocument size={16} strokeWidth={1.6} />
+                  Details
+                </Button>
+                <Button
+                  variant="outline"
+                  onclick={refreshPlayable}
+                  disabled={generating || submitting || loadingCharacters || loadingNpcs}
+                >
+                  Refresh
+                </Button>
+              </div>
+            {/if}
+
+            {#if charData}
+              <div class="rounded-lg border bg-card p-4">
+                <div class="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Selected</div>
+                <div class="mt-2 text-lg font-semibold text-foreground">{charData.name}</div>
+                <div class="mt-1 text-sm text-muted-foreground">
+                  {charData.gender} · {[...charData.personality_traits, ...charData.quirks, ...charData.perks].join(
+                    ", ",
+                  ) || "No traits"}
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  class="mt-3"
+                  onclick={() => navigate("char-create")}
+                  disabled={generating || submitting}
+                  title="Edit character"
+                  aria-label="Edit character"
+                >
+                  <IconPencilSquare size={12} strokeWidth={2} />
+                  Character
+                </Button>
+              </div>
+            {:else}
+              <div class="rounded-lg border border-dashed bg-card p-4">
+                <div class="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Selected</div>
+                <div class="mt-2 text-sm text-muted-foreground">No character selected yet.</div>
+                <Button class="mt-3" onclick={() => navigate("char-create")} disabled={generating || submitting}>
+                  New Character
+                </Button>
+              </div>
+            {/if}
+          </CardContent>
+        </Card>
       </div>
     </div>
+  </ScrollArea>
 
-    {#if charData}
-      <div class="shared-summary shared-summary--tight">
-        <div class="shared-summary__header">Character</div>
-        <div class="shared-summary__name shared-summary__name--lg">{charData.name}</div>
-        <div class="shared-summary__details">
-          {charData.gender} ·
-          {[...charData.personality_traits, ...charData.quirks, ...charData.perks].join(", ") || "No traits"}
-        </div>
-        <button
-          class="btn-ghost small edit-character-btn"
-          onclick={() => navigate("char-create")}
-          disabled={generating || submitting}
-          title="Edit character"
-          aria-label="Edit character"
-        >
-          <IconPencilSquare size={12} strokeWidth={2} />
-          <span>Character</span>
-        </button>
-      </div>
-    {:else}
-      <div class="shared-summary shared-summary--empty">
-        <div class="shared-summary__header">Character</div>
-        <div class="shared-summary__details">No character selected yet.</div>
-        <button class="btn-accent small" onclick={() => navigate("char-create")} disabled={generating || submitting}>
-          New Character
-        </button>
-      </div>
-    {/if}
-  </div>
+  <Dialog open={showModulesPanel} onOpenChange={(next) => (showModulesPanel = next)}>
+    <DialogContent class="max-w-xl">
+      <DialogHeader>
+        <DialogTitle>Story Modules</DialogTitle>
+      </DialogHeader>
+      <StoryModulesPanel modules={activeModules} {setModules} bare />
+    </DialogContent>
+  </Dialog>
 
-  {#if showModulesPanel}
-    <!-- svelte-ignore a11y_click_events_have_key_events -->
-    <!-- svelte-ignore a11y_no_static_element_interactions -->
-    <div class="overlay" onclick={() => (showModulesPanel = false)}></div>
-    <div class="panel panel--wide">
-      <div class="panel-header">
-        <span>Story Modules</span>
-        <button class="panel-close" onclick={() => (showModulesPanel = false)} aria-label="Close">×</button>
-      </div>
-      <div class="panel-body" data-scroll-root="modal">
-        <StoryModulesPanel modules={activeModules} {setModules} bare />
-      </div>
-    </div>
-  {/if}
-
-  <div class="actions">
-    <button class="btn-accent full" onclick={startAdventure} disabled={submitting || generating}>
+  <div class="border-t px-4 py-4">
+    <Button class="w-full" onclick={startAdventure} disabled={submitting || generating}>
       {submitting ? "Creating..." : "Start Adventure →"}
-    </button>
+    </Button>
   </div>
 </div>
-
-<style>
-  .new-story {
-    display: flex;
-    flex-direction: column;
-    height: 100%;
-  }
-  .edit-character-btn {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.35rem;
-  }
-</style>

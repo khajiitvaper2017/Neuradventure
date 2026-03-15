@@ -14,9 +14,15 @@
   import { character, currentStoryId, currentStoryModules, llmUpdateId } from "@/stores/game"
   import { timeouts } from "@/stores/settings"
   import type { MainCharacterState } from "@/shared/types"
+  import { cn } from "@/utils.js"
   import { genderIcon, normalizeGender, splitCsv } from "@/utils/text"
   import EditableFieldList from "@/components/inputs/EditableFieldList.svelte"
   import type { EditField } from "@/components/inputs/editableFieldTypes"
+  import { Badge } from "@/components/ui/badge"
+  import { Button } from "@/components/ui/button"
+  import { Input } from "@/components/ui/input"
+  import { Sheet, SheetContent } from "@/components/ui/sheet"
+  import { ScrollArea } from "@/components/ui/scroll-area"
   import IconMale from "@/components/icons/IconMale.svelte"
   import IconFemale from "@/components/icons/IconFemale.svelte"
   import IconIntersex from "@/components/icons/IconIntersex.svelte"
@@ -420,135 +426,144 @@
 {#snippet charContent()}
   {#if displayCharacter}
     {#if editing}
-      <div class="cs-edit">
+      <div class="space-y-4">
         <EditableFieldList fields={characterFields()} />
         {#if useInventory}
-          <div class="field">
-            <div class="label-row">
-              <!-- svelte-ignore a11y_label_has_associated_control -->
-              <label>Inventory</label>
-              <button class="btn-ghost btn-mini" onclick={addInventoryItem} disabled={saving}>Add Item</button>
+          <div class="space-y-2">
+            <div class="flex items-center justify-between gap-3">
+              <div class="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Inventory</div>
+              <Button variant="outline" size="sm" class="h-8" onclick={addInventoryItem} disabled={saving}
+                >Add Item</Button
+              >
             </div>
             {#if draft.inventory.length === 0}
-              <div class="cs-empty-edit">No items yet.</div>
+              <div class="text-sm text-muted-foreground">No items yet.</div>
             {:else}
               {#each draft.inventory as item, index}
-                <div class="cs-inv-row">
-                  <input
-                    class="text-input text-input--fluid"
+                <div class="grid grid-cols-[1fr_1.3fr_auto] items-center gap-2">
+                  <Input
                     type="text"
                     value={item.name}
                     placeholder="Item name"
                     oninput={(e) => updateInventoryItem(index, "name", (e.target as HTMLInputElement).value)}
                   />
-                  <input
-                    class="text-input text-input--fluid"
+                  <Input
                     type="text"
                     value={item.description}
                     placeholder="Description"
                     oninput={(e) => updateInventoryItem(index, "description", (e.target as HTMLInputElement).value)}
                   />
-                  <button
-                    class="btn-ghost btn-ghost--danger small cs-inv-remove"
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    class="h-9 w-9 border-destructive/40 text-destructive hover:bg-destructive/10 hover:text-destructive"
                     onclick={() => removeInventoryItem(index)}
                     aria-label="Remove item"
                   >
                     ×
-                  </button>
+                  </Button>
                 </div>
               {/each}
             {/if}
           </div>
         {/if}
-        <div class="modal__actions">
-          <button class="btn-ghost" onclick={cancelEdit} disabled={saving}>Cancel</button>
-          <button class="btn-primary" onclick={saveCharacter} disabled={saving || !$currentStoryId}>
+        <div class="flex items-center justify-end gap-2">
+          <Button variant="outline" onclick={cancelEdit} disabled={saving}>Cancel</Button>
+          <Button onclick={saveCharacter} disabled={saving || !$currentStoryId}>
             {saving ? "Saving..." : "Save"}
-          </button>
+          </Button>
         </div>
       </div>
     {:else}
-      <div class="surface cs-section cs-identity" class:flash={flashIdentity}>
-        <div class="cs-identity-name">
-          {displayCharacter.name}
+      <div class={cn("rounded-lg border bg-card p-4", flashIdentity && "ring-2 ring-primary/30")}>
+        <div class="flex items-center gap-2 text-lg font-semibold text-foreground">
+          <span class="truncate">{displayCharacter.name}</span>
           {#if genderIcon(displayCharacter.gender) === "male"}
-            <IconMale size={14} strokeWidth={2} className="gender-icon" />
+            <IconMale size={14} strokeWidth={2} className="shrink-0 opacity-60" />
           {:else if genderIcon(displayCharacter.gender) === "female"}
-            <IconFemale size={14} strokeWidth={2} className="gender-icon" />
+            <IconFemale size={14} strokeWidth={2} className="shrink-0 opacity-60" />
           {:else if genderIcon(displayCharacter.gender) === "intersex"}
-            <IconIntersex size={14} strokeWidth={2} className="gender-icon" />
+            <IconIntersex size={14} strokeWidth={2} className="shrink-0 opacity-60" />
           {:else if genderIcon(displayCharacter.gender) === "transgender"}
-            <IconTransgender size={14} strokeWidth={2} className="gender-icon" />
+            <IconTransgender size={14} strokeWidth={2} className="shrink-0 opacity-60" />
           {/if}
         </div>
-        <div class="cs-identity-detail">
+        <div class="mt-1 text-sm italic text-muted-foreground">
           {displayCharacter.race}{displayCharacter.gender ? ` · ${displayCharacter.gender}` : ""}
         </div>
       </div>
 
       {#if showBaselineDetails}
-        <div class="surface cs-section" class:flash={flashAppearance}>
-          <div class="cs-section-header">
-            <IconFace size={14} strokeWidth={1.5} className="cs-icon" />
-            <span class="section-label">Description</span>
+        <div class={cn("mt-3 rounded-lg border bg-card p-4", flashAppearance && "ring-2 ring-primary/30")}>
+          <div class="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+            <IconFace size={14} strokeWidth={1.5} className="shrink-0 opacity-70" />
+            <span>Description</span>
           </div>
-          <div class="cs-value">{displayCharacter.general_description || "Unknown description"}</div>
+          <div class="mt-2 whitespace-pre-line text-sm leading-relaxed text-foreground">
+            {displayCharacter.general_description || "Unknown description"}
+          </div>
         </div>
       {/if}
 
       {#if useAppearance}
         {#if showBaselineDetails}
-          <div class="surface cs-section" class:flash={flashAppearance}>
-            <div class="cs-section-header">
-              <IconFace size={14} strokeWidth={1.5} className="cs-icon" />
-              <span class="section-label">Baseline Appearance</span>
+          <div class={cn("mt-3 rounded-lg border bg-card p-4", flashAppearance && "ring-2 ring-primary/30")}>
+            <div class="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+              <IconFace size={14} strokeWidth={1.5} className="shrink-0 opacity-70" />
+              <span>Baseline Appearance</span>
             </div>
-            <div class="cs-value">{displayCharacter.baseline_appearance}</div>
+            <div class="mt-2 whitespace-pre-line text-sm leading-relaxed text-foreground">
+              {displayCharacter.baseline_appearance}
+            </div>
           </div>
         {/if}
 
-        <div class="surface cs-section" class:flash={flashAppearance}>
-          <div class="cs-section-header">
-            <IconFace size={14} strokeWidth={1.5} className="cs-icon" />
-            <span class="section-label">Current Appearance</span>
+        <div class={cn("mt-3 rounded-lg border bg-card p-4", flashAppearance && "ring-2 ring-primary/30")}>
+          <div class="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+            <IconFace size={14} strokeWidth={1.5} className="shrink-0 opacity-70" />
+            <span>Current Appearance</span>
           </div>
-          <div class="cs-value">{displayCharacter.current_appearance}</div>
+          <div class="mt-2 whitespace-pre-line text-sm leading-relaxed text-foreground">
+            {displayCharacter.current_appearance}
+          </div>
         </div>
 
-        <div class="surface cs-section" class:flash={flashClothing}>
-          <div class="cs-section-header">
-            <IconShirt size={14} strokeWidth={1.5} className="cs-icon" />
-            <span class="section-label">Wearing</span>
+        <div class={cn("mt-3 rounded-lg border bg-card p-4", flashClothing && "ring-2 ring-primary/30")}>
+          <div class="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+            <IconShirt size={14} strokeWidth={1.5} className="shrink-0 opacity-70" />
+            <span>Wearing</span>
           </div>
-          <div class="cs-value">{displayCharacter.current_clothing}</div>
+          <div class="mt-2 whitespace-pre-line text-sm leading-relaxed text-foreground">
+            {displayCharacter.current_clothing}
+          </div>
         </div>
       {/if}
 
       {#if showTraitSection && ((usePersonalityTraits && displayCharacter.personality_traits.length > 0) || (useMajorFlaws && displayCharacter.major_flaws.length > 0) || (useQuirks && displayCharacter.quirks.length > 0) || (usePerks && displayCharacter.perks.length > 0))}
-        <div class="surface cs-section">
-          <div class="cs-section-header">
-            <IconStar size={14} strokeWidth={1.5} className="cs-icon" />
-            <span class="section-label">Traits · Flaws · Quirks · Perks</span>
+        <div class="mt-3 rounded-lg border bg-card p-4">
+          <div class="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+            <IconStar size={14} strokeWidth={1.5} className="shrink-0 opacity-70" />
+            <span>Traits · Flaws · Quirks · Perks</span>
           </div>
-          <div class="chips">
+          <div class="mt-3 flex flex-wrap gap-2">
             {#if usePersonalityTraits}
               {#each displayCharacter.personality_traits as t}
-                <span class="chip">{t}</span>
+                <Badge variant="outline" class="rounded-full font-mono text-[11px]">{t}</Badge>
               {/each}
             {/if}
             {#if useMajorFlaws}
               {#each displayCharacter.major_flaws as t}
-                <span class="chip">{t}</span>
+                <Badge variant="outline" class="rounded-full font-mono text-[11px]">{t}</Badge>
               {/each}
             {/if}
             {#if useQuirks}
               {#each displayCharacter.quirks as t}
-                <span class="chip">{t}</span>
+                <Badge variant="outline" class="rounded-full font-mono text-[11px]">{t}</Badge>
               {/each}
             {/if}
             {#if usePerks}
               {#each displayCharacter.perks as t}
-                <span class="chip">{t}</span>
+                <Badge variant="outline" class="rounded-full font-mono text-[11px]">{t}</Badge>
               {/each}
             {/if}
           </div>
@@ -556,21 +571,21 @@
       {/if}
 
       {#if useInventory}
-        <div class="surface cs-section" class:flash={flashInventory}>
-          <div class="cs-section-header">
-            <IconCube size={14} strokeWidth={1.5} className="cs-icon" />
-            <span class="section-label">Inventory ({displayCharacter.inventory.length})</span>
+        <div class={cn("mt-3 rounded-lg border bg-card p-4", flashInventory && "ring-2 ring-primary/30")}>
+          <div class="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+            <IconCube size={14} strokeWidth={1.5} className="shrink-0 opacity-70" />
+            <span>Inventory ({displayCharacter.inventory.length})</span>
           </div>
           {#if displayCharacter.inventory.length === 0}
-            <div class="cs-value muted">Nothing</div>
+            <div class="mt-2 text-sm italic text-muted-foreground">Nothing</div>
           {:else}
-            <ul class="cs-inventory">
+            <ul class="mt-3 space-y-2">
               {#each displayCharacter.inventory as item}
-                <li>
-                  <IconDotSmall size={12} strokeWidth={1.5} className="cs-item-icon" />
-                  <div class="cs-item-text">
-                    <span class="cs-item-name">{item.name}</span>
-                    <span class="cs-item-desc">{item.description}</span>
+                <li class="flex items-start gap-2">
+                  <IconDotSmall size={12} strokeWidth={1.5} className="mt-1 shrink-0 text-muted-foreground" />
+                  <div class="min-w-0">
+                    <div class="text-sm font-medium text-foreground">{item.name}</div>
+                    <div class="mt-0.5 text-xs text-muted-foreground">{item.description}</div>
                   </div>
                 </li>
               {/each}
@@ -580,226 +595,103 @@
       {/if}
     {/if}
   {:else}
-    <div class="empty">No active character</div>
+    <div class="grid place-items-center rounded-md border border-dashed p-8 text-center text-sm text-muted-foreground">
+      No active character
+    </div>
   {/if}
 {/snippet}
 
 {#if inline}
-  <div class="sidebar">
-    <div class="sidebar-header">
-      <div class="cs-header-title">
-        <IconDocument size={16} strokeWidth={1.5} className="cs-header-icon" />
+  <div class="flex h-dvh flex-col overflow-hidden border-r bg-card">
+    <div class="flex items-center justify-between gap-3 border-b px-4 py-3">
+      <div class="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+        <IconDocument size={16} strokeWidth={1.5} className="shrink-0 opacity-70" />
         <span>Character Sheet</span>
       </div>
-      <div class="cs-header-actions">
-        <button
-          class="btn-ghost small"
+      <div class="flex items-center gap-2">
+        <Button
+          variant="outline"
+          size="sm"
+          class="h-8 rounded-full px-3"
           onclick={() => (showBaselineDetails = !showBaselineDetails)}
           disabled={!displayCharacter}
         >
           {showBaselineDetails ? "Hide details" : "Show details"}
-        </button>
-        <button
-          class="btn-ghost small"
+        </Button>
+        <Button
+          variant="outline"
+          size="icon"
+          class="h-8 w-8"
           onclick={startEdit}
           disabled={editing || !canEdit || !displayCharacter || saving}
           title="Edit character sheet"
           aria-label="Edit character sheet"
         >
           <IconPencilSquare size={12} strokeWidth={2} />
-        </button>
+        </Button>
       </div>
     </div>
-    <div class="sidebar-body" data-scroll-root="modal">
-      {@render charContent()}
-    </div>
-  </div>
-{:else if $showCharSheet}
-  <!-- svelte-ignore a11y_click_events_have_key_events -->
-  <!-- svelte-ignore a11y_no_static_element_interactions -->
-  <div class="overlay" onclick={closeCharSheet}></div>
-  <div class="panel">
-    <div class="panel-header">
-      <div class="cs-header-title">
-        <IconDocument size={16} strokeWidth={1.5} className="cs-header-icon" />
-        <span>Character Sheet</span>
-      </div>
-      <div class="cs-header-actions">
-        <button
-          class="btn-ghost small"
-          onclick={() => (showBaselineDetails = !showBaselineDetails)}
-          disabled={!displayCharacter}
-        >
-          {showBaselineDetails ? "Hide details" : "Show details"}
-        </button>
-        <button
-          class="btn-ghost small"
-          onclick={startEdit}
-          disabled={editing || !canEdit || !displayCharacter || saving}
-          title="Edit character sheet"
-          aria-label="Edit character sheet"
-        >
-          <IconPencilSquare size={12} strokeWidth={2} />
-        </button>
-        <button class="panel-close" onclick={closeCharSheet} aria-label="Close">×</button>
-      </div>
-    </div>
-    <div class="panel-body" data-scroll-root="modal">
-      {#if isInspectMode}
-        {#if inspectLoading}
-          <div class="empty">Loading character...</div>
-        {:else if inspectError}
-          <div class="empty">
-            <div>{inspectError}</div>
-            <button class="btn-ghost small" onclick={retryInspect}>Retry</button>
-          </div>
-        {:else}
-          {@render charContent()}
-        {/if}
-      {:else}
+    <ScrollArea class="min-h-0 flex-1">
+      <div class="p-4">
         {@render charContent()}
-      {/if}
-    </div>
+      </div>
+    </ScrollArea>
   </div>
+{:else}
+  <Sheet
+    open={$showCharSheet}
+    onOpenChange={(next) => {
+      if (!next && $showCharSheet) closeCharSheet()
+    }}
+  >
+    <SheetContent side="right" class="p-0">
+      <div class="flex items-center justify-between gap-3 border-b px-4 py-3">
+        <div class="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+          <IconDocument size={16} strokeWidth={1.5} className="shrink-0 opacity-70" />
+          <span>Character Sheet</span>
+        </div>
+        <div class="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            class="h-8 rounded-full px-3"
+            onclick={() => (showBaselineDetails = !showBaselineDetails)}
+            disabled={!displayCharacter}
+          >
+            {showBaselineDetails ? "Hide details" : "Show details"}
+          </Button>
+          <Button
+            variant="outline"
+            size="icon"
+            class="h-8 w-8"
+            onclick={startEdit}
+            disabled={editing || !canEdit || !displayCharacter || saving}
+            title="Edit character sheet"
+            aria-label="Edit character sheet"
+          >
+            <IconPencilSquare size={12} strokeWidth={2} />
+          </Button>
+          <Button variant="ghost" size="icon" class="h-9 w-9" onclick={closeCharSheet} aria-label="Close">×</Button>
+        </div>
+      </div>
+      <ScrollArea class="max-h-[calc(100dvh-3.25rem)]">
+        <div class="p-4">
+          {#if isInspectMode}
+            {#if inspectLoading}
+              <div class="rounded-lg border bg-card p-4 text-sm text-muted-foreground">Loading character...</div>
+            {:else if inspectError}
+              <div class="rounded-lg border bg-card p-4 text-sm text-muted-foreground">
+                <div>{inspectError}</div>
+                <Button variant="outline" size="sm" class="mt-3" onclick={retryInspect}>Retry</Button>
+              </div>
+            {:else}
+              {@render charContent()}
+            {/if}
+          {:else}
+            {@render charContent()}
+          {/if}
+        </div>
+      </ScrollArea>
+    </SheetContent>
+  </Sheet>
 {/if}
-
-<style>
-  /* ── Desktop sidebar ──────────────────────────────── */
-  .sidebar {
-    border-right: 1px solid var(--border);
-  }
-
-  /* ── Header icon ───────────────────────────────────── */
-  :global(.cs-header-icon) {
-    color: var(--text);
-    flex-shrink: 0;
-    margin-right: 0.4rem;
-    opacity: 0.6;
-  }
-  .cs-header-title {
-    display: flex;
-    align-items: center;
-    flex: 1;
-  }
-  .cs-header-actions {
-    display: flex;
-    align-items: center;
-    gap: 0.4rem;
-  }
-
-  /* ── Sections ──────────────────────────────────────── */
-  .cs-section {
-    display: flex;
-    flex-direction: column;
-    gap: 0.35rem;
-  }
-
-  .cs-section-header {
-    display: flex;
-    align-items: center;
-    gap: 0.4rem;
-  }
-
-  /* ── Edit form ────────────────────────────────────── */
-  .cs-edit {
-    display: flex;
-    flex-direction: column;
-    gap: 0.75rem;
-  }
-  .cs-empty-edit {
-    font-size: 0.85rem;
-    color: var(--text-dim);
-    padding: 0.35rem 0;
-  }
-  .cs-inv-row {
-    display: grid;
-    grid-template-columns: 1fr 1.3fr auto;
-    gap: 0.4rem;
-    align-items: center;
-    margin-top: 0.35rem;
-  }
-  .cs-inv-remove {
-    width: 28px;
-    height: 28px;
-    min-width: 28px;
-    min-height: 28px;
-    padding: 0;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-  }
-
-  /* ── Identity ──────────────────────────────────────── */
-  .cs-identity-name {
-    font-family: var(--font-story);
-    font-size: 1.05rem;
-    font-weight: 600;
-    color: var(--text);
-    display: flex;
-    align-items: center;
-    gap: 0.35rem;
-  }
-  :global(.gender-icon) {
-    color: var(--text);
-    flex-shrink: 0;
-    opacity: 0.5;
-  }
-  .cs-identity-detail {
-    font-size: 0.85rem;
-    color: var(--text-dim);
-  }
-
-  .cs-section-header .section-label {
-    margin-top: 0;
-  }
-
-  /* ── Section icon ──────────────────────────────────── */
-  :global(.cs-icon) {
-    color: var(--text);
-    flex-shrink: 0;
-    opacity: 0.45;
-  }
-
-  /* ── Values ────────────────────────────────────────── */
-  .cs-value {
-    font-size: 0.9rem;
-    color: var(--text);
-    line-height: 1.5;
-  }
-  .cs-value.muted {
-    color: var(--text-dim);
-  }
-
-  /* ── Inventory ─────────────────────────────────────── */
-  .cs-inventory {
-    list-style: none;
-    padding: 0;
-    margin: 0;
-    display: flex;
-    flex-direction: column;
-    gap: 0.35rem;
-  }
-  .cs-inventory li {
-    display: flex;
-    align-items: flex-start;
-    gap: 0.4rem;
-  }
-  :global(.cs-item-icon) {
-    color: var(--text);
-    flex-shrink: 0;
-    margin-top: 3px;
-    opacity: 0.35;
-  }
-  .cs-item-text {
-    display: flex;
-    flex-direction: column;
-  }
-  .cs-item-name {
-    font-size: 0.9rem;
-    color: var(--text);
-  }
-  .cs-item-desc {
-    font-size: 0.8rem;
-    color: var(--text-dim);
-  }
-</style>

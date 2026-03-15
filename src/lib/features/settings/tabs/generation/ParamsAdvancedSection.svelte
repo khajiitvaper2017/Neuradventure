@@ -1,9 +1,15 @@
 <script lang="ts">
   import type { GenerationParams, ModelInfo } from "@/shared/api-types"
   import { connector, generation } from "@/stores/settings"
+  import { cn } from "@/utils.js"
   import { formatSamplerOrder, parseSamplerOrder } from "@/features/settings/lib/samplerOrder"
   import OpenRouterParamNotice from "@/features/settings/tabs/generation/OpenRouterParamNotice.svelte"
   import { keyMeta } from "@/features/settings/tabs/generation/openRouterParamSupport"
+  import { Badge } from "@/components/ui/badge"
+  import { Input } from "@/components/ui/input"
+  import { Separator } from "@/components/ui/separator"
+  import { Switch } from "@/components/ui/switch"
+  import { Textarea } from "@/components/ui/textarea"
 
   type Props = {
     modelSearchResults?: ModelInfo[]
@@ -41,6 +47,8 @@
     if (!isNaN(val)) setGen(key, val)
   }
 
+  const isIgnored = (meta: { status?: string }) => meta.status === "unsupported" || meta.status === "not_sent"
+
   let eosMeta = $derived.by(() => keyMeta("ban_eos_token", $connector, modelSearchResults))
   let renderMeta = $derived.by(() => keyMeta("render_special", $connector, modelSearchResults))
   let orderMeta = $derived.by(() => keyMeta("sampler_order", $connector, modelSearchResults))
@@ -51,6 +59,16 @@
   let bannedTokensMeta = $derived.by(() => keyMeta("banned_tokens", $connector, modelSearchResults))
   let logitBiasMeta = $derived.by(() => keyMeta("logit_bias", $connector, modelSearchResults))
   let dryBreakersMeta = $derived.by(() => keyMeta("dry_sequence_breakers", $connector, modelSearchResults))
+  let eosIgnored = $derived.by(() => isIgnored(eosMeta))
+  let renderIgnored = $derived.by(() => isIgnored(renderMeta))
+  let orderIgnored = $derived.by(() => isIgnored(orderMeta))
+  let smoothingFactorIgnored = $derived.by(() => isIgnored(smoothingFactorMeta))
+  let smoothingCurveIgnored = $derived.by(() => isIgnored(smoothingCurveMeta))
+  let adaptiveTargetIgnored = $derived.by(() => isIgnored(adaptiveTargetMeta))
+  let adaptiveDecayIgnored = $derived.by(() => isIgnored(adaptiveDecayMeta))
+  let bannedTokensIgnored = $derived.by(() => isIgnored(bannedTokensMeta))
+  let logitBiasIgnored = $derived.by(() => isIgnored(logitBiasMeta))
+  let dryBreakersIgnored = $derived.by(() => isIgnored(dryBreakersMeta))
 
   function commitSamplerOrder() {
     const parsed = parseSamplerOrder(samplerOrderDraft)
@@ -111,280 +129,305 @@
 
 <OpenRouterParamNotice {modelSearchResults} />
 
-<div class="control-section-label">Advanced</div>
+<div class="pt-4 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Advanced</div>
 
-<label
-  class="control-row control-row--input"
-  class:param-ignored={eosMeta.status === "unsupported" || eosMeta.status === "not_sent"}
->
-  <span class="control-row-text">
-    <span class="control-row-title">
-      Ban EOS Token
+<div class={cn("flex items-start justify-between gap-4 border-b py-3", eosIgnored && "opacity-60")}>
+  <div class="min-w-0 flex-1 space-y-1">
+    <div class="flex flex-wrap items-center gap-2">
+      <div class="text-sm font-medium text-foreground">Ban EOS Token</div>
       {#if eosMeta.badge}
-        <span class="badge" class:badge--warning={eosMeta.badge.kind === "warning"} title={eosMeta.title}>
+        <Badge
+          variant="outline"
+          class={cn(
+            "font-mono text-[11px]",
+            eosMeta.badge.kind === "warning" &&
+              "border-amber-500/40 bg-amber-500/15 text-amber-600 dark:text-amber-400",
+          )}
+          title={eosMeta.title}
+        >
           {eosMeta.badge.label}
-        </span>
+        </Badge>
       {/if}
-    </span>
-    <span class="control-row-sub">Prevent the model from ending early</span>
-  </span>
-  <input
-    type="checkbox"
-    checked={$generation.ban_eos_token}
-    onchange={(e) => setGen("ban_eos_token", (e.target as HTMLInputElement).checked)}
-  />
-</label>
+    </div>
+    <div class="text-xs text-muted-foreground">Prevent the model from ending early</div>
+  </div>
+  <Switch checked={$generation.ban_eos_token} onCheckedChange={(v) => setGen("ban_eos_token", v)} />
+</div>
 
-<label
-  class="control-row control-row--input"
-  class:param-ignored={renderMeta.status === "unsupported" || renderMeta.status === "not_sent"}
->
-  <span class="control-row-text">
-    <span class="control-row-title">
-      Render Special Tokens
+<div class={cn("flex items-start justify-between gap-4 border-b py-3", renderIgnored && "opacity-60")}>
+  <div class="min-w-0 flex-1 space-y-1">
+    <div class="flex flex-wrap items-center gap-2">
+      <div class="text-sm font-medium text-foreground">Render Special Tokens</div>
       {#if renderMeta.badge}
-        <span class="badge" class:badge--warning={renderMeta.badge.kind === "warning"} title={renderMeta.title}>
+        <Badge
+          variant="outline"
+          class={cn(
+            "font-mono text-[11px]",
+            renderMeta.badge.kind === "warning" &&
+              "border-amber-500/40 bg-amber-500/15 text-amber-600 dark:text-amber-400",
+          )}
+          title={renderMeta.title}
+        >
           {renderMeta.badge.label}
-        </span>
+        </Badge>
       {/if}
-    </span>
-    <span class="control-row-sub">Show special tokens in output (debug)</span>
-  </span>
-  <input
-    type="checkbox"
-    checked={$generation.render_special}
-    onchange={(e) => setGen("render_special", (e.target as HTMLInputElement).checked)}
-  />
-</label>
+    </div>
+    <div class="text-xs text-muted-foreground">Show special tokens in output (debug)</div>
+  </div>
+  <Switch checked={$generation.render_special} onCheckedChange={(v) => setGen("render_special", v)} />
+</div>
 
-<label
-  class="control-row control-row--input"
-  class:param-ignored={orderMeta.status === "unsupported" || orderMeta.status === "not_sent"}
->
-  <span class="control-row-text">
-    <span class="control-row-title">
-      Sampler Order
+<div class={cn("flex items-start justify-between gap-4 border-b py-3", orderIgnored && "opacity-60")}>
+  <div class="min-w-0 flex-1 space-y-1">
+    <div class="flex flex-wrap items-center gap-2">
+      <div class="text-sm font-medium text-foreground">Sampler Order</div>
       {#if orderMeta.badge}
-        <span class="badge" class:badge--warning={orderMeta.badge.kind === "warning"} title={orderMeta.title}>
+        <Badge
+          variant="outline"
+          class={cn(
+            "font-mono text-[11px]",
+            orderMeta.badge.kind === "warning" &&
+              "border-amber-500/40 bg-amber-500/15 text-amber-600 dark:text-amber-400",
+          )}
+          title={orderMeta.title}
+        >
           {orderMeta.badge.label}
-        </span>
+        </Badge>
       {/if}
-    </span>
-    <span class="control-row-sub">Comma-separated list (Kobold default: 6,0,1,3,4,2,5)</span>
-  </span>
-  <input
-    class="text-input"
-    type="text"
-    bind:value={samplerOrderDraft}
-    onblur={commitSamplerOrder}
-    onkeydown={(e) => {
-      if (e.key === "Enter") (e.target as HTMLInputElement).blur()
-    }}
-  />
-</label>
+    </div>
+    <div class="text-xs text-muted-foreground">Comma-separated list (Kobold default: 6,0,1,3,4,2,5)</div>
+  </div>
+  <div class="w-[min(55%,18rem)]">
+    <Input
+      class={cn(orderIgnored && "line-through decoration-muted-foreground")}
+      type="text"
+      bind:value={samplerOrderDraft}
+      onblur={commitSamplerOrder}
+      onkeydown={(e) => {
+        if (e.key === "Enter") (e.target as HTMLInputElement).blur()
+      }}
+    />
+  </div>
+</div>
 
-<div class="divider"></div>
+<Separator class="my-4" />
 
-<div class="control-section-label">Smooth Sampling</div>
-<label
-  class="control-row control-row--input"
-  class:param-ignored={smoothingFactorMeta.status === "unsupported" || smoothingFactorMeta.status === "not_sent"}
->
-  <span class="control-row-text">
-    <span class="control-row-title">
-      Smoothing Factor
+<div class="pt-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Smooth Sampling</div>
+<div class={cn("flex items-start justify-between gap-4 border-b py-3", smoothingFactorIgnored && "opacity-60")}>
+  <div class="min-w-0 flex-1 space-y-1">
+    <div class="flex flex-wrap items-center gap-2">
+      <div class="text-sm font-medium text-foreground">Smoothing Factor</div>
       {#if smoothingFactorMeta.badge}
-        <span
-          class="badge"
-          class:badge--warning={smoothingFactorMeta.badge.kind === "warning"}
+        <Badge
+          variant="outline"
+          class={cn(
+            "font-mono text-[11px]",
+            smoothingFactorMeta.badge.kind === "warning" &&
+              "border-amber-500/40 bg-amber-500/15 text-amber-600 dark:text-amber-400",
+          )}
           title={smoothingFactorMeta.title}
         >
           {smoothingFactorMeta.badge.label}
-        </span>
+        </Badge>
       {/if}
-    </span>
-    <span class="control-row-sub">0 = off</span>
-  </span>
-  <input
-    class="num-input"
-    type="number"
-    value={$generation.smoothing_factor}
-    min="0"
-    max="1"
-    step="0.01"
-    onchange={(e) => handleNumInput("smoothing_factor", e)}
-  />
-</label>
+    </div>
+    <div class="text-xs text-muted-foreground">0 = off</div>
+  </div>
+  <div class="w-28">
+    <Input
+      class={cn(smoothingFactorIgnored && "line-through decoration-muted-foreground")}
+      type="number"
+      value={$generation.smoothing_factor}
+      min="0"
+      max="1"
+      step="0.01"
+      onchange={(e) => handleNumInput("smoothing_factor", e)}
+    />
+  </div>
+</div>
 
-<label
-  class="control-row control-row--input"
-  class:param-ignored={smoothingCurveMeta.status === "unsupported" || smoothingCurveMeta.status === "not_sent"}
->
-  <span class="control-row-text">
-    <span class="control-row-title">
-      Smoothing Curve
+<div class={cn("flex items-start justify-between gap-4 border-b py-3", smoothingCurveIgnored && "opacity-60")}>
+  <div class="min-w-0 flex-1 space-y-1">
+    <div class="flex flex-wrap items-center gap-2">
+      <div class="text-sm font-medium text-foreground">Smoothing Curve</div>
       {#if smoothingCurveMeta.badge}
-        <span
-          class="badge"
-          class:badge--warning={smoothingCurveMeta.badge.kind === "warning"}
+        <Badge
+          variant="outline"
+          class={cn(
+            "font-mono text-[11px]",
+            smoothingCurveMeta.badge.kind === "warning" &&
+              "border-amber-500/40 bg-amber-500/15 text-amber-600 dark:text-amber-400",
+          )}
           title={smoothingCurveMeta.title}
         >
           {smoothingCurveMeta.badge.label}
-        </span>
+        </Badge>
       {/if}
-    </span>
-    <span class="control-row-sub">Curve shaping for smoothing</span>
-  </span>
-  <input
-    class="num-input"
-    type="number"
-    value={$generation.smoothing_curve}
-    min="0.1"
-    max="5"
-    step="0.1"
-    onchange={(e) => handleNumInput("smoothing_curve", e)}
-  />
-</label>
+    </div>
+    <div class="text-xs text-muted-foreground">Curve shaping for smoothing</div>
+  </div>
+  <div class="w-28">
+    <Input
+      class={cn(smoothingCurveIgnored && "line-through decoration-muted-foreground")}
+      type="number"
+      value={$generation.smoothing_curve}
+      min="0.1"
+      max="5"
+      step="0.1"
+      onchange={(e) => handleNumInput("smoothing_curve", e)}
+    />
+  </div>
+</div>
 
-<div class="divider"></div>
+<Separator class="my-4" />
 
-<div class="control-section-label">Adaptive Sampling</div>
-<label
-  class="control-row control-row--input"
-  class:param-ignored={adaptiveTargetMeta.status === "unsupported" || adaptiveTargetMeta.status === "not_sent"}
->
-  <span class="control-row-text">
-    <span class="control-row-title">
-      Adaptive Target
+<div class="pt-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Adaptive Sampling</div>
+<div class={cn("flex items-start justify-between gap-4 border-b py-3", adaptiveTargetIgnored && "opacity-60")}>
+  <div class="min-w-0 flex-1 space-y-1">
+    <div class="flex flex-wrap items-center gap-2">
+      <div class="text-sm font-medium text-foreground">Adaptive Target</div>
       {#if adaptiveTargetMeta.badge}
-        <span
-          class="badge"
-          class:badge--warning={adaptiveTargetMeta.badge.kind === "warning"}
+        <Badge
+          variant="outline"
+          class={cn(
+            "font-mono text-[11px]",
+            adaptiveTargetMeta.badge.kind === "warning" &&
+              "border-amber-500/40 bg-amber-500/15 text-amber-600 dark:text-amber-400",
+          )}
           title={adaptiveTargetMeta.title}
         >
           {adaptiveTargetMeta.badge.label}
-        </span>
+        </Badge>
       {/if}
-    </span>
-    <span class="control-row-sub">-1 = off</span>
-  </span>
-  <input
-    class="num-input"
-    type="number"
-    value={$generation.adaptive_target}
-    min="-1"
-    max="1"
-    step="0.01"
-    onchange={(e) => handleNumInput("adaptive_target", e)}
-  />
-</label>
+    </div>
+    <div class="text-xs text-muted-foreground">-1 = off</div>
+  </div>
+  <div class="w-28">
+    <Input
+      class={cn(adaptiveTargetIgnored && "line-through decoration-muted-foreground")}
+      type="number"
+      value={$generation.adaptive_target}
+      min="-1"
+      max="1"
+      step="0.01"
+      onchange={(e) => handleNumInput("adaptive_target", e)}
+    />
+  </div>
+</div>
 
-<label
-  class="control-row control-row--input"
-  class:param-ignored={adaptiveDecayMeta.status === "unsupported" || adaptiveDecayMeta.status === "not_sent"}
->
-  <span class="control-row-text">
-    <span class="control-row-title">
-      Adaptive Decay
+<div class={cn("flex items-start justify-between gap-4 border-b py-3", adaptiveDecayIgnored && "opacity-60")}>
+  <div class="min-w-0 flex-1 space-y-1">
+    <div class="flex flex-wrap items-center gap-2">
+      <div class="text-sm font-medium text-foreground">Adaptive Decay</div>
       {#if adaptiveDecayMeta.badge}
-        <span
-          class="badge"
-          class:badge--warning={adaptiveDecayMeta.badge.kind === "warning"}
+        <Badge
+          variant="outline"
+          class={cn(
+            "font-mono text-[11px]",
+            adaptiveDecayMeta.badge.kind === "warning" &&
+              "border-amber-500/40 bg-amber-500/15 text-amber-600 dark:text-amber-400",
+          )}
           title={adaptiveDecayMeta.title}
         >
           {adaptiveDecayMeta.badge.label}
-        </span>
+        </Badge>
       {/if}
-    </span>
-    <span class="control-row-sub">0.01–0.99 (higher = slower adaptation)</span>
-  </span>
-  <input
-    class="num-input"
-    type="number"
-    value={$generation.adaptive_decay}
-    min="0.01"
-    max="0.99"
-    step="0.01"
-    onchange={(e) => handleNumInput("adaptive_decay", e)}
+    </div>
+    <div class="text-xs text-muted-foreground">0.01–0.99 (higher = slower adaptation)</div>
+  </div>
+  <div class="w-28">
+    <Input
+      class={cn(adaptiveDecayIgnored && "line-through decoration-muted-foreground")}
+      type="number"
+      value={$generation.adaptive_decay}
+      min="0.01"
+      max="0.99"
+      step="0.01"
+      onchange={(e) => handleNumInput("adaptive_decay", e)}
+    />
+  </div>
+</div>
+
+<Separator class="my-4" />
+
+<div class="pt-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Bans &amp; Bias</div>
+
+<div class={cn("border-b py-3", bannedTokensIgnored && "opacity-60")}>
+  <div class="flex flex-wrap items-center gap-2">
+    <div class="text-sm font-medium text-foreground">Banned Tokens</div>
+    {#if bannedTokensMeta.badge}
+      <Badge
+        variant="outline"
+        class={cn(
+          "font-mono text-[11px]",
+          bannedTokensMeta.badge.kind === "warning" &&
+            "border-amber-500/40 bg-amber-500/15 text-amber-600 dark:text-amber-400",
+        )}
+        title={bannedTokensMeta.title}
+      >
+        {bannedTokensMeta.badge.label}
+      </Badge>
+    {/if}
+  </div>
+  <div class="mt-1 text-xs text-muted-foreground">One per line</div>
+  <Textarea
+    class={cn("mt-3", bannedTokensIgnored && "line-through decoration-muted-foreground")}
+    rows={4}
+    bind:value={bannedTokensDraft}
+    onblur={commitBannedTokens}
   />
-</label>
+</div>
 
-<div class="divider"></div>
+<div class={cn("border-b py-3", logitBiasIgnored && "opacity-60")}>
+  <div class="flex flex-wrap items-center gap-2">
+    <div class="text-sm font-medium text-foreground">Logit Bias</div>
+    {#if logitBiasMeta.badge}
+      <Badge
+        variant="outline"
+        class={cn(
+          "font-mono text-[11px]",
+          logitBiasMeta.badge.kind === "warning" &&
+            "border-amber-500/40 bg-amber-500/15 text-amber-600 dark:text-amber-400",
+        )}
+        title={logitBiasMeta.title}
+      >
+        {logitBiasMeta.badge.label}
+      </Badge>
+    {/if}
+  </div>
+  <div class="mt-1 text-xs text-muted-foreground">JSON object: &#123;"token_id": -100, ...&#125;</div>
+  <Textarea
+    class={cn("mt-3", logitBiasIgnored && "line-through decoration-muted-foreground")}
+    rows={4}
+    bind:value={logitBiasDraft}
+    onblur={commitLogitBias}
+  />
+</div>
 
-<div class="control-section-label">Bans & Bias</div>
+<div class={cn("border-b py-3", dryBreakersIgnored && "opacity-60")}>
+  <div class="flex flex-wrap items-center gap-2">
+    <div class="text-sm font-medium text-foreground">DRY Sequence Breakers</div>
+    {#if dryBreakersMeta.badge}
+      <Badge
+        variant="outline"
+        class={cn(
+          "font-mono text-[11px]",
+          dryBreakersMeta.badge.kind === "warning" &&
+            "border-amber-500/40 bg-amber-500/15 text-amber-600 dark:text-amber-400",
+        )}
+        title={dryBreakersMeta.title}
+      >
+        {dryBreakersMeta.badge.label}
+      </Badge>
+    {/if}
+  </div>
+  <div class="mt-1 text-xs text-muted-foreground">JSON array of strings (used when DRY Multiplier &gt; 0)</div>
+  <Textarea
+    class={cn("mt-3", dryBreakersIgnored && "line-through decoration-muted-foreground")}
+    rows={4}
+    bind:value={dryBreakersDraft}
+    onblur={commitDryBreakers}
+  />
+</div>
 
-<label
-  class="control-row control-row--input control-row--stack"
-  class:param-ignored={bannedTokensMeta.status === "unsupported" || bannedTokensMeta.status === "not_sent"}
->
-  <span class="control-row-text">
-    <span class="control-row-title">
-      Banned Tokens
-      {#if bannedTokensMeta.badge}
-        <span
-          class="badge"
-          class:badge--warning={bannedTokensMeta.badge.kind === "warning"}
-          title={bannedTokensMeta.title}
-        >
-          {bannedTokensMeta.badge.label}
-        </span>
-      {/if}
-    </span>
-    <span class="control-row-sub">One per line</span>
-  </span>
-  <textarea class="text-input" rows="4" bind:value={bannedTokensDraft} onblur={commitBannedTokens}></textarea>
-</label>
-
-<label
-  class="control-row control-row--input control-row--stack"
-  class:param-ignored={logitBiasMeta.status === "unsupported" || logitBiasMeta.status === "not_sent"}
->
-  <span class="control-row-text">
-    <span class="control-row-title">
-      Logit Bias
-      {#if logitBiasMeta.badge}
-        <span class="badge" class:badge--warning={logitBiasMeta.badge.kind === "warning"} title={logitBiasMeta.title}>
-          {logitBiasMeta.badge.label}
-        </span>
-      {/if}
-    </span>
-    <span class="control-row-sub">JSON object: &#123;"token_id": -100, ...&#125;</span>
-  </span>
-  <textarea class="text-input" rows="4" bind:value={logitBiasDraft} onblur={commitLogitBias}></textarea>
-</label>
-
-<label
-  class="control-row control-row--input control-row--stack"
-  class:param-ignored={dryBreakersMeta.status === "unsupported" || dryBreakersMeta.status === "not_sent"}
->
-  <span class="control-row-text">
-    <span class="control-row-title">
-      DRY Sequence Breakers
-      {#if dryBreakersMeta.badge}
-        <span
-          class="badge"
-          class:badge--warning={dryBreakersMeta.badge.kind === "warning"}
-          title={dryBreakersMeta.title}
-        >
-          {dryBreakersMeta.badge.label}
-        </span>
-      {/if}
-    </span>
-    <span class="control-row-sub">JSON array of strings (used when DRY Multiplier &gt; 0)</span>
-  </span>
-  <textarea class="text-input" rows="4" bind:value={dryBreakersDraft} onblur={commitDryBreakers}></textarea>
-</label>
-
-<div class="settings-bottom-pad"></div>
-
-<style>
-  .param-ignored {
-    opacity: 0.62;
-  }
-
-  .param-ignored .num-input,
-  .param-ignored .text-input {
-    text-decoration: line-through;
-    text-decoration-color: var(--text-dim);
-  }
-</style>
+<div class="h-10"></div>

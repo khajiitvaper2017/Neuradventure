@@ -777,7 +777,7 @@
   })
 </script>
 
-<div class="screen game">
+<div class="relative mx-auto flex h-dvh w-full max-w-3xl flex-col overflow-hidden">
   <GameTopBar
     {flashScene}
     onGoHome={goHome}
@@ -862,10 +862,3 @@
     onGoHome={goHome}
   />
 </div>
-
-<style>
-  .game {
-    position: relative;
-    overflow: hidden;
-  }
-</style>

@@ -1,19 +1,30 @@
 <script lang="ts">
-  import { onMount, tick } from "svelte"
+  import { onMount } from "svelte"
   import { stories as storiesService } from "@/services/stories"
   import { chats as chatsService } from "@/services/chats"
-  import { backup as backupService } from "@/services/backup"
   import type { StoryMeta, ChatSummary } from "@/shared/types"
   import type { StoryCharacterGroup, CharacterImportResult } from "@/shared/api-types"
-  import { navigate, openCharSheetForCharacter, showError, showConfirm, showQuietNotice } from "@/stores/ui"
-  import { theme } from "@/stores/settings"
+  import { navigate, openCharSheetForCharacter, showError, showConfirm } from "@/stores/ui"
   import IconDots from "@/components/icons/IconDots.svelte"
   import IconDocument from "@/components/icons/IconDocument.svelte"
   import IconGear from "@/components/icons/IconGear.svelte"
   import IconPlus from "@/components/icons/IconPlus.svelte"
   import IconUsers from "@/components/icons/IconUsers.svelte"
-  import Select from "@/components/controls/Select.svelte"
-  import SegmentedTabs from "@/components/controls/SegmentedTabs.svelte"
+  import { Badge } from "@/components/ui/badge"
+  import { Button } from "@/components/ui/button"
+  import { Card } from "@/components/ui/card"
+  import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuSeparator,
+    DropdownMenuTrigger,
+  } from "@/components/ui/dropdown-menu"
+  import { Input } from "@/components/ui/input"
+  import { Label } from "@/components/ui/label"
+  import * as Select from "@/components/ui/select"
+  import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
+  import { ScrollArea } from "@/components/ui/scroll-area"
   import {
     resetActiveStory,
     resetGame,
@@ -34,20 +45,15 @@
 
   let stories: StoryMeta[] = []
   let loading = true
-  let openStoryMenuId: number | null = null
-  let openChatMenuId: number | null = null
-  let openCharacterMenuId: number | null = null
   let storyCharacters: StoryCharacterGroup[] = []
   let loadingCharacters = false
   let chats: ChatSummary[] = []
   let loadingChats = false
-  let homeScroll: HTMLDivElement | null = null
 
   type LibrarySection = "stories" | "chats" | "characters"
   let section: LibrarySection = "stories"
   let query = ""
   let sort: "recent" | "az" = "recent"
-  let menuPlacement: Record<string, "up" | "down"> = {}
   const sortOptions = [
     { value: "recent", label: "Recent" },
     { value: "az", label: "A–Z" },
@@ -58,6 +64,8 @@
     { value: "chats" as const, label: "Chats", badge: chats.length },
     { value: "characters" as const, label: "Characters", badge: storyCharacters.length },
   ]
+
+  $: sortLabel = sortOptions.find((o) => o.value === sort)?.label ?? "Sort"
 
   onMount(() => {
     loadStories()
@@ -159,7 +167,6 @@
     } catch {
       showError("Failed to delete story")
     }
-    openStoryMenuId = null
   }
 
   async function deleteChat(id: number) {
@@ -176,11 +183,9 @@
     } catch {
       showError("Failed to delete chat")
     }
-    openChatMenuId = null
   }
 
   async function deleteCharacter(id: number) {
-    openCharacterMenuId = null
     const confirmed = await showConfirm({
       title: "Delete character",
       message:
@@ -279,84 +284,13 @@
     }
   }
 
-  async function exportBackup() {
-    try {
-      await backupService.exportAllAndDownload()
-      showQuietNotice("Backup downloaded")
-    } catch (err) {
-      showError(err instanceof Error ? err.message : "Failed to export backup")
-    }
-  }
-
-  async function restoreBackup() {
-    const confirmed = await showConfirm({
-      title: "Restore backup",
-      message:
-        "Restore a backup file and overwrite your local library on this device for this site? This cannot be undone.",
-      confirmLabel: "Restore",
-      danger: true,
-    })
-    if (!confirmed) return
-
-    const input = document.createElement("input")
-    input.type = "file"
-    input.accept = ".ndbackup,.json,application/json"
-    input.onchange = async () => {
-      const file = input.files?.[0]
-      if (!file) return
-      try {
-        await backupService.restoreAllFromFile(file)
-        showQuietNotice("Backup restored — reloading…")
-        window.setTimeout(() => location.reload(), 250)
-      } catch (err) {
-        showError(err instanceof Error ? err.message : "Failed to restore backup")
-      }
-    }
-    input.click()
-  }
-
   function setSection(next: LibrarySection) {
     section = next
-    openStoryMenuId = null
-    openChatMenuId = null
-    openCharacterMenuId = null
     query = ""
   }
 
   function updatedAtMs(dateStr: string): number {
     return new Date(dateStr.endsWith("Z") ? dateStr : dateStr + "Z").getTime()
-  }
-
-  function menuKey(kind: "story" | "chat" | "character", id: number): string {
-    return `${kind}:${id}`
-  }
-
-  function isMenuUp(kind: "story" | "chat" | "character", id: number): boolean {
-    return menuPlacement[menuKey(kind, id)] === "up"
-  }
-
-  async function updateMenuPlacement(kind: "story" | "chat" | "character", id: number, anchor: HTMLElement) {
-    await tick()
-    const wrap = anchor.closest(".lib-menu-wrap") as HTMLElement | null
-    const dropdown = wrap?.querySelector(".lib-dropdown") as HTMLElement | null
-    if (!dropdown) return
-
-    const dropdownRect = dropdown.getBoundingClientRect()
-    const anchorRect = anchor.getBoundingClientRect()
-    const scrollRect = homeScroll?.getBoundingClientRect()
-    const clipTop = scrollRect?.top ?? 0
-    const clipBottom = scrollRect?.bottom ?? window.innerHeight
-    const gutter = 10
-    const overflowsBottom = dropdownRect.bottom > clipBottom - gutter
-    const spaceAbove = anchorRect.top - clipTop
-    const spaceBelow = clipBottom - anchorRect.bottom
-
-    const openUp = overflowsBottom && spaceAbove > spaceBelow
-    const next: "up" | "down" = openUp ? "up" : "down"
-    const key = menuKey(kind, id)
-    if (menuPlacement[key] !== next) {
-      menuPlacement = { ...menuPlacement, [key]: next }
-    }
   }
 
   function matchesQuery(value: string, q: string): boolean {
@@ -416,483 +350,429 @@
     })
 </script>
 
-<div class="screen home">
-  <!-- Brand header -->
-  <div class="brand">
-    <h1>Neuradventure</h1>
-    <button class="settings-btn" onclick={() => navigate("settings")} aria-label="Settings">
+<div class="mx-auto flex h-dvh w-full max-w-3xl flex-col">
+  <header class="relative border-b px-4 py-6 text-center">
+    <h1 class="text-sm font-semibold uppercase tracking-[0.28em] text-primary">Neuradventure</h1>
+    <p class="mt-2 text-xs text-muted-foreground">Stories, chats, and characters — all offline on this device.</p>
+    <Button
+      variant="ghost"
+      size="icon"
+      class="absolute right-3 top-3 h-9 w-9 text-muted-foreground"
+      onclick={() => navigate("settings")}
+      aria-label="Settings"
+      title="Settings"
+    >
       <IconGear size={17} strokeWidth={1.8} />
-    </button>
-  </div>
+    </Button>
+  </header>
 
-  <!-- New story button -->
-  <div class="new-row">
-    <button class="new-btn" onclick={startNew}>
-      <IconPlus size={13} strokeWidth={2.5} />
+  <div class="grid gap-2 border-b px-4 py-3 sm:grid-cols-3">
+    <Button variant="outline" onclick={startNew} class="justify-center">
+      <IconPlus size={14} strokeWidth={2.5} />
       New Story
-    </button>
-    <button class="new-btn" onclick={startNewChat}>
-      <IconUsers size={13} strokeWidth={2.5} />
+    </Button>
+    <Button variant="outline" onclick={startNewChat} class="justify-center">
+      <IconUsers size={14} strokeWidth={2.5} />
       New Chat
-    </button>
-    <button class="new-btn" onclick={startNewCharacter}>
-      <IconPlus size={13} strokeWidth={2.5} />
+    </Button>
+    <Button variant="outline" onclick={startNewCharacter} class="justify-center">
+      <IconPlus size={14} strokeWidth={2.5} />
       New Character
-    </button>
+    </Button>
   </div>
 
-  <div class="lib-toolbar lib-toolbar--flat" aria-label="Library controls">
-    <SegmentedTabs
-      ariaLabel="Library section"
-      tabs={sectionTabs}
-      value={section}
-      onChange={(next) => setSection(next as LibrarySection)}
-      variant="nav"
-      stretch
-    />
+  <div class="border-b px-4 py-3">
+    <div class="flex flex-col gap-3">
+      <Tabs value={section} onValueChange={(next) => setSection(next as LibrarySection)}>
+        <TabsList aria-label="Library section" class="w-full">
+          {#each sectionTabs as t (t.value)}
+            <TabsTrigger
+              value={t.value}
+              class="flex-1 text-xs font-medium uppercase tracking-wider"
+              aria-label={`${t.label} (${t.badge})`}
+            >
+              <span class="min-w-0 truncate">{t.label}</span>
+              <span
+                class="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-background/60 px-1 text-[11px] text-muted-foreground ring-1 ring-border"
+              >
+                {t.badge}
+              </span>
+            </TabsTrigger>
+          {/each}
+        </TabsList>
+      </Tabs>
 
-    <div class="lib-controls">
-      <label class="lib-search">
-        <span class="sr-only">Search</span>
-        <input
-          class="text-input lib-search-input"
-          type="search"
-          placeholder={`Search ${section}...`}
-          bind:value={query}
-        />
-      </label>
-      <label class="lib-sort">
-        <span class="sr-only">Sort</span>
-        <Select className="lib-sort-input" width="100%" bind:value={sort} options={sortOptions} ariaLabel="Sort" />
-      </label>
+      <div class="flex flex-col gap-2 sm:flex-row sm:items-center">
+        <div class="flex-1">
+          <Label class="sr-only" for="home-search">Search</Label>
+          <Input id="home-search" type="search" placeholder={`Search ${section}...`} bind:value={query} />
+        </div>
+        <div class="w-full sm:w-40">
+          <Label class="sr-only" for="home-sort">Sort</Label>
+          <Select.Root type="single" bind:value={sort} items={sortOptions}>
+            <Select.Trigger id="home-sort" class="w-full" aria-label="Sort">
+              {sortLabel}
+            </Select.Trigger>
+            <Select.Content>
+              {#each sortOptions as option (option.value)}
+                <Select.Item {...option} />
+              {/each}
+            </Select.Content>
+          </Select.Root>
+        </div>
+      </div>
     </div>
   </div>
 
-  <div class="home-scroll" data-scroll-root="screen" bind:this={homeScroll}>
-    <section class="lib-shell lib-shell--footer-safe" aria-label="Library">
+  <ScrollArea class="min-h-0 flex-1">
+    <div class="px-4 py-4">
       {#if section === "stories"}
+        <div class="mb-3 flex items-center justify-end gap-2">
+          <Button variant="outline" size="sm" onclick={importStory}>Import story</Button>
+        </div>
+
         {#if loading}
-          <div class="empty">Loading stories...</div>
+          <div
+            class="grid place-items-center rounded-md border border-dashed p-8 text-center text-sm text-muted-foreground"
+          >
+            Loading stories...
+          </div>
         {:else if filteredStories.length === 0}
-          <div class="empty">
+          <div
+            class="grid place-items-center rounded-md border border-dashed p-8 text-center text-sm text-muted-foreground"
+          >
             {#if stories.length === 0}
-              <p>No stories yet.</p>
-              <p class="empty-hint">Begin a new adventure above.</p>
+              <div class="space-y-1">
+                <p>No stories yet.</p>
+                <p class="text-xs text-muted-foreground/80">Begin a new adventure above.</p>
+              </div>
             {:else}
-              <p>No stories found.</p>
-              <p class="empty-hint">Try a different search.</p>
+              <div class="space-y-1">
+                <p>No stories found.</p>
+                <p class="text-xs text-muted-foreground/80">Try a different search.</p>
+              </div>
             {/if}
           </div>
         {:else}
-          <div class="lib-grid" role="list">
+          <div class="grid gap-3" role="list" aria-label="Stories">
             {#each filteredStories as story (story.id)}
-              <div class="lib-card" role="listitem">
-                <button class="lib-card-main" onclick={() => openStory(story)}>
-                  <div class="lib-card-title">{story.title}</div>
-                  <div class="lib-card-meta">
-                    {story.character_name} · {story.turn_count} turns
-                  </div>
-                  <div class="lib-card-foot">Updated {relativeTime(story.updated_at)}</div>
-                </button>
-
-                <div class="lib-menu-wrap">
-                  <button
-                    class="menu-btn"
-                    aria-label="Story options"
-                    onclick={(e) => {
-                      e.stopPropagation()
-                      openChatMenuId = null
-                      openCharacterMenuId = null
-                      openStoryMenuId = openStoryMenuId === story.id ? null : story.id
-                      if (openStoryMenuId === story.id) {
-                        void updateMenuPlacement("story", story.id, e.currentTarget as HTMLElement)
-                      }
-                    }}
+              <Card class="group">
+                <div class="flex items-start gap-2 p-3">
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    class="h-auto min-w-0 flex-1 flex-col items-start justify-start gap-0 p-0 text-left hover:bg-transparent"
+                    onclick={() => openStory(story)}
+                    aria-label={`Open story ${story.title}`}
                   >
-                    <IconDots size={14} strokeWidth={2} />
-                  </button>
-                  {#if openStoryMenuId === story.id}
-                    <div class="dropdown lib-dropdown" class:lib-dropdown--up={isMenuUp("story", story.id)}>
-                      <button
-                        type="button"
-                        class="dropdown-link"
-                        onclick={() => {
-                          openStoryMenuId = null
+                    <div class="truncate text-sm font-semibold">{story.title}</div>
+                    <div class="mt-1 text-xs text-muted-foreground">
+                      {story.character_name} · {story.turn_count} turns
+                    </div>
+                    <div class="mt-2 text-xs text-muted-foreground">Updated {relativeTime(story.updated_at)}</div>
+                  </Button>
+
+                  <DropdownMenu>
+                    <DropdownMenuTrigger
+                      class="inline-flex h-9 w-9 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
+                    >
+                      <span class="sr-only">Story options</span>
+                      <IconDots size={15} strokeWidth={1.8} />
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" class="w-48">
+                      <DropdownMenuItem
+                        onSelect={() =>
                           void storiesService
                             .exportAndDownload(story.id, "neuradventure")
-                            .catch((err) => showError(err instanceof Error ? err.message : "Failed to export"))
-                        }}
+                            .catch((err) => showError(err instanceof Error ? err.message : "Failed to export"))}
                       >
                         Export JSON
-                      </button>
-                      <button
-                        type="button"
-                        class="dropdown-link"
-                        onclick={() => {
-                          openStoryMenuId = null
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        onSelect={() =>
                           void storiesService
                             .exportAndDownload(story.id, "tavern")
-                            .catch((err) => showError(err instanceof Error ? err.message : "Failed to export"))
-                        }}
+                            .catch((err) => showError(err instanceof Error ? err.message : "Failed to export"))}
                       >
                         Export ST Chat
-                      </button>
-                      <button
-                        type="button"
-                        class="dropdown-link"
-                        onclick={() => {
-                          openStoryMenuId = null
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        onSelect={() =>
                           void storiesService
                             .exportAndDownload(story.id, "plaintext")
-                            .catch((err) => showError(err instanceof Error ? err.message : "Failed to export"))
-                        }}
+                            .catch((err) => showError(err instanceof Error ? err.message : "Failed to export"))}
                       >
                         Export Text
-                      </button>
-                      <button class="danger-item" onclick={() => deleteStory(story.id)}>Delete</button>
-                    </div>
-                  {/if}
+                      </DropdownMenuItem>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem
+                        class="text-destructive focus:text-destructive"
+                        onSelect={() => deleteStory(story.id)}
+                      >
+                        Delete
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
                 </div>
-              </div>
+              </Card>
             {/each}
           </div>
         {/if}
       {:else if section === "chats"}
         {#if loadingChats}
-          <div class="empty">Loading chats...</div>
+          <div
+            class="grid place-items-center rounded-md border border-dashed p-8 text-center text-sm text-muted-foreground"
+          >
+            Loading chats...
+          </div>
         {:else if filteredChats.length === 0}
-          <div class="empty">
+          <div
+            class="grid place-items-center rounded-md border border-dashed p-8 text-center text-sm text-muted-foreground"
+          >
             {#if chats.length === 0}
-              <p>No chats yet.</p>
-              <p class="empty-hint">Start a new group chat above.</p>
+              <div class="space-y-1">
+                <p>No chats yet.</p>
+                <p class="text-xs text-muted-foreground/80">Start a new group chat above.</p>
+              </div>
             {:else}
-              <p>No chats found.</p>
-              <p class="empty-hint">Try a different search.</p>
+              <div class="space-y-1">
+                <p>No chats found.</p>
+                <p class="text-xs text-muted-foreground/80">Try a different search.</p>
+              </div>
             {/if}
           </div>
         {:else}
-          <div class="lib-grid" role="list">
+          <div class="grid gap-3" role="list" aria-label="Chats">
             {#each filteredChats as chat (chat.id)}
-              <div class="lib-card" role="listitem">
-                <button class="lib-card-main" onclick={() => openChat(chat)}>
-                  <div class="lib-card-title">{chat.title || chat.player_name || "Chat"}</div>
-                  <div class="lib-chip-row" aria-label="Participants">
-                    {#each chat.participants.slice(0, 5) as p (p)}
-                      <span class="lib-chip">{p}</span>
-                    {/each}
-                    {#if chat.participants.length > 5}
-                      <span class="lib-chip lib-chip--muted">+{chat.participants.length - 5}</span>
-                    {/if}
-                  </div>
-                  <div class="lib-card-foot">
-                    {chat.message_count} messages · Updated {relativeTime(chat.updated_at)}
-                  </div>
-                </button>
-
-                <div class="lib-menu-wrap">
-                  <button
-                    class="menu-btn"
-                    aria-label="Chat options"
-                    onclick={(e) => {
-                      e.stopPropagation()
-                      openStoryMenuId = null
-                      openCharacterMenuId = null
-                      openChatMenuId = openChatMenuId === chat.id ? null : chat.id
-                      if (openChatMenuId === chat.id) {
-                        void updateMenuPlacement("chat", chat.id, e.currentTarget as HTMLElement)
-                      }
-                    }}
+              <Card class="group">
+                <div class="flex items-start gap-2 p-3">
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    class="h-auto min-w-0 flex-1 flex-col items-start justify-start gap-0 p-0 text-left hover:bg-transparent"
+                    onclick={() => openChat(chat)}
                   >
-                    <IconDots size={14} strokeWidth={2} />
-                  </button>
-                  {#if openChatMenuId === chat.id}
-                    <div class="dropdown lib-dropdown" class:lib-dropdown--up={isMenuUp("chat", chat.id)}>
-                      <button
-                        type="button"
-                        class="dropdown-link"
-                        onclick={() => {
-                          openChatMenuId = null
+                    <div class="truncate text-sm font-semibold">{chat.title || chat.player_name || "Chat"}</div>
+                    <div class="mt-2 flex flex-wrap gap-1.5" aria-label="Participants">
+                      {#each chat.participants.slice(0, 5) as p (p)}
+                        <Badge variant="secondary" class="px-2 py-0 text-[11px] font-medium">
+                          {p}
+                        </Badge>
+                      {/each}
+                      {#if chat.participants.length > 5}
+                        <Badge variant="outline" class="px-2 py-0 text-[11px] font-medium text-muted-foreground">
+                          +{chat.participants.length - 5}
+                        </Badge>
+                      {/if}
+                    </div>
+                    <div class="mt-2 text-xs text-muted-foreground">
+                      {chat.message_count} messages · Updated {relativeTime(chat.updated_at)}
+                    </div>
+                  </Button>
+
+                  <DropdownMenu>
+                    <DropdownMenuTrigger
+                      class="inline-flex h-9 w-9 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
+                    >
+                      <span class="sr-only">Chat options</span>
+                      <IconDots size={15} strokeWidth={1.8} />
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" class="w-48">
+                      <DropdownMenuItem
+                        onSelect={() =>
                           void chatsService
                             .exportAndDownload(chat.id, "neuradventure")
-                            .catch((err) => showError(err instanceof Error ? err.message : "Failed to export"))
-                        }}
+                            .catch((err) => showError(err instanceof Error ? err.message : "Failed to export"))}
                       >
                         Export JSON
-                      </button>
-                      <button
-                        type="button"
-                        class="dropdown-link"
-                        onclick={() => {
-                          openChatMenuId = null
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        onSelect={() =>
                           void chatsService
                             .exportAndDownload(chat.id, "tavern")
-                            .catch((err) => showError(err instanceof Error ? err.message : "Failed to export"))
-                        }}
+                            .catch((err) => showError(err instanceof Error ? err.message : "Failed to export"))}
                       >
                         Export ST Chat
-                      </button>
-                      <button
-                        type="button"
-                        class="dropdown-link"
-                        onclick={() => {
-                          openChatMenuId = null
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        onSelect={() =>
                           void chatsService
                             .exportAndDownload(chat.id, "plaintext")
-                            .catch((err) => showError(err instanceof Error ? err.message : "Failed to export"))
-                        }}
+                            .catch((err) => showError(err instanceof Error ? err.message : "Failed to export"))}
                       >
                         Export Text
-                      </button>
-                      <button class="danger-item" onclick={() => deleteChat(chat.id)}>Delete</button>
-                    </div>
-                  {/if}
+                      </DropdownMenuItem>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem
+                        class="text-destructive focus:text-destructive"
+                        onSelect={() => deleteChat(chat.id)}
+                      >
+                        Delete
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
                 </div>
-              </div>
+              </Card>
             {/each}
           </div>
         {/if}
       {:else if loadingCharacters}
-        <div class="empty">Loading characters...</div>
+        <div class="mb-3 flex items-center justify-end gap-2">
+          <Button variant="outline" size="sm" onclick={importCharacter}>Import character</Button>
+        </div>
+
+        <div
+          class="grid place-items-center rounded-md border border-dashed p-8 text-center text-sm text-muted-foreground"
+        >
+          Loading characters...
+        </div>
       {:else if filteredCharacters.length === 0}
-        <div class="empty">
+        <div class="mb-3 flex items-center justify-end gap-2">
+          <Button variant="outline" size="sm" onclick={importCharacter}>Import character</Button>
+        </div>
+
+        <div
+          class="grid place-items-center rounded-md border border-dashed p-8 text-center text-sm text-muted-foreground"
+        >
           {#if storyCharacters.length === 0}
-            <p>No characters from stories yet.</p>
-            <p class="empty-hint">Finish a story to reuse its character here.</p>
+            <div class="space-y-1">
+              <p>No characters from stories yet.</p>
+              <p class="text-xs text-muted-foreground/80">Finish a story to reuse its character here.</p>
+            </div>
           {:else}
-            <p>No characters found.</p>
-            <p class="empty-hint">Try a different search.</p>
+            <div class="space-y-1">
+              <p>No characters found.</p>
+              <p class="text-xs text-muted-foreground/80">Try a different search.</p>
+            </div>
           {/if}
         </div>
       {:else}
-        <div class="lib-grid" role="list">
+        <div class="mb-3 flex items-center justify-end gap-2">
+          <Button variant="outline" size="sm" onclick={importCharacter}>Import character</Button>
+        </div>
+
+        <div class="grid gap-3" role="list" aria-label="Characters">
           {#each filteredCharacters as group (group.id)}
-            <div class="lib-card lib-card--character" role="listitem">
-              <button class="lib-card-main" onclick={() => openCharSheetForCharacter(group.id)}>
-                <div class="lib-char-head">
-                  {#if group.card?.avatar}
-                    <img class="lib-avatar" src={group.card.avatar} alt="" />
-                  {:else}
-                    <div class="lib-avatar lib-avatar--placeholder" aria-hidden="true"></div>
-                  {/if}
-                  <div class="lib-char-title">
-                    <div class="lib-card-title">{group.character.name}</div>
-                    <div class="lib-card-meta">{group.character.gender} · {group.character.race}</div>
-                  </div>
-                </div>
-
-                <div class="lib-card-meta lib-card-meta--clamp">
-                  {[...group.character.personality_traits, ...group.character.quirks, ...group.character.perks].join(
-                    ", ",
-                  ) || "No traits"}
-                </div>
-
-                {#if group.stories.length > 0}
-                  <div class="lib-card-foot">
-                    {group.stories.length} stories · Last played
-                    {relativeTime(new Date(characterLastPlayedMs(group)).toISOString())}
-                  </div>
-                {:else}
-                  <div class="lib-card-foot">No stories yet</div>
-                {/if}
-
-                {#if group.stories.length > 0}
-                  <div class="lib-chip-row" aria-label="Recent stories">
-                    {#each group.stories
-                      .slice()
-                      .sort((a, b) => updatedAtMs(b.updated_at) - updatedAtMs(a.updated_at))
-                      .slice(0, 4) as s (s.id)}
-                      <span class="lib-chip lib-chip--button">{s.title}</span>
-                    {/each}
-                    {#if group.stories.length > 4}
-                      <span class="lib-chip lib-chip--muted">+{group.stories.length - 4}</span>
-                    {/if}
-                  </div>
-                {/if}
-              </button>
-
-              <div class="lib-menu-wrap">
-                <button
-                  class="menu-btn"
-                  aria-label="Character options"
-                  onclick={(e) => {
-                    e.stopPropagation()
-                    openStoryMenuId = null
-                    openChatMenuId = null
-                    openCharacterMenuId = openCharacterMenuId === group.id ? null : group.id
-                    if (openCharacterMenuId === group.id) {
-                      void updateMenuPlacement("character", group.id, e.currentTarget as HTMLElement)
-                    }
-                  }}
+            <Card class="group">
+              <div class="flex items-start gap-2 p-3">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  class="h-auto min-w-0 flex-1 flex-col items-start justify-start gap-0 p-0 text-left hover:bg-transparent"
+                  onclick={() => openCharSheetForCharacter(group.id)}
                 >
-                  <IconDots size={14} strokeWidth={2} />
-                </button>
-                {#if openCharacterMenuId === group.id}
-                  <div class="dropdown lib-dropdown" class:lib-dropdown--up={isMenuUp("character", group.id)}>
-                    <button
-                      class="btn-icon"
-                      onclick={() => {
-                        openCharacterMenuId = null
-                        openCharSheetForCharacter(group.id)
-                      }}
-                    >
-                      <IconDocument size={14} strokeWidth={1.6} />
-                      Details
-                    </button>
-                    <button
-                      onclick={() => {
-                        openCharacterMenuId = null
-                        startNewWithCharacter(group)
-                      }}
-                    >
-                      New Story
-                    </button>
-                    <button
-                      onclick={() => {
-                        openCharacterMenuId = null
-                        void exportCharacter(group, "tavern-card")
-                      }}
-                    >
-                      Export ST
-                    </button>
-                    <button
-                      onclick={() => {
-                        openCharacterMenuId = null
-                        void exportCharacter(group, "neuradventure")
-                      }}
-                    >
-                      Export JSON
-                    </button>
-                    <button class="danger-item" onclick={() => deleteCharacter(group.id)}>Delete</button>
+                  <div class="flex items-center gap-3">
+                    {#if group.card?.avatar}
+                      <img class="h-10 w-10 rounded-full border object-cover" src={group.card.avatar} alt="" />
+                    {:else}
+                      <div class="h-10 w-10 rounded-full border bg-muted" aria-hidden="true"></div>
+                    {/if}
+                    <div class="min-w-0">
+                      <div class="truncate text-sm font-semibold">{group.character.name}</div>
+                      <div class="mt-0.5 text-xs text-muted-foreground">
+                        {group.character.gender} · {group.character.race}
+                      </div>
+                    </div>
                   </div>
-                {/if}
+
+                  <div class="mt-2 text-xs text-muted-foreground">
+                    {[...group.character.personality_traits, ...group.character.quirks, ...group.character.perks].join(
+                      ", ",
+                    ) || "No traits"}
+                  </div>
+
+                  {#if group.stories.length > 0}
+                    <div class="mt-2 text-xs text-muted-foreground">
+                      {group.stories.length} stories · Last played
+                      {relativeTime(new Date(characterLastPlayedMs(group)).toISOString())}
+                    </div>
+                  {:else}
+                    <div class="mt-2 text-xs text-muted-foreground">No stories yet</div>
+                  {/if}
+
+                  {#if group.stories.length > 0}
+                    <div class="mt-3 flex flex-wrap gap-1.5" aria-label="Recent stories">
+                      {#each group.stories
+                        .slice()
+                        .sort((a, b) => updatedAtMs(b.updated_at) - updatedAtMs(a.updated_at))
+                        .slice(0, 4) as s (s.id)}
+                        <Badge variant="outline" class="px-2 py-0 text-[11px] font-medium">
+                          {s.title}
+                        </Badge>
+                      {/each}
+                      {#if group.stories.length > 4}
+                        <Badge variant="outline" class="px-2 py-0 text-[11px] font-medium text-muted-foreground">
+                          +{group.stories.length - 4}
+                        </Badge>
+                      {/if}
+                    </div>
+                  {/if}
+                </Button>
+
+                <DropdownMenu>
+                  <DropdownMenuTrigger
+                    class="inline-flex h-9 w-9 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
+                  >
+                    <span class="sr-only">Character options</span>
+                    <IconDots size={15} strokeWidth={1.8} />
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" class="w-48">
+                    <DropdownMenuItem onSelect={() => openCharSheetForCharacter(group.id)}>
+                      <span class="inline-flex items-center gap-2">
+                        <IconDocument size={14} strokeWidth={1.6} />
+                        Details
+                      </span>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onSelect={() => startNewWithCharacter(group)}>New Story</DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem onSelect={() => void exportCharacter(group, "tavern-card")}
+                      >Export ST</DropdownMenuItem
+                    >
+                    <DropdownMenuItem onSelect={() => void exportCharacter(group, "neuradventure")}
+                      >Export JSON</DropdownMenuItem
+                    >
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem
+                      class="text-destructive focus:text-destructive"
+                      onSelect={() => deleteCharacter(group.id)}
+                    >
+                      Delete
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
               </div>
 
               {#if group.stories.length > 0}
-                <div class="lib-card-sub">
-                  <details class="lib-details">
-                    <summary class="lib-details-summary">
-                      Stories <span class="lib-count">{group.stories.length}</span>
+                <div class="border-t px-3 py-3">
+                  <details class="rounded-md border bg-muted/30 p-3">
+                    <summary
+                      class="cursor-pointer select-none text-xs font-semibold uppercase tracking-wider text-muted-foreground"
+                    >
+                      Stories <span class="ml-1 rounded-full bg-background px-2 py-0.5 text-[11px]"
+                        >{group.stories.length}</span
+                      >
                     </summary>
-                    <div class="lib-story-links">
+                    <div class="mt-3 grid gap-1">
                       {#each group.stories
                         .slice()
                         .sort((a, b) => updatedAtMs(b.updated_at) - updatedAtMs(a.updated_at)) as s (s.id)}
-                        <button class="lib-story-link" onclick={() => openStoryById(s.id)}>{s.title}</button>
+                        <Button
+                          type="button"
+                          variant="link"
+                          class="h-auto justify-start p-0 text-left text-sm font-normal text-foreground/90 hover:underline"
+                          onclick={() => openStoryById(s.id)}
+                        >
+                          {s.title}
+                        </Button>
                       {/each}
                     </div>
                   </details>
                 </div>
               {/if}
-            </div>
+            </Card>
           {/each}
         </div>
       {/if}
-    </section>
-  </div>
-
-  <footer>
-    <button class="btn-ghost" onclick={importStory}>Import Story</button>
-    <button class="btn-ghost" onclick={importCharacter}>Import Character</button>
-    <button class="btn-ghost" onclick={exportBackup}>Export Backup</button>
-    <button class="btn-ghost" onclick={restoreBackup}>Restore Backup</button>
-  </footer>
+    </div>
+  </ScrollArea>
 </div>
-
-<style>
-  .home {
-    background: var(--bg);
-  }
-
-  /* Brand area */
-  .brand {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    padding: 2.5rem 1rem 1.5rem;
-    gap: 0.35rem;
-    border-bottom: 1px solid var(--border);
-    position: relative;
-  }
-  .settings-btn {
-    position: absolute;
-    top: 1rem;
-    right: 1rem;
-    background: none;
-    border: none;
-    color: var(--text-dim);
-    cursor: pointer;
-    min-width: 40px;
-    min-height: 40px;
-    display: flex;
-    align-items: center;
-    gap: 0.35rem;
-    padding: 0.25rem 0.5rem;
-    border-radius: 4px;
-    transition: color 0.15s;
-  }
-  .settings-btn:hover {
-    color: var(--text);
-  }
-  h1 {
-    font-family: var(--font-brand);
-    font-size: 1.5rem;
-    font-weight: 600;
-    letter-spacing: 0.12em;
-    color: var(--accent);
-    margin: 0;
-  }
-
-  /* New story row */
-  .new-row {
-    padding: 0.85rem 1rem;
-    border-bottom: 1px solid var(--border);
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 0.6rem;
-  }
-  .new-btn {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    background: none;
-    border: 1px solid var(--border);
-    color: var(--text-dim);
-    font-family: var(--font-ui);
-    font-size: 0.82rem;
-    letter-spacing: 0.04em;
-    padding: 0.55rem 1rem;
-    cursor: pointer;
-    min-height: 40px;
-    transition:
-      color 0.15s,
-      border-color 0.15s;
-    width: 100%;
-    justify-content: center;
-  }
-  .new-btn:hover {
-    color: var(--accent);
-    border-color: var(--accent);
-  }
-
-  .home-scroll {
-    flex: 1;
-    overflow-y: auto;
-    min-height: 0;
-  }
-  @media (max-width: 440px) {
-    .new-row {
-      grid-template-columns: 1fr;
-    }
-  }
-
-  footer {
-    padding: 0.85rem 1rem;
-    border-top: 1px solid var(--border);
-  }
-  footer button {
-    width: 100%;
-    font-size: 0.8rem;
-    letter-spacing: 0.05em;
-    min-height: 40px;
-  }
-</style>

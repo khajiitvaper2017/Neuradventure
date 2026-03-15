@@ -1,4 +1,6 @@
 <script lang="ts">
+  import { Badge } from "@/components/ui/badge"
+  import { Button } from "@/components/ui/button"
   import IconFace from "@/components/icons/IconFace.svelte"
   import IconHome from "@/components/icons/IconHome.svelte"
   import IconMapPin from "@/components/icons/IconMapPin.svelte"
@@ -9,6 +11,7 @@
   import { showCharSheet, showLocations, showNPCTracker } from "@/stores/ui"
   import { isGenerating, turns } from "@/stores/game"
   import { streamingEnabled } from "@/stores/settings"
+  import { cn } from "@/utils.js"
 
   type ActionMode = "do" | "say" | "story"
   const ACTION_MODES: ActionMode[] = ["do", "say", "story"]
@@ -48,97 +51,164 @@
   {onFocus}
 >
   {#snippet topControls()}
-    <button class="mode-clear" onclick={() => (input = "")} disabled={!input || $isGenerating} aria-label="Clear"
-      >×</button
-    >
-
-    <div class="mode-group" role="group" aria-label="Action mode">
-      {#each ACTION_MODES as mode (mode)}
-        <button
-          class="mode-pill {actionMode === mode ? 'active' : ''}"
-          onclick={() => (actionMode = mode)}
-          disabled={$isGenerating}
-        >
-          {mode}
-        </button>
-      {/each}
-    </div>
-
-    <button
-      class="mode-undo"
-      onclick={onCancelLastTurn}
-      disabled={$isGenerating || $turns.length === 0}
-      title="Cancel last turn"
-      aria-label="Cancel last turn"
-    >
-      ↶
-    </button>
-
-    {#if canUndoCancel}
-      <button
-        class="mode-undo-cancel"
-        onclick={onUndoCancelLastTurn}
-        disabled={$isGenerating}
-        title="Undo cancel"
-        aria-label="Undo cancel"
+    <div class="flex flex-wrap items-center gap-2">
+      <Button
+        variant="ghost"
+        size="icon"
+        class="h-8 w-8 text-muted-foreground"
+        onclick={() => (input = "")}
+        disabled={!input || $isGenerating}
+        aria-label="Clear input"
+        title="Clear"
       >
-        ↷
-      </button>
-    {/if}
+        ×
+      </Button>
 
-    {#if $isGenerating && $streamingEnabled}
-      {#if followStream}
-        <span class="stream-lock-pill" title="Streaming output is following the latest text">Live</span>
-      {:else}
-        <button
-          class="stream-lock-pill stream-lock-pill--paused"
-          type="button"
-          onclick={onJumpToLatest}
-          title="Jump to the latest streamed output"
-          aria-label="Jump to the latest streamed output"
+      <div
+        class="inline-flex items-center gap-1 rounded-md bg-muted p-1 text-muted-foreground"
+        role="group"
+        aria-label="Action mode"
+      >
+        {#each ACTION_MODES as mode (mode)}
+          <Button
+            variant="ghost"
+            size="sm"
+            class={cn(
+              "h-8 rounded-sm px-3 text-xs font-medium uppercase tracking-wider",
+              actionMode === mode
+                ? "bg-background text-foreground shadow-sm hover:bg-background"
+                : "hover:bg-background/50 hover:text-foreground",
+            )}
+            onclick={() => (actionMode = mode)}
+            disabled={$isGenerating}
+            aria-pressed={actionMode === mode}
+          >
+            {mode}
+          </Button>
+        {/each}
+      </div>
+
+      <div class="ml-auto flex flex-wrap items-center gap-2">
+        <Button
+          variant="outline"
+          size="icon"
+          class="h-8 w-8"
+          onclick={onCancelLastTurn}
+          disabled={$isGenerating || $turns.length === 0}
+          title="Cancel last turn"
+          aria-label="Cancel last turn"
         >
-          Jump to latest
-        </button>
-      {/if}
-    {/if}
+          ↶
+        </Button>
 
-    <button
-      class="mode-regen"
-      onclick={onRegenerateLastTurn}
-      disabled={$isGenerating || $turns.length === 0}
-      title="Regenerate last turn"
-      aria-label="Regenerate last turn"
-    >
-      ↻
-    </button>
+        {#if canUndoCancel}
+          <Button
+            variant="outline"
+            size="icon"
+            class="h-8 w-8"
+            onclick={onUndoCancelLastTurn}
+            disabled={$isGenerating}
+            title="Undo cancel"
+            aria-label="Undo cancel"
+          >
+            ↷
+          </Button>
+        {/if}
 
-    <button
-      class="mode-impersonate"
-      onclick={onImpersonatePlayer}
-      disabled={$isGenerating || isImpersonating}
-      title="Impersonate player action"
-      aria-label="Impersonate player action"
-    >
-      {#if isImpersonating}
-        <IconSpinner className="spin" size={14} strokeWidth={2.2} />
-      {:else}
-        <IconFace size={14} strokeWidth={2} />
-      {/if}
-    </button>
+        {#if $isGenerating && $streamingEnabled}
+          {#if followStream}
+            <Badge
+              variant="secondary"
+              class="h-8 px-2 text-[11px] font-medium"
+              title="Streaming output is following the latest text"
+            >
+              Live
+            </Badge>
+          {:else}
+            <Button
+              variant="outline"
+              size="sm"
+              class="h-8"
+              onclick={onJumpToLatest}
+              title="Jump to the latest streamed output"
+              aria-label="Jump to the latest streamed output"
+            >
+              Jump to latest
+            </Button>
+          {/if}
+        {/if}
+
+        <Button
+          variant="outline"
+          size="icon"
+          class="h-8 w-8"
+          onclick={onRegenerateLastTurn}
+          disabled={$isGenerating || $turns.length === 0}
+          title="Regenerate last turn"
+          aria-label="Regenerate last turn"
+        >
+          ↻
+        </Button>
+
+        <Button
+          variant="outline"
+          size="icon"
+          class="h-8 w-8"
+          onclick={onImpersonatePlayer}
+          disabled={$isGenerating || isImpersonating}
+          title="Impersonate player action"
+          aria-label="Impersonate player action"
+        >
+          {#if isImpersonating}
+            <IconSpinner className="animate-spin" size={14} strokeWidth={2.2} />
+          {:else}
+            <IconFace size={14} strokeWidth={2} />
+          {/if}
+        </Button>
+      </div>
+    </div>
   {/snippet}
 
   {#snippet bottomControls()}
-    <button class="tbtn" onclick={onGoHome} title="Stories">
+    <Button
+      variant="ghost"
+      size="icon"
+      class="h-9 w-9 text-muted-foreground"
+      onclick={onGoHome}
+      title="Stories"
+      aria-label="Stories"
+    >
       <IconHome size={14} strokeWidth={1.8} />
-    </button>
-    <button class="tbtn" onclick={() => showCharSheet.update((v) => !v)} title="Character">
+    </Button>
+    <Button
+      variant="ghost"
+      size="icon"
+      class="h-9 w-9 text-muted-foreground"
+      onclick={() => showCharSheet.update((v) => !v)}
+      title="Character"
+      aria-label="Character"
+    >
       <IconUser size={14} strokeWidth={1.8} />
-    </button>
-    <button class="tbtn" onclick={() => showNPCTracker.update((v) => !v)} title="NPCs">
+    </Button>
+    <Button
+      variant="ghost"
+      size="icon"
+      class="h-9 w-9 text-muted-foreground"
+      onclick={() => showNPCTracker.update((v) => !v)}
+      title="NPCs"
+      aria-label="NPCs"
+    >
       <IconUsers size={14} strokeWidth={1.8} />
-    </button>
-    <button class="tbtn" onclick={() => showLocations.update((v) => !v)} title="Locations">
+    </Button>
+    <Button
+      variant="ghost"
+      size="icon"
+      class="h-9 w-9 text-muted-foreground"
+      onclick={() => showLocations.update((v) => !v)}
+      title="Locations"
+      aria-label="Locations"
+    >
       <IconMapPin size={14} strokeWidth={1.8} />
-    </button>
+    </Button>
   {/snippet}
 </ConversationInput>

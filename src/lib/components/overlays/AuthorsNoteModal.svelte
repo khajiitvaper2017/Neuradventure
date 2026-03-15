@@ -1,6 +1,18 @@
 <script lang="ts">
-  import { autoresize } from "@/utils/actions/autoresize"
-  import Select from "@/components/controls/Select.svelte"
+  import * as Select from "@/components/ui/select"
+  import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+  } from "@/components/ui/dialog"
+  import { Button } from "@/components/ui/button"
+  import { Input } from "@/components/ui/input"
+  import { Label } from "@/components/ui/label"
+  import { Textarea } from "@/components/ui/textarea"
+  import { Checkbox } from "@/components/ui/checkbox"
 
   export let open = false
   export let disabled = false
@@ -27,136 +39,102 @@
     { value: 2, label: "Assistant" },
   ]
 
-  function onBackdropClick(e: MouseEvent) {
-    if (disabled) return
-    const el = e.currentTarget
-    if (!(el instanceof HTMLElement)) return
-    if (el !== e.target) return
-    onCancel?.()
-  }
+  const positionSelectOptions = positionOptions.map((o) => ({ value: String(o.value), label: o.label }))
+  const roleSelectOptions = roleOptions.map((o) => ({ value: String(o.value), label: o.label }))
 
-  function onKeydown(e: KeyboardEvent) {
-    if (!open) return
-    if (disabled) return
-    if (e.key === "Escape") {
-      e.preventDefault()
-      onCancel?.()
-    }
-  }
+  $: positionLabel = positionSelectOptions.find((o) => o.value === String(position))?.label ?? "Select…"
+  $: roleLabel = roleSelectOptions.find((o) => o.value === String(role))?.label ?? "Select…"
 </script>
 
-<svelte:window onkeydown={onKeydown} />
+<Dialog
+  {open}
+  onOpenChange={(next) => {
+    if (!next && open) onCancel?.()
+  }}
+>
+  <DialogContent class="max-w-3xl">
+    <DialogHeader>
+      <DialogTitle>Author's Note</DialogTitle>
+      <DialogDescription>Injected into the prompt using SillyTavern-style position/depth rules.</DialogDescription>
+    </DialogHeader>
 
-{#if open}
-  <!-- svelte-ignore a11y_click_events_have_key_events -->
-  <!-- svelte-ignore a11y_no_static_element_interactions -->
-  <div class="overlay overlay--modal" onclick={onBackdropClick}>
-    <div class="modal" role="dialog" aria-modal="true" aria-label="Author's note" tabindex="-1">
-      <h3 class="modal__title">Author's Note</h3>
-      <p class="modal__message">Injected into the prompt using SillyTavern-style position/depth rules.</p>
+    <div class="space-y-2">
+      <Label for="an-note">Note</Label>
+      <Textarea
+        id="an-note"
+        bind:value={note}
+        rows={4}
+        placeholder="e.g. Focus on dialogue and character emotions"
+        {disabled}
+      ></Textarea>
+    </div>
 
-      <div class="field">
-        <label for="an-note">
-          Note <span class="hint">(optional)</span>
-        </label>
-        <textarea
-          id="an-note"
-          class="edit-textarea"
-          bind:value={note}
-          rows="4"
-          placeholder="e.g. Focus on dialogue and character emotions"
+    <div class="grid grid-cols-1 gap-4 sm:grid-cols-2" role="group" aria-label="Author's note injection settings">
+      <div class="space-y-2">
+        <Label for="an-position">Position</Label>
+        <Select.Root
+          type="single"
+          value={String(position)}
+          onValueChange={(next) => (position = Number(next))}
+          items={positionSelectOptions}
           {disabled}
-          use:autoresize={note}
-        ></textarea>
+        >
+          <Select.Trigger id="an-position" class="w-full" aria-label="Author note position">
+            {positionLabel}
+          </Select.Trigger>
+          <Select.Content>
+            {#each positionSelectOptions as option (option.value)}
+              <Select.Item {...option} />
+            {/each}
+          </Select.Content>
+        </Select.Root>
       </div>
 
-      <div class="an-grid" role="group" aria-label="Author's note injection settings">
-        <div class="field">
-          <label for="an-position">Position</label>
-          <Select
-            id="an-position"
-            ariaLabel="Author note position"
-            width="100%"
-            options={positionOptions}
-            bind:value={position}
-            {disabled}
-          />
-        </div>
-
-        <div class="field">
-          <label for="an-depth">Depth</label>
-          <input
-            id="an-depth"
-            class="text-input text-input--fluid"
-            type="number"
-            min="0"
-            max="100"
-            bind:value={depth}
-            {disabled}
-          />
-        </div>
-
-        <div class="field">
-          <label for="an-interval">Interval</label>
-          <input
-            id="an-interval"
-            class="text-input text-input--fluid"
-            type="number"
-            min="0"
-            max="1000"
-            bind:value={interval}
-            {disabled}
-          />
-          <div class="help-text">0 disables author note text injection.</div>
-        </div>
-
-        <div class="field">
-          <label for="an-role">Role</label>
-          <Select
-            id="an-role"
-            ariaLabel="Author note role"
-            width="100%"
-            options={roleOptions}
-            bind:value={role}
-            {disabled}
-          />
-        </div>
-
-        <div class="field an-toggle">
-          <div class="label-row">
-            <label for="an-embed">Embed state blocks</label>
-            <input id="an-embed" type="checkbox" bind:checked={embedState} {disabled} />
-          </div>
-          <div class="help-text">
-            If enabled, state blocks (player/npc context) are placed inside the author note section.
-          </div>
-        </div>
+      <div class="space-y-2">
+        <Label for="an-depth">Depth</Label>
+        <Input id="an-depth" type="number" min="0" max="100" bind:value={depth} {disabled} />
       </div>
 
-      <div class="modal__actions">
-        <button class="btn-ghost" onclick={() => onCancel?.()} {disabled}>Cancel</button>
-        <button class="btn-accent" onclick={() => onSave?.()} {disabled}>Save</button>
+      <div class="space-y-2">
+        <Label for="an-interval">Interval</Label>
+        <Input id="an-interval" type="number" min="0" max="1000" bind:value={interval} {disabled} />
+        <div class="text-xs text-muted-foreground">0 disables author note text injection.</div>
+      </div>
+
+      <div class="space-y-2">
+        <Label for="an-role">Role</Label>
+        <Select.Root
+          type="single"
+          value={String(role)}
+          onValueChange={(next) => (role = Number(next))}
+          items={roleSelectOptions}
+          {disabled}
+        >
+          <Select.Trigger id="an-role" class="w-full" aria-label="Author note role">
+            {roleLabel}
+          </Select.Trigger>
+          <Select.Content>
+            {#each roleSelectOptions as option (option.value)}
+              <Select.Item {...option} />
+            {/each}
+          </Select.Content>
+        </Select.Root>
+      </div>
+
+      <div class="space-y-2 border-t pt-4 sm:col-span-2">
+        <div class="flex items-center justify-between gap-3">
+          <Label for="an-embed">Embed state blocks</Label>
+          <Checkbox id="an-embed" bind:checked={embedState} {disabled} />
+        </div>
+        <div class="text-xs text-muted-foreground">
+          If enabled, state blocks (player/npc context) are placed inside the author note section.
+        </div>
       </div>
     </div>
-  </div>
-{/if}
 
-<style>
-  .an-grid {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 0.75rem;
-  }
-
-  .an-toggle {
-    grid-column: 1 / -1;
-    padding-top: 0.25rem;
-    border-top: 1px solid var(--border);
-  }
-
-  @media (max-width: 560px) {
-    .an-grid {
-      grid-template-columns: 1fr;
-    }
-  }
-</style>
+    <DialogFooter class="mt-2">
+      <Button variant="outline" onclick={() => onCancel?.()} {disabled}>Cancel</Button>
+      <Button onclick={() => onSave?.()} {disabled}>Save</Button>
+    </DialogFooter>
+  </DialogContent>
+</Dialog>

@@ -1,12 +1,15 @@
 <script lang="ts">
   import { navigate } from "@/stores/ui"
-  import SegmentedTabs from "@/components/controls/SegmentedTabs.svelte"
+  import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
+  import { Button } from "@/components/ui/button"
+  import { ScrollArea } from "@/components/ui/scroll-area"
   import AppearanceTab from "@/features/settings/tabs/AppearanceTab.svelte"
+  import DataTab from "@/features/settings/tabs/DataTab.svelte"
   import GenerationTab from "@/features/settings/tabs/GenerationTab.svelte"
   import ModulesTab from "@/features/settings/tabs/ModulesTab.svelte"
   import PromptsTab from "@/features/settings/tabs/PromptsTab.svelte"
 
-  type SettingsTab = "appearance" | "generation" | "prompts" | "modules"
+  type SettingsTab = "appearance" | "data" | "generation" | "prompts" | "modules"
   const SETTINGS_TAB_KEY = "settings_active_tab"
   type GenerationSection = "connection" | "defaults" | "params" | "advanced"
   const GEN_SECTION_KEY = "settings_generation_section"
@@ -15,6 +18,7 @@
     if (typeof window === "undefined") return "appearance"
     try {
       const stored = window.localStorage.getItem(SETTINGS_TAB_KEY)
+      if (stored === "data") return "data"
       if (stored === "generation") return "generation"
       if (stored === "prompts") return "prompts"
       if (stored === "modules") return "modules"
@@ -62,6 +66,7 @@
 
   const tabs: Array<{ value: SettingsTab; label: string }> = [
     { value: "appearance", label: "Appearance" },
+    { value: "data", label: "Data" },
     { value: "generation", label: "Text Generation" },
     { value: "prompts", label: "Prompts" },
     { value: "modules", label: "Story Modules" },
@@ -75,61 +80,59 @@
   ]
 </script>
 
-<div class="screen settings">
-  <header class="screen-header">
-    <button class="back-btn" onclick={() => navigate("home")}>← Back</button>
-    <h2 class="screen-title">Settings</h2>
+<div class="mx-auto flex h-dvh w-full max-w-3xl flex-col">
+  <header class="flex items-center gap-3 border-b px-4 py-3">
+    <Button variant="ghost" class="-ml-2" onclick={() => navigate("home")}>← Back</Button>
+    <h2 class="text-base font-semibold text-foreground">Settings</h2>
   </header>
 
-  <div class="settings-tabs">
-    <SegmentedTabs ariaLabel="Settings tabs" {tabs} bind:value={activeTab} variant="nav" stretch />
+  <div class="border-b px-4 py-3">
+    <Tabs value={activeTab} onValueChange={(next) => (activeTab = next as SettingsTab)}>
+      <TabsList aria-label="Settings tabs" class="w-full">
+        {#each tabs as t (t.value)}
+          <TabsTrigger value={t.value} class="flex-1 text-xs font-medium uppercase tracking-wider">
+            {t.label}
+          </TabsTrigger>
+        {/each}
+      </TabsList>
+    </Tabs>
   </div>
 
   {#if activeTab === "generation"}
-    <div class="settings-subtabs">
-      <SegmentedTabs
-        ariaLabel="Text generation sections"
-        tabs={generationSectionTabs}
-        bind:value={generationSection}
-        variant="nav"
-        stretch
-      />
+    <div class="border-b px-4 py-3">
+      <Tabs value={generationSection} onValueChange={(next) => (generationSection = next as GenerationSection)}>
+        <TabsList aria-label="Text generation sections" class="w-full">
+          {#each generationSectionTabs as t (t.value)}
+            <TabsTrigger value={t.value} class="flex-1 text-xs font-medium uppercase tracking-wider">
+              {t.label}
+            </TabsTrigger>
+          {/each}
+        </TabsList>
+      </Tabs>
     </div>
   {/if}
 
-  <div class="settings-body" data-scroll-root="screen">
-    <div class="settings-pane" hidden={activeTab !== "appearance"} aria-hidden={activeTab !== "appearance"}>
-      <AppearanceTab />
-      <div class="settings-bottom-pad"></div>
-    </div>
+  <ScrollArea class="min-h-0 flex-1">
+    <div class="px-4 py-4">
+      <div class="space-y-4" hidden={activeTab !== "appearance"} aria-hidden={activeTab !== "appearance"}>
+        <AppearanceTab />
+      </div>
 
-    <div class="settings-pane" hidden={activeTab !== "generation"} aria-hidden={activeTab !== "generation"}>
-      <GenerationTab active={activeTab === "generation"} section={generationSection} />
-    </div>
+      <div class="space-y-4" hidden={activeTab !== "data"} aria-hidden={activeTab !== "data"}>
+        <DataTab />
+      </div>
 
-    <div class="settings-pane" hidden={activeTab !== "prompts"} aria-hidden={activeTab !== "prompts"}>
-      <PromptsTab active={activeTab === "prompts"} />
-    </div>
+      <div class="space-y-4" hidden={activeTab !== "generation"} aria-hidden={activeTab !== "generation"}>
+        <GenerationTab active={activeTab === "generation"} section={generationSection} />
+      </div>
 
-    <div class="settings-pane" hidden={activeTab !== "modules"} aria-hidden={activeTab !== "modules"}>
-      <ModulesTab />
+      <div class="space-y-4" hidden={activeTab !== "prompts"} aria-hidden={activeTab !== "prompts"}>
+        <PromptsTab active={activeTab === "prompts"} />
+      </div>
+
+      <div class="space-y-4" hidden={activeTab !== "modules"} aria-hidden={activeTab !== "modules"}>
+        <ModulesTab />
+      </div>
     </div>
-  </div>
+  </ScrollArea>
 </div>
-
-<style>
-  .settings-tabs {
-    padding: 0.75rem 1rem;
-    border-bottom: 1px solid var(--border);
-  }
-
-  .settings-subtabs {
-    padding: 0.75rem 1rem;
-    border-bottom: 1px solid var(--border);
-  }
-
-  .settings-body {
-    flex: 1;
-    overflow-y: auto;
-  }
-</style>

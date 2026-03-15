@@ -1,8 +1,9 @@
 <script lang="ts">
   import type { Snippet } from "svelte"
-  import { autoresize } from "@/utils/actions/autoresize"
   import IconSend from "@/components/icons/IconSend.svelte"
   import IconSpinner from "@/components/icons/IconSpinner.svelte"
+  import { Button } from "@/components/ui/button"
+  import { Textarea } from "@/components/ui/textarea"
 
   export let value = ""
   export let placeholder = ""
@@ -31,149 +32,46 @@
   }
 </script>
 
-<div class="input-zone conversation-input">
-  <div class="mode-row">
+<div class="flex shrink-0 flex-col border-t bg-background min-[1200px]:px-5 min-[1200px]:pb-4">
+  <div class="flex min-h-11 items-center gap-2 border-b px-3 py-1">
     {#if topControls}
-      <div class="top-controls">
+      <div
+        class="flex min-w-0 flex-1 flex-wrap items-center gap-2 [&>*]:flex [&>*]:min-w-0 [&>*]:flex-wrap [&>*]:items-center [&>*]:gap-2"
+      >
         {@render topControls()}
       </div>
     {/if}
-    <button class="send-btn" onclick={handleSend} disabled={!canSubmit()} aria-label="Send">
+    <Button
+      size="icon"
+      class="ml-auto h-9 w-9 rounded-full"
+      onclick={handleSend}
+      disabled={!canSubmit()}
+      aria-label="Send"
+    >
       {#if sending}
-        <IconSpinner className="spin" size={16} strokeWidth={2.2} />
+        <IconSpinner className="animate-spin" size={16} strokeWidth={2.2} />
       {:else}
         <IconSend size={16} strokeWidth={2.2} />
       {/if}
-    </button>
+    </Button>
   </div>
 
-  <textarea
-    bind:this={textareaEl}
+  <Textarea
+    bind:ref={textareaEl}
     bind:value
     {placeholder}
     {rows}
     {disabled}
     onkeydown={handleKeydown}
     onfocus={(event) => onFocus?.(event)}
-    use:autoresize={value}
-  ></textarea>
+    class="min-h-0 w-full resize-none border-0 bg-transparent px-5 py-3 text-sm leading-relaxed text-foreground shadow-none placeholder:italic placeholder:text-muted-foreground focus-visible:ring-0 focus-visible:ring-offset-0 disabled:opacity-50 min-[1200px]:min-h-[68px] min-[1200px]:pb-5"
+  />
 
   {#if bottomControls}
-    <div class="toolbar">
+    <div
+      class="flex items-center justify-around gap-2 border-t px-2 pb-2 pt-1 min-[1200px]:hidden [&>*]:flex [&>*]:w-full [&>*]:items-center [&>*]:justify-around [&>*]:gap-2"
+    >
       {@render bottomControls()}
     </div>
   {/if}
 </div>
-
-<style>
-  .conversation-input {
-    flex-shrink: 0;
-    border-top: 1px solid var(--border);
-    background: var(--bg);
-  }
-  @media (min-width: 1200px) {
-    .conversation-input {
-      padding-left: 1.25rem;
-      padding-right: 1.25rem;
-      padding-bottom: 1.1rem;
-    }
-  }
-
-  .mode-row {
-    display: flex;
-    align-items: center;
-    gap: 0;
-    padding: 0.35rem 0.75rem;
-    border-bottom: 1px solid var(--border);
-    min-height: 42px;
-  }
-  .top-controls {
-    display: flex;
-    align-items: center;
-    gap: 0.35rem;
-    flex: 1;
-    min-width: 0;
-    flex-wrap: wrap;
-  }
-  .top-controls :global(> *) {
-    display: flex;
-    align-items: center;
-    gap: 0.35rem;
-    min-width: 0;
-    flex-wrap: wrap;
-  }
-
-  .send-btn {
-    margin-left: auto;
-    background: var(--accent);
-    border: none;
-    color: #0d0b08;
-    border-radius: 50%;
-    width: 34px;
-    height: 34px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    cursor: pointer;
-    transition:
-      background 0.15s,
-      opacity 0.15s;
-    flex-shrink: 0;
-  }
-  .send-btn:hover:not(:disabled) {
-    background: var(--accent-hover);
-  }
-  .send-btn:disabled {
-    opacity: 0.35;
-    cursor: not-allowed;
-  }
-
-  textarea {
-    width: 100%;
-    background: transparent;
-    border: none;
-    color: var(--text);
-    font-family: var(--font-ui);
-    font-size: 0.95rem;
-    line-height: 1.5;
-    padding: 0.85rem 1.25rem 0.65rem;
-    resize: none;
-    display: block;
-  }
-  @media (min-width: 1200px) {
-    textarea {
-      padding-bottom: 1.25rem;
-      min-height: 68px;
-    }
-  }
-  textarea::placeholder {
-    color: var(--text-dim);
-    font-style: italic;
-  }
-  textarea:focus {
-    outline: none;
-  }
-  textarea:disabled {
-    opacity: 0.4;
-  }
-
-  .toolbar {
-    display: flex;
-    align-items: center;
-    justify-content: space-around;
-    padding: 0.2rem 0.5rem 0.5rem;
-    border-top: 1px solid var(--border);
-  }
-  .toolbar :global(> *) {
-    display: flex;
-    align-items: center;
-    justify-content: space-around;
-    gap: 0.5rem;
-    width: 100%;
-  }
-  @media (min-width: 1200px) {
-    .toolbar {
-      display: none;
-    }
-  }
-</style>

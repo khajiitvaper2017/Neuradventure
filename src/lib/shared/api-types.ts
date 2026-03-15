@@ -282,10 +282,7 @@ export interface ModelInfo {
 }
 
 export interface SettingsState {
-  theme: "default" | "amoled"
-  design: "classic" | "roboto"
-  textJustify: boolean
-  colorScheme: "gold" | "emerald" | "sapphire" | "crimson"
+  colorMode: "light" | "dark" | "system"
   streamingEnabled: boolean
   sectionFormat: SectionFormat
   timeouts: TimeoutSettings

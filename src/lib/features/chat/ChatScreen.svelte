@@ -10,6 +10,7 @@
   import { showConfirm, showError, goBack } from "@/stores/ui"
   import { createRequestId } from "@/utils/ids"
   import { clearPendingRequest, getPendingRequest, setPendingRequest } from "@/utils/pendingRequests"
+  import { cn } from "@/utils.js"
   import {
     canUndoChatCancel,
     chatMembers,
@@ -20,7 +21,6 @@
     nextSpeakerIndex,
   } from "@/stores/chat"
   import { streamingEnabled } from "@/stores/settings"
-  import { autoresize } from "@/utils/actions/autoresize"
   import {
     appendChatExchange,
     appendChatMessage,
@@ -33,6 +33,10 @@
   import ThinkingDots from "@/components/controls/ThinkingDots.svelte"
   import IconPencilSquare from "@/components/icons/IconPencilSquare.svelte"
   import IconTrash from "@/components/icons/IconTrash.svelte"
+  import { Badge } from "@/components/ui/badge"
+  import { Button } from "@/components/ui/button"
+  import { ScrollArea } from "@/components/ui/scroll-area"
+  import { Textarea } from "@/components/ui/textarea"
   import ChatTitleModal from "@/features/chat/ChatTitleModal.svelte"
   import NextSpeakerModal from "@/features/chat/NextSpeakerModal.svelte"
 
@@ -45,7 +49,7 @@
 
   let input = $state("")
   let actionMode = $state<ActionMode>("say")
-  let logEl: HTMLDivElement | null = null
+  let logEl = $state<HTMLDivElement | null>(null)
   let editingMessageId = $state<number | null>(null)
   let editMessageContent = $state("")
   let showTitleEditor = $state(false)
@@ -130,6 +134,14 @@
   function handleLogScroll() {
     followStream = isNearBottom(logEl)
   }
+
+  $effect(() => {
+    const el = logEl
+    if (!el) return
+    const onScroll = () => handleLogScroll()
+    el.addEventListener("scroll", onScroll, { passive: true })
+    return () => el.removeEventListener("scroll", onScroll)
+  })
 
   function jumpToLatest() {
     followStream = true
@@ -493,9 +505,16 @@
   }
 </script>
 
-<div class="screen chat">
-  <header>
-    <button class="header-back" onclick={() => goBack("home")} title="Return to menu" aria-label="Back to home">
+<div class="mx-auto flex h-dvh w-full max-w-3xl flex-col">
+  <header class="flex min-h-12 items-center gap-2 border-b pr-2 min-[1200px]:pr-6">
+    <Button
+      variant="ghost"
+      size="icon"
+      class="h-12 w-12 shrink-0 rounded-none border-r text-muted-foreground hover:bg-accent hover:text-foreground"
+      onclick={() => goBack("home")}
+      title="Return to menu"
+      aria-label="Back to home"
+    >
       <svg
         width="14"
         height="14"
@@ -508,28 +527,38 @@
       >
         <path d="M19 12H5" /><path d="M12 19l-7-7 7-7" />
       </svg>
-    </button>
+    </Button>
 
-    <div class="header-center">
-      <span class="story-name">{$currentChatTitle || "Chat"}</span>
-      <span class="header-scene">{participantLabel() || "No participants"}</span>
+    <div class="flex min-w-0 flex-1 flex-col gap-0.5 py-2">
+      <span class="break-words text-sm font-medium leading-snug text-foreground">{$currentChatTitle || "Chat"}</span>
+      <span class="break-words text-[11px] uppercase tracking-wider text-muted-foreground/80">
+        {participantLabel() || "No participants"}
+      </span>
     </div>
 
-    <div class="header-actions">
-      <span class="turn-badge">{visibleMessages.length}</span>
-      <button
-        class="edit-btn header"
+    <div class="flex shrink-0 items-center gap-2">
+      <Badge variant="secondary" class="font-mono text-xs tabular-nums">{visibleMessages.length}</Badge>
+      <Button
+        variant="outline"
+        size="icon"
+        class="h-9 w-9"
         onclick={startEditTitle}
         disabled={$isChatGenerating}
         title="Edit title"
         aria-label="Edit title"
       >
         <IconPencilSquare size={12} strokeWidth={2} />
-      </button>
+      </Button>
       {#if showNextSpeakerControl()}
-        <button class="next-speaker" onclick={() => (showSpeakerPicker = true)} title="Pick next speaker">
+        <Button
+          variant="outline"
+          size="sm"
+          class="h-9 rounded-full px-3 font-mono text-xs"
+          onclick={() => (showSpeakerPicker = true)}
+          title="Pick next speaker"
+        >
           Next: {nextSpeakerName()}
-        </button>
+        </Button>
       {/if}
     </div>
   </header>
@@ -554,103 +583,126 @@
     />
   {/if}
 
-  <div class="chat-log" bind:this={logEl} data-scroll-root="screen" onscroll={handleLogScroll}>
-    {#if visibleMessages.length === 0}
-      <div class="empty">No messages yet.</div>
-    {:else}
-      {#each visibleMessages as message (message.id)}
-        <div class="chat-message {message.role === 'user' ? 'from-user' : 'from-ai'}">
-          <div class="chat-speaker">
-            <span>{message.speaker_name}</span>
-            <span class="message-actions">
-              <button
-                class="edit-btn inline"
-                onclick={() => startEditMessage(message)}
-                disabled={$isChatGenerating}
-                title="Edit message"
-                aria-label="Edit message"
-              >
-                <IconPencilSquare size={12} strokeWidth={2} />
-              </button>
-              <button
-                class="delete-btn inline"
-                onclick={() => deleteMessage(message.id)}
-                disabled={$isChatGenerating}
-                title="Delete message"
-              >
-                <IconTrash size={12} strokeWidth={2} />
-              </button>
-            </span>
-          </div>
-
-          {#if editingMessageId === message.id}
-            <textarea
-              class="edit-textarea"
-              bind:value={editMessageContent}
-              rows="3"
-              disabled={$isChatGenerating}
-              use:autoresize={editMessageContent}
-            ></textarea>
-            <div class="edit-actions">
-              <button class="btn-ghost" onclick={cancelEditMessage} disabled={$isChatGenerating}>Cancel</button>
-              <button class="btn-accent" onclick={() => saveMessageEdit(message.id)} disabled={$isChatGenerating}>
-                Save
-              </button>
-            </div>
-          {:else}
-            {#if $isChatGenerating && streamPreviewMode === "replace" && regeneratingMessageId === message.id}
-              {#if $streamingEnabled && streamReply.trim().length > 0}
-                <div class="chat-text streaming-preview"><RichText text={streamReply} mode="block" /></div>
-              {:else}
-                <div class="chat-text regen-placeholder">Regenerating…</div>
-              {/if}
-            {:else}
-              <div class="chat-text"><RichText text={message.content} mode="block" /></div>
-            {/if}
-
-            {#if !(streamPreviewMode === "replace" && $isChatGenerating && regeneratingMessageId === message.id)}
-              {#if message.id === seededGreetingMessageId && hasSingleAiCharacter && (greetingOptions.length > 1 || greetingIndex < 0)}
-                <div class="variant-row" role="group" aria-label="Greeting options">
-                  <span class="variant-label">Greetings</span>
-                  {#if greetingIndex < 0}
-                    <button class="variant-pill active" disabled title="Current greeting is custom">custom</button>
-                  {/if}
-                  {#each greetingOptions as _, i (i)}
-                    <button
-                      class="variant-pill {greetingIndex === i ? 'active' : ''}"
-                      onclick={() => selectGreeting(i)}
-                      disabled={$isChatGenerating || greetingApplying}
-                      title={i === 0 ? "Greeting 1 (first_mes)" : `Greeting ${i + 1}`}
-                    >
-                      {i + 1}
-                    </button>
-                  {/each}
+  <ScrollArea class="min-h-0 flex-1" bind:viewportRef={logEl}>
+    <div class="px-5 pb-2 pt-6 min-[1200px]:px-10 min-[1200px]:pt-8">
+      {#if visibleMessages.length === 0}
+        <div
+          class="grid place-items-center rounded-md border border-dashed p-8 text-center text-sm text-muted-foreground"
+        >
+          No messages yet.
+        </div>
+      {:else}
+        <div class="space-y-3">
+          {#each visibleMessages as message (message.id)}
+            {@const fromUser = message.role === "user"}
+            <div class={cn("rounded-lg border bg-card p-4", fromUser && "border-primary/20 bg-primary/5")}>
+              <div class="flex items-start justify-between gap-3">
+                <div class="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                  {message.speaker_name}
                 </div>
-                {#if greetingApplying}
-                  <div class="editor-hint" aria-live="polite">Applying greeting...</div>
+                <div class="flex items-center gap-1">
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    class="h-8 w-8"
+                    onclick={() => startEditMessage(message)}
+                    disabled={$isChatGenerating}
+                    title="Edit message"
+                    aria-label="Edit message"
+                  >
+                    <IconPencilSquare size={12} strokeWidth={2} />
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    class="h-8 w-8 border-destructive/40 text-destructive hover:bg-destructive/10 hover:text-destructive"
+                    onclick={() => deleteMessage(message.id)}
+                    disabled={$isChatGenerating}
+                    title="Delete message"
+                  >
+                    <IconTrash size={12} strokeWidth={2} />
+                  </Button>
+                </div>
+              </div>
+
+              {#if editingMessageId === message.id}
+                <div class="mt-3 space-y-2">
+                  <Textarea bind:value={editMessageContent} rows={3} disabled={$isChatGenerating} />
+                  <div class="flex items-center justify-end gap-2">
+                    <Button variant="outline" onclick={cancelEditMessage} disabled={$isChatGenerating}>Cancel</Button>
+                    <Button onclick={() => saveMessageEdit(message.id)} disabled={$isChatGenerating}>Save</Button>
+                  </div>
+                </div>
+              {:else}
+                <div class="mt-3 text-sm leading-relaxed text-foreground">
+                  {#if $isChatGenerating && streamPreviewMode === "replace" && regeneratingMessageId === message.id}
+                    {#if $streamingEnabled && streamReply.trim().length > 0}
+                      <RichText text={streamReply} mode="block" />
+                    {:else}
+                      <div class="italic text-muted-foreground">Regenerating…</div>
+                    {/if}
+                  {:else}
+                    <RichText text={message.content} mode="block" />
+                  {/if}
+                </div>
+
+                {#if !(streamPreviewMode === "replace" && $isChatGenerating && regeneratingMessageId === message.id)}
+                  {#if message.id === seededGreetingMessageId && hasSingleAiCharacter && (greetingOptions.length > 1 || greetingIndex < 0)}
+                    <div class="mt-3 flex flex-wrap items-center gap-2" role="group" aria-label="Greeting options">
+                      <span class="mr-1 text-xs font-semibold uppercase tracking-wider text-muted-foreground"
+                        >Greetings</span
+                      >
+                      {#if greetingIndex < 0}
+                        <Button
+                          variant="secondary"
+                          size="sm"
+                          class="h-8 rounded-full px-3 font-mono text-xs"
+                          disabled
+                          title="Current greeting is custom"
+                        >
+                          custom
+                        </Button>
+                      {/if}
+                      {#each greetingOptions as _, i (i)}
+                        <Button
+                          variant={greetingIndex === i ? "secondary" : "outline"}
+                          size="sm"
+                          class="h-8 w-10 rounded-full px-0 font-mono text-xs"
+                          onclick={() => selectGreeting(i)}
+                          disabled={$isChatGenerating || greetingApplying}
+                          title={i === 0 ? "Greeting 1 (first_mes)" : `Greeting ${i + 1}`}
+                        >
+                          {i + 1}
+                        </Button>
+                      {/each}
+                    </div>
+                    {#if greetingApplying}
+                      <div class="mt-2 text-xs text-muted-foreground" aria-live="polite">Applying greeting...</div>
+                    {/if}
+                  {/if}
                 {/if}
               {/if}
-            {/if}
-          {/if}
+            </div>
+          {/each}
         </div>
-      {/each}
-    {/if}
+      {/if}
 
-    {#if $isChatGenerating && $streamingEnabled && streamPreviewMode === "append" && streamReply.trim().length > 0}
-      <div class="chat-message from-ai streaming-preview">
-        <div class="chat-speaker">
-          <span>{nextSpeakerName()}</span>
+      {#if $isChatGenerating && $streamingEnabled && streamPreviewMode === "append" && streamReply.trim().length > 0}
+        <div class="mt-3 rounded-lg border border-dashed bg-card p-4">
+          <div class="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{nextSpeakerName()}</div>
+          <div class="mt-3 text-sm leading-relaxed text-foreground">
+            <RichText text={streamReply} mode="block" />
+          </div>
         </div>
-        <div class="chat-text"><RichText text={streamReply} mode="block" /></div>
-      </div>
-    {/if}
+      {/if}
 
-    {#if $isChatGenerating}
-      <ThinkingDots />
-    {/if}
+      {#if $isChatGenerating}
+        <ThinkingDots />
+      {/if}
 
-    <div style="height:1rem"></div>
-  </div>
+      <div class="h-4"></div>
+    </div>
+  </ScrollArea>
 
   <ConversationInput
     bind:value={input}
@@ -661,264 +713,89 @@
     onSend={sendMessage}
   >
     {#snippet topControls()}
-      <button class="mode-clear" onclick={() => (input = "")} disabled={!input || $isChatGenerating} aria-label="Clear">
+      <Button
+        variant="outline"
+        size="icon"
+        class="h-8 w-8 rounded-full"
+        onclick={() => (input = "")}
+        disabled={!input || $isChatGenerating}
+        aria-label="Clear"
+      >
         ×
-      </button>
-      <div class="mode-group" role="group" aria-label="Action mode">
+      </Button>
+      <div class="flex items-center gap-1 rounded-full border bg-background p-1" role="group" aria-label="Action mode">
         {#each ACTION_MODES as mode (mode)}
-          <button
-            class="mode-pill {actionMode === mode ? 'active' : ''}"
+          <Button
+            variant={actionMode === mode ? "secondary" : "ghost"}
+            size="sm"
+            class="h-8 rounded-full px-3"
             onclick={() => (actionMode = mode)}
             disabled={$isChatGenerating}
           >
             {mode}
-          </button>
+          </Button>
         {/each}
       </div>
-      <button
-        class="mode-undo"
+      <Button
+        variant="outline"
+        size="icon"
+        class="h-8 w-8 rounded-full"
         onclick={cancelLastExchange}
         disabled={$isChatGenerating || visibleMessages.length === 0}
         title="Cancel last exchange"
         aria-label="Cancel last exchange"
       >
         ↶
-      </button>
+      </Button>
       {#if $canUndoChatCancel}
-        <button
-          class="mode-undo-cancel"
+        <Button
+          variant="outline"
+          size="icon"
+          class="h-8 w-8 rounded-full"
           onclick={undoCancel}
           disabled={$isChatGenerating}
           title="Undo cancel"
           aria-label="Undo cancel"
         >
           ↷
-        </button>
+        </Button>
       {/if}
 
       {#if $isChatGenerating && $streamingEnabled}
         {#if followStream}
-          <span class="stream-lock-pill" title="Streaming output is following the latest text">Live</span>
+          <Badge
+            variant="secondary"
+            class="rounded-full font-mono text-[11px]"
+            title="Streaming output is following the latest text"
+          >
+            Live
+          </Badge>
         {:else}
-          <button
-            class="stream-lock-pill stream-lock-pill--paused"
+          <Button
+            variant="outline"
+            size="sm"
+            class="h-8 rounded-full px-3"
             type="button"
             onclick={jumpToLatest}
             title="Jump to the latest streamed output"
             aria-label="Jump to the latest streamed output"
           >
             Jump to latest
-          </button>
+          </Button>
         {/if}
       {/if}
 
-      <button
-        class="mode-regen"
+      <Button
+        variant="outline"
+        size="icon"
+        class="h-8 w-8 rounded-full"
         onclick={regenerateLast}
         disabled={$isChatGenerating || visibleMessages.length === 0}
         title="Regenerate last reply"
         aria-label="Regenerate last reply"
       >
         ↻
-      </button>
+      </Button>
     {/snippet}
   </ConversationInput>
 </div>
-
-<style>
-  .chat {
-    background: var(--bg);
-  }
-
-  header {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    padding: 0 0.5rem 0 0;
-    border-bottom: 1px solid var(--border);
-    min-height: 46px;
-    flex-shrink: 0;
-  }
-  @media (min-width: 1200px) {
-    header {
-      padding: 0 1.5rem 0 0;
-    }
-  }
-  .header-back {
-    background: none;
-    border: none;
-    border-right: 1px solid var(--border);
-    color: var(--text-dim);
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 46px;
-    min-height: 46px;
-    flex-shrink: 0;
-    transition:
-      color 0.15s,
-      background 0.15s;
-  }
-  .header-back:hover {
-    color: var(--text);
-    background: var(--bg-action);
-  }
-  .header-center {
-    flex: 1;
-    min-width: 0;
-    display: flex;
-    flex-direction: column;
-    gap: 0.1rem;
-    padding: 0.35rem 0;
-  }
-  .story-name {
-    font-family: var(--font-ui);
-    font-size: 0.82rem;
-    color: var(--text);
-    font-weight: 500;
-    white-space: normal;
-    overflow-wrap: anywhere;
-    line-height: 1.2;
-  }
-  .header-scene {
-    font-family: var(--font-ui);
-    font-size: 0.65rem;
-    color: var(--text-scene);
-    letter-spacing: 0.06em;
-    white-space: normal;
-    overflow-wrap: anywhere;
-    line-height: 1.2;
-  }
-  .header-actions {
-    display: flex;
-    align-items: center;
-    gap: 0.35rem;
-    flex-shrink: 0;
-  }
-  .turn-badge {
-    font-family: var(--font-ui);
-    font-size: 0.7rem;
-    color: var(--accent);
-    background: var(--accent-dim);
-    padding: 0.15rem 0.5rem;
-    border-radius: var(--radius-pill);
-    font-feature-settings: "tnum";
-    font-weight: 500;
-    letter-spacing: 0.02em;
-  }
-  .next-speaker {
-    background: var(--bg-action);
-    border: 1px solid var(--border);
-    color: var(--text-dim);
-    font-size: 0.72rem;
-    padding: 0.35rem 0.6rem;
-    border-radius: 999px;
-    cursor: pointer;
-    white-space: nowrap;
-  }
-  .next-speaker:hover {
-    color: var(--text);
-    border-color: var(--border-hover);
-  }
-  .next-speaker:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-  }
-
-  .chat-log {
-    flex: 1;
-    overflow-y: auto;
-    padding: 1.5rem 1.25rem 0.5rem;
-    display: flex;
-    flex-direction: column;
-    gap: 0.75rem;
-  }
-  @media (min-width: 1200px) {
-    .chat-log {
-      padding: 2rem 2.5rem 0.5rem;
-    }
-  }
-
-  .chat-message {
-    display: flex;
-    flex-direction: column;
-    gap: 0.5rem;
-    padding: 0.7rem 0.9rem;
-    border-radius: var(--radius-sm);
-    border: 1px solid var(--border);
-    background: var(--bg-raised);
-  }
-  .chat-message.from-user {
-    border-color: var(--accent-dim);
-    background: rgba(255, 255, 255, 0.04);
-  }
-  .chat-speaker {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 0.5rem;
-    font-size: 0.7rem;
-    color: var(--text-dim);
-    letter-spacing: 0.06em;
-  }
-  .message-actions {
-    display: inline-flex;
-    gap: 0.3rem;
-    align-items: center;
-  }
-  .chat-text {
-    font-size: 0.92rem;
-    line-height: 1.5;
-    color: var(--text);
-    white-space: pre-line;
-  }
-
-  .edit-btn {
-    background: none;
-    border: 1px solid var(--border);
-    color: var(--text-dim);
-    padding: 0.25rem 0.6rem;
-    border-radius: 4px;
-    cursor: pointer;
-    font-size: 0.75rem;
-    min-height: 28px;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-  }
-  .edit-btn:hover {
-    color: var(--text);
-  }
-  .edit-btn.header {
-    padding: 0.25rem 0.5rem;
-    min-height: 28px;
-  }
-  .edit-btn.inline {
-    margin-left: auto;
-  }
-  .delete-btn {
-    background: none;
-    border: 1px solid var(--accent);
-    color: var(--accent);
-    padding: 0.25rem 0.5rem;
-    border-radius: 4px;
-    cursor: pointer;
-    font-size: 0.75rem;
-    min-height: 28px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-  }
-  .delete-btn:hover:not(:disabled) {
-    background: var(--accent);
-    color: #0d0b08;
-  }
-  .delete-btn:disabled {
-    opacity: 0.4;
-    cursor: not-allowed;
-  }
-  .delete-btn.inline {
-    margin-left: 0.25rem;
-  }
-</style>

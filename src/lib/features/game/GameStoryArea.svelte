@@ -1,15 +1,19 @@
 <script lang="ts">
+  import { onDestroy } from "svelte"
   import type { TurnSummary, TurnVariantSummary } from "@/shared/types"
+  import { cn } from "@/utils.js"
   import IconPencilSquare from "@/components/icons/IconPencilSquare.svelte"
   import IconTrash from "@/components/icons/IconTrash.svelte"
   import BackgroundEventsReveal from "@/components/rich/BackgroundEventsReveal.svelte"
   import RichText from "@/components/rich/RichText.svelte"
   import StreamingTurnPreview from "@/components/rich/StreamingTurnPreview.svelte"
   import ThinkingDots from "@/components/controls/ThinkingDots.svelte"
-  import { autoresize } from "@/utils/actions/autoresize"
   import { looksLikeBlockHtml } from "@/utils/sanitizeHtml"
   import { currentStoryInitialWorld, currentStoryOpeningScenario, turns, worldState, isGenerating } from "@/stores/game"
   import { streamingEnabled } from "@/stores/settings"
+  import { Button } from "@/components/ui/button"
+  import { Textarea } from "@/components/ui/textarea"
+  import { ScrollArea } from "@/components/ui/scroll-area"
 
   export let storyDiv: HTMLDivElement | null = null
   export let initialScrollDone = false
@@ -45,6 +49,19 @@
   export let streamScene = ""
   export let streamTime = ""
 
+  let storyScrollCleanup: (() => void) | null = null
+  $: {
+    storyScrollCleanup?.()
+    storyScrollCleanup = null
+    if (storyDiv && handleStoryScroll) {
+      const el = storyDiv
+      const listener = () => handleStoryScroll?.()
+      el.addEventListener("scroll", listener, { passive: true })
+      storyScrollCleanup = () => el.removeEventListener("scroll", listener)
+    }
+  }
+  onDestroy(() => storyScrollCleanup?.())
+
   function paragraphs(text: string): string[] {
     let normalized = text.replace(/\r\n/g, "\n")
     if (!normalized.includes("\n") && normalized.includes("\\n")) {
@@ -58,349 +75,189 @@
   }
 </script>
 
-<div
-  class="story-area"
-  class:story-ready={initialScrollDone || $turns.length === 0}
-  data-scroll-root="screen"
-  bind:this={storyDiv}
-  onscroll={handleStoryScroll}
+<ScrollArea
+  class={cn("min-h-0 flex-1", !(initialScrollDone || $turns.length === 0) && "invisible")}
+  bind:viewportRef={storyDiv}
 >
-  {#if $worldState}
-    <p class="scene-crumb mobile-only" class:flash={flashScene}>
-      {$worldState.current_scene} · {$worldState.time_of_day}
-    </p>
-  {/if}
+  <div class="flex flex-col px-5 pb-2 pt-6 min-[1200px]:px-10 min-[1200px]:pt-8">
+    {#if $worldState}
+      <p
+        class={cn(
+          "mb-5 text-[11px] uppercase tracking-wider text-muted-foreground/80 min-[1200px]:hidden",
+          flashScene && "animate-pulse",
+        )}
+      >
+        {$worldState.current_scene} · {$worldState.time_of_day}
+      </p>
+    {/if}
 
-  <div class="opening-block">
-    <div class="opening-header">
-      <span>Opening</span>
-      {#if !editingOpening}
-        <button
-          class="edit-btn"
-          onclick={startEditOpening}
-          disabled={$isGenerating}
-          title="Edit opening"
-          aria-label="Edit opening"
+    <div class="mb-5 rounded-lg border bg-card p-4">
+      <div
+        class="flex items-center justify-between gap-3 text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground"
+      >
+        <span>Opening</span>
+        {#if !editingOpening}
+          <Button
+            variant="outline"
+            size="icon"
+            class="h-8 w-8"
+            onclick={startEditOpening}
+            disabled={$isGenerating}
+            title="Edit opening"
+            aria-label="Edit opening"
+          >
+            <IconPencilSquare size={12} strokeWidth={2} />
+          </Button>
+        {/if}
+      </div>
+      {#if $currentStoryInitialWorld}
+        <p class="mt-2 text-[11px] uppercase tracking-wider text-muted-foreground/80">
+          {$currentStoryInitialWorld.current_scene} · {$currentStoryInitialWorld.time_of_day}
+        </p>
+      {/if}
+      {#if editingOpening}
+        <div class="mt-3 space-y-3">
+          <Textarea bind:value={openingDraft} rows={6} disabled={$isGenerating} />
+          <div class="flex items-center justify-end gap-2">
+            <Button variant="outline" onclick={cancelEditOpening} disabled={$isGenerating}>Cancel</Button>
+            <Button onclick={saveOpening} disabled={$isGenerating}>Save</Button>
+          </div>
+        </div>
+      {:else}
+        <div
+          class={cn(
+            "mt-3 whitespace-pre-line font-story text-sm italic leading-relaxed text-muted-foreground",
+            flashOpening && "animate-pulse",
+          )}
         >
-          <IconPencilSquare size={12} strokeWidth={2} />
-        </button>
+          <RichText text={$currentStoryOpeningScenario || $worldState?.memory || ""} mode="block" />
+        </div>
       {/if}
     </div>
-    {#if $currentStoryInitialWorld}
-      <p class="opening-scene">{$currentStoryInitialWorld.current_scene} · {$currentStoryInitialWorld.time_of_day}</p>
-    {/if}
-    {#if editingOpening}
-      <textarea
-        class="edit-textarea"
-        bind:value={openingDraft}
-        rows="6"
-        disabled={$isGenerating}
-        use:autoresize={openingDraft}
-      ></textarea>
-      <div class="edit-actions">
-        <button class="btn-ghost" onclick={cancelEditOpening} disabled={$isGenerating}>Cancel</button>
-        <button class="btn-accent" onclick={saveOpening} disabled={$isGenerating}>Save</button>
-      </div>
-    {:else}
-      <div class="opening-text" class:flash={flashOpening}>
-        <RichText text={$currentStoryOpeningScenario || $worldState?.memory || ""} mode="block" />
-      </div>
-    {/if}
-  </div>
 
-  {#each $turns as turn, i (turn.id)}
-    {#if editingTurnId === turn.id}
-      <div class="edit-turn">
-        <label class="edit-label" for="edit-player-input">Player Input</label>
-        <textarea
-          id="edit-player-input"
-          class="edit-textarea"
-          bind:value={editPlayerInput}
-          rows="2"
-          disabled={$isGenerating}
-          use:autoresize={editPlayerInput}
-        ></textarea>
-        <label class="edit-label" for="edit-narrative">Story Text</label>
-        <textarea
-          id="edit-narrative"
-          class="edit-textarea"
-          bind:value={editNarrative}
-          rows="6"
-          disabled={$isGenerating}
-          use:autoresize={editNarrative}
-        ></textarea>
-        <div class="edit-actions">
-          <button class="btn-ghost" onclick={cancelEditTurn} disabled={$isGenerating}>Cancel</button>
-          <button class="btn-accent" onclick={() => saveTurnEdit?.(turn.id)} disabled={$isGenerating}>Save</button>
+    {#each $turns as turn, i (turn.id)}
+      {#if editingTurnId === turn.id}
+        <div class="mb-5 rounded-lg border bg-card p-4">
+          <div class="space-y-3">
+            <div class="space-y-2">
+              <div class="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Player Input</div>
+              <Textarea bind:value={editPlayerInput} rows={2} disabled={$isGenerating} />
+            </div>
+            <div class="space-y-2">
+              <div class="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Story Text</div>
+              <Textarea bind:value={editNarrative} rows={6} disabled={$isGenerating} />
+            </div>
+            <div class="flex items-center justify-end gap-2">
+              <Button variant="outline" onclick={cancelEditTurn} disabled={$isGenerating}>Cancel</Button>
+              <Button onclick={() => saveTurnEdit?.(turn.id)} disabled={$isGenerating}>Save</Button>
+            </div>
+          </div>
         </div>
-      </div>
-    {:else}
-      <div class="action-inline" class:fresh={userActed && i === $turns.length - 1 && !$isGenerating}>
-        {#if turn.player_input.trim().length > 0}
-          <IconPencilSquare className="pencil-icon" size={12} strokeWidth={2} />
-        {/if}
-        <span class="action-text">
-          <RichText text={turn.player_input} mode="inline" />
-        </span>
-        <button
-          class="edit-btn inline"
-          onclick={() => startEditTurn?.(turn)}
-          disabled={$isGenerating}
-          title="Edit turn"
-          aria-label="Edit turn"
+      {:else}
+        {@const isFresh = userActed && i === $turns.length - 1 && !$isGenerating}
+        <div
+          class={cn(
+            "my-4 -mx-5 flex items-baseline gap-2 bg-accent/60 px-5 py-3 text-sm italic leading-relaxed text-accent-foreground/90 min-[1200px]:-mx-10 min-[1200px]:px-10",
+            isFresh && "animate-in fade-in slide-in-from-bottom-1 duration-200",
+          )}
         >
-          <IconPencilSquare size={12} strokeWidth={2} />
-        </button>
-        <button
-          class="delete-btn inline"
-          onclick={() => deleteTurn?.(turn.id)}
-          disabled={$isGenerating}
-          title="Delete turn"
-        >
-          <IconTrash size={12} strokeWidth={2} />
-        </button>
-      </div>
-
-      <div class="narrative-block" class:fresh={userActed && i === $turns.length - 1 && !$isGenerating}>
-        {#if $isGenerating && regeneratingTurnId === turn.id}
-          <p class="regen-placeholder">Regenerating…</p>
-        {:else}
-          {#if turn.world}
-            <p class="turn-scene">{turn.world.current_scene} · {turn.world.time_of_day}</p>
+          {#if turn.player_input.trim().length > 0}
+            <IconPencilSquare className="mt-[1px] shrink-0 opacity-60" size={12} strokeWidth={2} />
           {/if}
+          <span class="min-w-0 flex-1">
+            <RichText text={turn.player_input} mode="inline" />
+          </span>
+          <Button
+            variant="outline"
+            size="icon"
+            class="h-8 w-8"
+            onclick={() => startEditTurn?.(turn)}
+            disabled={$isGenerating}
+            title="Edit turn"
+            aria-label="Edit turn"
+          >
+            <IconPencilSquare size={12} strokeWidth={2} />
+          </Button>
+          <Button
+            variant="outline"
+            size="icon"
+            class="h-8 w-8 border-destructive/40 text-destructive hover:bg-destructive/10 hover:text-destructive"
+            onclick={() => deleteTurn?.(turn.id)}
+            disabled={$isGenerating}
+            title="Delete turn"
+          >
+            <IconTrash size={12} strokeWidth={2} />
+          </Button>
+        </div>
 
-          <BackgroundEventsReveal text={turn.background_events} />
-
-          {#if looksLikeBlockHtml(turn.narrative_text)}
-            <div class="para para--html" style="animation-delay: 0s">
-              <RichText text={turn.narrative_text} mode="block" />
-            </div>
+        <div class="mb-4">
+          {#if $isGenerating && regeneratingTurnId === turn.id}
+            <p class="text-sm italic text-muted-foreground">Regenerating…</p>
           {:else}
-            {#each paragraphs(turn.narrative_text) as para, j}
-              <p class="para" style="animation-delay: {j * 0.06}s">
-                <RichText text={para} mode="inline" />
+            {#if turn.world}
+              <p class="mb-2 text-[11px] uppercase tracking-wider text-muted-foreground/80">
+                {turn.world.current_scene} · {turn.world.time_of_day}
               </p>
-            {/each}
-          {/if}
+            {/if}
 
-          {#if i === $turns.length - 1 && lastTurnVariants.length > 1}
-            <div class="variant-row">
-              <span class="variant-label">Versions</span>
-              {#each lastTurnVariants as variant (variant.id)}
-                <button
-                  class="variant-pill {activeVariantId === variant.id ? 'active' : ''}"
-                  onclick={() => selectVariant?.(variant.id)}
-                  disabled={$isGenerating}
-                  title={`Version ${variant.variant_index}`}
+            <BackgroundEventsReveal text={turn.background_events} />
+
+            {#if looksLikeBlockHtml(turn.narrative_text)}
+              <div
+                class={cn("font-story", isFresh && "animate-in fade-in slide-in-from-bottom-1 duration-300")}
+                style="animation-delay: 0s"
+              >
+                <RichText text={turn.narrative_text} mode="block" />
+              </div>
+            {:else}
+              {#each paragraphs(turn.narrative_text) as para, j}
+                <p
+                  class={cn(
+                    "mb-4 whitespace-pre-line font-story text-[15px] leading-7 text-foreground",
+                    isFresh && "animate-in fade-in slide-in-from-bottom-1 duration-300",
+                  )}
+                  style="animation-delay: {j * 0.06}s"
                 >
-                  {variant.variant_index}
-                </button>
+                  <RichText text={para} mode="inline" />
+                </p>
               {/each}
-            </div>
+            {/if}
+
+            {#if i === $turns.length - 1 && lastTurnVariants.length > 1}
+              <div class="mt-4 flex flex-wrap items-center gap-2">
+                <span class="mr-1 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Versions</span>
+                {#each lastTurnVariants as variant (variant.id)}
+                  <Button
+                    variant={activeVariantId === variant.id ? "secondary" : "outline"}
+                    size="sm"
+                    class="h-8 w-10 px-0 font-mono"
+                    onclick={() => selectVariant?.(variant.id)}
+                    disabled={$isGenerating}
+                    title={`Version ${variant.variant_index}`}
+                  >
+                    {variant.variant_index}
+                  </Button>
+                {/each}
+              </div>
+            {/if}
           {/if}
-        {/if}
-      </div>
+        </div>
+      {/if}
+    {/each}
+
+    {#if $isGenerating && $streamingEnabled}
+      <StreamingTurnPreview
+        narrativeText={streamNarrative}
+        backgroundEvents={streamBackground}
+        currentScene={streamScene}
+        timeOfDay={streamTime}
+      />
     {/if}
-  {/each}
 
-  {#if $isGenerating && $streamingEnabled}
-    <StreamingTurnPreview
-      narrativeText={streamNarrative}
-      backgroundEvents={streamBackground}
-      currentScene={streamScene}
-      timeOfDay={streamTime}
-    />
-  {/if}
+    {#if $isGenerating}
+      <ThinkingDots />
+    {/if}
 
-  {#if $isGenerating}
-    <ThinkingDots />
-  {/if}
-
-  <div style="height:1rem"></div>
-</div>
-
-<style>
-  /* ── Story area ─────────────────────────────────────── */
-  .story-area {
-    flex: 1;
-    overflow-y: auto;
-    padding: 1.5rem 1.25rem 0.5rem;
-    display: flex;
-    flex-direction: column;
-    gap: 0;
-    visibility: hidden;
-  }
-  .story-area.story-ready {
-    visibility: visible;
-  }
-  @media (min-width: 1200px) {
-    .story-area {
-      padding: 2rem 2.5rem 0.5rem;
-    }
-  }
-  .opening-block {
-    background: var(--bg-raised);
-    border: 1px solid var(--border);
-    border-radius: 6px;
-    padding: 0.9rem;
-    display: flex;
-    flex-direction: column;
-    gap: 0.6rem;
-    margin-bottom: 1.25rem;
-  }
-  .opening-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    font-size: 0.72rem;
-    letter-spacing: 0.1em;
-    color: var(--text-dim);
-  }
-  .opening-scene {
-    font-family: var(--font-ui);
-    font-size: 0.65rem;
-    color: var(--text-scene);
-    letter-spacing: 0.08em;
-  }
-  .scene-crumb {
-    font-family: var(--font-ui);
-    font-size: 0.72rem;
-    color: var(--text-scene);
-    letter-spacing: 0.1em;
-    margin-bottom: 1.25rem;
-  }
-  .turn-scene {
-    font-family: var(--font-ui);
-    font-size: 0.65rem;
-    color: var(--text-scene);
-    letter-spacing: 0.08em;
-    margin-bottom: 0.4rem;
-  }
-  .opening-text {
-    font-family: var(--font-story);
-    font-size: var(--story-size);
-    line-height: var(--story-line);
-    color: var(--text);
-    margin-bottom: 1.5rem;
-    font-style: italic;
-    opacity: 0.75;
-    white-space: pre-line;
-  }
-  .edit-turn {
-    background: var(--bg-raised);
-    border: 1px solid var(--border);
-    border-radius: 6px;
-    padding: 0.9rem;
-    display: flex;
-    flex-direction: column;
-    gap: 0.5rem;
-    margin-bottom: 1.25rem;
-  }
-  .edit-btn {
-    background: none;
-    border: 1px solid var(--border);
-    color: var(--text-dim);
-    padding: 0.25rem 0.6rem;
-    border-radius: 4px;
-    cursor: pointer;
-    font-size: 0.75rem;
-    min-height: 28px;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-  }
-  .edit-btn:hover {
-    color: var(--text);
-  }
-  .edit-btn.inline {
-    margin-left: auto;
-  }
-  .delete-btn {
-    background: none;
-    border: 1px solid var(--accent);
-    color: var(--accent);
-    padding: 0.25rem 0.5rem;
-    border-radius: 4px;
-    cursor: pointer;
-    font-size: 0.75rem;
-    min-height: 28px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-  }
-  .delete-btn:hover:not(:disabled) {
-    background: var(--accent);
-    color: #0d0b08;
-  }
-  .delete-btn:disabled {
-    opacity: 0.4;
-    cursor: not-allowed;
-  }
-  .delete-btn.inline {
-    margin-left: 0.25rem;
-  }
-
-  .action-inline {
-    display: flex;
-    align-items: baseline;
-    gap: 0.5rem;
-    background: var(--bg-action);
-    padding: 0.55rem 1rem 0.55rem 0.85rem;
-    margin: 1rem -1.25rem;
-    color: var(--text-action);
-    font-family: var(--font-story);
-    font-size: 0.92rem;
-    font-style: italic;
-    line-height: 1.5;
-  }
-  @media (min-width: 1200px) {
-    .action-inline {
-      margin-left: -2.5rem;
-      margin-right: -2.5rem;
-      padding-left: 2.5rem;
-      padding-right: 2.5rem;
-    }
-  }
-  :global(.pencil-icon) {
-    flex-shrink: 0;
-    color: var(--text-dim);
-    opacity: 0.6;
-    position: relative;
-    top: 1px;
-  }
-
-  .narrative-block {
-    margin-bottom: 1rem;
-  }
-  .para {
-    font-family: var(--font-story);
-    font-size: var(--story-size);
-    line-height: var(--story-line);
-    color: var(--text);
-    margin-bottom: 1em;
-    white-space: pre-line;
-  }
-  .para:last-child {
-    margin-bottom: 0;
-  }
-  .action-text {
-    flex: 1;
-    min-width: 0;
-  }
-  .fresh .para {
-    animation: paraIn 0.4s ease both;
-  }
-  .fresh.action-inline {
-    animation: paraIn 0.25s ease both;
-  }
-  @keyframes paraIn {
-    from {
-      opacity: 0;
-      transform: translateY(5px);
-    }
-    to {
-      opacity: 1;
-      transform: translateY(0);
-    }
-  }
-</style>
+    <div class="h-4"></div>
+  </div>
+</ScrollArea>

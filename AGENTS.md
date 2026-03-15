@@ -1,79 +1,137 @@
 # AGENTS.md
+
 ## AI Coding Guidelines
-- **Execution**: NEVER run `npm run dev` by yourself.
-- **Planning revisions**: If the user rejects your plan, base the new plan on the previous one (unless they are incompatible). Always remember and reference prior plans when proposing updates.
-- **Significant code changes**: After any major edits, always run `npm run lint`, `npm run check`. Plan changes in a way that allows to minimize amount of tool calls and checks. Try doing changes in a batches using scripts if a lot of files need to be refactored or moved. In the end of the work run `npm run format`. Prioritize removing legacy code. Remove shims when possible and try to not use them. Use newest techonologies if possible, never use deprecated code. Never leave unused packages. Don't hesitate rewrite something from scratch if it will greatly simplify and improve code.
-- **Git & version control**: Ignore git entirely unless explicitly asked. **Never** modify `endOfLine` settings in any config files.
-- **Git status**: Only address files you have actually edited. Ignore any other files shown in `git status`.
-- **Styling & CSS**: Ensure all changes align with the application's existing design system. Never use temporary/stopgap solutions. For shared styles, use or extend `shared.css` (add new common classes there when needed). Use Minimalist / Refined archetype and `DESIGN.md` when creating or changing CSS.
-- **File management**: Never delete any file unless it was part of your original plan. Assume other AI agents may be working on the codebase simultaneously. If a file you edited reverts to its old state, restore your version and continue — do not waste time investigating why. I will handle the other agent.
-- **Component structure**: Whenever possible, extract new UI components into separate files. Files exceeding ~1000 lines of code are not acceptable.
-- **Linting & checks**: If an error slips through linting or checks, update the lint rules or configuration to catch it going forward.
-- **Package files**: Never generate or modify `package-lock.json`.
-- **Output format**: Always use clean Markdown for plans, explanations, code blocks, and any written response.
-- **Additional dependencies**: Feel free to propose any libraries that could help greatly reduce code and improve maintainability.
+
+**Workflow & Planning**
+
+* **Batch Operations:** Minimize tool calls and checks. Group edits logically, and use scripts for bulk file refactoring or moving.
+* **Plan Revisions:** If a proposed plan is rejected, base your revised plan on the previous one unless they are fundamentally incompatible. Always reference prior plans.
+* **Dependencies:** Proactively propose new libraries if they significantly simplify code or improve maintainability. Never leave unused packages behind.
+
+**Code Quality & Standards**
+
+* **Verification:** Run `npm run lint` and `npm run check` after major edits. Always run `npm run format` at the end of your workflow.
+* **Continuous Improvement:** If an error bypasses current checks, update the linting rules or configs to catch it in the future.
+* **Modernization:** Use the newest stable technologies available. Avoid deprecated code. Do not hesitate to rewrite a module from scratch if it drastically improves simplicity and performance.
+* **Legacy Code:** Remove it entirely. Do not write new legacy code. Only use legacy shims if they significantly reduce import clutter.
+
+**UI System & Styling**
+
+* **UI Primitives:** Use the shadcn-style primitives (Tailwind + Bits UI) located in `src/lib/components/ui/**`. **Do not** reintroduce legacy UI widgets.
+* **Raw Elements:** Never use raw HTML form elements (e.g., `<button>`, `<label>`, `<select>`, `<textarea>`) outside the `ui/**` folder. Use their capitalized component equivalents instead (e.g., `Button`, `Label`).
+* **Design Tokens:** The Accent color defaults to `#c85c5c` (user-configurable) and drives `--primary` and `--ring`. Use `font-story` (Cinzel) for story logs and narrative text. See `DESIGN.md` for extended styling rules.
+* **Component Structure:** Extract new UI components into separate files. Files must not exceed ~1000 lines of code.
+
+**File Management**
+
+* **Scope:** Only modify files you have explicitly planned to edit. Ignore unrelated changes in `git status`.
+* **Multi-Agent Environment:** Assume other AI agents are working simultaneously. **Do not** delete unassigned files. If your edited file unexpectedly reverts to its previous state, restore your version and continue working. Do not investigate the cause; the user will handle agent conflicts.
+* **Cleanup:** Delete empty directories if they are no longer needed.
+
+---
+
 ## GBNF Pattern Constraint
-- JSON-to-GBNF conversion requires regex patterns to start with `^` and end with `$`.
+
+* JSON-to-GBNF conversions require all regex patterns to explicitly begin with `^` and end with `$`.
+
+---
+
 ## Project Structure
-This repo is a **static, installable SvelteKit PWA** (no custom backend).
-Update the structure here if changed.
-- `src/routes/**` - SvelteKit routes (thin shells only)
-- Query-param routing is the source of truth:
-- `/game?story=<id>`
-- `/chat?chat=<id>`
-- `src/lib/**` - all application code
-- `src/lib/engine/**` - browser-only engine (sql.js + IndexedDB persistence, game logic, LLM connectors)
-- `src/lib/services/**` - domain modules (stories/turns/chats/settings/generate/stream, etc.)
-- `src/lib/stores/**` - Svelte stores (UI state, settings, game/chat state, PWA state)
-- `src/lib/features/**` - feature screens (Home/Game/Chat/Settings, etc.)
-- `src/lib/components/**` - shared UI components
-- `controls/`, `inputs/`, `overlays/`, `panels/`, `rich/`, `icons/`
-- `src/lib/styles/**` - global CSS (`app.css` imports `shared.css`)
-- `src/lib/shared/**` - configs/types previously under `shared/**`
-- `src/app.html` - HTML template (SvelteKit replaces the old root `index.html`)
-- `src/app.d.ts` - app-wide TS declarations
-- `static/**` - static assets (PWA icons, etc.)
-- `scripts/**` - local tooling scripts (lint/check helpers)
-- `vite.config.ts` - Vite + PWA config
-- `svelte.config.js` - SvelteKit config (adapter-static, aliases, SW settings)
+
+This repository is a **static, installable SvelteKit PWA** with no custom backend.
+
+* `src/routes/**` – SvelteKit routes (Keep these as thin shells).
+* **Source of Truth:** Query-param routing handles navigation (e.g., `/game?story=<id>`, `/chat?chat=<id>`).
+
+
+* `src/lib/**` – Core application code.
+* `engine/**` – Browser-only engine (sql.js + IndexedDB persistence, game logic, LLM connectors).
+* `services/**` – Domain modules (stories, turns, chats, settings, generate, stream).
+* `stores/**` – Svelte stores (UI state, settings, game/chat state, PWA state).
+* `features/**` – Feature screens (Home, Game, Chat, Settings).
+* `components/**` – Shared UI categories (`controls/`, `inputs/`, `overlays/`, `panels/`, `rich/`, `icons/`).
+* `styles/**` – Global CSS and tokens (e.g., `app.css`). Avoid component-scoped `<style>`.
+* `shared/**` – Types and configurations.
+
+
+* `src/app.html` – HTML template (replaces traditional `index.html`).
+* `src/app.d.ts` – App-wide TypeScript declarations.
+* `static/**` – Static assets (PWA icons, etc.).
+* `scripts/**` – Local tooling scripts (lint/check helpers).
+* `vite.config.ts` – Vite + PWA configuration.
+* `svelte.config.js` – SvelteKit configuration (adapter-static, aliases, Service Worker settings).
+
+---
+
 ## Import Rules
-- Use `@/…` for internal imports (alias to `src/lib` via `kit.alias` + Vite alias).
+
+* Always use the `@/` prefix for internal imports (this aliases to `src/lib` via `kit.alias` and Vite).
+
+---
+
 ## SvelteKit & Svelte Best Practices (Project-Specific)
-Follow the upstream docs unless a user request overrides them:
-- **Routes stay thin**: keep `src/routes/**` as page shells; put logic in `src/lib/**`.
-- **CSR-only**: this app disables SSR; avoid server-only assumptions and guard browser APIs (`window`, `document`, `navigator`) when needed.
-- **Head management**:
-- Use `<svelte:head>` for per-route `<title>` and other metadata.
-- PWA manifest link is injected at runtime via `virtual:pwa-info` (don’t hardcode a manifest `<link>` in `src/app.html`).
-- **Components**:
-- Prefer Svelte 5 **snippets** (`{#snippet ...}{/snippet}` + `{@render ...}`) over legacy `<slot>`/`$$slots`.
-- Prefer **keyed** `{#each}` blocks for dynamic lists (`(item.id)` or another stable key).
-- **Events and cleanup**:
-- Prefer `<svelte:window>` / `<svelte:document>` for global events when practical.
-- Always clean up any manual `addEventListener` in `onMount`/actions.
-- **Accessibility**:
-- Ensure every interactive control has a clear label (`aria-label`, visible text, or `<label for=...>`).
-- Don’t break focus/navigation when changing routes or showing modals; use semantic roles/attributes.
+
+Adhere to upstream documentation unless explicitly overridden below:
+
+* **Architecture (CSR-Only):** SSR is strictly disabled. Avoid server-only assumptions. Guard browser-specific APIs (`window`, `document`, `navigator`) when necessary.
+* **Routing Logic:** Keep `src/routes/**` files thin; offload logic to `src/lib/**`.
+* **Head Management:** * Use `<svelte:head>` for per-route `<title>` and metadata.
+* PWA manifest links are injected dynamically via `virtual:pwa-info`. Do not hardcode `<link rel="manifest">` in `src/app.html`.
+
+
+* **Svelte 5 Components:**
+* Use **snippets** (`{#snippet ...}{/snippet}` and `{@render ...}`) instead of legacy `<slot>`/`$$slots`.
+* Use **keyed** `{#each}` blocks for dynamic lists (e.g., `(item.id)`).
+
+
+* **Events & Cleanup:**
+* Prefer `<svelte:window>` or `<svelte:document>` for global event listeners.
+* If using manual `addEventListener` in actions or `onMount`, you must provide proper cleanup.
+
+
+* **Accessibility (a11y):**
+* All interactive controls must have a clear label (`aria-label`, visible text, or `<label for="...">`).
+* Use semantic roles/attributes. Do not break focus or navigation flows during route changes or modal triggers.
+
+
+
+---
+
+## Architecture Overview
+
+This is a text-based adventure game leveraging the following stack:
+
+* **Frontend / Runtime:** Svelte 5 + SvelteKit.
+* SSR Disabled (`export const ssr = false`).
+* Static Hosting via `@sveltejs/adapter-static` (`fallback: "index.html"`).
+
+
+* **PWA / Offline (Workbox):** `@vite-pwa/sveltekit`.
+* Precaches app assets, including the `sql.js` WASM file.
+* Runtime caching for Google Fonts.
+* **Network-only** for LLM endpoints to prevent caching authenticated responses.
+* Client-registered Service Worker handles updates and offline-ready UX.
+
+
+* **Persistence:** In-browser DB via `sql.js` (WASM SQLite) mapped to IndexedDB.
+* No file system or server-side DB.
+* Relies on best-effort `navigator.storage.persist()` to minimize data eviction.
+
+
+* **LLM Providers:** Browser `fetch` to OpenAI-compatible APIs.
+* Supports OpenRouter (via user-supplied keys).
+* Supports LAN KoboldCpp (requires proper CORS configuration on the server).
+
+
+* **Streaming:** In-process streaming hub (no WebSocket server required).
+
+---
+
 ## References
-Check this when asked to. Don't modify.
-`.references_source_code/json-schema` - json-schema guidelines.
-`.references_source_code/zod` - zod that builds upon json-schema.
-`.references_source_code/koboldcpp` - KoboldCpp source; Adventure/Chat modes and LLM endpoint behavior.
-`.references_source_code/SillyTavern` - SillyTavern source; comparable chat-centric UX.
-## Architecture
-Text-based adventure game with:
-- **Frontend/runtime:** Svelte 5 + SvelteKit (CSR-only)
-- SSR is disabled: `export const ssr = false`
-- Static hosting via `@sveltejs/adapter-static` with `fallback: "index.html"`
-- **PWA/offline:** `@vite-pwa/sveltekit` (Workbox)
-- Precache app assets (including `sql.js` WASM)
-- Runtime caching for Google Fonts
-- Network-only for LLM endpoints (avoid caching auth’d responses)
-- Service worker is registered from the client (root layout) and surfaces update/offline-ready UX
-- **Persistence:** in-browser DB using `sql.js` (WASM SQLite) persisted to IndexedDB
-- No file system / no server DB
-- Best-effort `navigator.storage.persist()` request to reduce eviction risk
-- **LLM providers:** browser `fetch` to OpenAI-compatible APIs
-- OpenRouter (user-supplied key)
-- LAN KoboldCpp (requires correct CORS on the server)
-- **Streaming:** in-process streaming hub (no WebSocket server)
+
+Read-only references for context. **Do not modify these files:**
+
+* `.references_source_code/json-schema`: json-schema guidelines.
+* `.references_source_code/zod`: zod guidelines (builds upon json-schema).
+* `.references_source_code/koboldcpp`: KoboldCpp source for Adventure/Chat modes and LLM endpoint behaviors.
+* `.references_source_code/SillyTavern`: SillyTavern source for comparable chat-centric UX paradigms.

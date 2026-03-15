@@ -1,61 +1,33 @@
 <script lang="ts">
-  import Select from "@/components/controls/Select.svelte"
-  import { colorScheme, design, textJustify, theme } from "@/stores/settings"
+  import * as Select from "@/components/ui/select"
+  import { colorMode } from "@/stores/settings"
 
-  const themeOptions = [
-    { value: "default", label: "Default — Dark gray background" },
-    { value: "amoled", label: "AMOLED — Pure black (OLED)" },
-  ]
-  const designOptions = [
-    { value: "classic", label: "Classic — Spectral + DM Sans" },
-    { value: "roboto", label: "Roboto — clean sans-serif" },
-  ]
-  const colorSchemeOptions = [
-    { value: "gold", label: "Gold — Warm, classic accent" },
-    { value: "emerald", label: "Emerald — Cool green accent" },
-    { value: "sapphire", label: "Sapphire — Blue with strong contrast" },
-    { value: "crimson", label: "Crimson — Bold red accent" },
+  const colorModeOptions = [
+    { value: "system", label: "System" },
+    { value: "dark", label: "Dark" },
+    { value: "light", label: "Light" },
   ]
 </script>
 
-<div class="control-section-label">Theme</div>
-<label class="control-row control-row--input">
-  <span class="control-row-text">
-    <span class="control-row-title">Theme</span>
-    <span class="control-row-sub">Overall background tone</span>
-  </span>
-  <Select bind:value={$theme} options={themeOptions} ariaLabel="Theme" />
-</label>
+<div class="space-y-4">
+  <div class="text-xs font-medium uppercase tracking-wider text-muted-foreground">Appearance</div>
 
-<div class="divider"></div>
-
-<div class="control-section-label">Typography</div>
-<label class="control-row control-row--input">
-  <span class="control-row-text">
-    <span class="control-row-title">Typography</span>
-    <span class="control-row-sub">Fonts for story and UI</span>
-  </span>
-  <Select bind:value={$design} options={designOptions} ariaLabel="Typography" />
-</label>
-
-<div class="divider"></div>
-
-<div class="control-section-label">Color Scheme</div>
-<label class="control-row control-row--input">
-  <span class="control-row-text">
-    <span class="control-row-title">Accent</span>
-    <span class="control-row-sub">Highlight color for buttons and UI</span>
-  </span>
-  <Select bind:value={$colorScheme} options={colorSchemeOptions} ariaLabel="Accent color" />
-</label>
-
-<div class="divider"></div>
-
-<div class="control-section-label">Text Layout</div>
-<label class="control-row">
-  <span class="control-row-text">
-    <span class="control-row-title">Justify text</span>
-    <span class="control-row-sub">Align paragraph edges for a book-like look</span>
-  </span>
-  <input type="checkbox" bind:checked={$textJustify} />
-</label>
+  <div class="flex flex-col gap-3 rounded-lg border bg-card p-4 sm:flex-row sm:items-center sm:justify-between">
+    <div class="space-y-1">
+      <div class="text-sm font-medium text-foreground">Color mode</div>
+      <div class="text-xs text-muted-foreground">Light, dark, or follow system preference.</div>
+    </div>
+    <div class="w-full sm:w-[18rem]">
+      <Select.Root type="single" bind:value={$colorMode} items={colorModeOptions}>
+        <Select.Trigger class="w-full" aria-label="Color mode">
+          {colorModeOptions.find((o) => o.value === $colorMode)?.label ?? "Select…"}
+        </Select.Trigger>
+        <Select.Content>
+          {#each colorModeOptions as option (option.value)}
+            <Select.Item {...option} />
+          {/each}
+        </Select.Content>
+      </Select.Root>
+    </div>
+  </div>
+</div>

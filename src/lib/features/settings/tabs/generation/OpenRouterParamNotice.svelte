@@ -1,6 +1,7 @@
 <script lang="ts">
   import type { GenerationParams, ModelInfo } from "@/shared/api-types"
   import { connector } from "@/stores/settings"
+  import { Badge } from "@/components/ui/badge"
   import {
     dynatempParams,
     dryParams,
@@ -82,30 +83,30 @@
 </script>
 
 {#if openRouterSummary}
-  <div class="notice" role="note">
-    <div class="notice__row">
-      <span class="notice__icon" aria-hidden="true">ℹ</span>
-      <div>
-        <div class="notice__title">OpenRouter parameter support</div>
-        <div class="notice__body">
+  <div class="rounded-lg border bg-card p-4 text-sm text-card-foreground" role="note">
+    <div class="flex gap-3">
+      <div class="mt-0.5 text-muted-foreground" aria-hidden="true">ℹ</div>
+      <div class="space-y-2">
+        <div class="font-medium">OpenRouter parameter support</div>
+        <div class="text-xs text-muted-foreground">
           Some settings are ignored by OpenRouter, either because they are KoboldCpp-only or not supported by the
           selected model. Badges explain what happens.
         </div>
-        <ul class="notice__list">
-          <li><span class="badge">kobold-only</span> not sent to OpenRouter</li>
-          <li><span class="badge badge--warning">ignored</span> sent, but model does not support</li>
+        <ul class="list-disc space-y-1 pl-4 text-xs text-muted-foreground">
+          <li><Badge variant="secondary">kobold-only</Badge> not sent to OpenRouter</li>
+          <li><Badge variant="outline">ignored</Badge> sent, but model does not support</li>
           <li>Model support metadata can be missing until models are fetched</li>
         </ul>
       </div>
     </div>
   </div>
 
-  <details class="disclosure">
-    <summary class="disclosure__summary">
-      What will be used for <span class="mono">{openRouterSummary.modelId}</span>
+  <details class="mt-3 overflow-hidden rounded-lg border bg-card text-sm text-card-foreground">
+    <summary class="cursor-pointer select-none px-4 py-3 font-medium">
+      What will be used for <span class="font-mono text-xs">{openRouterSummary.modelId}</span>
     </summary>
-    <div class="disclosure__content">
-      <div class="disclosure__hint">
+    <div class="space-y-3 border-t px-4 py-4">
+      <div class="text-xs text-muted-foreground">
         {openRouterSummary.sentKeys.length} setting(s) are sent to OpenRouter. {openRouterSummary.notSent.length} are KoboldCpp-only.
         {#if openRouterSummary.modelHasMeta}
           {openRouterSummary.unsupported.length} are unsupported by this model.
@@ -113,20 +114,25 @@
           Model support metadata is not loaded.
         {/if}
       </div>
-      <div class="disclosure__grid">
-        <div>
-          <div class="disclosure__label">Sent</div>
-          <div class="disclosure__chips">
+
+      <div class="grid gap-4 sm:grid-cols-2">
+        <div class="space-y-2">
+          <div class="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Sent</div>
+          <div class="flex flex-wrap gap-2">
             {#each openRouterSummary.sentKeys as k}
-              <span class="chip">{labelForKey(k)}</span>
+              <Badge variant="secondary" class="px-2 py-0 text-[11px] font-medium">
+                {labelForKey(k)}
+              </Badge>
             {/each}
           </div>
         </div>
-        <div>
-          <div class="disclosure__label">Not sent</div>
-          <div class="disclosure__chips">
+        <div class="space-y-2">
+          <div class="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Not sent</div>
+          <div class="flex flex-wrap gap-2">
             {#each openRouterSummary.notSent as k}
-              <span class="chip chip--dim">{labelForKey(k)}</span>
+              <Badge variant="outline" class="px-2 py-0 text-[11px] font-medium opacity-70">
+                {labelForKey(k)}
+              </Badge>
             {/each}
           </div>
         </div>
@@ -134,66 +140,3 @@
     </div>
   </details>
 {/if}
-
-<style>
-  .mono {
-    font-family: var(--font-mono);
-  }
-
-  .disclosure__content {
-    padding: 0.65rem 0.75rem 0.75rem;
-  }
-
-  .disclosure__hint {
-    font-size: 0.78rem;
-    color: var(--text-dim);
-    line-height: 1.4;
-  }
-
-  .disclosure__grid {
-    display: grid;
-    grid-template-columns: 1fr;
-    gap: 0.75rem;
-    margin-top: 0.65rem;
-  }
-
-  @media (min-width: 760px) {
-    .disclosure__grid {
-      grid-template-columns: 1fr 1fr;
-    }
-  }
-
-  .disclosure__label {
-    font-family: var(--font-ui);
-    font-size: 0.7rem;
-    font-weight: 700;
-    letter-spacing: 0.06em;
-    text-transform: uppercase;
-    color: var(--text-dim);
-    margin-bottom: 0.35rem;
-  }
-
-  .disclosure__chips {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.35rem;
-  }
-
-  .chip {
-    display: inline-flex;
-    align-items: center;
-    font-family: var(--font-ui);
-    font-size: 0.72rem;
-    color: var(--text);
-    background: color-mix(in srgb, var(--bg-action) 70%, transparent);
-    border: 1px solid var(--border);
-    border-radius: 999px;
-    padding: 0.15rem 0.5rem;
-    line-height: 1.2;
-  }
-
-  .chip--dim {
-    color: var(--text-dim);
-    background: color-mix(in srgb, var(--bg-action) 55%, transparent);
-  }
-</style>

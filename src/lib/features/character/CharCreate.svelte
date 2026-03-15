@@ -3,7 +3,7 @@
   import { onMount } from "svelte"
   import type { StoryModules } from "@/shared/types"
   import { goBack, navigate, showError, showQuietNotice } from "@/stores/ui"
-  import { autoresize } from "@/utils/actions/autoresize"
+  import { cn } from "@/utils.js"
   import {
     pendingCharacter,
     pendingCharacterId,
@@ -22,7 +22,14 @@
   import { clearPendingRequest, getPendingRequest, setPendingRequest } from "@/utils/pendingRequests"
   import PromptHistoryPanel from "@/components/panels/PromptHistoryPanel.svelte"
   import { streamClient } from "@/services/stream"
-  import StoryModulesEditorPanel from "@/features/character/StoryModulesEditorPanel.svelte"
+  import StoryModulesPanel from "@/components/panels/StoryModulesPanel.svelte"
+  import { Button } from "@/components/ui/button"
+  import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+  import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+  import { Input } from "@/components/ui/input"
+  import { Label } from "@/components/ui/label"
+  import { Textarea } from "@/components/ui/textarea"
+  import { ScrollArea } from "@/components/ui/scroll-area"
   import {
     generateCharacterFromDescription,
     generateCharacterAppearance,
@@ -552,284 +559,395 @@
   }
 </script>
 
-<div class="screen char-create">
-  <header class="screen-header">
-    <button class="back-btn" onclick={() => goBack("home")}>← Back</button>
-    <h2 class="screen-title">Create Character</h2>
+<div class="mx-auto flex h-dvh w-full max-w-3xl flex-col">
+  <header class="flex items-center gap-2 border-b px-4 py-3">
+    <Button variant="ghost" class="h-9 px-2" onclick={() => goBack("home")} aria-label="Back to home">← Back</Button>
+    <h2 class="text-base font-semibold">Create Character</h2>
   </header>
 
-  <div class="form-scroll" data-scroll-root="screen">
-    <div class="field generate-field">
-      <label for="char-generate">Generate from Description</label>
-      <div class="generate-row">
-        <textarea
-          id="char-generate"
-          bind:value={$pendingCharacterGenerateDescription}
-          placeholder="e.g. a grizzled old sailor who lost his family at sea"
-          use:autoresize={$pendingCharacterGenerateDescription}
-        ></textarea>
-        <button
-          class="btn-ghost generate-btn"
-          onclick={generate}
-          disabled={generating || !$pendingCharacterGenerateDescription.trim()}
-          >{generating ? "Generating..." : "✦ Generate"}</button
-        >
-      </div>
-      {#if $pendingCharacterImportText.trim()}
-        <div class="import-autofill">
-          <div class="import-label">Imported character detected.</div>
-          <button class="btn-ghost small" onclick={autofillFromImport} disabled={autofilling}
-            >{autofilling ? "Autofilling..." : "Autofill Missing Fields"}</button
-          >
-        </div>
-      {/if}
-      <PromptHistoryPanel items={promptHistory} onUse={usePrompt} onDelete={deletePrompt} />
-    </div>
+  <ScrollArea class="min-h-0 flex-1">
+    <div class="px-4 py-4">
+      <div class="space-y-4">
+        <Card>
+          <CardHeader class="space-y-1">
+            <CardTitle class="text-base">Generate</CardTitle>
+            <CardDescription>Start from a short description, then refine details below.</CardDescription>
+          </CardHeader>
+          <CardContent class="space-y-3">
+            <div class="grid gap-2">
+              <Label for="char-generate">Generate from Description</Label>
+              <Textarea
+                id="char-generate"
+                bind:value={$pendingCharacterGenerateDescription}
+                placeholder="e.g. a grizzled old sailor who lost his family at sea"
+                class="min-h-[96px]"
+              />
+            </div>
 
-    <div class="field">
-      <label for="char-name">Name</label>
-      <input id="char-name" type="text" bind:value={name} placeholder="Full legal name" />
-    </div>
+            <div class="flex flex-wrap items-center justify-between gap-2">
+              <Button
+                variant="default"
+                onclick={generate}
+                disabled={generating || !$pendingCharacterGenerateDescription.trim()}
+              >
+                {generating ? "Generating..." : "✦ Generate"}
+              </Button>
 
-    <div class="field-row">
-      <div class="field">
-        <label for="char-race">Race</label>
-        <input id="char-race" type="text" bind:value={race} placeholder="e.g. Human, Elf, Dwarf..." />
-      </div>
+              {#if $pendingCharacterImportText.trim()}
+                <div class="flex items-center gap-2">
+                  <span class="text-xs text-muted-foreground">Imported character detected.</span>
+                  <Button variant="outline" size="sm" onclick={autofillFromImport} disabled={autofilling}>
+                    {autofilling ? "Autofilling..." : "Autofill Missing Fields"}
+                  </Button>
+                </div>
+              {/if}
+            </div>
 
-      <div class="field">
-        <label id="gender-label" for="gender-custom">Gender</label>
-        <div class="gender-row">
-          {#each ["Male", "Female"] as g}
-            <button class="toggle {gender === g ? 'active' : ''}" onclick={() => (gender = g)}>{g}</button>
-          {/each}
-          <input
-            id="gender-custom"
-            type="text"
-            class="gender-custom {gender !== 'Male' && gender !== 'Female' ? 'active' : ''}"
-            placeholder="or specify..."
-            value={genderCustom}
-            oninput={(e) => setGenderCustom((e.target as HTMLInputElement).value)}
-          />
-        </div>
-      </div>
-    </div>
+            <PromptHistoryPanel items={promptHistory} onUse={usePrompt} onDelete={deletePrompt} />
+          </CardContent>
+        </Card>
 
-    <div class="field">
-      <div class="modules-shell">
-        <div class="modules-shell-header">
-          <span>Story Modules</span>
-          <button class="modules-shell-action" onclick={() => (showModulesPanel = true)}>Edit</button>
-        </div>
-        <div class="modules-shell-body">
-          <div class="modules-shell-summary">
-            <div class="modules-shell-line">{modulesPreviewCore}</div>
-            <div class="modules-shell-line">{modulesPreviewPlayer}</div>
-            <div class="modules-shell-line">{modulesPreviewNpc}</div>
-          </div>
-        </div>
-      </div>
-    </div>
+        <Card>
+          <CardHeader class="space-y-1">
+            <CardTitle class="text-base">Basics</CardTitle>
+            <CardDescription>These fields are required.</CardDescription>
+          </CardHeader>
+          <CardContent class="space-y-4">
+            <div class="grid gap-2">
+              <Label for="char-name">Name</Label>
+              <Input id="char-name" type="text" bind:value={name} placeholder="Full legal name" />
+            </div>
 
-    <div class="field">
-      <label for="char-description">Description</label>
-      <textarea
-        id="char-description"
-        bind:value={generalDescription}
-        placeholder="A few sentences about personality, vibe, and background..."
-        use:autoresize={generalDescription}
-      ></textarea>
-    </div>
+            <div class="grid gap-4 sm:grid-cols-2">
+              <div class="grid gap-2">
+                <Label for="char-race">Race</Label>
+                <Input id="char-race" type="text" bind:value={race} placeholder="e.g. Human, Elf, Dwarf..." />
+              </div>
 
-    {#if activeModules.character_appearance_clothing}
-      <div class="field">
-        <div class="label-row">
-          <label for="char-baseline-appearance">Baseline Appearance</label>
-          <button
-            class="btn-ghost btn-mini"
-            onclick={regenerateAppearance}
-            disabled={generating || regeneratingAppearance}
-            >{regeneratingAppearance ? "Regenerating..." : "Regenerate"}</button
-          >
-        </div>
-        <textarea
-          id="char-baseline-appearance"
-          bind:value={baselineAppearance}
-          placeholder="Permanent, surgical baseline description..."
-          use:autoresize={baselineAppearance}
-        ></textarea>
-      </div>
+              <div class="grid gap-2">
+                <Label id="gender-label" for="gender-custom">Gender</Label>
+                <div class="flex flex-wrap gap-2">
+                  {#each ["Male", "Female"] as g (g)}
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      class={cn(
+                        "flex-1 justify-center",
+                        gender === g &&
+                          "border-primary/50 bg-primary/10 text-primary hover:bg-primary/15 hover:text-primary",
+                      )}
+                      onclick={() => (gender = g)}
+                      aria-pressed={gender === g}
+                    >
+                      {g}
+                    </Button>
+                  {/each}
+                  <Input
+                    id="gender-custom"
+                    type="text"
+                    placeholder="or specify…"
+                    value={genderCustom}
+                    class={cn(
+                      "min-w-[12ch] flex-[2_1_12ch]",
+                      gender !== "Male" && gender !== "Female" && "border-primary/50",
+                    )}
+                    oninput={(e) => setGenderCustom((e.target as HTMLInputElement).value)}
+                  />
+                </div>
+                <p class="text-xs text-muted-foreground">Pick Male/Female or type a custom value.</p>
+              </div>
+            </div>
 
-      <div class="field">
-        <div class="label-row">
-          <label for="char-clothing">Starting Clothing</label>
-          <button class="btn-ghost btn-mini" onclick={regenerateClothing} disabled={generating || regeneratingClothing}
-            >{regeneratingClothing ? "Regenerating..." : "Regenerate"}</button
-          >
-        </div>
-        <textarea
-          id="char-clothing"
-          bind:value={currentClothing}
-          placeholder="What are they wearing?"
-          use:autoresize={currentClothing}
-        ></textarea>
-      </div>
-    {/if}
+            <div class="grid gap-2">
+              <Label for="char-description">Description</Label>
+              <Textarea
+                id="char-description"
+                bind:value={generalDescription}
+                placeholder="A few sentences about personality, vibe, and background..."
+                class="min-h-[96px]"
+              />
+            </div>
+          </CardContent>
+        </Card>
 
-    {#if traitsEnabled}
-      <div class="field">
-        <div class="label-row">
-          <!-- svelte-ignore a11y_label_has_associated_control -->
-          <label id="traits-label">Personality Traits <span class="hint">(pick up to 5)</span></label>
-          <button
-            class="btn-ghost btn-mini"
-            onclick={regenerateTraits}
-            disabled={generating || regeneratingTraits || !canRegenerateTraits}
-          >
-            {regeneratingTraits ? "Regenerating..." : "Regenerate"}
-          </button>
-        </div>
-        <div class="chips chips--justified">
-          {#each PERSONALITY_OPTIONS as trait}
-            <button
-              class="chip {selectedTraits.includes(trait) ? 'selected' : ''}"
-              onclick={() => toggleTrait(trait)}
-              disabled={!selectedTraits.includes(trait) && (totalPersonalityCount >= 5 || isBlocked(trait))}
-              >{trait}</button
-            >
-          {/each}
-        </div>
-      </div>
+        <Card>
+          <CardHeader class="flex flex-row items-start justify-between gap-3 space-y-0">
+            <div class="space-y-1">
+              <CardTitle class="text-base">Story Modules</CardTitle>
+              <CardDescription>Controls which fields are generated and tracked.</CardDescription>
+            </div>
+            <Button variant="outline" size="sm" onclick={() => (showModulesPanel = true)}>Edit</Button>
+          </CardHeader>
+          <CardContent class="space-y-1 text-sm text-muted-foreground">
+            <div class="text-foreground">{modulesPreviewCore}</div>
+            <div>{modulesPreviewPlayer}</div>
+            <div>{modulesPreviewNpc}</div>
+          </CardContent>
+        </Card>
 
-      <div class="field">
-        <label for="custom-personality-input"
-          >Custom Personality Traits <span class="hint">(optional, counts toward 5)</span></label
-        >
-        <div class="custom-input">
-          <input
-            id="custom-personality-input"
-            type="text"
-            bind:value={customPersonalityInput}
-            placeholder="e.g. Recklessly brave"
-            disabled={totalPersonalityCount >= 5}
-            onkeydown={(e) => {
-              if (e.key === "Enter") {
-                e.preventDefault()
-                addCustomPersonalityTrait()
-              }
-            }}
-          />
-          <button class="btn-ghost" onclick={addCustomPersonalityTrait} disabled={totalPersonalityCount >= 5}>
-            + Add
-          </button>
-        </div>
-        {#if customPersonalityTraits.length > 0}
-          <div class="chips">
-            {#each customPersonalityTraits as t}
-              <button class="chip selected" onclick={() => removeCustomPersonalityTrait(t)}>{t} ×</button>
-            {/each}
-          </div>
+        {#if activeModules.character_appearance_clothing}
+          <Card>
+            <CardHeader class="space-y-1">
+              <CardTitle class="text-base">Appearance</CardTitle>
+              <CardDescription>Baseline appearance and starting clothing.</CardDescription>
+            </CardHeader>
+            <CardContent class="space-y-4">
+              <div class="grid gap-2">
+                <div class="flex items-center justify-between gap-3">
+                  <Label for="char-baseline-appearance">Baseline Appearance</Label>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onclick={regenerateAppearance}
+                    disabled={generating || regeneratingAppearance}
+                  >
+                    {regeneratingAppearance ? "Regenerating..." : "Regenerate"}
+                  </Button>
+                </div>
+                <Textarea
+                  id="char-baseline-appearance"
+                  bind:value={baselineAppearance}
+                  placeholder="Permanent, surgical baseline description..."
+                  class="min-h-[96px]"
+                />
+              </div>
+
+              <div class="grid gap-2">
+                <div class="flex items-center justify-between gap-3">
+                  <Label for="char-clothing">Starting Clothing</Label>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onclick={regenerateClothing}
+                    disabled={generating || regeneratingClothing}
+                  >
+                    {regeneratingClothing ? "Regenerating..." : "Regenerate"}
+                  </Button>
+                </div>
+                <Textarea
+                  id="char-clothing"
+                  bind:value={currentClothing}
+                  placeholder="What are they wearing?"
+                  class="min-h-[96px]"
+                />
+              </div>
+            </CardContent>
+          </Card>
+        {/if}
+
+        {#if traitsEnabled}
+          <Card>
+            <CardHeader class="flex flex-row items-start justify-between gap-3 space-y-0">
+              <div class="space-y-1">
+                <CardTitle class="text-base">Traits</CardTitle>
+                <CardDescription>Pick up to 5 total traits (including custom).</CardDescription>
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onclick={regenerateTraits}
+                disabled={generating || regeneratingTraits || !canRegenerateTraits}
+              >
+                {regeneratingTraits ? "Regenerating..." : "Regenerate"}
+              </Button>
+            </CardHeader>
+            <CardContent class="space-y-4">
+              <div class="flex flex-wrap gap-2">
+                {#each PERSONALITY_OPTIONS as trait (trait)}
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    class={cn(
+                      "h-8 rounded-full px-3 text-xs",
+                      selectedTraits.includes(trait) &&
+                        "border-primary/50 bg-primary/10 text-primary hover:bg-primary/15",
+                      isBlocked(trait) && !selectedTraits.includes(trait) && "opacity-50",
+                    )}
+                    onclick={() => toggleTrait(trait)}
+                    disabled={!selectedTraits.includes(trait) && (totalPersonalityCount >= 5 || isBlocked(trait))}
+                    aria-pressed={selectedTraits.includes(trait)}
+                  >
+                    {trait}
+                  </Button>
+                {/each}
+              </div>
+
+              <div class="grid gap-2">
+                <Label for="custom-personality-input">Custom Personality Traits</Label>
+                <div class="flex flex-col gap-2 sm:flex-row">
+                  <Input
+                    id="custom-personality-input"
+                    type="text"
+                    bind:value={customPersonalityInput}
+                    placeholder="e.g. Recklessly brave"
+                    disabled={totalPersonalityCount >= 5}
+                    onkeydown={(e) => {
+                      if (e.key === "Enter") {
+                        e.preventDefault()
+                        addCustomPersonalityTrait()
+                      }
+                    }}
+                  />
+                  <Button
+                    variant="outline"
+                    onclick={addCustomPersonalityTrait}
+                    disabled={totalPersonalityCount >= 5 || !customPersonalityInput.trim()}
+                  >
+                    + Add
+                  </Button>
+                </div>
+                <p class="text-xs text-muted-foreground">Optional; counts toward the 5-trait limit.</p>
+              </div>
+
+              {#if customPersonalityTraits.length > 0}
+                <div class="flex flex-wrap gap-2">
+                  {#each customPersonalityTraits as t (t)}
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      size="sm"
+                      class="h-8 rounded-full px-3 text-xs"
+                      onclick={() => removeCustomPersonalityTrait(t)}
+                    >
+                      {t} <span class="text-foreground/60">×</span>
+                    </Button>
+                  {/each}
+                </div>
+              {/if}
+            </CardContent>
+          </Card>
+        {/if}
+
+        {#if majorFlawsEnabled}
+          <Card>
+            <CardHeader class="space-y-1">
+              <CardTitle class="text-base">Major Flaws</CardTitle>
+              <CardDescription>Optional.</CardDescription>
+            </CardHeader>
+            <CardContent class="space-y-3">
+              <div class="flex flex-col gap-2 sm:flex-row">
+                <Input
+                  id="major-flaw-input"
+                  type="text"
+                  bind:value={majorFlawInput}
+                  placeholder="e.g. crippling fear of fire"
+                  onkeydown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault()
+                      addMajorFlaw()
+                    }
+                  }}
+                />
+                <Button variant="outline" onclick={addMajorFlaw} disabled={!majorFlawInput.trim()}>+ Add</Button>
+              </div>
+              {#if majorFlaws.length > 0}
+                <div class="flex flex-wrap gap-2">
+                  {#each majorFlaws as t (t)}
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      size="sm"
+                      class="h-8 rounded-full px-3 text-xs"
+                      onclick={() => removeMajorFlaw(t)}
+                    >
+                      {t} <span class="text-foreground/60">×</span>
+                    </Button>
+                  {/each}
+                </div>
+              {/if}
+            </CardContent>
+          </Card>
+        {/if}
+
+        {#if quirksEnabled}
+          <Card>
+            <CardHeader class="space-y-1">
+              <CardTitle class="text-base">Quirks</CardTitle>
+              <CardDescription>Optional.</CardDescription>
+            </CardHeader>
+            <CardContent class="space-y-3">
+              <div class="flex flex-col gap-2 sm:flex-row">
+                <Input
+                  id="quirk-input"
+                  type="text"
+                  bind:value={quirkInput}
+                  placeholder="e.g. counts exits on entry"
+                  onkeydown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault()
+                      addQuirk()
+                    }
+                  }}
+                />
+                <Button variant="outline" onclick={addQuirk} disabled={!quirkInput.trim()}>+ Add</Button>
+              </div>
+              {#if quirks.length > 0}
+                <div class="flex flex-wrap gap-2">
+                  {#each quirks as t (t)}
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      size="sm"
+                      class="h-8 rounded-full px-3 text-xs"
+                      onclick={() => removeQuirk(t)}
+                    >
+                      {t} <span class="text-foreground/60">×</span>
+                    </Button>
+                  {/each}
+                </div>
+              {/if}
+            </CardContent>
+          </Card>
+        {/if}
+
+        {#if perksEnabled}
+          <Card>
+            <CardHeader class="space-y-1">
+              <CardTitle class="text-base">Perks</CardTitle>
+              <CardDescription>Optional.</CardDescription>
+            </CardHeader>
+            <CardContent class="space-y-3">
+              <div class="flex flex-col gap-2 sm:flex-row">
+                <Input
+                  id="perk-input"
+                  type="text"
+                  bind:value={perkInput}
+                  placeholder="e.g. trained medic"
+                  onkeydown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault()
+                      addPerk()
+                    }
+                  }}
+                />
+                <Button variant="outline" onclick={addPerk} disabled={!perkInput.trim()}>+ Add</Button>
+              </div>
+              {#if perks.length > 0}
+                <div class="flex flex-wrap gap-2">
+                  {#each perks as t (t)}
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      size="sm"
+                      class="h-8 rounded-full px-3 text-xs"
+                      onclick={() => removePerk(t)}
+                    >
+                      {t} <span class="text-foreground/60">×</span>
+                    </Button>
+                  {/each}
+                </div>
+              {/if}
+            </CardContent>
+          </Card>
         {/if}
       </div>
-    {/if}
+    </div>
+  </ScrollArea>
 
-    {#if majorFlawsEnabled}
-      <div class="field">
-        <label for="major-flaw-input">Major Flaws <span class="hint">(optional)</span></label>
-        <div class="custom-input">
-          <input
-            id="major-flaw-input"
-            type="text"
-            bind:value={majorFlawInput}
-            placeholder="e.g. crippling fear of fire"
-            onkeydown={(e) => {
-              if (e.key === "Enter") {
-                e.preventDefault()
-                addMajorFlaw()
-              }
-            }}
-          />
-          <button class="btn-ghost" onclick={addMajorFlaw}>+ Add</button>
-        </div>
-        {#if majorFlaws.length > 0}
-          <div class="chips">
-            {#each majorFlaws as t}
-              <button class="chip selected" onclick={() => removeMajorFlaw(t)}>{t} ×</button>
-            {/each}
-          </div>
-        {/if}
-      </div>
-    {/if}
-
-    {#if quirksEnabled}
-      <div class="field">
-        <label for="quirk-input">Quirks <span class="hint">(optional)</span></label>
-        <div class="custom-input">
-          <input
-            id="quirk-input"
-            type="text"
-            bind:value={quirkInput}
-            placeholder="e.g. counts exits on entry"
-            onkeydown={(e) => {
-              if (e.key === "Enter") {
-                e.preventDefault()
-                addQuirk()
-              }
-            }}
-          />
-          <button class="btn-ghost" onclick={addQuirk}>+ Add</button>
-        </div>
-        {#if quirks.length > 0}
-          <div class="chips">
-            {#each quirks as t}
-              <button class="chip selected" onclick={() => removeQuirk(t)}>{t} ×</button>
-            {/each}
-          </div>
-        {/if}
-      </div>
-    {/if}
-
-    {#if perksEnabled}
-      <div class="field">
-        <label for="perk-input">Perks <span class="hint">(optional)</span></label>
-        <div class="custom-input">
-          <input
-            id="perk-input"
-            type="text"
-            bind:value={perkInput}
-            placeholder="e.g. trained medic"
-            onkeydown={(e) => {
-              if (e.key === "Enter") {
-                e.preventDefault()
-                addPerk()
-              }
-            }}
-          />
-          <button class="btn-ghost" onclick={addPerk}>+ Add</button>
-        </div>
-        {#if perks.length > 0}
-          <div class="chips">
-            {#each perks as t}
-              <button class="chip selected" onclick={() => removePerk(t)}>{t} ×</button>
-            {/each}
-          </div>
-        {/if}
-      </div>
-    {/if}
-  </div>
-
-  {#if showModulesPanel}
-    <StoryModulesEditorPanel
-      open={showModulesPanel}
-      modules={activeModules}
-      {setModules}
-      onClose={() => (showModulesPanel = false)}
-    />
-  {/if}
-
-  <div class="actions">
-    <button
-      class="btn-ghost"
+  <div class="flex items-center justify-between gap-2 border-t bg-background/70 px-4 py-3 backdrop-blur">
+    <Button
+      variant="outline"
       onclick={saveCharacter}
       disabled={savingCharacter ||
         generating ||
@@ -839,9 +957,10 @@
         regeneratingTraits}
     >
       {savingCharacter ? "Saving..." : "Save Character"}
-    </button>
-    <button
-      class="btn-accent"
+    </Button>
+
+    <Button
+      variant="default"
       onclick={useNow}
       disabled={savingCharacter ||
         generating ||
@@ -851,93 +970,17 @@
         regeneratingTraits}
     >
       Use Now →
-    </button>
+    </Button>
   </div>
 </div>
 
-<style>
-  .char-create {
-    display: flex;
-    flex-direction: column;
-    height: 100%;
-  }
-  .gender-row {
-    display: flex;
-    gap: 0.5rem;
-    align-items: center;
-    --compact: 0;
-    --custom-len: 0;
-  }
-  .gender-row .toggle {
-    flex: 0 0 calc(5rem - 2.2rem * var(--compact));
-  }
-  .toggle {
-    transition:
-      min-width 220ms ease,
-      padding 220ms ease;
-    min-width: calc(4.6rem - 1.4rem * var(--compact));
-    padding: calc(0.6rem - 0.08rem * var(--compact));
-  }
-  .gender-custom {
-    flex: 1 1 auto;
-    flex-grow: calc(1 + var(--custom-len) * 0.08);
-    flex-basis: calc(8ch + var(--custom-len) * 0.7ch);
-    max-width: 36ch;
-    min-width: 8ch;
-    transition:
-      flex-basis 240ms ease,
-      max-width 240ms ease,
-      flex-grow 240ms ease;
-  }
-  .field-row {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 0.75rem;
-  }
-  @media (max-width: 720px) {
-    .field-row {
-      grid-template-columns: 1fr;
-    }
-  }
-  .gender-custom {
-    flex: 1;
-    border-color: var(--border);
-  }
-  .gender-custom.active {
-    border-color: var(--accent);
-  }
-  .toggle {
-    flex: 1;
-    padding: 0.6rem;
-    background: var(--bg-input);
-    border: 1px solid var(--border);
-    border-radius: 4px;
-    color: var(--text-dim);
-    cursor: pointer;
-    font-size: 0.9rem;
-    min-height: 44px;
-  }
-  .toggle.active {
-    border-color: var(--accent);
-    color: var(--accent);
-    background: rgba(200, 169, 110, 0.1);
-  }
-  .custom-input {
-    display: flex;
-    gap: 0.5rem;
-  }
-  .custom-input input {
-    flex: 1;
-  }
-  .import-autofill {
-    margin-top: 0.6rem;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 0.5rem;
-  }
-  .import-label {
-    font-size: 0.75rem;
-    color: var(--text-dim);
-  }
-</style>
+<Dialog open={showModulesPanel} onOpenChange={(v) => (showModulesPanel = v)}>
+  <DialogContent class="max-w-[min(92vw,56rem)]">
+    <DialogHeader>
+      <DialogTitle>Story Modules</DialogTitle>
+    </DialogHeader>
+    <div class="mt-3">
+      <StoryModulesPanel modules={activeModules} {setModules} bare />
+    </div>
+  </DialogContent>
+</Dialog>

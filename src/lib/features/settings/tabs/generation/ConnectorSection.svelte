@@ -2,7 +2,13 @@
   import type { GenerationParams, LLMConnector, ModelInfo } from "@/shared/api-types"
   import { HIDDEN_SECRET_PLACEHOLDER } from "@/shared/secrets"
   import { settings as settingsService } from "@/services/settings"
-  import Select from "@/components/controls/Select.svelte"
+  import * as Select from "@/components/ui/select"
+  import { Badge } from "@/components/ui/badge"
+  import { Button } from "@/components/ui/button"
+  import { Checkbox } from "@/components/ui/checkbox"
+  import { Input } from "@/components/ui/input"
+  import { Switch } from "@/components/ui/switch"
+  import { cn } from "@/utils.js"
   import { isChatGenerating } from "@/stores/chat"
   import { isGenerating } from "@/stores/game"
   import { connector, ctxLimitDetected, generation, streamingEnabled } from "@/stores/settings"
@@ -27,6 +33,7 @@
     { value: "koboldcpp", label: "KoboldCpp" },
     { value: "openrouter", label: "OpenRouter" },
   ]
+  let connectorTypeLabel = $derived(connectorTypeOptions.find((o) => o.value === $connector.type)?.label ?? "Select…")
 
   let generationLockActive = $state(false)
   $effect(() => {
@@ -42,6 +49,7 @@
   let modelSearchError = $state<string | null>(null)
   let modelSearchOnlyFree = $state(false)
   let modelSearchOnlyJsonSchema = $state(false)
+  let modelSearchSelectPlaceholder = $derived(modelSearchResults.length ? "Select model…" : "No results yet")
 
   $effect(() => {
     connectorUrl = $connector.url
@@ -237,117 +245,138 @@
 </script>
 
 {#if unsupportedParamLabels.length > 0}
-  <div class="notice notice--warning" role="note">
-    <div class="notice__row">
-      <span class="notice__icon" aria-hidden="true">⚠</span>
+  <div class="rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 text-sm" role="note">
+    <div class="flex items-start gap-3">
+      <span class="mt-0.5 text-amber-600 dark:text-amber-400" aria-hidden="true">⚠</span>
       <div>
-        <div class="notice__title">Unsupported parameters</div>
-        <div class="notice__body">
-          <strong>{$connector.type === "openrouter" ? $connector.model : ""}</strong> does not support:
-          {unsupportedParamLabels.join(", ")}. These parameters will be ignored.
+        <div class="font-medium text-foreground">Unsupported parameters</div>
+        <div class="mt-1 text-sm text-muted-foreground">
+          <span class="font-mono text-foreground/90">{$connector.type === "openrouter" ? $connector.model : ""}</span>
+          does not support: {unsupportedParamLabels.join(", ")}. These parameters will be ignored.
         </div>
       </div>
     </div>
   </div>
 {/if}
 
-<div class="control-section-label section-head">
-  <span>Connection</span>
-  <div class="section-head__actions">
+<div class="pt-4">
+  <div class="flex items-center justify-between gap-3">
+    <div class="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Connection</div>
     {#if generationLockActive}
-      <span
-        class="stream-lock-pill"
+      <Badge
+        variant="secondary"
+        class="font-mono text-[11px]"
         title="A generation is in progress; connection controls are locked until it completes"
       >
         Generating…
-      </span>
+      </Badge>
     {/if}
   </div>
 </div>
 
-<div class="control-row control-row--input" class:control-row--disabled={generationLockActive}>
-  <span class="control-row-text">
-    <span class="control-row-title">Backend</span>
-    <span class="control-row-sub">Provider for the OpenAI-compatible API endpoint</span>
-  </span>
-  <Select
+<div class={cn("flex items-start justify-between gap-4 border-b py-3", generationLockActive && "opacity-60")}>
+  <div class="min-w-0 flex-1 space-y-1">
+    <div class="text-sm font-medium text-foreground">Backend</div>
+    <div class="text-xs text-muted-foreground">Provider for the OpenAI-compatible API endpoint</div>
+  </div>
+  <Select.Root
+    type="single"
     value={$connector.type}
-    options={connectorTypeOptions}
-    ariaLabel="Backend"
-    width="200px"
+    items={connectorTypeOptions}
     disabled={generationLockActive}
-    onChange={setConnectorType}
-  />
+    onValueChange={(next) => setConnectorType(next as LLMConnector["type"])}
+  >
+    <Select.Trigger class="w-[12rem]" aria-label="Backend">
+      {connectorTypeLabel}
+    </Select.Trigger>
+    <Select.Content>
+      {#each connectorTypeOptions as option (option.value)}
+        <Select.Item {...option} />
+      {/each}
+    </Select.Content>
+  </Select.Root>
 </div>
 
-<div class="control-row control-row--input" class:control-row--disabled={generationLockActive}>
-  <span class="control-row-text">
-    <span class="control-row-title">Ctx Limit (Detected)</span>
-    <span class="control-row-sub">Fetched from the current provider (cached)</span>
-  </span>
-  <div class="ctx-limit-actions">
-    <span class="connector-badge">{$ctxLimitDetected > 0 ? $ctxLimitDetected : "Unknown"}</span>
-    <button
-      class="preset-btn ctx-refresh"
+<div class={cn("flex items-start justify-between gap-4 border-b py-3", generationLockActive && "opacity-60")}>
+  <div class="min-w-0 flex-1 space-y-1">
+    <div class="text-sm font-medium text-foreground">Ctx Limit (Detected)</div>
+    <div class="text-xs text-muted-foreground">Fetched from the current provider (cached)</div>
+  </div>
+  <div class="flex items-center gap-2">
+    <Badge variant="outline" class="font-mono text-[11px] tabular-nums">
+      {$ctxLimitDetected > 0 ? $ctxLimitDetected : "Unknown"}
+    </Badge>
+    <Button
+      variant="outline"
+      size="sm"
       disabled={ctxRefreshLoading || generationLockActive}
       onclick={refreshCtxLimitDetected}
     >
       {ctxRefreshLoading ? "Refreshing…" : "Refresh"}
-    </button>
+    </Button>
   </div>
 </div>
 
-<label class="control-row control-row--input" class:control-row--disabled={generationLockActive}>
-  <span class="control-row-text">
-    <span class="control-row-title">Ctx Limit (Override)</span>
-    <span class="control-row-sub">
+<div class={cn("flex items-start justify-between gap-4 border-b py-3", generationLockActive && "opacity-60")}>
+  <div class="min-w-0 flex-1 space-y-1">
+    <div class="text-sm font-medium text-foreground">Ctx Limit (Override)</div>
+    <div class="text-xs text-muted-foreground">
       0 = auto-detect{#if $ctxLimitDetected > 0}
         (currently: {$ctxLimitDetected}){/if}
-    </span>
-  </span>
-  <input
-    class="num-input"
-    type="number"
-    value={$generation.ctx_limit}
-    min="0"
-    max="32768"
-    step="1"
+    </div>
+  </div>
+  <div class="w-28">
+    <Input
+      type="number"
+      value={$generation.ctx_limit}
+      min="0"
+      max="32768"
+      step="1"
+      disabled={generationLockActive}
+      onchange={(e) => handleNumInput("ctx_limit", e, true)}
+    />
+  </div>
+</div>
+
+<div class={cn("flex items-start justify-between gap-4 border-b py-3", generationLockActive && "opacity-60")}>
+  <div class="min-w-0 flex-1 space-y-1">
+    <div class="text-sm font-medium text-foreground">Use streaming</div>
+    <div class="text-xs text-muted-foreground">
+      Stream model output while generating (enables partial output via WebSocket)
+    </div>
+  </div>
+  <Switch
+    checked={$streamingEnabled}
     disabled={generationLockActive}
-    onchange={(e) => handleNumInput("ctx_limit", e, true)}
+    onCheckedChange={(v) => streamingEnabled.set(v)}
   />
-</label>
+</div>
 
-<label class="control-row" class:control-row--disabled={generationLockActive}>
-  <span class="control-row-text">
-    <span class="control-row-title">Use streaming</span>
-    <span class="control-row-sub">Stream model output while generating (enables partial output via WebSocket)</span>
-  </span>
-  <input type="checkbox" bind:checked={$streamingEnabled} disabled={generationLockActive} />
-</label>
+<div class={cn("flex items-start justify-between gap-4 border-b py-3", generationLockActive && "opacity-60")}>
+  <div class="min-w-0 flex-1 space-y-1">
+    <div class="text-sm font-medium text-foreground">API URL</div>
+  </div>
+  <div class="w-[min(62%,22rem)]">
+    <Input
+      type="text"
+      bind:value={connectorUrl}
+      disabled={generationLockActive}
+      onblur={commitConnector}
+      onkeydown={(e) => {
+        if (e.key === "Enter") (e.target as HTMLInputElement).blur()
+      }}
+    />
+  </div>
+</div>
 
-<label class="control-row control-row--input" class:control-row--disabled={generationLockActive}>
-  <span class="control-row-text">
-    <span class="control-row-title">API URL</span>
-  </span>
-  <input
-    class="text-input"
-    type="text"
-    bind:value={connectorUrl}
-    disabled={generationLockActive}
-    onblur={commitConnector}
-    onkeydown={(e) => {
-      if (e.key === "Enter") (e.target as HTMLInputElement).blur()
-    }}
-  />
-</label>
-
-<label class="control-row control-row--input" class:control-row--disabled={generationLockActive}>
-  <span class="control-row-text">
-    <span class="control-row-title">API Key</span>
-  </span>
-  <div class="api-key-wrap">
-    <input
-      class="text-input"
+<div class={cn("flex items-start justify-between gap-4 border-b py-3", generationLockActive && "opacity-60")}>
+  <div class="min-w-0 flex-1 space-y-1">
+    <div class="text-sm font-medium text-foreground">API Key</div>
+    <div class="text-xs text-muted-foreground">Stored locally. Never synced.</div>
+  </div>
+  <div class="flex min-w-0 items-center gap-2">
+    <Input
+      class="min-w-0 flex-1"
       type={showApiKey ? "text" : "password"}
       bind:value={connectorApiKey}
       placeholder={$connector.api_keys[$connector.type] === HIDDEN_SECRET_PLACEHOLDER ? "Stored (hidden)" : ""}
@@ -359,9 +388,9 @@
         if (e.key === "Enter") (e.target as HTMLInputElement).blur()
       }}
     />
-    <button
-      class="preset-btn api-key-btn"
-      type="button"
+    <Button
+      variant="outline"
+      size="sm"
       disabled={generationLockActive}
       onclick={() => {
         showApiKey = !showApiKey
@@ -369,10 +398,10 @@
       title={showApiKey ? "Hide API key" : "Show API key"}
     >
       {showApiKey ? "Hide" : "Show"}
-    </button>
-    <button
-      class="preset-btn api-key-btn"
-      type="button"
+    </Button>
+    <Button
+      variant="outline"
+      size="sm"
       disabled={generationLockActive}
       onclick={() => {
         connectorApiKey = ""
@@ -381,37 +410,36 @@
       title="Clear API key"
     >
       Clear
-    </button>
+    </Button>
   </div>
-</label>
+</div>
 
 {#if $connector.type === "openrouter"}
-  <label class="control-row control-row--input" class:control-row--disabled={generationLockActive}>
-    <span class="control-row-text">
-      <span class="control-row-title">Model ID</span>
-      <span class="control-row-sub">Example: openrouter/free</span>
-    </span>
-    <input
-      class="text-input text-input--mono"
-      type="text"
-      bind:value={openrouterModelDraft}
-      disabled={generationLockActive}
-      onblur={commitOpenRouterModel}
-      onkeydown={(e) => {
-        if (e.key === "Enter") (e.target as HTMLInputElement).blur()
-      }}
-    />
-  </label>
+  <div class={cn("flex items-start justify-between gap-4 border-b py-3", generationLockActive && "opacity-60")}>
+    <div class="min-w-0 flex-1 space-y-1">
+      <div class="text-sm font-medium text-foreground">Model ID</div>
+      <div class="text-xs text-muted-foreground">Example: openrouter/free</div>
+    </div>
+    <div class="w-[min(62%,22rem)]">
+      <Input
+        class="font-mono"
+        type="text"
+        bind:value={openrouterModelDraft}
+        disabled={generationLockActive}
+        onblur={commitOpenRouterModel}
+        onkeydown={(e) => {
+          if (e.key === "Enter") (e.target as HTMLInputElement).blur()
+        }}
+      />
+    </div>
+  </div>
 
-  <div class="control-row control-row--input control-row--stack" class:control-row--disabled={generationLockActive}>
-    <span class="control-row-text">
-      <span class="control-row-title">Search Models</span>
-      <span class="control-row-sub">Queries /models via server proxy (cached)</span>
-    </span>
+  <div class={cn("mt-4 rounded-lg border bg-card p-4", generationLockActive && "opacity-60")}>
+    <div class="text-sm font-medium text-foreground">Search Models</div>
+    <div class="mt-0.5 text-xs text-muted-foreground">Queries /models via server proxy (cached)</div>
 
-    <div class="model-search">
-      <input
-        class="text-input"
+    <div class="mt-3 flex items-center gap-2 max-[520px]:flex-col max-[520px]:items-stretch">
+      <Input
         type="text"
         placeholder="Search model id…"
         bind:value={modelSearchQuery}
@@ -420,134 +448,65 @@
           if (e.key === "Enter") void searchModels()
         }}
       />
-      <button class="preset-btn" disabled={modelSearchLoading || generationLockActive} onclick={searchModels}>
+      <Button variant="outline" disabled={modelSearchLoading || generationLockActive} onclick={searchModels}>
         {modelSearchLoading ? "Searching…" : "Search"}
-      </button>
+      </Button>
     </div>
 
-    <div class="model-filters">
-      <label class="filter-toggle">
-        <input type="checkbox" bind:checked={modelSearchOnlyFree} disabled={generationLockActive} />
+    <div class="mt-3 flex flex-wrap items-center gap-4">
+      <div
+        class={cn(
+          "inline-flex items-center gap-2 text-sm text-foreground",
+          generationLockActive && "pointer-events-none",
+        )}
+      >
+        <Checkbox bind:checked={modelSearchOnlyFree} disabled={generationLockActive} />
         <span>Free only</span>
-      </label>
-      <label class="filter-toggle">
-        <input type="checkbox" bind:checked={modelSearchOnlyJsonSchema} disabled={generationLockActive} />
+      </div>
+      <div
+        class={cn(
+          "inline-flex items-center gap-2 text-sm text-foreground",
+          generationLockActive && "pointer-events-none",
+        )}
+      >
+        <Checkbox bind:checked={modelSearchOnlyJsonSchema} disabled={generationLockActive} />
         <span>JSON Schema only</span>
-      </label>
+      </div>
       {#if modelSearchResults.length > 0 && (modelSearchOnlyFree || modelSearchOnlyJsonSchema)}
-        <div class="filter-summary">Showing {filteredModelSearchResults.length} / {modelSearchResults.length}</div>
+        <div class="ml-auto text-xs text-muted-foreground">
+          Showing {filteredModelSearchResults.length} / {modelSearchResults.length}
+        </div>
       {/if}
     </div>
 
-    <Select
-      value={$connector.model}
-      width="100%"
-      placeholder={modelSearchResults.length ? "Select model…" : "No results yet"}
-      options={modelSelectOptions}
-      ariaLabel="OpenRouter model"
-      disabled={generationLockActive}
-      onChange={(v) => pickOpenRouterModel(String(v))}
-    />
+    <div class="mt-3">
+      <Select.Root
+        type="single"
+        value={$connector.model}
+        items={modelSelectOptions}
+        disabled={generationLockActive}
+        onValueChange={(v) => pickOpenRouterModel(v)}
+      >
+        <Select.Trigger
+          class="w-full"
+          aria-label="OpenRouter model"
+          data-placeholder={!$connector.model?.trim() ? true : undefined}
+        >
+          {modelSelectOptions.find((o) => o.value === $connector.model)?.label ??
+            ($connector.model || modelSearchSelectPlaceholder)}
+        </Select.Trigger>
+        <Select.Content>
+          {#each modelSelectOptions as option (option.value)}
+            <Select.Item {...option} />
+          {/each}
+        </Select.Content>
+      </Select.Root>
+    </div>
 
     {#if modelSearchError}
-      <div class="conn-error">{modelSearchError}</div>
+      <div class="mt-2 text-sm text-destructive">{modelSearchError}</div>
     {/if}
   </div>
 {/if}
 
-<div class="settings-bottom-pad"></div>
-
-<style>
-  .api-key-wrap {
-    display: flex;
-    gap: 0.5rem;
-    align-items: center;
-    min-width: 0;
-  }
-
-  .api-key-wrap .text-input {
-    flex: 1;
-    min-width: 0;
-  }
-
-  .api-key-btn {
-    padding: 0.3rem 0.6rem;
-    white-space: nowrap;
-  }
-
-  .model-search {
-    display: flex;
-    gap: 0.5rem;
-    align-items: center;
-  }
-
-  .model-search .text-input {
-    flex: 1;
-    min-width: 0;
-  }
-
-  .model-filters {
-    display: flex;
-    gap: 0.75rem;
-    align-items: center;
-    flex-wrap: wrap;
-  }
-
-  .filter-toggle {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.45rem;
-    font-family: var(--font-ui);
-    font-size: 0.82rem;
-    color: var(--text);
-    user-select: none;
-    cursor: pointer;
-  }
-
-  .filter-toggle input {
-    width: 1rem;
-    height: 1rem;
-    accent-color: var(--accent);
-  }
-
-  .filter-summary {
-    margin-left: auto;
-    font-family: var(--font-ui);
-    font-size: 0.78rem;
-    color: var(--text-dim);
-  }
-
-  @media (max-width: 520px) {
-    .model-search {
-      flex-direction: column;
-      align-items: stretch;
-    }
-  }
-
-  .conn-error {
-    color: var(--danger);
-    font-family: var(--font-ui);
-    font-size: 0.85rem;
-    line-height: 1.35;
-  }
-
-  .connector-badge {
-    font-family: var(--font-ui);
-    font-size: 0.75rem;
-    font-weight: 600;
-    color: var(--accent);
-    background: var(--accent-dim);
-    padding: 0.25rem 0.6rem;
-    letter-spacing: 0.03em;
-  }
-
-  .ctx-limit-actions {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-  }
-
-  .ctx-refresh {
-    padding: 0.3rem 0.6rem;
-  }
-</style>
+<div class="h-10"></div>

@@ -1,40 +1,32 @@
 <script lang="ts">
   import { confirmDialog, resolveConfirm } from "@/stores/ui"
+  import { AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialog } from "@/components/ui/alert-dialog"
+  import { DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 
-  function onKeydown(e: KeyboardEvent) {
-    if (!$confirmDialog) return
-    if (e.key === "Escape") {
-      e.preventDefault()
-      resolveConfirm(false)
-    }
-  }
+  const open = $derived(!!$confirmDialog)
 </script>
 
-<svelte:window onkeydown={onKeydown} />
-
-{#if $confirmDialog}
-  <div
-    class="overlay overlay--modal"
-    onclick={(e) => {
-      if (e.currentTarget !== e.target) return
-      resolveConfirm(false)
-    }}
-    role="presentation"
-  >
-    <!-- svelte-ignore a11y_interactive_supports_focus -->
-    <!-- svelte-ignore a11y_click_events_have_key_events -->
-    <div class="modal" role="dialog" aria-modal="true" tabindex="-1">
-      <h3 class="modal__title">{$confirmDialog.title}</h3>
-      <p class="modal__message">{$confirmDialog.message}</p>
-      <div class="modal__actions">
-        <button class="btn-ghost small" onclick={() => resolveConfirm(false)}>Cancel</button>
-        <button
-          class={$confirmDialog.danger ? "btn-danger small" : "btn-accent small"}
+<AlertDialog
+  {open}
+  onOpenChange={(next) => {
+    if (!next && $confirmDialog) resolveConfirm(false)
+  }}
+>
+  {#if $confirmDialog}
+    <AlertDialogContent>
+      <DialogHeader>
+        <DialogTitle>{$confirmDialog.title}</DialogTitle>
+        <DialogDescription>{$confirmDialog.message}</DialogDescription>
+      </DialogHeader>
+      <DialogFooter class="mt-2">
+        <AlertDialogCancel onclick={() => resolveConfirm(false)}>Cancel</AlertDialogCancel>
+        <AlertDialogAction
+          class={$confirmDialog.danger ? "bg-destructive hover:bg-destructive/90" : undefined}
           onclick={() => resolveConfirm(true)}
         >
           {$confirmDialog.confirmLabel || "Confirm"}
-        </button>
-      </div>
-    </div>
-  </div>
-{/if}
+        </AlertDialogAction>
+      </DialogFooter>
+    </AlertDialogContent>
+  {/if}
+</AlertDialog>

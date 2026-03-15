@@ -8,6 +8,7 @@ export default {
     adapter: adapter({ fallback: "index.html" }),
     alias: {
       "@": "src/lib",
+      "@/*": "./src/lib/*",
     },
     serviceWorker: {
       register: false,

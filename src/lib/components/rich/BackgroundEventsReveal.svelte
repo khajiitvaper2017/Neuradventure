@@ -31,90 +31,32 @@
 <svelte:window onkeydown={onWindowKeydown} />
 
 {#if paras.length > 0}
-  <div class="bg-wrap">
+  <div class="relative mt-3 [overflow-anchor:none]">
     <details class="disclosure" bind:open>
-      <summary class="disclosure__summary bg-summary">
-        <span class="bg-title">{title}</span>
-        <span class="bg-meta">{open ? "shown" : "hidden"}</span>
+      <summary
+        class="flex cursor-pointer select-none items-center justify-between gap-3 rounded-md border bg-background/50 px-3 py-2 text-sm"
+      >
+        <span class="min-w-0 truncate font-medium text-foreground">{title}</span>
+        <span class={"text-xs tracking-wide " + (open ? "text-primary" : "text-muted-foreground")}>
+          {open ? "shown" : "hidden"}
+        </span>
       </summary>
     </details>
 
     {#if open}
-      <div class="bg-popover" role="region" aria-label={title}>
+      <div
+        class="absolute left-0 right-0 top-[calc(100%+0.4rem)] z-20 max-h-[min(42vh,340px)] overflow-auto rounded-md border bg-card p-3 shadow-md outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+        role="region"
+        aria-label={title}
+      >
         {#if isBlockHtml}
-          <div class="bg-para bg-para--html"><RichText text={trimmed} mode="block" /></div>
+          <div class="text-sm leading-relaxed text-muted-foreground"><RichText text={trimmed} mode="block" /></div>
         {:else}
           {#each paras as para}
-            <p class="bg-para"><RichText text={para} mode="inline" /></p>
+            <p class="text-sm leading-relaxed text-muted-foreground"><RichText text={para} mode="inline" /></p>
           {/each}
         {/if}
       </div>
     {/if}
   </div>
 {/if}
-
-<style>
-  .bg-wrap {
-    position: relative;
-    margin-top: 0.65rem;
-    overflow-anchor: none;
-  }
-
-  .bg-summary {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 0.75rem;
-  }
-
-  .bg-title {
-    color: var(--text-action);
-    font-weight: 600;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-
-  .bg-meta {
-    font-size: 0.78rem;
-    color: var(--text-scene);
-    letter-spacing: 0.03em;
-  }
-
-  details[open] .bg-meta {
-    color: var(--accent);
-  }
-
-  .bg-popover {
-    position: absolute;
-    left: 0;
-    right: 0;
-    top: calc(100% + 0.4rem);
-    z-index: 20;
-    padding: 0.6rem 0.8rem 0.75rem;
-    border: 1px solid var(--border);
-    border-radius: var(--radius-md);
-    background: var(--bg-raised);
-    box-shadow: var(--shadow-sm);
-    max-height: min(42vh, 340px);
-    overflow: auto;
-    overscroll-behavior: contain;
-    outline: none;
-  }
-  .bg-popover:focus-visible {
-    box-shadow:
-      0 0 0 2px var(--focus-glow),
-      var(--shadow-sm);
-  }
-
-  .bg-para {
-    color: var(--text-dim);
-    font-family: var(--font-story);
-    line-height: 1.65;
-    font-size: 0.98rem;
-  }
-
-  .bg-para + .bg-para {
-    margin-top: 0.55rem;
-  }
-</style>

@@ -1,9 +1,19 @@
 <script lang="ts">
   import { stories } from "@/services/stories"
+  import { cn } from "@/utils.js"
   import IconDots from "@/components/icons/IconDots.svelte"
   import IconMapPin from "@/components/icons/IconMapPin.svelte"
   import IconUser from "@/components/icons/IconUser.svelte"
   import IconUsers from "@/components/icons/IconUsers.svelte"
+  import { Badge } from "@/components/ui/badge"
+  import { Button } from "@/components/ui/button"
+  import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuSeparator,
+    DropdownMenuTrigger,
+  } from "@/components/ui/dropdown-menu"
   import {
     collapseCharSheet,
     collapseLocationsPanel,
@@ -26,11 +36,6 @@
   $: trackNpcs = $currentStoryModules?.track_npcs ?? true
   $: trackLocations = $currentStoryModules?.track_locations ?? true
 
-  function openAndClose(fn: (() => void) | undefined) {
-    showMenu = false
-    fn?.()
-  }
-
   async function exportStory(format: "neuradventure" | "tavern" | "plaintext") {
     showMenu = false
     if (!$currentStoryId) return
@@ -42,8 +47,15 @@
   }
 </script>
 
-<header>
-  <button class="header-back" onclick={onGoHome} title="Return to menu" aria-label="Back to stories">
+<header class="flex min-h-12 items-center gap-2 border-b pr-2 min-[1200px]:pr-6">
+  <Button
+    variant="ghost"
+    size="icon"
+    class="h-12 w-12 shrink-0 rounded-none border-r text-muted-foreground hover:bg-accent hover:text-foreground"
+    onclick={onGoHome}
+    title="Return to menu"
+    aria-label="Back to stories"
+  >
     <svg
       width="14"
       height="14"
@@ -54,201 +66,108 @@
       stroke-linecap="round"
       aria-hidden="true"><path d="M19 12H5" /><path d="M12 19l-7-7 7-7" /></svg
     >
-  </button>
+  </Button>
 
-  <div class="header-center">
-    <span class="story-name">{$currentStoryTitle}</span>
+  <div class="flex min-w-0 flex-1 flex-col gap-0.5 py-2">
+    <span class="break-words text-sm font-medium leading-snug text-foreground">{$currentStoryTitle}</span>
     {#if $worldState}
-      <span class="header-scene" class:flash={flashScene}>
+      <span
+        class={cn(
+          "break-words text-[11px] uppercase tracking-wider text-muted-foreground/80",
+          flashScene && "animate-pulse",
+        )}
+      >
         {$worldState.current_scene} · {$worldState.time_of_day}
       </span>
     {/if}
   </div>
 
-  <div class="header-actions">
-    <span class="turn-badge">{$turns.length}</span>
-    <button
-      class="hbtn desktop-only"
-      class:inactive={$collapseCharSheet}
+  <div class="flex shrink-0 items-center gap-1">
+    <Badge variant="secondary" class="mr-1 font-mono text-xs tabular-nums">{$turns.length}</Badge>
+
+    <Button
+      variant="ghost"
+      size="icon"
+      class={cn("hidden h-9 w-9 text-muted-foreground min-[1200px]:inline-flex", $collapseCharSheet && "opacity-50")}
       title={$collapseCharSheet ? "Show character sheet" : "Hide character sheet"}
       onclick={() => collapseCharSheet.update((v) => !v)}
     >
       <IconUser size={15} strokeWidth={1.8} />
-    </button>
+    </Button>
     {#if trackNpcs}
-      <button
-        class="hbtn desktop-only"
-        class:inactive={$collapseNPCTracker}
+      <Button
+        variant="ghost"
+        size="icon"
+        class={cn("hidden h-9 w-9 text-muted-foreground min-[1200px]:inline-flex", $collapseNPCTracker && "opacity-50")}
         title={$collapseNPCTracker ? "Show NPC tracker" : "Hide NPC tracker"}
         onclick={() => collapseNPCTracker.update((v) => !v)}
       >
         <IconUsers size={15} strokeWidth={1.8} />
-      </button>
+      </Button>
     {/if}
     {#if trackLocations}
-      <button
-        class="hbtn desktop-only"
-        class:inactive={$collapseLocationsPanel}
+      <Button
+        variant="ghost"
+        size="icon"
+        class={cn(
+          "hidden h-9 w-9 text-muted-foreground min-[1200px]:inline-flex",
+          $collapseLocationsPanel && "opacity-50",
+        )}
         title={$collapseLocationsPanel ? "Show locations" : "Hide locations"}
         onclick={() => collapseLocationsPanel.update((v) => !v)}
       >
         <IconMapPin size={15} strokeWidth={1.8} />
-      </button>
+      </Button>
     {/if}
-    <button class="hbtn mobile-only" title="Character Sheet" onclick={() => showCharSheet.update((v) => !v)}>
+    <Button
+      variant="ghost"
+      size="icon"
+      class="h-9 w-9 text-muted-foreground min-[1200px]:hidden"
+      title="Character Sheet"
+      onclick={() => showCharSheet.update((v) => !v)}
+    >
       <IconUser size={15} strokeWidth={1.8} />
-    </button>
+    </Button>
     {#if trackNpcs}
-      <button class="hbtn mobile-only" title="NPC Tracker" onclick={() => showNPCTracker.update((v) => !v)}>
+      <Button
+        variant="ghost"
+        size="icon"
+        class="h-9 w-9 text-muted-foreground min-[1200px]:hidden"
+        title="NPC Tracker"
+        onclick={() => showNPCTracker.update((v) => !v)}
+      >
         <IconUsers size={15} strokeWidth={1.8} />
-      </button>
+      </Button>
     {/if}
     {#if trackLocations}
-      <button class="hbtn mobile-only" title="Locations" onclick={() => showLocations.update((v) => !v)}>
+      <Button
+        variant="ghost"
+        size="icon"
+        class="h-9 w-9 text-muted-foreground min-[1200px]:hidden"
+        title="Locations"
+        onclick={() => showLocations.update((v) => !v)}
+      >
         <IconMapPin size={15} strokeWidth={1.8} />
-      </button>
+      </Button>
     {/if}
-    <div class="menu-wrap">
-      <button class="hbtn" aria-label="More options" onclick={() => (showMenu = !showMenu)}>
+    <DropdownMenu open={showMenu} onOpenChange={(next) => (showMenu = next)}>
+      <DropdownMenuTrigger
+        class="inline-flex h-9 w-9 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
+      >
+        <span class="sr-only">More options</span>
         <IconDots size={15} strokeWidth={1.8} />
-      </button>
-      {#if showMenu}
-        <div class="dropdown">
-          <button onclick={() => openAndClose(onOpenMemoryEditor)}>Memory</button>
-          <button onclick={() => openAndClose(onOpenAuthorNoteEditor)}>Author's Note</button>
-          <button onclick={() => openAndClose(onOpenModulesEditor)}>Story Modules</button>
-          {#if $currentStoryId}
-            <button class="dropdown-link" type="button" onclick={() => void exportStory("neuradventure")}>
-              Export JSON
-            </button>
-            <button class="dropdown-link" type="button" onclick={() => void exportStory("tavern")}>
-              Export ST Chat
-            </button>
-            <button class="dropdown-link" type="button" onclick={() => void exportStory("plaintext")}>
-              Export Text
-            </button>
-          {/if}
-        </div>
-      {/if}
-    </div>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" class="w-48">
+        <DropdownMenuItem onSelect={() => onOpenMemoryEditor?.()}>Memory</DropdownMenuItem>
+        <DropdownMenuItem onSelect={() => onOpenAuthorNoteEditor?.()}>Author's Note</DropdownMenuItem>
+        <DropdownMenuItem onSelect={() => onOpenModulesEditor?.()}>Story Modules</DropdownMenuItem>
+        {#if $currentStoryId}
+          <DropdownMenuSeparator />
+          <DropdownMenuItem onSelect={() => void exportStory("neuradventure")}>Export JSON</DropdownMenuItem>
+          <DropdownMenuItem onSelect={() => void exportStory("tavern")}>Export ST Chat</DropdownMenuItem>
+          <DropdownMenuItem onSelect={() => void exportStory("plaintext")}>Export Text</DropdownMenuItem>
+        {/if}
+      </DropdownMenuContent>
+    </DropdownMenu>
   </div>
 </header>
-
-<style>
-  /* ── Header ─────────────────────────────────────────── */
-  header {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    padding: 0 0.5rem 0 0;
-    border-bottom: 1px solid var(--border);
-    min-height: 46px;
-    flex-shrink: 0;
-  }
-  @media (min-width: 1200px) {
-    header {
-      padding: 0 1.5rem 0 0;
-    }
-  }
-  .header-back {
-    background: none;
-    border: none;
-    border-right: 1px solid var(--border);
-    color: var(--text-dim);
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 46px;
-    min-height: 46px;
-    flex-shrink: 0;
-    transition:
-      color 0.15s,
-      background 0.15s;
-  }
-  .header-back:hover {
-    color: var(--text);
-    background: var(--bg-action);
-  }
-  .header-center {
-    flex: 1;
-    min-width: 0;
-    display: flex;
-    flex-direction: column;
-    gap: 0.1rem;
-    padding: 0.35rem 0;
-  }
-  .story-name {
-    font-family: var(--font-ui);
-    font-size: 0.82rem;
-    color: var(--text);
-    font-weight: 500;
-    white-space: normal;
-    overflow-wrap: anywhere;
-    line-height: 1.2;
-  }
-  .header-scene {
-    font-family: var(--font-ui);
-    font-size: 0.65rem;
-    color: var(--text-scene);
-    letter-spacing: 0.06em;
-    white-space: normal;
-    overflow-wrap: anywhere;
-    line-height: 1.2;
-  }
-  .header-actions {
-    display: flex;
-    align-items: center;
-    gap: 0.15rem;
-    flex-shrink: 0;
-  }
-  .turn-badge {
-    font-family: var(--font-ui);
-    font-size: 0.7rem;
-    color: var(--accent);
-    background: var(--accent-dim);
-    padding: 0.15rem 0.5rem;
-    border-radius: var(--radius-pill);
-    font-feature-settings: "tnum";
-    font-weight: 500;
-    letter-spacing: 0.02em;
-    margin-right: 0.25rem;
-  }
-  .hbtn {
-    background: none;
-    border: none;
-    color: var(--text-dim);
-    cursor: pointer;
-    min-width: 34px;
-    min-height: 34px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    border-radius: 4px;
-    transition: color 0.15s;
-  }
-  .hbtn:hover {
-    color: var(--text);
-  }
-  .hbtn.inactive {
-    opacity: 0.45;
-  }
-  .menu-wrap {
-    position: relative;
-  }
-  .dropdown {
-    position: absolute;
-    right: 0;
-    top: calc(100% + 4px);
-  }
-  @media (min-width: 1200px) {
-    .mobile-only {
-      display: none;
-    }
-  }
-  @media (max-width: 1199px) {
-    .desktop-only {
-      display: none;
-    }
-  }
-</style>

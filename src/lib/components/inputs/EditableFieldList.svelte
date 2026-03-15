@@ -1,6 +1,8 @@
 <script lang="ts">
-  import { autoresize } from "@/utils/actions/autoresize"
   import type { EditField } from "@/components/inputs/editableFieldTypes"
+  import { Input } from "@/components/ui/input"
+  import { Label } from "@/components/ui/label"
+  import { Textarea } from "@/components/ui/textarea"
 
   export let fields: EditField[] = []
 
@@ -11,13 +13,12 @@
 </script>
 
 {#each fields as field (field.id)}
-  <div class="field">
-    <label for={field.id}>{field.label}</label>
+  <div class="space-y-2">
+    <Label for={field.id}>{field.label}</Label>
     {#if field.kind === "textarea"}
-      <textarea id={field.id} value={field.value} oninput={(e) => updateField(field, e)} use:autoresize={field.value}
-      ></textarea>
+      <Textarea id={field.id} value={field.value} oninput={(e) => updateField(field, e)} />
     {:else}
-      <input id={field.id} type="text" value={field.value} oninput={(e) => updateField(field, e)} />
+      <Input id={field.id} type="text" value={field.value} oninput={(e) => updateField(field, e)} />
     {/if}
   </div>
 {/each}

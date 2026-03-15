@@ -1,5 +1,11 @@
 <script lang="ts">
   import { showError, showQuietNotice } from "@/stores/ui"
+  import { cn } from "@/utils.js"
+  import { Badge } from "@/components/ui/badge"
+  import { Button } from "@/components/ui/button"
+  import { Checkbox } from "@/components/ui/checkbox"
+  import { Sheet, SheetContent } from "@/components/ui/sheet"
+  import { ScrollArea } from "@/components/ui/scroll-area"
 
   export let open = false
   export let title = "Card Inspector"
@@ -111,297 +117,207 @@
   }
 </script>
 
-{#if open}
-  <!-- svelte-ignore a11y_click_events_have_key_events -->
-  <!-- svelte-ignore a11y_no_static_element_interactions -->
-  <div class="overlay" onclick={close}></div>
-  <div class="panel panel--wide" role="dialog" aria-modal="true" aria-label={title} tabindex="-1">
-    <div class="panel-header">
-      <span>{title}</span>
-      <button class="panel-close" onclick={close} aria-label="Close">×</button>
+{#snippet KV(label, value)}
+  <div class="rounded-lg border bg-card p-3">
+    <div class="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{label}</div>
+    <div class="mt-1 text-sm text-foreground">{value}</div>
+  </div>
+{/snippet}
+
+{#snippet CodeBox(title, copyLabel, body)}
+  {@const trimmed = String(body ?? "").trim()}
+  <div class="rounded-lg border bg-card">
+    <div class="flex items-center justify-between gap-3 border-b px-3 py-2">
+      <div class="min-w-0 truncate text-sm font-medium text-foreground">{title}</div>
+      <Button
+        size="sm"
+        variant="outline"
+        class="h-8"
+        onclick={() => copyField(copyLabel, String(body ?? ""))}
+        disabled={!trimmed}
+      >
+        Copy
+      </Button>
     </div>
-    <div class="panel-body inspector" data-scroll-root="modal">
-      {#if loading}
-        <div class="codebox">
-          <div class="codebox-head">
-            <div class="codebox-title">Loading</div>
-          </div>
-          <div class="codebox-body is-empty">Fetching card metadata…</div>
-        </div>
-      {:else if error}
-        <div class="codebox">
-          <div class="codebox-head">
-            <div class="codebox-title">Unavailable</div>
-          </div>
-          <div class="codebox-body is-empty">{error}</div>
-        </div>
-      {:else if cardData}
-        <div class="inspector-hero">
-          {#if avatarDataUrl}
-            <img class="inspector-avatar" src={avatarDataUrl} alt="Character avatar" />
-          {:else}
-            <div class="inspector-avatar" aria-hidden="true"></div>
-          {/if}
-          <div>
-            <div class="inspector-title">{name || "Unknown Character"}</div>
-            <div class="inspector-sub">
-              {spec || "tavern card"}{specVersion ? ` · v${specVersion}` : ""}{creator
-                ? ` · by ${creator}`
-                : ""}{characterVersion ? ` · ${characterVersion}` : ""}
-            </div>
-          </div>
-        </div>
+    <pre
+      class={cn(
+        "px-3 py-2 text-xs leading-relaxed",
+        "whitespace-pre-wrap break-words font-mono",
+        !trimmed && "text-muted-foreground italic",
+      )}>
+{trimmed || "(empty)"}</pre>
+  </div>
+{/snippet}
 
-        {#if tags.length}
-          <div class="chips">
-            {#each tags as tag (tag)}
-              <span class="chip selected">{tag}</span>
-            {/each}
-          </div>
-        {/if}
+<Sheet
+  {open}
+  onOpenChange={(next) => {
+    if (!next && open) close()
+  }}
+>
+  <SheetContent side="right" class="w-[min(92vw,44rem)] sm:max-w-none p-0">
+    <div class="flex items-center justify-between gap-3 border-b px-4 py-3">
+      <div class="min-w-0 truncate text-sm font-semibold text-foreground">{title}</div>
+      <Button variant="ghost" size="icon" class="h-9 w-9" onclick={close} aria-label="Close">×</Button>
+    </div>
 
-        <div class="variant-row">
-          <span class="variant-label">View</span>
-          <button class="variant-pill" class:active={tab === "fields"} onclick={() => (tab = "fields")}>Fields</button>
-          <button class="variant-pill" class:active={tab === "raw"} onclick={() => (tab = "raw")}>Raw JSON</button>
-          <label class="chip" title="Show empty fields too">
-            <input type="checkbox" bind:checked={showEmpty} />
-            Show empty
-          </label>
-        </div>
-
-        {#if tab === "fields"}
-          {#if showEmpty || spec || specVersion}
-            <div class="inspector-kv">
-              <div class="inspector-k">Spec</div>
-              <div class="inspector-v">{spec || "(missing)"}</div>
-            </div>
-            <div class="inspector-kv">
-              <div class="inspector-k">Spec Version</div>
-              <div class="inspector-v">{specVersion || "(missing)"}</div>
-            </div>
-          {/if}
-
-          {#if showEmpty || creator || characterVersion}
-            <div class="inspector-kv">
-              <div class="inspector-k">Creator</div>
-              <div class="inspector-v">{creator || "(empty)"}</div>
-            </div>
-            <div class="inspector-kv">
-              <div class="inspector-k">Character Version</div>
-              <div class="inspector-v">{characterVersion || "(empty)"}</div>
-            </div>
-          {/if}
-
-          {#if showEmpty || firstMes.trim()}
-            <div class="codebox">
-              <div class="codebox-head">
-                <div class="codebox-title">First Message</div>
-                <button
-                  class="btn-ghost small"
-                  onclick={() => copyField("First message", firstMes)}
-                  disabled={!firstMes.trim()}
-                >
-                  Copy
-                </button>
-              </div>
-              <div class="codebox-body" class:is-empty={!firstMes.trim()}>{firstMes.trim() || "(empty)"}</div>
-            </div>
-          {/if}
-
-          {#if showEmpty || altGreetings.length}
-            <div class="codebox">
-              <div class="codebox-head">
-                <div class="codebox-title">Alternate Greetings</div>
-                <button
-                  class="btn-ghost small"
-                  onclick={() => copyField("Alternate greetings", altGreetings.join("\n\n"))}
-                  disabled={altGreetings.length === 0}
-                >
-                  Copy
-                </button>
-              </div>
-              <div class="codebox-body" class:is-empty={altGreetings.length === 0}>
-                {altGreetings.length ? altGreetings.map((t, i) => `${i + 1}. ${t}`).join("\n\n") : "(empty)"}
-              </div>
-            </div>
-          {/if}
-
-          {#if showEmpty || exampleDialogs.trim()}
-            <div class="codebox">
-              <div class="codebox-head">
-                <div class="codebox-title">Example Dialogs</div>
-                <button
-                  class="btn-ghost small"
-                  onclick={() => copyField("Example dialogs", exampleDialogs)}
-                  disabled={!exampleDialogs.trim()}
-                >
-                  Copy
-                </button>
-              </div>
-              <div class="codebox-body" class:is-empty={!exampleDialogs.trim()}>
-                {exampleDialogs.trim() || "(empty)"}
-              </div>
-            </div>
-          {/if}
-
-          {#if showEmpty || systemPrompt.trim()}
-            <div class="codebox">
-              <div class="codebox-head">
-                <div class="codebox-title">System Prompt</div>
-                <button
-                  class="btn-ghost small"
-                  onclick={() => copyField("System prompt", systemPrompt)}
-                  disabled={!systemPrompt.trim()}
-                >
-                  Copy
-                </button>
-              </div>
-              <div class="codebox-body" class:is-empty={!systemPrompt.trim()}>{systemPrompt.trim() || "(empty)"}</div>
-            </div>
-          {/if}
-
-          {#if showEmpty || postHistory.trim()}
-            <div class="codebox">
-              <div class="codebox-head">
-                <div class="codebox-title">Post-History Instructions</div>
-                <button
-                  class="btn-ghost small"
-                  onclick={() => copyField("Post-history instructions", postHistory)}
-                  disabled={!postHistory.trim()}
-                >
-                  Copy
-                </button>
-              </div>
-              <div class="codebox-body" class:is-empty={!postHistory.trim()}>{postHistory.trim() || "(empty)"}</div>
-            </div>
-          {/if}
-
-          {#if showEmpty || creatorNotes.trim()}
-            <div class="codebox">
-              <div class="codebox-head">
-                <div class="codebox-title">Creator Notes</div>
-                <button
-                  class="btn-ghost small"
-                  onclick={() => copyField("Creator notes", creatorNotes)}
-                  disabled={!creatorNotes.trim()}
-                >
-                  Copy
-                </button>
-              </div>
-              <div class="codebox-body" class:is-empty={!creatorNotes.trim()}>{creatorNotes.trim() || "(empty)"}</div>
-            </div>
-          {/if}
-
-          {#if characterBook}
-            <details class="inspector-details">
-              <summary>
-                <span>Character Book</span>
-                <span class="details-meta">{characterBookEntries} entries</span>
-              </summary>
-              <div class="inspector-details-body">
-                {#if characterBookEntryList.length}
-                  {#each characterBookEntryList as entry, i}
-                    {@const entryName = asString(entry.name).trim() || `Entry ${i + 1}`}
-                    {@const entryEnabled = entry.enabled !== false}
-                    {@const entryKeys = asStringArray(entry.keys)
-                      .map((t) => t.trim())
-                      .filter(Boolean)}
-                    {@const entryPosition = asString(entry.position).trim()}
-                    {@const entryOrderRaw = entry.insertion_order}
-                    {@const entryOrder =
-                      typeof entryOrderRaw === "number" && Number.isFinite(entryOrderRaw) ? entryOrderRaw : null}
-                    {@const entryContent = asString(entry.content)}
-
-                    <details class="inspector-details">
-                      <summary>
-                        <span>{entryName}</span>
-                        <span class="details-meta">
-                          {entryEnabled ? "enabled" : "disabled"} · {entryKeys.length} keys{entryPosition
-                            ? ` · ${entryPosition}`
-                            : ""}{entryOrder !== null ? ` · order ${entryOrder}` : ""}
-                        </span>
-                      </summary>
-                      <div class="inspector-details-body">
-                        <div class="codebox">
-                          <div class="codebox-head">
-                            <div class="codebox-title">Keys</div>
-                            <button
-                              class="btn-ghost small"
-                              onclick={() => copyField("Character book keys", entryKeys.join(", "))}
-                              disabled={entryKeys.length === 0}
-                            >
-                              Copy
-                            </button>
-                          </div>
-                          <div class="codebox-body" class:is-empty={entryKeys.length === 0}>
-                            {entryKeys.length ? entryKeys.join(", ") : "(empty)"}
-                          </div>
-                        </div>
-
-                        <div class="codebox">
-                          <div class="codebox-head">
-                            <div class="codebox-title">Content</div>
-                            <button
-                              class="btn-ghost small"
-                              onclick={() => copyField("Character book content", entryContent)}
-                              disabled={!entryContent.trim()}
-                            >
-                              Copy
-                            </button>
-                          </div>
-                          <div class="codebox-body" class:is-empty={!entryContent.trim()}>
-                            {entryContent.trim() || "(empty)"}
-                          </div>
-                        </div>
-                      </div>
-                    </details>
-                  {/each}
+    <ScrollArea class="max-h-[calc(100dvh-3.25rem)]">
+      <div class="p-4">
+        {#if loading}
+          <div class="rounded-lg border bg-card p-4 text-sm text-muted-foreground">Fetching card metadata…</div>
+        {:else if error}
+          <div class="rounded-lg border bg-card p-4 text-sm text-destructive">{error}</div>
+        {:else if cardData}
+          <div class="space-y-4">
+            <div class="flex items-center gap-3 rounded-lg border bg-card p-3">
+              <div class="h-12 w-12 shrink-0 overflow-hidden rounded-full border bg-muted">
+                {#if avatarDataUrl}
+                  <img class="h-full w-full object-cover" src={avatarDataUrl} alt="Character avatar" />
                 {/if}
-
-                <div class="codebox">
-                  <div class="codebox-head">
-                    <div class="codebox-title">Character Book JSON</div>
-                    <button
-                      class="btn-ghost small"
-                      onclick={() => copyField("Character book", prettyJson(characterBook))}
-                    >
-                      Copy
-                    </button>
-                  </div>
-                  <div class="codebox-body">{prettyJson(characterBook)}</div>
+              </div>
+              <div class="min-w-0">
+                <div class="truncate text-base font-semibold text-foreground">{name || "Unknown Character"}</div>
+                <div class="mt-0.5 text-xs text-muted-foreground">
+                  {spec || "tavern card"}{specVersion ? ` · v${specVersion}` : ""}{creator
+                    ? ` · by ${creator}`
+                    : ""}{characterVersion ? ` · ${characterVersion}` : ""}
                 </div>
               </div>
-            </details>
-          {:else if showEmpty}
-            <div class="inspector-kv">
-              <div class="inspector-k">Character Book</div>
-              <div class="inspector-v">(none)</div>
             </div>
-          {/if}
-        {:else}
-          <div class="codebox">
-            <div class="codebox-head">
-              <div class="codebox-title">Imported Card JSON</div>
-              <button
-                class="btn-ghost small"
-                onclick={() => copyField("Card JSON", rawJson)}
-                disabled={!rawJson.trim()}
+
+            {#if tags.length}
+              <div class="flex flex-wrap gap-2">
+                {#each tags as tag (tag)}
+                  <Badge variant="secondary" class="rounded-full font-mono text-[11px]">{tag}</Badge>
+                {/each}
+              </div>
+            {/if}
+
+            <div class="flex flex-wrap items-center gap-2">
+              <div class="mr-1 text-xs font-semibold uppercase tracking-wider text-muted-foreground">View</div>
+              <Button
+                variant={tab === "fields" ? "secondary" : "outline"}
+                size="sm"
+                class="h-8"
+                onclick={() => (tab = "fields")}
               >
-                Copy
-              </button>
+                Fields
+              </Button>
+              <Button
+                variant={tab === "raw" ? "secondary" : "outline"}
+                size="sm"
+                class="h-8"
+                onclick={() => (tab = "raw")}
+              >
+                Raw JSON
+              </Button>
+              <div
+                class="ml-auto inline-flex items-center gap-2 text-sm text-muted-foreground"
+                title="Show empty fields too"
+              >
+                <Checkbox checked={showEmpty} onCheckedChange={(v) => (showEmpty = v)} />
+                <span>Show empty</span>
+              </div>
             </div>
-            <div class="codebox-body" class:is-empty={!rawJson.trim()}>{rawJson.trim() || "(empty)"}</div>
+
+            {#if tab === "fields"}
+              {#if showEmpty || spec || specVersion}
+                <div class="grid gap-3 sm:grid-cols-2">
+                  {@render KV("Spec", spec || "(missing)")}
+                  {@render KV("Spec Version", specVersion || "(missing)")}
+                </div>
+              {/if}
+
+              {#if showEmpty || creator || characterVersion}
+                <div class="grid gap-3 sm:grid-cols-2">
+                  {@render KV("Creator", creator || "(empty)")}
+                  {@render KV("Character Version", characterVersion || "(empty)")}
+                </div>
+              {/if}
+
+              {#if showEmpty || firstMes.trim()}
+                {@render CodeBox("First Message", "First message", firstMes)}
+              {/if}
+
+              {#if showEmpty || altGreetings.length}
+                {@render CodeBox(
+                  "Alternate Greetings",
+                  "Alternate greetings",
+                  altGreetings.length ? altGreetings.map((t, i) => `${i + 1}. ${t}`).join("\n\n") : "",
+                )}
+              {/if}
+
+              {#if showEmpty || exampleDialogs.trim()}
+                {@render CodeBox("Example Dialogs", "Example dialogs", exampleDialogs)}
+              {/if}
+
+              {#if showEmpty || systemPrompt.trim()}
+                {@render CodeBox("System Prompt", "System prompt", systemPrompt)}
+              {/if}
+
+              {#if showEmpty || postHistory.trim()}
+                {@render CodeBox("Post-History Instructions", "Post-history instructions", postHistory)}
+              {/if}
+
+              {#if showEmpty || creatorNotes.trim()}
+                {@render CodeBox("Creator Notes", "Creator notes", creatorNotes)}
+              {/if}
+
+              {#if characterBook}
+                <details class="rounded-lg border bg-card">
+                  <summary
+                    class="flex cursor-pointer list-none items-center justify-between gap-3 px-3 py-2 text-sm font-medium text-foreground transition-colors hover:bg-accent"
+                  >
+                    <span>Character Book</span>
+                    <span class="font-mono text-[11px] text-muted-foreground">{characterBookEntries} entries</span>
+                  </summary>
+                  <div class="space-y-3 p-3">
+                    {#if characterBookEntryList.length}
+                      {#each characterBookEntryList as entry, i}
+                        {@const entryName = asString(entry.name).trim() || `Entry ${i + 1}`}
+                        {@const entryEnabled = entry.enabled !== false}
+                        {@const entryKeys = asStringArray(entry.keys)
+                          .map((t) => t.trim())
+                          .filter(Boolean)}
+                        {@const entryPosition = asString(entry.position).trim()}
+                        {@const entryOrderRaw = entry.insertion_order}
+                        {@const entryOrder =
+                          typeof entryOrderRaw === "number" && Number.isFinite(entryOrderRaw) ? entryOrderRaw : null}
+                        {@const entryContent = asString(entry.content)}
+
+                        <details class="rounded-lg border bg-background">
+                          <summary
+                            class="flex cursor-pointer list-none items-center justify-between gap-3 px-3 py-2 text-sm font-medium text-foreground transition-colors hover:bg-accent"
+                          >
+                            <span class="truncate">{entryName}</span>
+                            <span class="font-mono text-[11px] text-muted-foreground">
+                              {entryEnabled ? "enabled" : "disabled"} · {entryKeys.length} keys{entryPosition
+                                ? ` · ${entryPosition}`
+                                : ""}{entryOrder !== null ? ` · order ${entryOrder}` : ""}
+                            </span>
+                          </summary>
+                          <div class="space-y-3 p-3">
+                            {@render CodeBox("Keys", "Character book keys", entryKeys.join(", "))}
+                            {@render CodeBox("Content", "Character book content", entryContent)}
+                          </div>
+                        </details>
+                      {/each}
+                    {/if}
+
+                    {@render CodeBox("Character Book JSON", "Character book", prettyJson(characterBook))}
+                  </div>
+                </details>
+              {:else if showEmpty}
+                {@render KV("Character Book", "(none)")}
+              {/if}
+            {:else}
+              {@render CodeBox("Imported Card JSON", "Card JSON", rawJson)}
+            {/if}
           </div>
+        {:else}
+          <div class="rounded-lg border bg-card p-4 text-sm text-muted-foreground">(missing or invalid card)</div>
         {/if}
-      {:else}
-        <div class="codebox">
-          <div class="codebox-head">
-            <div class="codebox-title">No Card Data</div>
-          </div>
-          <div class="codebox-body is-empty">(missing or invalid card)</div>
-        </div>
-      {/if}
-    </div>
-  </div>
-{/if}
+      </div>
+    </ScrollArea>
+  </SheetContent>
+</Sheet>
