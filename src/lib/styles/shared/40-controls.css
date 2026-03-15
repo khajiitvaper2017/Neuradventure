@@ -176,6 +176,30 @@
   border-color: var(--accent);
 }
 
+/* ── Small action buttons (Settings) ───────────────── */
+.preset-btn {
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  color: var(--text-dim);
+  font-family: var(--font-ui);
+  font-size: 0.8rem;
+  font-weight: 500;
+  padding: 0.4rem 0.85rem;
+  cursor: pointer;
+  transition:
+    color 0.15s,
+    border-color 0.15s,
+    background 0.15s;
+}
+.preset-btn:hover:not(:disabled) {
+  color: var(--text);
+  border-color: var(--border-hover);
+}
+.preset-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
 /* ── Shared control rows (labels + toggles) ────────── */
 .control-section-label {
   padding: 1.25rem 1rem 0.4rem;

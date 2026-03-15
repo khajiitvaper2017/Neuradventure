@@ -57,7 +57,10 @@
     "connector": {
       "type": "Connector type.",
       "url": "Connector base URL.",
-      "api_key": "Connector API key."
+      "api_keys": {
+        "koboldcpp": "Connector API key (stored locally, hidden).",
+        "openrouter": "Connector API key (stored locally, hidden)."
+      }
     },
     "timeouts": {
       "llmRequestMs": "Server-side timeout for LLM requests (ms).",

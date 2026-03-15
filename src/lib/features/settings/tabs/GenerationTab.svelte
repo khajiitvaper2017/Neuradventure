@@ -1,16 +1,39 @@
 <script lang="ts">
   import type { ModelInfo } from "@/shared/api-types"
   import ConnectionSection from "@/features/settings/tabs/generation/ConnectionSection.svelte"
-  import ParamsSection from "@/features/settings/tabs/generation/ParamsSection.svelte"
+  import StoryDefaultsSection from "@/features/settings/tabs/generation/StoryDefaultsSection.svelte"
+  import SamplerPresetsSection from "@/features/settings/tabs/generation/SamplerPresetsSection.svelte"
+  import ParamsBasicSection from "@/features/settings/tabs/generation/ParamsBasicSection.svelte"
+  import ParamsAdvancedSection from "@/features/settings/tabs/generation/ParamsAdvancedSection.svelte"
+  import TimeoutsSection from "@/features/settings/tabs/generation/TimeoutsSection.svelte"
+  import { isChatGenerating } from "@/stores/chat"
+  import { isGenerating } from "@/stores/game"
+
+  export type GenerationSection = "connection" | "defaults" | "params" | "advanced"
 
   type Props = {
     active?: boolean
+    section: GenerationSection
   }
 
-  let { active = false }: Props = $props()
+  let { active = false, section }: Props = $props()
 
   let modelSearchResults = $state<ModelInfo[]>([])
+
+  let generationLockActive = $derived($isGenerating || $isChatGenerating)
 </script>
 
-<ConnectionSection {active} bind:modelSearchResults />
-<ParamsSection {modelSearchResults} />
+{#if section === "connection"}
+  <ConnectionSection {active} bind:modelSearchResults />
+{:else if section === "defaults"}
+  <StoryDefaultsSection />
+  <div class="settings-bottom-pad"></div>
+{:else if section === "advanced"}
+  <TimeoutsSection disabled={generationLockActive} />
+  <div class="divider"></div>
+  <ParamsAdvancedSection {modelSearchResults} />
+{:else}
+  <SamplerPresetsSection {active} />
+  <div class="divider"></div>
+  <ParamsBasicSection {modelSearchResults} />
+{/if}

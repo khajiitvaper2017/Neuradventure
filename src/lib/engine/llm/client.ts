@@ -19,6 +19,15 @@ let cachedSupportedParams: string[] | null = null
 let cachedSupportedParamsKey = ""
 let cachedSupportedParamsAt = 0
 
+function fnv1a32(text: string): string {
+  let hash = 0x811c9dc5
+  for (let i = 0; i < text.length; i++) {
+    hash ^= text.charCodeAt(i)
+    hash = Math.imul(hash, 0x01000193)
+  }
+  return (hash >>> 0).toString(36)
+}
+
 export async function getCachedSupportedParameters(): Promise<string[] | null> {
   const connector = getConnector()
   if (connector.type !== "openrouter") return null
@@ -47,7 +56,7 @@ export async function getCachedSupportedParameters(): Promise<string[] | null> {
 export function getClient(): LlmClient {
   const { connector, timeouts } = getSettings()
   const apiKey = connector.api_keys[connector.type]
-  const key = `${connector.type}|${connector.url}|${apiKey}|${timeouts.llmRequestMs}|${timeouts.upstreamFetchMs}`
+  const key = `${connector.type}|${connector.url}|k=${fnv1a32(apiKey)}|${timeouts.llmRequestMs}|${timeouts.upstreamFetchMs}`
   if (cachedClient && cachedClientKey === key) return cachedClient
 
   cachedClient = {

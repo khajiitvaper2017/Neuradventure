@@ -4,6 +4,15 @@ import * as db from "@/engine/core/db"
 import { getCachedUpstreamModels } from "@/engine/llm/models"
 import { getCtxLimitCached, initCtxLimit } from "@/engine/llm"
 import type { AppSettings, ModelInfo, PromptConfigFile, SamplerPreset } from "@/shared/api-types"
+import { HIDDEN_SECRET_PLACEHOLDER } from "@/shared/secrets"
+import {
+  areConnectorSecretsReady,
+  clearConnectorApiKey,
+  getCachedConnectorApiKey,
+  hasCachedConnectorApiKey,
+  initConnectorApiKeySecrets,
+  setConnectorApiKey,
+} from "@/engine/secrets/connector-api-keys"
 
 const BuiltinPresetSchema = z.object({
   name: z.string().min(1),
@@ -110,20 +119,25 @@ function mergeSettings(current: AppSettings, patch: Partial<AppSettings>): AppSe
 
 export const settings = {
   get: async (): Promise<AppSettings> => {
+    await initConnectorApiKeySecrets()
     const current = db.getSettings()
-    return { ...current, ctx_limit_detected: getCtxLimitCached() }
+    const out = { ...current, ctx_limit_detected: getCtxLimitCached() }
+    return areConnectorSecretsReady() ? redactSecrets(out) : out
   },
 
   update: async (data: Partial<AppSettings>): Promise<AppSettings> => {
+    await initConnectorApiKeySecrets()
+    const scrubbedPatch = areConnectorSecretsReady() ? await applySecretPatch(data) : data
     const current = db.getSettings()
-    const next = mergeSettings(current, data)
+    const next = mergeSettings(current, scrubbedPatch)
     db.updateSettings(next)
 
     initCtxLimit().catch((err) => {
       console.warn("[ctx_limit] Failed to refresh context limit", err)
     })
 
-    return { ...next, ctx_limit_detected: getCtxLimitCached() }
+    const out = { ...next, ctx_limit_detected: getCtxLimitCached() }
+    return areConnectorSecretsReady() ? redactSecrets(out) : out
   },
 
   models: async (q?: string, limit?: number): Promise<{ models: ModelInfo[] }> => {
@@ -212,4 +226,47 @@ export const settings = {
     if (!ok) throw new AppError(404, "Preset not found")
     return { ok: true }
   },
+}
+
+function redactSecrets(settings: AppSettings): AppSettings {
+  const out: AppSettings = { ...settings }
+  const apiKeys = out.connector.api_keys
+  const kobold = getCachedConnectorApiKey("koboldcpp")
+  out.connector = {
+    ...out.connector,
+    api_keys: {
+      ...apiKeys,
+      koboldcpp: hasCachedConnectorApiKey("koboldcpp") ? (kobold ? HIDDEN_SECRET_PLACEHOLDER : "") : "",
+      openrouter: hasCachedConnectorApiKey("openrouter") ? HIDDEN_SECRET_PLACEHOLDER : "",
+    },
+  }
+  return out
+}
+
+async function applySecretPatch(patch: Partial<AppSettings>): Promise<Partial<AppSettings>> {
+  const apiKeys = patch.connector?.api_keys
+  if (!apiKeys) return patch
+
+  const updates: Array<Promise<void>> = []
+  const maybeSet = (type: "koboldcpp" | "openrouter", raw: unknown) => {
+    if (typeof raw !== "string") return
+    const trimmed = raw.trim()
+    if (trimmed === HIDDEN_SECRET_PLACEHOLDER) return
+    if (!trimmed) {
+      if (type === "koboldcpp") updates.push(setConnectorApiKey(type, ""))
+      else updates.push(clearConnectorApiKey(type))
+      return
+    }
+    updates.push(setConnectorApiKey(type, trimmed))
+  }
+
+  maybeSet("koboldcpp", apiKeys.koboldcpp)
+  maybeSet("openrouter", apiKeys.openrouter)
+
+  if (updates.length > 0) await Promise.all(updates)
+
+  const nextConnector = patch.connector ? { ...patch.connector } : undefined
+  if (nextConnector) delete (nextConnector as Partial<AppSettings["connector"]>).api_keys
+
+  return nextConnector ? { ...patch, connector: nextConnector } : patch
 }

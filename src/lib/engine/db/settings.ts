@@ -8,6 +8,11 @@ import type {
   TimeoutSettings,
 } from "@/shared/api-types"
 import { DEFAULT_STORY_MODULES, normalizeStoryModules } from "@/engine/schemas/story-modules"
+import {
+  areConnectorSecretsReady,
+  getCachedConnectorApiKey,
+  hasCachedConnectorApiKey,
+} from "@/engine/secrets/connector-api-keys"
 
 export const DEFAULT_GENERATION: GenerationParams = {
   max_tokens: 1500,
@@ -204,7 +209,7 @@ export function getSettings(): SettingsState {
   if (!row) return DEFAULT_SETTINGS
   try {
     const stored = JSON.parse(row.settings_json) as Partial<SettingsState>
-    return {
+    const base: SettingsState = {
       ...DEFAULT_SETTINGS,
       ...stored,
       storyDefaults: normalizeStoryModules(stored.storyDefaults, DEFAULT_SETTINGS.storyDefaults),
@@ -213,13 +218,41 @@ export function getSettings(): SettingsState {
       sectionFormat: coerceSectionFormat(stored.sectionFormat),
       timeouts: coerceTimeoutSettings(stored.timeouts),
     }
+
+    const koboldSecret = hasCachedConnectorApiKey("koboldcpp") ? getCachedConnectorApiKey("koboldcpp") : null
+    const openrouterSecret = hasCachedConnectorApiKey("openrouter") ? getCachedConnectorApiKey("openrouter") : null
+    if (koboldSecret !== null || openrouterSecret !== null) {
+      base.connector = {
+        ...base.connector,
+        api_keys: {
+          ...base.connector.api_keys,
+          ...(koboldSecret !== null ? { koboldcpp: koboldSecret } : {}),
+          ...(openrouterSecret !== null ? { openrouter: openrouterSecret } : {}),
+        },
+      }
+    }
+
+    return base
   } catch {
     return DEFAULT_SETTINGS
   }
 }
 
 export function updateSettings(settings: SettingsState): void {
+  const scrubbed: SettingsState = areConnectorSecretsReady()
+    ? {
+        ...settings,
+        connector: {
+          ...settings.connector,
+          api_keys: {
+            ...settings.connector.api_keys,
+            koboldcpp: "kobold",
+            openrouter: "",
+          },
+        },
+      }
+    : settings
   getDb()
     .prepare("UPDATE settings SET settings_json = ?, updated_at = datetime('now') WHERE id = 1")
-    .run(JSON.stringify(settings))
+    .run(JSON.stringify(scrubbed))
 }

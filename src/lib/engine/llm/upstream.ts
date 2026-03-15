@@ -7,6 +7,33 @@ function buildUrl(baseUrl: string, path: string): string {
   return base + path.replace(/^\//, "")
 }
 
+function sanitizeUrlForLog(rawUrl: string): string {
+  try {
+    const u = new URL(rawUrl)
+    return `${u.origin}${u.pathname}`
+  } catch {
+    return rawUrl.split("?")[0] ?? rawUrl
+  }
+}
+
+function nowMs(): number {
+  try {
+    return typeof performance !== "undefined" && typeof performance.now === "function" ? performance.now() : Date.now()
+  } catch {
+    return Date.now()
+  }
+}
+
+function safeMessageCount(params: ChatCompletionCreateParams): number {
+  const msgs = (params as unknown as { messages?: unknown }).messages
+  return Array.isArray(msgs) ? msgs.length : 0
+}
+
+function safeModel(params: ChatCompletionCreateParams): string | null {
+  const model = (params as unknown as { model?: unknown }).model
+  return typeof model === "string" && model.trim() ? model.trim() : null
+}
+
 export function buildChatCompletionsUrl(connector: LLMConnector): string {
   return buildUrl(connector.url, "/chat/completions")
 }
@@ -129,23 +156,44 @@ export async function createChatCompletion(
   timeoutMs: number,
 ): Promise<unknown> {
   const url = buildChatCompletionsUrl(connector)
-  const res = await fetchWithTimeout(
-    url,
-    {
-      method: "POST",
-      headers: buildUpstreamHeaders(connector),
-      body: JSON.stringify(params),
-    },
-    timeoutMs,
+  const logUrl = sanitizeUrlForLog(url)
+  const startedAt = nowMs()
+  const model = safeModel(params)
+  const stream = params.stream === true
+  const messageCount = safeMessageCount(params)
+  console.info(
+    `[llm-http] -> POST ${logUrl} type=${connector.type}${model ? ` model=${model}` : ""} stream=${String(stream)} messages=${messageCount}`,
   )
+
+  let res: Response
+  try {
+    res = await fetchWithTimeout(
+      url,
+      {
+        method: "POST",
+        headers: buildUpstreamHeaders(connector),
+        body: JSON.stringify(params),
+      },
+      timeoutMs,
+    )
+  } catch (err) {
+    const ms = Math.max(0, Math.round(nowMs() - startedAt))
+    const msg = err instanceof Error ? err.message : String(err)
+    console.warn(
+      `[llm-http] <- ERROR ${logUrl} (${ms}ms) type=${connector.type}${model ? ` model=${model}` : ""} error=${msg}`,
+    )
+    throw err
+  }
+
+  const ms = Math.max(0, Math.round(nowMs() - startedAt))
+  console.info(`[llm-http] <- ${res.status} ${logUrl} (${ms}ms)`)
 
   if (!res.ok) {
     const { bodyText, bodyJson, message } = await readErrorBody(res)
     throw new UpstreamError(res.status, message, url, bodyText, bodyJson)
   }
 
-  const shouldStream = params.stream === true
-  if (shouldStream) {
+  if (stream) {
     if (!res.body) throw new UpstreamError(res.status, "Upstream response has no body", url)
     return parseSseJson(res.body)
   }
@@ -160,7 +208,20 @@ export async function createChatCompletion(
 
 export async function listModels(connector: LLMConnector, timeoutMs: number): Promise<unknown> {
   const url = buildModelsUrl(connector)
-  const res = await fetchWithTimeout(url, { headers: buildUpstreamHeaders(connector) }, timeoutMs)
+  const logUrl = sanitizeUrlForLog(url)
+  const startedAt = nowMs()
+  console.info(`[llm-http] -> GET ${logUrl} type=${connector.type}`)
+  let res: Response
+  try {
+    res = await fetchWithTimeout(url, { headers: buildUpstreamHeaders(connector) }, timeoutMs)
+  } catch (err) {
+    const ms = Math.max(0, Math.round(nowMs() - startedAt))
+    const msg = err instanceof Error ? err.message : String(err)
+    console.warn(`[llm-http] <- ERROR ${logUrl} (${ms}ms) type=${connector.type} error=${msg}`)
+    throw err
+  }
+  const ms = Math.max(0, Math.round(nowMs() - startedAt))
+  console.info(`[llm-http] <- ${res.status} ${logUrl} (${ms}ms)`)
   if (!res.ok) {
     const { bodyText, bodyJson, message } = await readErrorBody(res)
     throw new UpstreamError(res.status, message, url, bodyText, bodyJson)
