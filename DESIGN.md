@@ -7,10 +7,6 @@
 - `font-mono`: Geist Mono
 - `font-story`: Cinzel
 
-## Theming
-- CSS variables in `src/lib/styles/app.css` (shadcn-svelte defaults)
-- Dark mode: toggle `dark` class on `document.documentElement`
-
 ## Styling Rules
 - Use shadcn-svelte components from `src/lib/components/ui/**`
 - Install via: `npx shadcn-svelte@latest add <name>`
