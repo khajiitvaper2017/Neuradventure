@@ -632,7 +632,11 @@
       <DialogHeader>
         <DialogTitle>Story Modules</DialogTitle>
       </DialogHeader>
-      <StoryModulesPanel modules={activeModules} {setModules} bare />
+      <ScrollArea class="mt-3 max-h-[70dvh]">
+        <div class="pr-4">
+          <StoryModulesPanel modules={activeModules} {setModules} bare />
+        </div>
+      </ScrollArea>
     </DialogContent>
   </Dialog>
 

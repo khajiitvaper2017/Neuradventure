@@ -29,9 +29,11 @@
   import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
   import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
   import { Input } from "@/components/ui/input"
+  import * as InputGroup from "@/components/ui/input-group"
   import { Label } from "@/components/ui/label"
   import { Textarea } from "@/components/ui/textarea"
   import { ScrollArea } from "@/components/ui/scroll-area"
+  import * as ToggleGroup from "@/components/ui/toggle-group"
   import {
     generateCharacterFromDescription,
     generateCharacterAppearance,
@@ -56,6 +58,73 @@
     }, []),
   )
 
+  const PERSONALITY_INDEX = new Map(PERSONALITY_OPTIONS.map((t, i) => [t, i]))
+
+  const TRAIT_GROUPS: Array<{ title: string; pairs: Array<[string, string]> }> = [
+    {
+      title: "Drive & Motivation",
+      pairs: [
+        ["Ambitious", "Complacent"],
+        ["Passionate", "Apathetic"],
+        ["Impulsive", "Deliberate"],
+        ["Greedy", "Disciplined"],
+      ],
+    },
+    {
+      title: "Mindset & Worldview",
+      pairs: [
+        ["Curious", "Closed-minded"],
+        ["Idealistic", "Cynical"],
+        ["Naive", "Clever"],
+        ["Rigid", "Adaptable"],
+      ],
+    },
+    {
+      title: "Morality & Ethics",
+      pairs: [
+        ["Honest", "Deceitful"],
+        ["Selfish", "Selfless"],
+        ["Empathetic", "Cruel"],
+        ["Loyal", "Treacherous"],
+        ["Forgiving", "Vindictive"],
+      ],
+    },
+    {
+      title: "Agency & Courage",
+      pairs: [
+        ["Courageous", "Cowardly"],
+        ["Resourceful", "Helpless"],
+        ["Decisive", "Indecisive"],
+      ],
+    },
+    {
+      title: "Social Behavior",
+      pairs: [
+        ["Outgoing", "Reserved"],
+        ["Rebellious", "Conformist"],
+        ["Domineering", "Submissive"],
+      ],
+    },
+    {
+      title: "Trust & Openness",
+      pairs: [
+        ["Trusting", "Paranoid"],
+        ["Transparent", "Secretive"],
+      ],
+    },
+    {
+      title: "Self-Perception & Ego",
+      pairs: [
+        ["Humble", "Arrogant"],
+        ["Modest", "Vulgar"],
+      ],
+    },
+    {
+      title: "Emotional Expression",
+      pairs: [["Vulnerable", "Stoic"]],
+    },
+  ]
+
   const existing = get(pendingCharacter)
   const splitPersonalityTraits = (traits: string[]) => {
     const cleaned = traits.map((t) => t.trim()).filter(Boolean)
@@ -65,6 +134,8 @@
       const key = normalizeKey(raw)
       const canonical = PERSONALITY_CANONICAL[key]
       if (canonical) {
+        const opposite = OPPOSITES[canonical]
+        if (opposite && selectedMap.has(normalizeKey(opposite))) continue
         if (!selectedMap.has(key)) selectedMap.set(key, canonical)
       } else if (!customMap.has(key)) {
         customMap.set(key, raw)
@@ -269,6 +340,52 @@
   const perksEnabled = $derived(activeModules.character_perks)
   const canRegenerateTraits = $derived(traitsEnabled && majorFlawsEnabled && quirksEnabled && perksEnabled)
 
+  let hoveredTrait = $state<string | null>(null)
+
+  function byPersonalityIndex(a: string, b: string): number {
+    return (PERSONALITY_INDEX.get(a) ?? 9999) - (PERSONALITY_INDEX.get(b) ?? 9999)
+  }
+
+  function traitPairValue(a: string, b: string): string[] {
+    const out: string[] = []
+    if (selectedTraits.includes(a)) out.push(a)
+    if (selectedTraits.includes(b)) out.push(b)
+    return out
+  }
+
+  function setTraitPairValue(a: string, b: string, next: string[]) {
+    const prev = traitPairValue(a, b)
+    const added = next.filter((t) => !prev.includes(t))
+    let chosen = next
+    if (chosen.length > 1) {
+      const lastAdded = added[added.length - 1] ?? chosen[chosen.length - 1]
+      chosen = lastAdded ? [lastAdded] : chosen.slice(0, 1)
+    }
+    const rest = selectedTraits.filter((t) => t !== a && t !== b)
+    const nextCount = rest.length + customPersonalityTraits.length + chosen.length
+    if (nextCount > 5) return
+    selectedTraits = [...rest, ...chosen].slice().sort(byPersonalityIndex)
+  }
+
+  function pairTraitDisabled(a: string, b: string, trait: string): boolean {
+    if (selectedTraits.includes(trait)) return false
+    const pairHasSelection = selectedTraits.includes(a) || selectedTraits.includes(b)
+    if (pairHasSelection) return false
+    return totalPersonalityCount >= 5
+  }
+
+  function pairTraitClass(trait: string, opposite: string): string {
+    const hovered = hoveredTrait === trait
+    const linkedHover = hoveredTrait === trait || hoveredTrait === opposite
+    const oppositeSelected = selectedTraits.includes(opposite) && !selectedTraits.includes(trait)
+    return cn(
+      "flex-1 justify-center text-xs",
+      oppositeSelected && "text-muted-foreground",
+      linkedHover && "ring-1 ring-primary/25 ring-inset",
+      hovered && "ring-2 ring-primary/35 ring-inset",
+    )
+  }
+
   function setModules(next: StoryModules) {
     pendingStoryModules.set(next)
   }
@@ -309,31 +426,26 @@
       : "NPC fields: — (tracking off)",
   )
 
-  function isBlocked(trait: string): boolean {
-    const opp = OPPOSITES[trait]
-    return opp != null && selectedTraits.includes(opp)
-  }
-
-  function toggleTrait(trait: string) {
-    if (selectedTraits.includes(trait)) {
-      selectedTraits = selectedTraits.filter((t) => t !== trait)
-    } else if (totalPersonalityCount < 5 && !isBlocked(trait)) {
-      selectedTraits = [...selectedTraits, trait]
-    }
-  }
-
   function addCustomPersonalityTrait() {
     const t = customPersonalityInput.trim()
-    if (!t || totalPersonalityCount >= 5) return
+    if (!t) return
     const key = normalizeKey(t)
     const canonical = PERSONALITY_CANONICAL[key]
     if (canonical) {
-      if (!selectedTraits.includes(canonical) && !isBlocked(canonical)) {
-        selectedTraits = [...selectedTraits, canonical]
+      if (selectedTraits.includes(canonical)) {
+        customPersonalityInput = ""
+        return
+      }
+      const opposite = OPPOSITES[canonical]
+      if (opposite && selectedTraits.includes(opposite)) {
+        selectedTraits = [...selectedTraits.filter((x) => x !== opposite), canonical].slice().sort(byPersonalityIndex)
+      } else if (totalPersonalityCount < 5) {
+        selectedTraits = [...selectedTraits, canonical].slice().sort(byPersonalityIndex)
       }
       customPersonalityInput = ""
       return
     }
+    if (totalPersonalityCount >= 5) return
     const existingCustomKeys = new Set(customPersonalityTraits.map(normalizeKey))
     if (!existingCustomKeys.has(key)) {
       customPersonalityTraits = [...customPersonalityTraits, t]
@@ -613,34 +725,41 @@
 
               <div class="grid gap-2">
                 <Label id="gender-label" for="gender-custom">Gender</Label>
-                <div class="flex flex-wrap gap-2">
-                  {#each ["Male", "Female"] as g (g)}
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      class={cn(
-                        "flex-1 justify-center",
-                        gender === g &&
-                          "border-primary/50 bg-primary/10 text-primary hover:bg-primary/15 hover:text-primary",
-                      )}
-                      onclick={() => (gender = g)}
-                      aria-pressed={gender === g}
-                    >
-                      {g}
-                    </Button>
-                  {/each}
-                  <Input
+                <InputGroup.Root data-disabled={generating ? "true" : undefined}>
+                  <InputGroup.Button
+                    size="sm"
+                    variant={gender === "Male" ? "default" : "ghost"}
+                    class={cn("min-w-[7ch] font-semibold", gender !== "Male" && "text-muted-foreground")}
+                    onclick={() => (gender = "Male")}
+                    aria-pressed={gender === "Male"}
+                    disabled={generating}
+                  >
+                    Male
+                  </InputGroup.Button>
+                  <InputGroup.Button
+                    size="sm"
+                    variant={gender === "Female" ? "default" : "ghost"}
+                    class={cn("min-w-[7ch] font-semibold", gender !== "Female" && "text-muted-foreground")}
+                    onclick={() => (gender = "Female")}
+                    aria-pressed={gender === "Female"}
+                    disabled={generating}
+                  >
+                    Female
+                  </InputGroup.Button>
+                  <InputGroup.Input
                     id="gender-custom"
                     type="text"
-                    placeholder="or specify…"
+                    placeholder="Custom…"
                     value={genderCustom}
                     class={cn(
-                      "min-w-[12ch] flex-[2_1_12ch]",
-                      gender !== "Male" && gender !== "Female" && "border-primary/50",
+                      "min-w-[14ch]",
+                      gender !== "Male" && gender !== "Female" && "text-foreground font-medium",
                     )}
+                    disabled={generating}
+                    aria-labelledby="gender-label"
                     oninput={(e) => setGenderCustom((e.target as HTMLInputElement).value)}
                   />
-                </div>
+                </InputGroup.Root>
                 <p class="text-xs text-muted-foreground">Pick Male/Female or type a custom value.</p>
               </div>
             </div>
@@ -739,24 +858,55 @@
               </Button>
             </CardHeader>
             <CardContent class="space-y-4">
-              <div class="flex flex-wrap gap-2">
-                {#each PERSONALITY_OPTIONS as trait (trait)}
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    class={cn(
-                      "h-8 rounded-full px-3 text-xs",
-                      selectedTraits.includes(trait) &&
-                        "border-primary/50 bg-primary/10 text-primary hover:bg-primary/15",
-                      isBlocked(trait) && !selectedTraits.includes(trait) && "opacity-50",
-                    )}
-                    onclick={() => toggleTrait(trait)}
-                    disabled={!selectedTraits.includes(trait) && (totalPersonalityCount >= 5 || isBlocked(trait))}
-                    aria-pressed={selectedTraits.includes(trait)}
-                  >
-                    {trait}
-                  </Button>
+              <div class="flex items-center justify-between gap-3">
+                <div class="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Opposites</div>
+                <div class="text-xs font-mono text-muted-foreground">{totalPersonalityCount}/5</div>
+              </div>
+
+              <div class="space-y-6">
+                {#each TRAIT_GROUPS as group (group.title)}
+                  <div class="space-y-2">
+                    <div class="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                      {group.title}
+                    </div>
+                    <div class="grid gap-2 sm:grid-cols-2">
+                      {#each group.pairs as pair (pair[0] + "↔" + pair[1])}
+                        {@const a = pair[0]}
+                        {@const b = pair[1]}
+                        <ToggleGroup.Root
+                          type="multiple"
+                          value={traitPairValue(a, b)}
+                          onValueChange={(next) => setTraitPairValue(a, b, next)}
+                          variant="outline"
+                          size="sm"
+                          spacing={0}
+                          class="w-full"
+                          aria-label={`${a} versus ${b}`}
+                        >
+                          <ToggleGroup.Item
+                            value={a}
+                            disabled={pairTraitDisabled(a, b, a)}
+                            aria-label={a}
+                            class={pairTraitClass(a, b)}
+                            onmouseenter={() => (hoveredTrait = a)}
+                            onmouseleave={() => (hoveredTrait = null)}
+                          >
+                            {a}
+                          </ToggleGroup.Item>
+                          <ToggleGroup.Item
+                            value={b}
+                            disabled={pairTraitDisabled(a, b, b)}
+                            aria-label={b}
+                            class={pairTraitClass(b, a)}
+                            onmouseenter={() => (hoveredTrait = b)}
+                            onmouseleave={() => (hoveredTrait = null)}
+                          >
+                            {b}
+                          </ToggleGroup.Item>
+                        </ToggleGroup.Root>
+                      {/each}
+                    </div>
+                  </div>
                 {/each}
               </div>
 
@@ -966,8 +1116,10 @@
     <DialogHeader>
       <DialogTitle>Story Modules</DialogTitle>
     </DialogHeader>
-    <div class="mt-3">
-      <StoryModulesPanel modules={activeModules} {setModules} bare />
-    </div>
+    <ScrollArea class="mt-3 max-h-[70dvh]">
+      <div class="pr-4">
+        <StoryModulesPanel modules={activeModules} {setModules} bare />
+      </div>
+    </ScrollArea>
   </DialogContent>
 </Dialog>
