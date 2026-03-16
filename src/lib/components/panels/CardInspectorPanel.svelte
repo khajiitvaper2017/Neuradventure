@@ -87,10 +87,7 @@
 
   function exampleDialogsFromData(data: AnyRecord): string {
     const direct = asString(data.mes_example).trim()
-    if (direct) return direct
-    const legacy =
-      asString((data as AnyRecord).example_dialogue).trim() || asString((data as AnyRecord).example_dialogs).trim()
-    return legacy
+    return direct
   }
 
   const cardObj = $derived(asRecord(card))

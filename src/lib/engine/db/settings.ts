@@ -96,8 +96,6 @@ export const DEFAULT_SETTINGS: SettingsState = {
 
 function coerceColorMode(raw: unknown): SettingsState["colorMode"] {
   if (raw === "light" || raw === "dark" || raw === "system") return raw
-  // Legacy values from pre-shadcn settings.
-  if (raw === "amoled" || raw === "default") return "dark"
   return DEFAULT_SETTINGS.colorMode
 }
 
@@ -107,7 +105,6 @@ function coerceConnector(raw: unknown): LLMConnector {
   const type = obj.type
   const url = typeof obj.url === "string" && obj.url.trim() ? obj.url : undefined
 
-  const legacyKey = typeof obj.api_key === "string" ? obj.api_key : undefined
   const apiKeysRaw = obj.api_keys
   const apiKeys =
     apiKeysRaw && typeof apiKeysRaw === "object"
@@ -129,7 +126,6 @@ function coerceConnector(raw: unknown): LLMConnector {
 
   if (type === "openrouter") {
     const model = typeof obj.model === "string" && obj.model.trim() ? obj.model : undefined
-    if (legacyKey !== undefined) mergedApiKeys.openrouter = legacyKey
     return {
       ...DEFAULT_OPENROUTER_CONNECTOR,
       ...(url ? { url } : {}),
@@ -138,7 +134,6 @@ function coerceConnector(raw: unknown): LLMConnector {
     }
   }
 
-  if (legacyKey !== undefined) mergedApiKeys.koboldcpp = legacyKey
   return {
     ...DEFAULT_KOBOLD_CONNECTOR,
     ...(url ? { url } : {}),
@@ -189,10 +184,9 @@ export function getSettings(): SettingsState {
   if (!row) return DEFAULT_SETTINGS
   try {
     const stored = JSON.parse(row.settings_json) as Record<string, unknown>
-    const legacyTheme = stored.theme
 
     const base: SettingsState = {
-      colorMode: coerceColorMode(stored.colorMode ?? legacyTheme),
+      colorMode: coerceColorMode(stored.colorMode),
       streamingEnabled:
         typeof stored.streamingEnabled === "boolean" ? stored.streamingEnabled : DEFAULT_SETTINGS.streamingEnabled,
       sectionFormat: coerceSectionFormat(stored.sectionFormat),

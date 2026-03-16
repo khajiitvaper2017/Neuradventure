@@ -5,7 +5,7 @@ import * as db from "@/engine/core/db"
 import type { ModularPrompt, PromptConfig, SectionFormat } from "@/engine/llm/prompt-types"
 import { npcTraits } from "@/engine/schemas/npc-traits"
 
-// ─── Prompt config (stored in SQLite, seeded from shared/config/prompts/*.json) ──────────
+// ─── Prompt config (stored in SQLite, seeded from shared/config/prompts/*.txt) ──────────
 
 const DEFAULT_MODULES: StoryModules = { ...DEFAULT_STORY_MODULES }
 

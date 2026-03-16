@@ -2,13 +2,28 @@ import { z } from "zod"
 import { getDb } from "@/engine/db/connection"
 import { PromptConfigSchema, type PromptConfig } from "@/engine/llm/prompt-types"
 
-import narrativeTurn from "@/shared/config/prompts/narrative-turn.json"
-import characterGeneration from "@/shared/config/prompts/character-generation.json"
-import storySetup from "@/shared/config/prompts/story-setup.json"
-import chatPromptLines from "@/shared/config/prompts/chat-prompt-lines.json"
-import chatSetup from "@/shared/config/prompts/chat-setup.json"
-import npcCreation from "@/shared/config/prompts/npc-creation.json"
-import playerImpersonation from "@/shared/config/prompts/player-impersonation.json"
+import narrativeTurnText from "@/shared/config/prompts/narrative-turn.txt?raw"
+import characterGenerationText from "@/shared/config/prompts/character-generation.txt?raw"
+import storySetupText from "@/shared/config/prompts/story-setup.txt?raw"
+import chatPromptLinesText from "@/shared/config/prompts/chat-prompt-lines.txt?raw"
+import chatSetupText from "@/shared/config/prompts/chat-setup.txt?raw"
+import npcCreationText from "@/shared/config/prompts/npc-creation.txt?raw"
+import playerImpersonationText from "@/shared/config/prompts/player-impersonation.txt?raw"
+
+function splitPromptText(text: string): string[] {
+  // Keep blank lines (meaningful) but avoid an extra trailing empty line from a final newline.
+  const normalized = text.replace(/\r\n/g, "\n").replace(/\r/g, "\n")
+  const withoutTrailingNewline = normalized.endsWith("\n") ? normalized.slice(0, -1) : normalized
+  return withoutTrailingNewline.length > 0 ? withoutTrailingNewline.split("\n") : []
+}
+
+const narrativeTurn = { systemPromptLines: { base: splitPromptText(narrativeTurnText) } } as const
+const characterGeneration = { generateCharacterPrompt: { base: splitPromptText(characterGenerationText) } } as const
+const storySetup = { generateStoryPrompt: { base: splitPromptText(storySetupText) } } as const
+const chatPromptLines = { chatPromptLines: { base: splitPromptText(chatPromptLinesText) } } as const
+const chatSetup = { generateChatPrompt: { base: splitPromptText(chatSetupText) } } as const
+const npcCreation = { npcCreationPrompt: { base: splitPromptText(npcCreationText) } } as const
+const playerImpersonation = { impersonatePrompt: { base: splitPromptText(playerImpersonationText) } } as const
 
 const PROMPT_CONFIG_SOURCES = [
   { name: "narrative-turn", data: narrativeTurn },

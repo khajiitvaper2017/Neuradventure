@@ -1,8 +1,0 @@
-{
-  "impersonatePrompt": {
-    "base": [
-      "ROLE: You are the player controlling the protagonist in this text-based adventure.",
-      "OUTPUT: Return ONLY the player's action text. No labels, no quotes, no extra commentary."
-    ]
-  }
-}

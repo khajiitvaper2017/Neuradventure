@@ -26,11 +26,7 @@ const MAX_CHAT_HISTORY = 40
 function getExampleDialogText(card: TavernCard | null | undefined): string {
   if (!card) return ""
   const raw = card.data?.mes_example?.trim()
-  if (raw) return raw
-  const legacy =
-    (card.data as Record<string, unknown>)["example_dialogue"] ??
-    (card.data as Record<string, unknown>)["example_dialogs"]
-  return typeof legacy === "string" ? legacy.trim() : ""
+  return raw || ""
 }
 
 function formatMemberSummary(member: ChatMemberState): string {

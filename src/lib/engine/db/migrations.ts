@@ -218,44 +218,6 @@ function migrateToV1() {
   }
 
   ensurePromptConfigDefaults()
-
-  // Migrate legacy chat scenario into a system message at message_index = 0.
-  try {
-    const chatsWithScenario = database
-      .prepare("SELECT id, scenario, created_at FROM chats WHERE TRIM(scenario) != ''")
-      .all() as Array<{ id: number; scenario: string; created_at: string }>
-
-    if (chatsWithScenario.length > 0) {
-      const getMinIndex = database.prepare(
-        "SELECT MIN(message_index) as min_index FROM chat_messages WHERE chat_id = ?",
-      )
-      const getPlayerMember = database.prepare(
-        "SELECT id FROM chat_members WHERE chat_id = ? AND role = 'player' ORDER BY sort_order ASC, id ASC LIMIT 1",
-      )
-      const insertSystem = database.prepare(
-        `INSERT INTO chat_messages (chat_id, message_index, speaker_member_id, role, content, created_at)
-         VALUES (?, 0, ?, 'system', ?, ?)`,
-      )
-      const clearScenario = database.prepare("UPDATE chats SET scenario = '' WHERE id = ?")
-
-      const tx = database.transaction((rows: Array<{ id: number; scenario: string; created_at: string }>) => {
-        for (const row of rows) {
-          const player = getPlayerMember.get(row.id) as { id: number } | undefined
-          if (!player) continue
-          const minRow = getMinIndex.get(row.id) as { min_index: number | null } | undefined
-          const minIndex = minRow?.min_index ?? null
-          if (minIndex !== 0) {
-            insertSystem.run(row.id, player.id, row.scenario.trim(), row.created_at || new Date().toISOString())
-          }
-          clearScenario.run(row.id)
-        }
-      })
-      tx(chatsWithScenario)
-    }
-  } catch (error) {
-    const message = error instanceof Error ? error.message : String(error)
-    console.warn(`[db] Failed to migrate legacy chat scenario: ${message}`)
-  }
 }
 
 function migrateToV2() {
@@ -292,57 +254,6 @@ function migrateToV2() {
   }
 }
 
-function migrateToV3() {
-  const database = getDb()
-
-  // Split legacy "chat-mode" prompt config into two separate configs:
-  // - "chat-prompt-lines" => chatPromptLines
-  // - "chat-setup" => generateChatPrompt
-  try {
-    const legacy = database.prepare("SELECT config_json FROM prompt_configs WHERE name = 'chat-mode'").get() as
-      | { config_json: string }
-      | undefined
-    if (!legacy) return
-
-    let parsed: unknown = {}
-    try {
-      parsed = JSON.parse(legacy.config_json) as unknown
-    } catch {
-      parsed = {}
-    }
-    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return
-    const obj = parsed as Record<string, unknown>
-
-    const nowSql = "strftime('%Y-%m-%dT%H:%M:%fZ','now')"
-    const hasRow = database.prepare("SELECT 1 as ok FROM prompt_configs WHERE name = ? LIMIT 1")
-    const upsert = database.prepare(
-      `INSERT INTO prompt_configs (name, config_json, updated_at)
-       VALUES (?, ?, ${nowSql})
-       ON CONFLICT(name) DO UPDATE SET
-         config_json = excluded.config_json,
-         updated_at = excluded.updated_at`,
-    )
-
-    const chatLinesRow = hasRow.get("chat-prompt-lines") as { ok: number } | undefined
-    const chatSetupRow = hasRow.get("chat-setup") as { ok: number } | undefined
-
-    if (!chatLinesRow && "chatPromptLines" in obj) {
-      upsert.run("chat-prompt-lines", JSON.stringify({ chatPromptLines: obj.chatPromptLines }))
-    }
-    if (!chatSetupRow && "generateChatPrompt" in obj) {
-      upsert.run("chat-setup", JSON.stringify({ generateChatPrompt: obj.generateChatPrompt }))
-    }
-
-    // Keep the legacy row but clear it so it doesn't linger with confusing content.
-    database
-      .prepare(`UPDATE prompt_configs SET config_json = ?, updated_at = ${nowSql} WHERE name = 'chat-mode'`)
-      .run("{}")
-  } catch (error) {
-    const message = error instanceof Error ? error.message : String(error)
-    console.warn(`[db] Failed to migrate chat-mode prompt config split: ${message}`)
-  }
-}
-
 export function migrateDb() {
   const version = readUserVersion()
   if (version < 1) {
@@ -356,7 +267,6 @@ export function migrateDb() {
   }
 
   if (version < 3) {
-    migrateToV3()
     setUserVersion(3)
   }
 
