@@ -120,10 +120,10 @@ export function normalizePersonalityTraits(value: unknown): string[] {
     }
   }
 
-  return traits.slice(0, 5)
+  return traits
 }
 
-export function normalizeTraitList(value: unknown, max = 6): string[] {
+export function normalizeTraitList(value: unknown): string[] {
   const items: string[] = []
   if (Array.isArray(value)) {
     for (const entry of value) {
@@ -133,7 +133,7 @@ export function normalizeTraitList(value: unknown, max = 6): string[] {
       if (!items.includes(trimmed)) items.push(trimmed)
     }
   }
-  return items.slice(0, max)
+  return items
 }
 
 function normalizeStringList(value: unknown): string[] {

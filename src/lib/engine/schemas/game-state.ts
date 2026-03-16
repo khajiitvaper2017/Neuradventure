@@ -66,11 +66,11 @@ const MajorFlawSchema = z.string().min(1)
 const QuirkSchema = z.string().min(1)
 const PerkSchema = z.string().min(1)
 
-export const MajorFlawsSchema = z.array(MajorFlawSchema).max(3)
-export const QuirksSchema = z.array(QuirkSchema).max(6)
-export const PerksSchema = z.array(PerkSchema).max(6)
+export const MajorFlawsSchema = z.array(MajorFlawSchema)
+export const QuirksSchema = z.array(QuirkSchema)
+export const PerksSchema = z.array(PerkSchema)
 
-const PersonalityTraitsOptionalSchema = z.array(PersonalityTraitSchema).max(5)
+const PersonalityTraitsOptionalSchema = z.array(PersonalityTraitSchema)
 
 const CustomFieldsSchema = z
   .record(z.string().min(1), z.union([z.string().min(1), z.array(z.string().min(1))]))
@@ -161,9 +161,9 @@ const normalizeCharacterStoredBase = (value: z.input<typeof CharacterStateStored
   ),
   current_clothing: normalizeNonEmptyString(value.current_clothing, getServerDefaults().unknown.clothing),
   personality_traits: normalizePersonalityTraits(value.personality_traits),
-  major_flaws: normalizeTraitList(value.major_flaws, 3),
-  quirks: normalizeTraitList(value.quirks, 6),
-  perks: normalizeTraitList(value.perks, 6),
+  major_flaws: normalizeTraitList(value.major_flaws),
+  quirks: normalizeTraitList(value.quirks),
+  perks: normalizeTraitList(value.perks),
   inventory: normalizeInventoryItems(value.inventory),
   custom_fields: normalizeCustomFields(value.custom_fields),
 })

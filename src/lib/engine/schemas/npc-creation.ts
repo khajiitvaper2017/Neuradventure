@@ -14,9 +14,9 @@ export type NpcCreationFlags = {
 const MajorFlawSchema = z.string().min(1)
 const QuirkSchema = z.string().min(1)
 const PerkSchema = z.string().min(1)
-const MajorFlawsSchema = z.array(MajorFlawSchema).max(3)
-const QuirksSchema = z.array(QuirkSchema).max(6)
-const PerksSchema = z.array(PerkSchema).max(6)
+const MajorFlawsSchema = z.array(MajorFlawSchema)
+const QuirksSchema = z.array(QuirkSchema)
+const PerksSchema = z.array(PerkSchema)
 
 export function buildNpcCreationSchema(flags: NpcCreationFlags, characterCustomFieldsSchema?: z.ZodTypeAny) {
   const shape = {

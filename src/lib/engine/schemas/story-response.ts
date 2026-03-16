@@ -11,9 +11,9 @@ import { buildCharacterCustomFieldsUpdateSchema } from "@/engine/schemas/custom-
 const MajorFlawSchema = z.string().min(1)
 const QuirkSchema = z.string().min(1)
 const PerkSchema = z.string().min(1)
-const MajorFlawsStrictSchema = z.array(MajorFlawSchema).max(3)
+const MajorFlawsStrictSchema = z.array(MajorFlawSchema)
 const QuirksStrictSchema = z.array(QuirkSchema)
-const PerksStrictSchema = z.array(PerkSchema).max(5)
+const PerksStrictSchema = z.array(PerkSchema)
 
 export const GenerateCharacterResponseSchema = z
   .object({

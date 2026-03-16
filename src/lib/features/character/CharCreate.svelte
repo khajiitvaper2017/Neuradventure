@@ -141,9 +141,8 @@
         customMap.set(key, raw)
       }
     }
-    const selected = Array.from(selectedMap.values()).filter((_, i) => i < 5)
-    const remaining = 5 - selected.length
-    const custom = Array.from(customMap.values()).filter((_, i) => i < remaining)
+    const selected = Array.from(selectedMap.values())
+    const custom = Array.from(customMap.values())
     return { selected, custom }
   }
   const initialPersonality = splitPersonalityTraits(existing?.personality_traits ?? [])
@@ -241,7 +240,7 @@
     return !trimmed || /^unknown\b/i.test(trimmed)
   }
 
-  function mergeTraits(existing: string[], incoming: string[], limit = 5): string[] {
+  function mergeTraits(existing: string[], incoming: string[]): string[] {
     const seen = new SvelteSet(existing.map(normalizeKey))
     const out = [...existing]
     for (const trait of incoming) {
@@ -249,7 +248,6 @@
       if (!key || seen.has(key)) continue
       out.push(trait)
       seen.add(key)
-      if (out.length >= limit) break
     }
     return out
   }
@@ -293,8 +291,8 @@
           const split = splitPersonalityTraits(generatedTraits)
           selectedTraits = split.selected
           customPersonalityTraits = split.custom
-        } else if (existingTraits.length < 5) {
-          const merged = mergeTraits(existingTraits, generatedTraits, 5)
+        } else {
+          const merged = mergeTraits(existingTraits, generatedTraits)
           const split = splitPersonalityTraits(merged)
           selectedTraits = split.selected
           customPersonalityTraits = split.custom
@@ -362,16 +360,7 @@
       chosen = lastAdded ? [lastAdded] : chosen.slice(0, 1)
     }
     const rest = selectedTraits.filter((t) => t !== a && t !== b)
-    const nextCount = rest.length + customPersonalityTraits.length + chosen.length
-    if (nextCount > 5) return
     selectedTraits = [...rest, ...chosen].slice().sort(byPersonalityIndex)
-  }
-
-  function pairTraitDisabled(a: string, b: string, trait: string): boolean {
-    if (selectedTraits.includes(trait)) return false
-    const pairHasSelection = selectedTraits.includes(a) || selectedTraits.includes(b)
-    if (pairHasSelection) return false
-    return totalPersonalityCount >= 5
   }
 
   function pairTraitClass(trait: string, opposite: string): string {
@@ -439,13 +428,12 @@
       const opposite = OPPOSITES[canonical]
       if (opposite && selectedTraits.includes(opposite)) {
         selectedTraits = [...selectedTraits.filter((x) => x !== opposite), canonical].slice().sort(byPersonalityIndex)
-      } else if (totalPersonalityCount < 5) {
+      } else {
         selectedTraits = [...selectedTraits, canonical].slice().sort(byPersonalityIndex)
       }
       customPersonalityInput = ""
       return
     }
-    if (totalPersonalityCount >= 5) return
     const existingCustomKeys = new Set(customPersonalityTraits.map(normalizeKey))
     if (!existingCustomKeys.has(key)) {
       customPersonalityTraits = [...customPersonalityTraits, t]
@@ -536,7 +524,7 @@
       baseline_appearance: baseline,
       current_appearance: currentAppearance.trim() || baseline,
       current_clothing: clothing,
-      personality_traits: uniquePersonality([...selectedTraits, ...customPersonalityTraits]).filter((_, i) => i < 5),
+      personality_traits: uniquePersonality([...selectedTraits, ...customPersonalityTraits]),
       major_flaws: majorFlaws,
       quirks,
       perks,
@@ -846,7 +834,7 @@
             <CardHeader class="flex flex-row items-start justify-between gap-3 space-y-0">
               <div class="space-y-1">
                 <CardTitle class="text-base">Traits</CardTitle>
-                <CardDescription>Pick up to 5 total traits (including custom).</CardDescription>
+                <CardDescription>Pick opposites and add custom traits.</CardDescription>
               </div>
               <Button
                 variant="outline"
@@ -860,7 +848,7 @@
             <CardContent class="space-y-4">
               <div class="flex items-center justify-between gap-3">
                 <div class="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Opposites</div>
-                <div class="text-xs font-mono text-muted-foreground">{totalPersonalityCount}/5</div>
+                <div class="text-xs font-mono text-muted-foreground">Selected: {totalPersonalityCount}</div>
               </div>
 
               <div class="space-y-6">
@@ -885,7 +873,6 @@
                         >
                           <ToggleGroup.Item
                             value={a}
-                            disabled={pairTraitDisabled(a, b, a)}
                             aria-label={a}
                             class={pairTraitClass(a, b)}
                             onmouseenter={() => (hoveredTrait = a)}
@@ -895,7 +882,6 @@
                           </ToggleGroup.Item>
                           <ToggleGroup.Item
                             value={b}
-                            disabled={pairTraitDisabled(a, b, b)}
                             aria-label={b}
                             class={pairTraitClass(b, a)}
                             onmouseenter={() => (hoveredTrait = b)}
@@ -918,7 +904,6 @@
                     type="text"
                     bind:value={customPersonalityInput}
                     placeholder="e.g. Recklessly brave"
-                    disabled={totalPersonalityCount >= 5}
                     onkeydown={(e) => {
                       if (e.key === "Enter") {
                         e.preventDefault()
@@ -929,12 +914,12 @@
                   <Button
                     variant="outline"
                     onclick={addCustomPersonalityTrait}
-                    disabled={totalPersonalityCount >= 5 || !customPersonalityInput.trim()}
+                    disabled={!customPersonalityInput.trim()}
                   >
                     + Add
                   </Button>
                 </div>
-                <p class="text-xs text-muted-foreground">Optional; counts toward the 5-trait limit.</p>
+                <p class="text-xs text-muted-foreground">Optional.</p>
               </div>
 
               {#if customPersonalityTraits.length > 0}
