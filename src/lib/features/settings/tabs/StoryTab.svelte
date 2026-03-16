@@ -4,6 +4,7 @@
   import { settings as settingsService } from "@/services/settings"
   import StoryModulesPanel from "@/components/panels/StoryModulesPanel.svelte"
   import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+  import * as Tabs from "@/components/ui/tabs/index.js"
   import CustomFieldsCard from "@/features/settings/components/CustomFieldsCard.svelte"
   import FieldPromptOverridesCard from "@/features/settings/components/FieldPromptOverridesCard.svelte"
   import ModulePromptOverridesDialog from "@/features/settings/components/ModulePromptOverridesDialog.svelte"
@@ -163,6 +164,34 @@
     storyDefaults.set(next)
   }
 
+  type StorySubtab = "modules" | "prompts" | "fields"
+  const STORY_SUBTAB_KEY = "settings_story_subtab"
+
+  function loadInitialSubtab(): StorySubtab {
+    if (typeof window === "undefined") return "modules"
+    try {
+      const stored = window.localStorage.getItem(STORY_SUBTAB_KEY)
+      if (stored === "modules") return "modules"
+      if (stored === "prompts") return "prompts"
+      if (stored === "fields") return "fields"
+      return "modules"
+    } catch {
+      return "modules"
+    }
+  }
+
+  let activeSubtab = $state<StorySubtab>(loadInitialSubtab())
+
+  $effect(() => {
+    if (!active) return
+    if (typeof window === "undefined") return
+    try {
+      window.localStorage.setItem(STORY_SUBTAB_KEY, activeSubtab)
+    } catch {
+      // ignore
+    }
+  })
+
   let activeModule = $state<ModuleKey | null>(null)
   let moduleDialogOpen = $state(false)
 
@@ -177,15 +206,84 @@
 </script>
 
 <div class="space-y-4">
-  <Card>
-    <CardHeader>
-      <CardTitle>Defaults</CardTitle>
-      <CardDescription>Default story module settings for new stories.</CardDescription>
-    </CardHeader>
-    <CardContent>
-      <StoryModulesPanel modules={$storyDefaults} setModules={setStoryDefaults} onOpenPrompts={openModulePrompts} />
-    </CardContent>
-  </Card>
+  <Tabs.Root value={activeSubtab} onValueChange={(next) => (activeSubtab = next as StorySubtab)} class="gap-0">
+    <Tabs.List aria-label="Story settings sections" class="w-full justify-start overflow-x-auto overflow-y-hidden">
+      <Tabs.Trigger value="modules" class="min-w-max flex-1 px-3 text-xs font-medium uppercase tracking-wider">
+        Modules
+      </Tabs.Trigger>
+      <Tabs.Trigger value="prompts" class="min-w-max flex-1 px-3 text-xs font-medium uppercase tracking-wider">
+        Prompts
+      </Tabs.Trigger>
+      <Tabs.Trigger value="fields" class="min-w-max flex-1 px-3 text-xs font-medium uppercase tracking-wider">
+        Fields
+      </Tabs.Trigger>
+    </Tabs.List>
+
+    <Tabs.Content value="modules" class="mt-4">
+      <div class="space-y-4">
+        <Card>
+          <CardHeader>
+            <CardTitle>Defaults</CardTitle>
+            <CardDescription>Default story module settings for new stories.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <StoryModulesPanel
+              modules={$storyDefaults}
+              setModules={setStoryDefaults}
+              onOpenPrompts={openModulePrompts}
+            />
+          </CardContent>
+        </Card>
+      </div>
+    </Tabs.Content>
+
+    <Tabs.Content value="prompts" class="mt-4">
+      <div class="space-y-4">
+        <PromptFormattingCard />
+
+        <PromptTemplatesCard
+          {active}
+          allowedNames={[
+            "narrative-turn",
+            "story-setup",
+            "npc-creation",
+            "player-impersonation",
+            "character-generation",
+          ]}
+          title="Story Prompt Templates"
+          description="Advanced: edit JSON stored in SQLite. Changes affect future generations immediately."
+        />
+
+        <FieldPromptOverridesCard
+          title="Other Field Prompt Overrides"
+          description="Override built-in JSON schema descriptions from prompt-fields.json (only keys not shown under a module)."
+          keys={storyOtherKeys}
+          {builtins}
+          {overrides}
+          onOverridesUpdated={(next) => (overrides = next)}
+          showResetAll={true}
+          idBase="story-other-field-prompt-overrides"
+        />
+      </div>
+    </Tabs.Content>
+
+    <Tabs.Content value="fields" class="mt-4">
+      <div class="space-y-4">
+        <CustomFieldsCard {active} />
+
+        <FieldPromptOverridesCard
+          title="Custom Field Container Prompts"
+          description="Prompts for the containers used to hold custom field updates."
+          keys={[...CUSTOM_FIELD_CONTAINER_KEYS]}
+          {builtins}
+          {overrides}
+          onOverridesUpdated={(next) => (overrides = next)}
+          showResetAll={false}
+          idBase="custom-field-container-prompts"
+        />
+      </div>
+    </Tabs.Content>
+  </Tabs.Root>
 
   {#if activeModule}
     <ModulePromptOverridesDialog
@@ -201,37 +299,4 @@
       onOverridesUpdated={(next) => (overrides = next)}
     />
   {/if}
-
-  <CustomFieldsCard {active} />
-
-  <FieldPromptOverridesCard
-    title="Custom Field Container Prompts"
-    description="Prompts for the containers used to hold custom field updates."
-    keys={[...CUSTOM_FIELD_CONTAINER_KEYS]}
-    {builtins}
-    {overrides}
-    onOverridesUpdated={(next) => (overrides = next)}
-    showResetAll={false}
-    idBase="custom-field-container-prompts"
-  />
-
-  <PromptFormattingCard />
-
-  <PromptTemplatesCard
-    {active}
-    allowedNames={["narrative-turn", "story-setup", "npc-creation", "player-impersonation", "character-generation"]}
-    title="Story Prompt Templates"
-    description="Advanced: edit JSON stored in SQLite. Changes affect future generations immediately."
-  />
-
-  <FieldPromptOverridesCard
-    title="Other Field Prompt Overrides"
-    description="Override built-in JSON schema descriptions from prompt-fields.json (only keys not shown under a module)."
-    keys={storyOtherKeys}
-    {builtins}
-    {overrides}
-    onOverridesUpdated={(next) => (overrides = next)}
-    showResetAll={true}
-    idBase="story-other-field-prompt-overrides"
-  />
 </div>
