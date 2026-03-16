@@ -1,5 +1,4 @@
-import { get } from "svelte/store"
-import { timeouts } from "@/stores/settings"
+import { INTERNAL_PENDING_REQUEST_TTL_MS } from "@/shared/internal-timeouts"
 
 export type PendingRequestKind =
   | "chat.send"
@@ -16,15 +15,8 @@ export type PendingRequest<TPayload = unknown> = {
   payload: TPayload
 }
 
-const DEFAULT_TTL_MS = 10 * 60 * 1000
-
 function getTtlMs(): number {
-  try {
-    const ms = get(timeouts).pendingRequestTtlMs
-    return Number.isFinite(ms) ? ms : DEFAULT_TTL_MS
-  } catch {
-    return DEFAULT_TTL_MS
-  }
+  return INTERNAL_PENDING_REQUEST_TTL_MS
 }
 
 function storageKey(kind: PendingRequestKind) {

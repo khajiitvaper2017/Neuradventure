@@ -1,4 +1,4 @@
-import { getSettings } from "@/engine/core/db"
+import { INTERNAL_STREAM_SESSION_TTL_MS } from "@/shared/internal-timeouts"
 
 export type StreamKind = "turn" | "generate.character" | "generate.story" | "generate.chat" | "chat.reply"
 
@@ -52,10 +52,9 @@ const sessions = new Map<string, Session>()
 function scheduleCleanup(session: Session): void {
   if (typeof window === "undefined") return
   if (session.cleanupTimer !== null) return
-  const ttlMs = getSettings().timeouts.streamSessionTtlMs
   session.cleanupTimer = window.setTimeout(() => {
     sessions.delete(session.requestId)
-  }, ttlMs)
+  }, INTERNAL_STREAM_SESSION_TTL_MS)
 }
 
 export function createOrGetSession(requestId: string, kind: StreamKind): Session {

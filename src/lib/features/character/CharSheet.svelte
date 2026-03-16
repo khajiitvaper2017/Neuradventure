@@ -7,7 +7,7 @@
   import { activeScreen, charSheetCharacterId, closeCharSheet, showCharSheet } from "@/stores/router"
   import { showError, showQuietNotice } from "@/stores/ui"
   import { character, currentStoryId, currentStoryModules, llmUpdateId } from "@/stores/game"
-  import { timeouts } from "@/stores/settings"
+  import { INTERNAL_UI_FLASH_MS } from "@/shared/internal-timeouts"
   import type { MainCharacterState } from "@/shared/types"
   import type { CustomFieldDef } from "@/shared/api-types"
   import { cn } from "@/utils.js"
@@ -153,7 +153,7 @@
   }
 
   function triggerFlash(kind: "identity" | "appearance" | "clothing" | "inventory") {
-    const flashMs = get(timeouts).uiFlashMs
+    const flashMs = INTERNAL_UI_FLASH_MS
     if (kind === "identity") {
       flashIdentity = true
       if (identityTimer) window.clearTimeout(identityTimer)
@@ -178,7 +178,7 @@
   }
 
   function triggerCustomFlash() {
-    const flashMs = get(timeouts).uiFlashMs
+    const flashMs = INTERNAL_UI_FLASH_MS
     flashCustom = true
     if (customTimer) window.clearTimeout(customTimer)
     customTimer = window.setTimeout(() => (flashCustom = false), flashMs)

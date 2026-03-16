@@ -260,18 +260,6 @@ export type SectionFormat = "xml" | "markdown" | "equals" | "bbcode" | "colon" |
 
 export interface TimeoutSettings {
   llmRequestMs: number
-  upstreamFetchMs: number
-  streamSessionTtlMs: number
-  modelsCacheTtlMs: number
-  supportedParamsCacheTtlMs: number
-  ctxLimitCacheTtlMs: number
-  pendingRequestTtlMs: number
-  uiErrorToastMs: number
-  uiQuietNoticeMs: number
-  uiFlashMs: number
-  uiKeyboardScrollDelayMs: number
-  uiResumePendingTurnDelayMs: number
-  fieldWatchDebounceMs: number
 }
 
 export interface ModelInfo {

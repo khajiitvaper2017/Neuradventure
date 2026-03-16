@@ -7,7 +7,7 @@
   import { turns as turnsService } from "@/services/turns"
   import { showNPCTracker } from "@/stores/router"
   import { showError, showQuietNotice, showConfirm } from "@/stores/ui"
-  import { timeouts } from "@/stores/settings"
+  import { INTERNAL_UI_FLASH_MS } from "@/shared/internal-timeouts"
   import { currentStoryId, currentStoryModules, npcs, llmUpdateId, isGenerating, markLlmUpdate } from "@/stores/game"
   import type { NPCState } from "@/shared/types"
   import type { CustomFieldDef } from "@/shared/api-types"
@@ -444,7 +444,7 @@
     if (flashTimer) window.clearTimeout(flashTimer)
     flashTimer = window.setTimeout(() => {
       flashNpcNames = []
-    }, get(timeouts).uiFlashMs)
+    }, INTERNAL_UI_FLASH_MS)
   }
 
   function sortByLatestChange(list: NPCState[], changeIds: Map<string, number>): NPCState[] {

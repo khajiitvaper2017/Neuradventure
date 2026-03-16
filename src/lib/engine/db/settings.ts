@@ -78,19 +78,7 @@ export const DEFAULT_SETTINGS: SettingsState = {
   streamingEnabled: false,
   sectionFormat: "markdown",
   timeouts: {
-    llmRequestMs: 10 * 60 * 1000,
-    upstreamFetchMs: 15 * 1000,
-    streamSessionTtlMs: 45 * 1000,
-    modelsCacheTtlMs: 5 * 60 * 1000,
-    supportedParamsCacheTtlMs: 5 * 60 * 1000,
-    ctxLimitCacheTtlMs: 5 * 60 * 1000,
-    pendingRequestTtlMs: 10 * 60 * 1000,
-    uiErrorToastMs: 4000,
-    uiQuietNoticeMs: 3500,
-    uiFlashMs: 900,
-    uiKeyboardScrollDelayMs: 120,
-    uiResumePendingTurnDelayMs: 500,
-    fieldWatchDebounceMs: 50,
+    llmRequestMs: 120 * 1000,
   },
   authorNoteEnabled: true,
   defaultAuthorNote: "Remember the instructions you were given at the beginning of this chat.",
@@ -191,18 +179,6 @@ function coerceTimeoutSettings(raw: unknown): TimeoutSettings {
 
   return {
     llmRequestMs: pick("llmRequestMs", 1000, 60 * 60 * 1000),
-    upstreamFetchMs: pick("upstreamFetchMs", 500, 5 * 60 * 1000),
-    streamSessionTtlMs: pick("streamSessionTtlMs", 1000, 10 * 60 * 1000),
-    modelsCacheTtlMs: pick("modelsCacheTtlMs", 1000, 60 * 60 * 1000),
-    supportedParamsCacheTtlMs: pick("supportedParamsCacheTtlMs", 1000, 60 * 60 * 1000),
-    ctxLimitCacheTtlMs: pick("ctxLimitCacheTtlMs", 1000, 60 * 60 * 1000),
-    pendingRequestTtlMs: pick("pendingRequestTtlMs", 1000, 24 * 60 * 60 * 1000),
-    uiErrorToastMs: pick("uiErrorToastMs", 0, 60 * 1000),
-    uiQuietNoticeMs: pick("uiQuietNoticeMs", 0, 60 * 1000),
-    uiFlashMs: pick("uiFlashMs", 0, 30 * 1000),
-    uiKeyboardScrollDelayMs: pick("uiKeyboardScrollDelayMs", 0, 5000),
-    uiResumePendingTurnDelayMs: pick("uiResumePendingTurnDelayMs", 0, 30 * 1000),
-    fieldWatchDebounceMs: pick("fieldWatchDebounceMs", 0, 5000),
   }
 }
 

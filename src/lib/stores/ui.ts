@@ -1,5 +1,5 @@
 import { writable, readable, get } from "svelte/store"
-import { timeouts } from "@/stores/settings"
+import { INTERNAL_UI_ERROR_TOAST_MS, INTERNAL_UI_QUIET_NOTICE_MS } from "@/shared/internal-timeouts"
 export const errorMessage = writable<string | null>(null)
 export const quietNotice = writable<string | null>(null)
 
@@ -9,7 +9,7 @@ let quietTimer: ReturnType<typeof setTimeout> | null = null
 export function showError(msg: string, durationMs?: number) {
   errorMessage.set(msg)
   if (errorTimer !== null) clearTimeout(errorTimer)
-  const ms = durationMs ?? get(timeouts).uiErrorToastMs
+  const ms = durationMs ?? INTERNAL_UI_ERROR_TOAST_MS
   errorTimer = setTimeout(() => {
     errorTimer = null
     errorMessage.set(null)
@@ -19,7 +19,7 @@ export function showError(msg: string, durationMs?: number) {
 export function showQuietNotice(msg: string, durationMs?: number) {
   quietNotice.set(msg)
   if (quietTimer !== null) clearTimeout(quietTimer)
-  const ms = durationMs ?? get(timeouts).uiQuietNoticeMs
+  const ms = durationMs ?? INTERNAL_UI_QUIET_NOTICE_MS
   quietTimer = setTimeout(() => {
     quietTimer = null
     quietNotice.set(null)
