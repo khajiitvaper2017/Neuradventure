@@ -6,10 +6,6 @@
   import type { StoryCharacterGroup, CharacterImportResult } from "@/shared/api-types"
   import { navigate, openCharSheetForCharacter } from "@/stores/router"
   import { showError, showConfirm, showQuietNotice } from "@/stores/ui"
-  import IconDots from "@/components/icons/IconDots.svelte"
-  import IconDocument from "@/components/icons/IconDocument.svelte"
-  import IconGear from "@/components/icons/IconGear.svelte"
-  import IconUsers from "@/components/icons/IconUsers.svelte"
   import { Badge } from "@/components/ui/badge"
   import { Button } from "@/components/ui/button"
   import { Card } from "@/components/ui/card"
@@ -43,10 +39,10 @@
   } from "@/stores/game"
   import { resetChat } from "@/stores/chat"
   import { loadStoryById } from "@/utils/storyLoader"
-  import IconUser from "@/components/icons/IconUser.svelte"
   import ThemeToggle from "@/components/controls/ThemeToggle.svelte"
+  import CharacterCard from "@/features/home/CharacterCard.svelte"
   import { pickFile, readFileAsDataUrl } from "@/utils/filePick"
-  import { Book } from "@lucide/svelte"
+  import { Book, Ellipsis, Settings, User, Users } from "@lucide/svelte"
 
   let stories = $state<StoryMeta[]>([])
   let loading = $state(true)
@@ -335,7 +331,7 @@
     </div>
     <div class="absolute right-3 top-3">
       <Button variant="outline" size="icon" onclick={() => navigate("settings")} aria-label="Settings" title="Settings">
-        <IconGear size={17} strokeWidth={1.8} />
+        <Settings size={17} strokeWidth={1.8} />
       </Button>
     </div>
   </header>
@@ -346,11 +342,11 @@
       New Story
     </Button>
     <Button variant="outline" onclick={startNewCharacter} class="justify-center">
-      <IconUser size={14} strokeWidth={2.5} />
+      <User size={14} strokeWidth={2.5} />
       New Character
     </Button>
     <Button variant="outline" onclick={startNewChat} class="justify-center">
-      <IconUsers size={14} strokeWidth={2.5} />
+      <Users size={14} strokeWidth={2.5} />
       New Chat
     </Button>
   </div>
@@ -467,7 +463,7 @@
                       class="inline-flex h-9 w-9 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
                     >
                       <span class="sr-only">Story options</span>
-                      <IconDots size={15} strokeWidth={1.8} />
+                      <Ellipsis size={15} strokeWidth={1.8} />
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end" class="w-48">
                       <DropdownMenuItem
@@ -513,7 +509,7 @@
           <Empty.Root class="border p-8">
             <Empty.Header>
               <Empty.Media variant="icon" aria-hidden="true">
-                <IconUsers size={18} strokeWidth={2} />
+                <Users size={18} strokeWidth={2} />
               </Empty.Media>
               <Empty.Title>Loading chats…</Empty.Title>
             </Empty.Header>
@@ -522,7 +518,7 @@
           <Empty.Root class="border p-8">
             <Empty.Header>
               <Empty.Media variant="icon" aria-hidden="true">
-                <IconUsers size={18} strokeWidth={2} />
+                <Users size={18} strokeWidth={2} />
               </Empty.Media>
               {#if chats.length === 0}
                 <Empty.Title>No chats yet</Empty.Title>
@@ -572,7 +568,7 @@
                       class="inline-flex h-9 w-9 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
                     >
                       <span class="sr-only">Chat options</span>
-                      <IconDots size={15} strokeWidth={1.8} />
+                      <Ellipsis size={15} strokeWidth={1.8} />
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end" class="w-48">
                       <DropdownMenuItem
@@ -617,7 +613,7 @@
         <Empty.Root class="border p-8">
           <Empty.Header>
             <Empty.Media variant="icon" aria-hidden="true">
-              <IconUser size={18} strokeWidth={2} />
+              <User size={18} strokeWidth={2} />
             </Empty.Media>
             <Empty.Title>Loading characters…</Empty.Title>
           </Empty.Header>
@@ -632,7 +628,7 @@
         <Empty.Root class="border p-8">
           <Empty.Header>
             <Empty.Media variant="icon" aria-hidden="true">
-              <IconUser size={18} strokeWidth={2} />
+              <User size={18} strokeWidth={2} />
             </Empty.Media>
             {#if storyCharacters.length === 0}
               <Empty.Title>No characters from stories yet</Empty.Title>
@@ -658,123 +654,14 @@
 
         <div class="grid gap-3" role="list" aria-label="Characters">
           {#each filteredCharacters as group (group.id)}
-            <Card class="group">
-              <div class="flex items-start gap-2 p-3">
-                <Button
-                  type="button"
-                  variant="ghost"
-                  class="h-auto min-w-0 flex-1 flex-col items-start justify-start gap-0 p-0 text-left hover:bg-transparent"
-                  onclick={() => openCharSheetForCharacter(group.id)}
-                >
-                  <div class="flex items-center gap-3">
-                    {#if group.card?.avatar}
-                      <img class="h-10 w-10 rounded-full border object-cover" src={group.card.avatar} alt="" />
-                    {:else}
-                      <div class="h-10 w-10 rounded-full border bg-muted" aria-hidden="true"></div>
-                    {/if}
-                    <div class="min-w-0">
-                      <div class="truncate text-sm font-semibold">{group.character.name}</div>
-                      <div class="mt-0.5 text-xs text-muted-foreground">
-                        {group.character.gender} · {group.character.race}
-                      </div>
-                    </div>
-                  </div>
-
-                  <div class="mt-2 text-xs text-muted-foreground">
-                    {[...group.character.personality_traits, ...group.character.quirks, ...group.character.perks].join(
-                      ", ",
-                    ) || "No traits"}
-                  </div>
-
-                  {#if group.stories.length > 0}
-                    <div class="mt-2 text-xs text-muted-foreground">
-                      {group.stories.length} stories · Last played
-                      {relativeTime(new Date(characterLastPlayedMs(group)).toISOString())}
-                    </div>
-                  {:else}
-                    <div class="mt-2 text-xs text-muted-foreground">No stories yet</div>
-                  {/if}
-
-                  {#if group.stories.length > 0}
-                    <div class="mt-3 flex flex-wrap gap-1.5" aria-label="Recent stories">
-                      {#each group.stories
-                        .slice()
-                        .sort((a, b) => updatedAtMs(b.updated_at) - updatedAtMs(a.updated_at))
-                        .slice(0, 4) as s (s.id)}
-                        <Badge variant="outline" class="px-2 py-0 text-[11px] font-medium">
-                          {s.title}
-                        </Badge>
-                      {/each}
-                      {#if group.stories.length > 4}
-                        <Badge variant="outline" class="px-2 py-0 text-[11px] font-medium text-muted-foreground">
-                          +{group.stories.length - 4}
-                        </Badge>
-                      {/if}
-                    </div>
-                  {/if}
-                </Button>
-
-                <DropdownMenu>
-                  <DropdownMenuTrigger
-                    class="inline-flex h-9 w-9 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
-                  >
-                    <span class="sr-only">Character options</span>
-                    <IconDots size={15} strokeWidth={1.8} />
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end" class="w-48">
-                    <DropdownMenuItem onSelect={() => openCharSheetForCharacter(group.id)}>
-                      <span class="inline-flex items-center gap-2">
-                        <IconDocument size={14} strokeWidth={1.6} />
-                        Details
-                      </span>
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onSelect={() => startNewWithCharacter(group)}>New Story</DropdownMenuItem>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem onSelect={() => void exportCharacter(group, "tavern-card")}
-                      >Export ST</DropdownMenuItem
-                    >
-                    <DropdownMenuItem onSelect={() => void exportCharacter(group, "neuradventure")}
-                      >Export JSON</DropdownMenuItem
-                    >
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem
-                      class="text-destructive focus:text-destructive"
-                      onSelect={() => deleteCharacter(group.id)}
-                    >
-                      Delete
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              </div>
-
-              {#if group.stories.length > 0}
-                <div class="border-t px-3 py-3">
-                  <details class="rounded-md border bg-muted/30 p-3">
-                    <summary
-                      class="cursor-pointer select-none text-xs font-semibold uppercase tracking-wider text-muted-foreground"
-                    >
-                      Stories <span class="ml-1 rounded-full bg-background px-2 py-0.5 text-[11px]"
-                        >{group.stories.length}</span
-                      >
-                    </summary>
-                    <div class="mt-3 grid gap-1">
-                      {#each group.stories
-                        .slice()
-                        .sort((a, b) => updatedAtMs(b.updated_at) - updatedAtMs(a.updated_at)) as s (s.id)}
-                        <Button
-                          type="button"
-                          variant="link"
-                          class="h-auto justify-start p-0 text-left text-sm font-normal text-foreground/90 hover:underline"
-                          onclick={() => openStoryById(s.id)}
-                        >
-                          {s.title}
-                        </Button>
-                      {/each}
-                    </div>
-                  </details>
-                </div>
-              {/if}
-            </Card>
+            <CharacterCard
+              {group}
+              onOpenDetails={openCharSheetForCharacter}
+              onStartNewStory={startNewWithCharacter}
+              onOpenStory={openStoryById}
+              onExport={exportCharacter}
+              onDelete={deleteCharacter}
+            />
           {/each}
         </div>
       {/if}

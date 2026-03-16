@@ -63,7 +63,6 @@
   }
 
   type NewFieldDraft = {
-    id: string
     scope: CustomFieldScope
     value_type: CustomFieldValueType
     label: string
@@ -72,7 +71,6 @@
   }
 
   let create = $state<NewFieldDraft>({
-    id: "",
     scope: "character",
     value_type: "text",
     label: "",
@@ -89,13 +87,32 @@
       .replace(/^_+|_+$/g, "")
   }
 
+  function uniqueId(base: string): string {
+    if (!base) return ""
+    const used = new Set(defs.map((d) => d.id))
+    if (!used.has(base)) return base
+    let i = 2
+    while (used.has(`${base}_${i}`)) i += 1
+    return `${base}_${i}`
+  }
+
+  const createId = $derived(uniqueId(normalizeSlug(create.label.trim())))
+
   async function createField() {
     if (creating) return
     error = null
-    const id = normalizeSlug(create.id)
+    if (!loadedOnce) {
+      error = "Loading custom fields…"
+      return
+    }
     const label = create.label.trim()
-    if (!id || !label) {
-      error = "Custom field id and label are required."
+    const id = uniqueId(normalizeSlug(label))
+    if (!label) {
+      error = "Custom field label is required."
+      return
+    }
+    if (!id) {
+      error = "Custom field label must include at least one letter or number."
       return
     }
     creating = true
@@ -115,7 +132,7 @@
         if (a.sort_order !== b.sort_order) return a.sort_order - b.sort_order
         return a.label.localeCompare(b.label)
       })
-      create = { ...create, id: "", label: "", prompt: "" }
+      create = { ...create, label: "", prompt: "" }
     } catch (err) {
       console.error("[fields] Failed to create custom field", err)
       error = err instanceof Error ? err.message : "Failed to create custom field."
@@ -203,18 +220,6 @@
       <div class="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Create</div>
       <div class="grid gap-3 md:grid-cols-2">
         <div class="space-y-2">
-          <Label for="new-field-id">Id (slug)</Label>
-          <InputGroup.Root data-disabled={creating ? "true" : undefined}>
-            <InputGroup.Input
-              id="new-field-id"
-              placeholder="e.g. mood"
-              value={create.id}
-              oninput={(e) => (create.id = (e.target as HTMLInputElement).value)}
-              disabled={creating}
-            />
-          </InputGroup.Root>
-        </div>
-        <div class="space-y-2">
           <Label for="new-field-label">Label</Label>
           <InputGroup.Root data-disabled={creating ? "true" : undefined}>
             <InputGroup.Input
@@ -225,6 +230,18 @@
               disabled={creating}
             />
           </InputGroup.Root>
+        </div>
+        <div class="space-y-2">
+          <Label>Id</Label>
+          <div
+            class={cn(
+              "border-input dark:bg-input/30 flex h-9 items-center rounded-md border px-3 text-xs font-mono text-muted-foreground shadow-xs",
+              creating && "opacity-70",
+            )}
+            aria-label="Field id preview"
+          >
+            {createId || "—"}
+          </div>
         </div>
         <div class="space-y-2">
           <Label>Scope</Label>
@@ -300,7 +317,7 @@
         </div>
       </div>
       <div class="flex justify-end">
-        <Button onclick={createField} disabled={creating || loadingDefs}
+        <Button onclick={createField} disabled={creating || loadingDefs || !loadedOnce}
           >{creating ? "Creating..." : "Create field"}</Button
         >
       </div>
@@ -342,9 +359,12 @@
               <div class="mt-4 grid gap-3 md:grid-cols-2">
                 <div class="space-y-2">
                   <Label>Id</Label>
-                  <InputGroup.Root data-disabled="true">
-                    <InputGroup.Input value={draft.id} disabled />
-                  </InputGroup.Root>
+                  <div
+                    class="border-input dark:bg-input/30 flex h-9 items-center rounded-md border px-3 text-xs font-mono text-muted-foreground shadow-xs"
+                    aria-label="Field id"
+                  >
+                    {draft.id}
+                  </div>
                 </div>
                 <div class="space-y-2">
                   <Label>Label</Label>

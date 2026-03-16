@@ -50,7 +50,7 @@ svelte.config.js        # adapter-static, aliases, Service Worker settings
 - **Plan revisions** — base revised plans on prior ones unless fundamentally incompatible.
 - **Dependencies** — propose new libraries when they meaningfully simplify code; remove any unused packages.
 - **After major edits:** run `npm run lint` and `npm run check`.
-- **End of workflow:** always run `npm run format`.
+- **End of workflow:** always run `npm run format`. Don't restore or checkout any affected by format files that you didn't change. Just ignore.
 - **Linting gaps** — if an error bypasses current checks, update linting config to catch it going forward.
 
 ---
