@@ -1,7 +1,6 @@
 <script lang="ts">
   import promptFields from "@/shared/config/prompt-fields.json"
   import type { StoryModules } from "@/shared/types"
-  import { settings as settingsService } from "@/services/settings"
   import StoryModulesPanel from "@/components/panels/StoryModulesPanel.svelte"
   import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
   import CustomFieldsCard from "@/features/settings/components/CustomFieldsCard.svelte"
@@ -142,29 +141,6 @@
     .filter((k) => !moduleKeySet.has(k) && !reservedSet.has(k))
     .sort((a, b) => a.localeCompare(b))
 
-  let overrides = $state<Record<string, string>>({})
-  let overridesLoadedOnce = $state(false)
-  let overridesLoading = $state(false)
-
-  async function loadOverrides() {
-    if (overridesLoading) return
-    overridesLoading = true
-    try {
-      overrides = await settingsService.fieldPromptOverrides()
-      overridesLoadedOnce = true
-    } catch (err) {
-      console.error("[field-prompts] Failed to load overrides", err)
-    } finally {
-      overridesLoading = false
-    }
-  }
-
-  $effect(() => {
-    if (!active) return
-    if (overridesLoadedOnce) return
-    void loadOverrides()
-  })
-
   function setStoryDefaults(next: StoryModules) {
     storyDefaults.set(next)
   }
@@ -211,10 +187,9 @@
       <FieldPromptOverridesCard
         title="Other Field Prompt Overrides"
         description="Override built-in JSON schema descriptions from prompt-fields.json (only keys not shown under a module)."
+        {active}
         keys={storyOtherKeys}
         {builtins}
-        {overrides}
-        onOverridesUpdated={(next) => (overrides = next)}
         showResetAll={true}
         idBase="story-other-field-prompt-overrides"
       />
@@ -226,10 +201,9 @@
       <FieldPromptOverridesCard
         title="Custom Field Container Prompts"
         description="Prompts for the containers used to hold custom field updates."
+        {active}
         keys={[...CUSTOM_FIELD_CONTAINER_KEYS]}
         {builtins}
-        {overrides}
-        onOverridesUpdated={(next) => (overrides = next)}
         showResetAll={false}
         idBase="custom-field-container-prompts"
       />
@@ -244,10 +218,7 @@
       sharedNote={MODULE_PROMPT_KEYS[activeModule].sharedNote ?? ""}
       keys={MODULE_PROMPT_KEYS[activeModule].keys}
       {builtins}
-      {overrides}
-      disabled={overridesLoading}
       onClose={closeModulePrompts}
-      onOverridesUpdated={(next) => (overrides = next)}
     />
   {/if}
 </div>
