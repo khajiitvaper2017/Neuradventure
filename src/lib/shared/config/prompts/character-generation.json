@@ -11,47 +11,6 @@
       "- race: {race} Default to 'Human' unless an alternate race is explicitly provided in the source text.",
       "- gender: {gender} Define gender definitively. Directly and clinically specify any non-standard anatomical configurations if dictated by the prompt (e.g., 'Futanari','Intersex').",
       "- general_description: {character.general_description}"
-    ],
-    "modules": {
-      "track_npcs": {
-        "on": [],
-        "off": []
-      },
-      "track_locations": {
-        "on": [],
-        "off": []
-      },
-      "character_appearance_clothing": {
-        "on": [
-          "- baseline_appearance: {baseline_appearance}",
-          "- current_clothing: {current_clothing}"
-        ],
-        "off": []
-      },
-      "character_personality_traits": {
-        "on": [
-          "- personality_traits: {personality_traits} Prioritize the provided master list. Each entry: {traits.entry}"
-        ],
-        "off": []
-      },
-      "character_major_flaws": {
-        "on": [
-          "- major_flaws: {major_flaws} Each entry: {traits.entry}"
-        ],
-        "off": []
-      },
-      "character_quirks": {
-        "on": [
-          "- quirks: {quirks} Each entry: {traits.entry}"
-        ],
-        "off": []
-      },
-      "character_perks": {
-        "on": [
-          "- perks: {perks} Each entry: {traits.entry}"
-        ],
-        "off": []
-      }
-    }
+    ]
   }
 }

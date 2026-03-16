@@ -12,84 +12,11 @@
       "starting_location: {story.starting_location}",
       "starting_date: {story.starting_date}",
       "starting_time: {story.starting_time}",
-      "general_description: {story.general_description}",
+      "general_description: {character.general_description}",
       "CONSISTENCY CHECK — verify before output:",
       "- title is specific and tied to the scenario.",
       "- starting_location matches opening_scenario.",
       "- Names are full legal names (no first-name-only entries)."
-    ],
-    "modules": {
-      "track_npcs": {
-        "on": [
-          "TASK: Also generate pregenerated NPCs for the opening setup.",
-          "PREGENERATED NPCs:",
-          "pregen_npcs: {story.pregen_npcs}"
-        ],
-        "off": []
-      },
-      "track_locations": {
-        "on": [
-          "- Ensure any location references in opening_scenario are consistent with starting_location."
-        ],
-        "off": []
-      },
-      "character_appearance_clothing": {
-        "on": [
-          "current_appearance: {current_appearance}"
-        ],
-        "off": []
-      },
-      "npc_appearance_clothing": {
-        "on": [
-          "Within each pregen_npcs entry (when present), include:",
-          "baseline_appearance: {baseline_appearance}",
-          "current_clothing: {current_clothing}",
-          "current_appearance: {current_appearance}"
-        ],
-        "off": []
-      },
-      "npc_personality_traits": {
-        "on": [
-          "Within each pregen_npcs entry (when present), include:",
-          "personality_traits: {personality_traits}"
-        ],
-        "off": []
-      },
-      "npc_major_flaws": {
-        "on": [
-          "Within each pregen_npcs entry (when present), include:",
-          "major_flaws: {major_flaws}"
-        ],
-        "off": []
-      },
-      "npc_quirks": {
-        "on": [
-          "Within each pregen_npcs entry (when present), include:",
-          "quirks: {quirks}"
-        ],
-        "off": []
-      },
-      "npc_perks": {
-        "on": [
-          "Within each pregen_npcs entry (when present), include:",
-          "perks: {perks}"
-        ],
-        "off": []
-      },
-      "npc_location": {
-        "on": [
-          "Within each pregen_npcs entry (when present), include:",
-          "current_location: {character.current_location}"
-        ],
-        "off": []
-      },
-      "npc_activity": {
-        "on": [
-          "Within each pregen_npcs entry (when present), include:",
-          "current_activity: {character.current_activity}"
-        ],
-        "off": []
-      }
-    }
+    ]
   }
 }

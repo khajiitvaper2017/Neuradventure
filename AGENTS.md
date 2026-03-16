@@ -60,6 +60,7 @@ svelte.config.js        # adapter-static, aliases, Service Worker settings
 - Use the newest stable APIs and patterns. Rewrite modules from scratch when it materially improves simplicity.
 - Remove legacy code entirely. Use legacy shims only when they significantly reduce import clutter.
 - Do not leave deprecated code in place.
+- If asked to remove something, remove it completely in simplest way.
 
 ---
 

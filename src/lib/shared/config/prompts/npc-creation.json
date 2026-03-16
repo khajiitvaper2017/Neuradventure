@@ -14,65 +14,6 @@
       "Base all details on the current story context. If details are not specified, infer plausibly without contradicting the world or known NPCs.",
       "current_location: {character.current_location} If included, it must be a specific 1–5 word unique location name consistent with the current scene and recent events (e.g., \\\"Undercroft Stairwell\\\"). Do not use generic room names.",
       "current_activity: {character.current_activity} If included, it is a concise, factual description of what the NPC is doing right now."
-    ],
-    "modules": {
-      "track_npcs": {
-        "on": [
-          "Create exactly one NPC that matches the introduce-new-NPC instruction."
-        ],
-        "off": []
-      },
-      "track_locations": {
-        "on": [
-          "Keep current_location consistent with the current scene and recent events."
-        ],
-        "off": []
-      },
-      "npc_appearance_clothing": {
-        "on": [
-          "When NPC appearance/clothing is enabled:",
-          "baseline_appearance: {baseline_appearance}",
-          "current_clothing: {current_clothing}",
-          "current_appearance: {current_appearance}"
-        ],
-        "off": []
-      },
-      "npc_personality_traits": {
-        "on": [
-          "personality_traits: {personality_traits} Selected from the allowed {npcTraits} list (e.g., [\\\"Shrewd\\\",\\\"Reserved\\\"]). Each entry: {traits.entry}"
-        ],
-        "off": []
-      },
-      "npc_major_flaws": {
-        "on": [
-          "major_flaws: {major_flaws} Each entry: {traits.entry}"
-        ],
-        "off": []
-      },
-      "npc_quirks": {
-        "on": [
-          "quirks: {quirks} Each entry: {traits.entry}"
-        ],
-        "off": []
-      },
-      "npc_perks": {
-        "on": [
-          "perks: {perks} Each entry: {traits.entry}"
-        ],
-        "off": []
-      },
-      "npc_location": {
-        "on": [
-          "Include current_location ({character.current_location}) when enabled by the schema."
-        ],
-        "off": []
-      },
-      "npc_activity": {
-        "on": [
-          "Include current_activity ({character.current_activity}) when enabled by the schema."
-        ],
-        "off": []
-      }
-    }
+    ]
   }
 }

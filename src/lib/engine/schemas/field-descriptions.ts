@@ -1,5 +1,5 @@
 import SETTINGS_FIELDS from "@/shared/config/settings-fields.json"
-import SCHEMA_FIELDS from "@/shared/config/schema-fields.json"
+import PROMPT_FIELDS from "@/shared/config/prompt-fields.json"
 
 type LeafLookup = {
   byKey: Map<string, string>
@@ -14,6 +14,11 @@ function normalizeWrappedKey(raw: string): string {
     return trimmed.slice(1, -1).trim()
   }
   return trimmed
+}
+
+function isWrappedReferenceValue(value: string): boolean {
+  const trimmed = value.trim()
+  return trimmed.startsWith("{") && trimmed.endsWith("}") && trimmed.length >= 3
 }
 
 function getFieldByPath(pathKey: string, root: Record<string, unknown>): string | null {
@@ -85,10 +90,10 @@ function buildLeafLookup(schemaFields: Record<string, unknown>, settingsFields: 
 }
 
 const SETTINGS = SETTINGS_FIELDS as unknown as Record<string, unknown>
-const SCHEMA = SCHEMA_FIELDS as unknown as Record<string, unknown>
+const SCHEMA = PROMPT_FIELDS as unknown as Record<string, unknown>
 const leafLookup = buildLeafLookup(SCHEMA, SETTINGS)
 
-export function resolveFieldShortcut(key: string): string | null {
+function resolveFieldShortcutOnce(key: string): string | null {
   if (!key) return null
   const normalized = normalizeWrappedKey(key)
   if (!normalized) return null
@@ -98,6 +103,30 @@ export function resolveFieldShortcut(key: string): string | null {
     return leafLookup.bySuffix.get(normalized) ?? null
   }
   return leafLookup.byKey.get(normalized) ?? null
+}
+
+export function resolveFieldShortcut(key: string): string | null {
+  let current = normalizeWrappedKey(key)
+  if (!current) return null
+
+  const seen = new Set<string>()
+  for (let depth = 0; depth < 8; depth++) {
+    if (seen.has(current)) return null
+    seen.add(current)
+
+    const resolved = resolveFieldShortcutOnce(current)
+    if (!resolved) return null
+
+    if (isWrappedReferenceValue(resolved)) {
+      current = normalizeWrappedKey(resolved)
+      if (!current) return null
+      continue
+    }
+
+    return resolved
+  }
+
+  return null
 }
 
 export function replaceFieldShortcuts(text: string): string {
