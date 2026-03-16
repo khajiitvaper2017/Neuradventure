@@ -67,7 +67,7 @@ svelte.config.js        # adapter-static, aliases, Service Worker settings
 
 - **Primitives** — use shadcn-style components (`src/lib/components/ui/**`, Tailwind + Bits UI). Never write or reintroduce legacy widgets under any circumstances.
 - **Raw HTML elements** — never use `<button>`, `<label>`, `<select>`, `<textarea>` etc. outside `ui/**`. Use their capitalized equivalents (`Button`, `Label`, etc.).
-- **Design tokens** — accent color defaults to `#c85c5c` (user-configurable), drives `--primary` and `--ring`. Use `font-story` (Cinzel) for story logs and narrative text. See `DESIGN.md` for full rules.
+- **Design tokens** — accent color defaults to `#c85c5c` (user-configurable), drives `--primary` and `--ring`. Use `font-story` (Spectral) for story logs and narrative text. See `DESIGN.md` for full rules.
 - **Component files** — extract new UI components into separate files; keep files under ~1000 lines.
 
 ---

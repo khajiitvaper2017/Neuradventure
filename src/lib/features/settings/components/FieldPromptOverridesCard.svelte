@@ -1,6 +1,7 @@
 <script lang="ts">
   import { tick } from "svelte"
   import { settings as settingsService } from "@/services/settings"
+  import { showConfirm } from "@/stores/ui"
   import { Button } from "@/components/ui/button"
   import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
   import * as InputGroup from "@/components/ui/input-group"
@@ -137,10 +138,13 @@
 
   async function resetAllOverrides() {
     if (overrideSaving) return
-    if (typeof window !== "undefined") {
-      const ok = window.confirm("Reset ALL field prompt overrides to built-in defaults?")
-      if (!ok) return
-    }
+    const ok = await showConfirm({
+      title: "Reset field prompts",
+      message: "Reset ALL field prompt overrides to built-in defaults?",
+      confirmLabel: "Reset all",
+      danger: true,
+    })
+    if (!ok) return
     overrideSaving = true
     error = null
     try {

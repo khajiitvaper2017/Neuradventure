@@ -44,11 +44,11 @@
   import { pickFile, readFileAsDataUrl } from "@/utils/filePick"
   import { Book, Cog, EllipsisVertical, User, Users } from "@lucide/svelte"
 
-  let stories = $state<StoryMeta[]>([])
+  let stories = $state.raw<StoryMeta[]>([])
   let loading = $state(true)
-  let storyCharacters = $state<StoryCharacterGroup[]>([])
+  let storyCharacters = $state.raw<StoryCharacterGroup[]>([])
   let loadingCharacters = $state(false)
-  let chats = $state<ChatSummary[]>([])
+  let chats = $state.raw<ChatSummary[]>([])
   let loadingChats = $state(false)
 
   type LibrarySection = "stories" | "chats" | "characters"

@@ -2,6 +2,7 @@
   import type { GenerationParams, SamplerPreset } from "@/shared/api-types"
   import { settings as settingsService } from "@/services/settings"
   import { generation } from "@/stores/settings"
+  import { showConfirm } from "@/stores/ui"
   import { loadPresets, presets, refreshPresets } from "@/utils/presets"
   import { pickFile } from "@/utils/filePick"
   import { coercePresetFromJson, filenameToPresetName } from "@/features/settings/lib/presetImport"
@@ -64,10 +65,13 @@
 
   async function deletePreset(preset: SamplerPreset) {
     if (!preset.id) return
-    if (typeof window !== "undefined") {
-      const ok = window.confirm(`Delete preset "${preset.name}"?`)
-      if (!ok) return
-    }
+    const ok = await showConfirm({
+      title: "Delete preset",
+      message: `Delete preset "${preset.name}"?`,
+      confirmLabel: "Delete",
+      danger: true,
+    })
+    if (!ok) return
     try {
       await settingsService.deletePreset(preset.id)
       await refreshPresets()
