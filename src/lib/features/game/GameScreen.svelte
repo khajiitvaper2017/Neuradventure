@@ -59,7 +59,7 @@
   let editingTurnId = $state<number | null>(null)
   let editPlayerInput = $state("")
   let editNarrative = $state("")
-  let lastTurnVariants = $state.raw<TurnVariantSummary[]>([])
+  let lastTurnVariants = $state<TurnVariantSummary[]>([])
   let activeVariantId = $state<number | null>(null)
   let variantsTurnId = $state<number | null>(null)
   let variantsLoading = $state(false)
@@ -68,7 +68,7 @@
   let memoryDraft = $state("")
   let showWorldFieldsEditor = $state(false)
   let worldFieldsDraft = $state<Record<string, string | string[]>>({})
-  let worldFieldsDefs = $state.raw<CustomFieldDef[]>([])
+  let worldFieldsDefs = $state<CustomFieldDef[]>([])
   let worldFieldsSaving = $state(false)
   let showAuthorNoteEditor = $state(false)
   let authorNoteDraft = $state("")
@@ -90,7 +90,7 @@
   let openingFlashTimer: number | null = null
   let keyboardScrollTimer: number | null = null
   let lastViewportHeight = 0
-  let streamUnsub: null | (() => void) = null
+  let streamUnsub = $state<null | (() => void)>(null)
   let streamNarrative = $state("")
   let streamBackground = $state("")
   let streamScene = $state("")
@@ -293,6 +293,7 @@
   }
 
   $effect(() => {
+    if (typeof window === "undefined") return
     if (!$currentStoryId) return
     const pending = getPendingTurn()
     if (!pending) return
@@ -747,6 +748,7 @@
   })
 
   onMount(() => {
+    if (typeof window === "undefined") return
     const viewport = window.visualViewport
     lastViewportHeight = viewport?.height ?? 0
     if (!viewport) return

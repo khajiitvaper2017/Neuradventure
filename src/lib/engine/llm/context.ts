@@ -139,12 +139,11 @@ function buildContextBlock(opts: ContextBlockOpts): string {
       gender: character.gender,
     }),
     formatTemplate(labels.generalDescription, { value: generalDescription }),
-    formatTemplate(labels.baselineAppearance, {
-      value:
-        character.baseline_appearance?.trim() ||
-        initial.baseline_appearance?.trim() ||
-        defaults.unknown.baselineAppearance,
-    }),
+    flags.useCharAppearance
+      ? formatTemplate(labels.baselineAppearance, {
+          value: initial.baseline_appearance?.trim() || defaults.unknown.baselineAppearance,
+        })
+      : null,
     flags.useCharPersonalityTraits
       ? formatTemplate(labels.personalityTraits, { value: character.personality_traits.join(", ") || none })
       : null,
