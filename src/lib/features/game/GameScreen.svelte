@@ -6,8 +6,9 @@
   import { DEFAULT_STORY_MODULES } from "@/engine/schemas/story-modules"
   import { stories } from "@/services/stories"
   import { turns as turnsService } from "@/services/turns"
-  import { streamClient } from "@/services/stream"
-  import { navigate, showError, showConfirm, showQuietNotice } from "@/stores/ui"
+  import { subscribeStreamPreview } from "@/services/streamPreview"
+  import { navigate } from "@/stores/router"
+  import { showError, showConfirm, showQuietNotice } from "@/stores/ui"
   import { createRequestId } from "@/utils/ids"
   import { normalizePlayerInput } from "@/utils/inputNormalize"
   import { scrollToBottom } from "@/utils/scroll"
@@ -113,17 +114,7 @@
     stopTurnStream()
     followStream = true
     if (!$streamingEnabled) return
-    streamUnsub = streamClient.subscribe(requestId, (msg) => {
-      if (msg.type === "subscribed" && msg.snapshot) {
-        const snap = msg.snapshot as Record<string, unknown>
-        if (typeof snap.narrative_text === "string") streamNarrative = snap.narrative_text
-        if (typeof snap.background_events === "string") streamBackground = snap.background_events
-        if (typeof snap.current_scene === "string") streamScene = snap.current_scene
-        if (typeof snap.time_of_day === "string") streamTime = snap.time_of_day
-        return
-      }
-      if (msg.type !== "stream" || msg.event !== "preview") return
-      const patch = msg.patch as Record<string, unknown>
+    streamUnsub = subscribeStreamPreview(requestId, (patch) => {
       if (typeof patch.narrative_text === "string") streamNarrative = patch.narrative_text
       if (typeof patch.background_events === "string") streamBackground = patch.background_events
       if (typeof patch.current_scene === "string") streamScene = patch.current_scene
@@ -581,7 +572,6 @@
   }
 
   function goHome() {
-    resetGame()
     navigate("home", { reset: true })
   }
 

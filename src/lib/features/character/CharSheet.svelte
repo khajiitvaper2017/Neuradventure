@@ -3,14 +3,8 @@
   import { get } from "svelte/store"
   import { AppError } from "@/errors"
   import { stories } from "@/services/stories"
-  import {
-    activeScreen,
-    charSheetCharacterId,
-    closeCharSheet,
-    showCharSheet,
-    showError,
-    showQuietNotice,
-  } from "@/stores/ui"
+  import { activeScreen, charSheetCharacterId, closeCharSheet, showCharSheet } from "@/stores/router"
+  import { showError, showQuietNotice } from "@/stores/ui"
   import { character, currentStoryId, currentStoryModules, llmUpdateId } from "@/stores/game"
   import { timeouts } from "@/stores/settings"
   import type { MainCharacterState } from "@/shared/types"

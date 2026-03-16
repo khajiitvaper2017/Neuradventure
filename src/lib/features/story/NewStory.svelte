@@ -3,9 +3,9 @@
   import type { MainCharacterState, NPCState, StoryModules } from "@/shared/types"
   import type { StoryCharacterGroup, StoryNpcGroup } from "@/shared/api-types"
   import { stories as storiesService } from "@/services/stories"
-  import { streamClient } from "@/services/stream"
-  import { navigate, openCharSheetForCharacter, showError } from "@/stores/ui"
-  import { loadStoryById } from "@/utils/storyLoader"
+  import { subscribeStreamPreview } from "@/services/streamPreview"
+  import { navigate, openCharSheetForCharacter } from "@/stores/router"
+  import { showError } from "@/stores/ui"
   import { loadPromptHistory, savePromptHistory, removePromptHistory } from "@/utils/promptHistory"
   import { createRequestId } from "@/utils/ids"
   import { clearPendingRequest, getPendingRequest, setPendingRequest } from "@/utils/pendingRequests"
@@ -255,14 +255,7 @@
       payload: { prompt: trimmed, character, modules },
     })
     const unsub = $streamingEnabled
-      ? streamClient.subscribe(requestId, (msg) => {
-          const patch =
-            msg.type === "subscribed"
-              ? ((msg.snapshot ?? {}) as Record<string, unknown>)
-              : msg.type === "stream" && msg.event === "preview"
-                ? (msg.patch as Record<string, unknown>)
-                : null
-          if (!patch) return
+      ? subscribeStreamPreview(requestId, (patch) => {
           if (typeof patch.title === "string") pendingStoryTitle.set(patch.title)
           if (typeof patch.opening_scenario === "string") pendingStoryScenario.set(patch.opening_scenario)
           if (typeof patch.starting_location === "string") pendingStoryLocation.set(patch.starting_location)
@@ -396,7 +389,6 @@
         if ($pendingCharacterImportAvatarDataUrl) payload.tavern_avatar_data_url = $pendingCharacterImportAvatarDataUrl
       }
       const { id } = await storiesService.create(payload)
-      await loadStoryById(id)
       pendingCharacter.set(null)
       pendingCharacterId.set(null)
       pendingCharacterImportCard.set(null)

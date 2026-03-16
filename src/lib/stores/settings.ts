@@ -1,110 +1,44 @@
 import { writable } from "svelte/store"
+import { DEFAULT_SETTINGS } from "@/engine/db"
 import { settings as settingsService } from "@/services/settings"
-import type {
-  AppSettings,
-  GenerationParams,
-  KoboldCppConnector,
-  LLMConnector,
-  SectionFormat,
-  TimeoutSettings,
-} from "@/shared/api-types"
+import type { AppSettings, LLMConnector, SectionFormat, TimeoutSettings } from "@/shared/api-types"
 import type { StoryModules } from "@/shared/types"
 
 export type ColorMode = "light" | "dark" | "system"
 
-const DEFAULT_KOBOLD_CONNECTOR: KoboldCppConnector = {
-  type: "koboldcpp",
-  url: "http://localhost:5001/v1",
-  api_keys: {
-    koboldcpp: "kobold",
-    openrouter: "",
-  },
-}
-
-const DEFAULT_CONNECTOR: LLMConnector = { ...DEFAULT_KOBOLD_CONNECTOR }
-
-const DEFAULT_GENERATION: GenerationParams = {
-  max_tokens: 1500,
-  ctx_limit: 0,
-  temperature: 0.85,
-  top_k: 40,
-  top_a: 0.0,
-  top_p: 0.95,
-  min_p: 0.05,
-  typical_p: 1.0,
-  tfs: 1.0,
-  top_n_sigma: -1.0,
-  repeat_penalty: 1.0,
-  repeat_last_n: 320,
-  rep_pen_slope: 1.0,
-  presence_penalty: 0.0,
-  frequency_penalty: 0.0,
-  mirostat: 0,
-  mirostat_tau: 5.0,
-  mirostat_eta: 0.1,
-  dynatemp_range: 0.0,
-  dynatemp_exponent: 1.0,
-  smoothing_factor: 0.0,
-  smoothing_curve: 1.0,
-  adaptive_target: -1.0,
-  adaptive_decay: 0.9,
-  dry_multiplier: 0.0,
-  dry_base: 1.75,
-  dry_allowed_length: 2,
-  dry_penalty_last_n: -1,
-  dry_sequence_breakers: ["\n", ":", '"', "*"],
-  xtc_probability: 0.0,
-  xtc_threshold: 0.1,
-  ban_eos_token: false,
-  sampler_order: [6, 0, 1, 3, 4, 2, 5],
-  banned_tokens: [],
-  logit_bias: {},
-  render_special: false,
-  seed: -1,
-}
-
-const DEFAULT_STORY_MODULES: StoryModules = {
-  track_npcs: true,
-  track_locations: true,
-  track_background_events: false,
-  character_appearance_clothing: true,
-  character_personality_traits: true,
-  character_major_flaws: true,
-  character_quirks: true,
-  character_perks: true,
-  character_inventory: true,
-  npc_appearance_clothing: true,
-  npc_personality_traits: true,
-  npc_major_flaws: true,
-  npc_quirks: true,
-  npc_perks: true,
-  npc_location: true,
-  npc_activity: true,
-}
-
 export const DEFAULT_TIMEOUTS: TimeoutSettings = {
-  llmRequestMs: 10 * 60 * 1000,
-  upstreamFetchMs: 15 * 1000,
-  streamSessionTtlMs: 45 * 1000,
-  modelsCacheTtlMs: 5 * 60 * 1000,
-  supportedParamsCacheTtlMs: 5 * 60 * 1000,
-  ctxLimitCacheTtlMs: 5 * 60 * 1000,
-  pendingRequestTtlMs: 10 * 60 * 1000,
-  uiErrorToastMs: 4000,
-  uiQuietNoticeMs: 3500,
-  uiFlashMs: 900,
-  uiKeyboardScrollDelayMs: 120,
-  uiResumePendingTurnDelayMs: 500,
-  fieldWatchDebounceMs: 50,
+  ...DEFAULT_SETTINGS.timeouts,
 }
 
-const colorModeStore = writable<ColorMode>("dark")
+function cloneConnector(connector: LLMConnector): LLMConnector {
+  return {
+    ...connector,
+    api_keys: { ...connector.api_keys },
+    ...(connector.type === "openrouter" ? { model: connector.model } : {}),
+  } as LLMConnector
+}
+
+function cloneStoryModules(modules: StoryModules): StoryModules {
+  return { ...modules }
+}
+
+function cloneGeneration(params: AppSettings["generation"]): AppSettings["generation"] {
+  return {
+    ...params,
+    dry_sequence_breakers: params.dry_sequence_breakers.slice(),
+    sampler_order: params.sampler_order.slice(),
+    banned_tokens: params.banned_tokens.slice(),
+    logit_bias: { ...params.logit_bias },
+  }
+}
+
+const colorModeStore = writable<ColorMode>("system")
 const streamingEnabledStore = writable<boolean>(false)
 const sectionFormatStore = writable<SectionFormat>("markdown")
 const timeoutsStore = writable<TimeoutSettings>({ ...DEFAULT_TIMEOUTS })
 const authorNoteEnabledStore = writable<boolean>(true)
-const connectorStore = writable<LLMConnector>({ ...DEFAULT_CONNECTOR })
-const generationStore = writable<GenerationParams>({ ...DEFAULT_GENERATION })
+const connectorStore = writable<LLMConnector>(cloneConnector(DEFAULT_SETTINGS.connector))
+const generationStore = writable<AppSettings["generation"]>(cloneGeneration(DEFAULT_SETTINGS.generation))
 const ctxLimitDetectedStore = writable<number>(0)
 const defaultAuthorNoteStore = writable<string>(
   "Remember the instructions you were given at the beginning of this chat.",
@@ -114,25 +48,16 @@ const defaultAuthorNotePositionStore = writable<number>(1)
 const defaultAuthorNoteIntervalStore = writable<number>(1)
 const defaultAuthorNoteRoleStore = writable<number>(0)
 const defaultAuthorNoteEmbedStateStore = writable<boolean>(false)
-const storyDefaultsStore = writable<StoryModules>({ ...DEFAULT_STORY_MODULES })
+const storyDefaultsStore = writable<StoryModules>(cloneStoryModules(DEFAULT_SETTINGS.storyDefaults))
 
 let initialized = false
 let suppressSync = true
 let current: AppSettings = {
-  colorMode: "dark",
-  streamingEnabled: false,
-  sectionFormat: "markdown",
+  ...DEFAULT_SETTINGS,
   timeouts: { ...DEFAULT_TIMEOUTS },
-  authorNoteEnabled: true,
-  defaultAuthorNote: "Remember the instructions you were given at the beginning of this chat.",
-  defaultAuthorNoteDepth: 4,
-  defaultAuthorNotePosition: 1,
-  defaultAuthorNoteInterval: 1,
-  defaultAuthorNoteRole: 0,
-  defaultAuthorNoteEmbedState: false,
-  storyDefaults: { ...DEFAULT_STORY_MODULES },
-  connector: { ...DEFAULT_CONNECTOR },
-  generation: { ...DEFAULT_GENERATION },
+  storyDefaults: cloneStoryModules(DEFAULT_SETTINGS.storyDefaults),
+  connector: cloneConnector(DEFAULT_SETTINGS.connector),
+  generation: cloneGeneration(DEFAULT_SETTINGS.generation),
 }
 
 function applySettings(settings: AppSettings) {

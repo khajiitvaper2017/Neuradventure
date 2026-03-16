@@ -157,7 +157,7 @@
         {@const isFresh = userActed && i === $turns.length - 1 && !$isGenerating}
         <div
           class={cn(
-            "my-4 -mx-5 flex items-baseline gap-2 bg-accent/60 px-5 py-3 text-sm italic leading-relaxed text-accent-foreground/90 min-[1200px]:-mx-10 min-[1200px]:px-10",
+            "my-4 -mx-5 flex items-baseline gap-2 bg-accent/60 px-5 py-3 font-story text-sm italic leading-relaxed text-accent-foreground/90 min-[1200px]:-mx-10 min-[1200px]:px-10",
             isFresh && "animate-in fade-in slide-in-from-bottom-1 duration-200",
           )}
         >

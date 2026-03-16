@@ -14,14 +14,8 @@
     DropdownMenuSeparator,
     DropdownMenuTrigger,
   } from "@/components/ui/dropdown-menu"
-  import {
-    collapseCharSheet,
-    collapseLocationsPanel,
-    collapseNPCTracker,
-    showCharSheet,
-    showLocations,
-    showNPCTracker,
-  } from "@/stores/ui"
+  import { showCharSheet, showLocations, showNPCTracker } from "@/stores/router"
+  import { collapseCharSheet, collapseLocationsPanel, collapseNPCTracker } from "@/stores/ui"
   import { currentStoryId, currentStoryModules, currentStoryTitle, turns, worldState } from "@/stores/game"
 
   export let flashScene = false

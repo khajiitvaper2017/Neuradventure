@@ -1,30 +1,30 @@
 <script lang="ts">
-  import { navigate } from "@/stores/ui"
+  import { navigate } from "@/stores/router"
   import * as Tabs from "@/components/ui/tabs/index.js"
   import { Button } from "@/components/ui/button"
   import { ScrollArea } from "@/components/ui/scroll-area"
-  import AppearanceTab from "@/features/settings/tabs/AppearanceTab.svelte"
   import DataTab from "@/features/settings/tabs/DataTab.svelte"
   import GenerationTab from "@/features/settings/tabs/GenerationTab.svelte"
   import ModulesTab from "@/features/settings/tabs/ModulesTab.svelte"
   import PromptsTab from "@/features/settings/tabs/PromptsTab.svelte"
 
-  type SettingsTab = "appearance" | "data" | "generation" | "prompts" | "modules"
+  type SettingsTab = "data" | "generation" | "prompts" | "modules"
   const SETTINGS_TAB_KEY = "settings_active_tab"
   type GenerationSection = "connection" | "defaults" | "params" | "advanced"
   const GEN_SECTION_KEY = "settings_generation_section"
 
   function loadInitialTab(): SettingsTab {
-    if (typeof window === "undefined") return "appearance"
+    if (typeof window === "undefined") return "data"
     try {
       const stored = window.localStorage.getItem(SETTINGS_TAB_KEY)
+      if (stored === "appearance") return "data"
       if (stored === "data") return "data"
       if (stored === "generation") return "generation"
       if (stored === "prompts") return "prompts"
       if (stored === "modules") return "modules"
-      return "appearance"
+      return "data"
     } catch {
-      return "appearance"
+      return "data"
     }
   }
 
@@ -65,7 +65,6 @@
   })
 
   const tabs: Array<{ value: SettingsTab; label: string }> = [
-    { value: "appearance", label: "Appearance" },
     { value: "data", label: "Data" },
     { value: "generation", label: "LLM" },
     { value: "prompts", label: "Prompts" },
@@ -125,12 +124,6 @@
 
     <ScrollArea class="min-h-0 flex-1">
       <div class="px-4 py-4">
-        <Tabs.Content value="appearance">
-          <div class="space-y-4">
-            <AppearanceTab />
-          </div>
-        </Tabs.Content>
-
         <Tabs.Content value="data">
           <div class="space-y-4">
             <DataTab />

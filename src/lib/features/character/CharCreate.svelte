@@ -2,7 +2,8 @@
   import { get } from "svelte/store"
   import { onMount } from "svelte"
   import type { StoryModules } from "@/shared/types"
-  import { goBack, navigate, showError, showQuietNotice } from "@/stores/ui"
+  import { goBack, navigate } from "@/stores/router"
+  import { showError, showQuietNotice } from "@/stores/ui"
   import { cn } from "@/utils.js"
   import {
     pendingCharacter,
@@ -21,7 +22,7 @@
   import { createRequestId } from "@/utils/ids"
   import { clearPendingRequest, getPendingRequest, setPendingRequest } from "@/utils/pendingRequests"
   import PromptHistoryPanel from "@/components/panels/PromptHistoryPanel.svelte"
-  import { streamClient } from "@/services/stream"
+  import { subscribeStreamPreview } from "@/services/streamPreview"
   import StoryModulesPanel from "@/components/panels/StoryModulesPanel.svelte"
   import { Button } from "@/components/ui/button"
   import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -109,14 +110,7 @@
       payload: { prompt: trimmed, modules },
     })
     const unsub = $streamingEnabled
-      ? streamClient.subscribe(requestId, (msg) => {
-          const patch =
-            msg.type === "subscribed"
-              ? ((msg.snapshot ?? {}) as Record<string, unknown>)
-              : msg.type === "stream" && msg.event === "preview"
-                ? (msg.patch as Record<string, unknown>)
-                : null
-          if (!patch) return
+      ? subscribeStreamPreview(requestId, (patch) => {
           if (typeof patch.name === "string") name = patch.name
           if (typeof patch.race === "string") race = patch.race
           if (typeof patch.gender === "string") gender = normalizeGender(patch.gender)
@@ -444,14 +438,7 @@
     regeneratingAppearance = true
     const requestId = createRequestId()
     const unsub = $streamingEnabled
-      ? streamClient.subscribe(requestId, (msg) => {
-          const patch =
-            msg.type === "subscribed"
-              ? ((msg.snapshot ?? {}) as Record<string, unknown>)
-              : msg.type === "stream" && msg.event === "preview"
-                ? (msg.patch as Record<string, unknown>)
-                : null
-          if (!patch) return
+      ? subscribeStreamPreview(requestId, (patch) => {
           if (typeof patch.baseline_appearance === "string") baselineAppearance = patch.baseline_appearance
           if (typeof patch.current_appearance === "string") currentAppearance = patch.current_appearance
         })
@@ -499,14 +486,7 @@
     regeneratingClothing = true
     const requestId = createRequestId()
     const unsub = $streamingEnabled
-      ? streamClient.subscribe(requestId, (msg) => {
-          const patch =
-            msg.type === "subscribed"
-              ? ((msg.snapshot ?? {}) as Record<string, unknown>)
-              : msg.type === "stream" && msg.event === "preview"
-                ? (msg.patch as Record<string, unknown>)
-                : null
-          if (!patch) return
+      ? subscribeStreamPreview(requestId, (patch) => {
           if (typeof patch.current_clothing === "string") currentClothing = patch.current_clothing
         })
       : null

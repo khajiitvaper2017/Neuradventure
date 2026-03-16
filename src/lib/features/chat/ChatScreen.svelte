@@ -3,11 +3,12 @@
   import type { ChatMember, ChatMessage } from "@/shared/types"
   import { chats } from "@/services/chats"
   import { stories } from "@/services/stories"
-  import { streamClient } from "@/services/stream"
+  import { subscribeStreamPreview } from "@/services/streamPreview"
   import { normalizeChatInput } from "@/utils/inputNormalize"
   import { scrollToBottom } from "@/utils/scroll"
   import { isNearBottom } from "@/utils/scrollFollow"
-  import { showConfirm, showError, goBack } from "@/stores/ui"
+  import { goBack } from "@/stores/router"
+  import { showConfirm, showError } from "@/stores/ui"
   import { createRequestId } from "@/utils/ids"
   import { clearPendingRequest, getPendingRequest, setPendingRequest } from "@/utils/pendingRequests"
   import { cn } from "@/utils.js"
@@ -109,14 +110,7 @@
     stopChatStream()
     followStream = true
     if (!$streamingEnabled) return
-    streamUnsub = streamClient.subscribe(requestId, (msg) => {
-      if (msg.type === "subscribed" && msg.snapshot) {
-        const snap = msg.snapshot as Record<string, unknown>
-        if (typeof snap.content === "string") streamReply = snap.content
-        return
-      }
-      if (msg.type !== "stream" || msg.event !== "preview") return
-      const patch = msg.patch as Record<string, unknown>
+    streamUnsub = subscribeStreamPreview(requestId, (patch) => {
       if (typeof patch.content === "string") streamReply = patch.content
     })
   }

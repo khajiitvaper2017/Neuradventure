@@ -8,7 +8,7 @@
   import IconUser from "@/components/icons/IconUser.svelte"
   import IconUsers from "@/components/icons/IconUsers.svelte"
   import ConversationInput from "@/components/inputs/ConversationInput.svelte"
-  import { showCharSheet, showLocations, showNPCTracker } from "@/stores/ui"
+  import { showCharSheet, showLocations, showNPCTracker } from "@/stores/router"
   import { isGenerating, turns } from "@/stores/game"
   import { streamingEnabled } from "@/stores/settings"
   import { cn } from "@/utils.js"

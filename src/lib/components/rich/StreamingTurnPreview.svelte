@@ -28,9 +28,9 @@
 </script>
 
 {#if show}
-  <div class="stream-preview" aria-live="polite">
+  <div class="stream-preview font-story" aria-live="polite">
     {#if currentScene || timeOfDay}
-      <div class="stream-preview__scene">
+      <div class="stream-preview__scene mb-2 font-sans text-[11px] uppercase tracking-wider text-muted-foreground/80">
         {#if currentScene}{currentScene}{/if}{#if currentScene && timeOfDay}
           ·
         {/if}{#if timeOfDay}{timeOfDay}{/if}
@@ -40,10 +40,14 @@
     <BackgroundEventsReveal text={backgroundEvents} />
 
     {#if narrativeIsBlockHtml}
-      <div class="stream-preview__para"><RichText text={trimmedNarrative} mode="block" /></div>
+      <div class="stream-preview__para mb-4 whitespace-pre-line text-[15px] leading-7 text-foreground">
+        <RichText text={trimmedNarrative} mode="block" />
+      </div>
     {:else}
       {#each narrativeParas as para}
-        <p class="stream-preview__para"><RichText text={para} mode="inline" /></p>
+        <p class="stream-preview__para mb-4 whitespace-pre-line text-[15px] leading-7 text-foreground">
+          <RichText text={para} mode="inline" />
+        </p>
       {/each}
     {/if}
   </div>

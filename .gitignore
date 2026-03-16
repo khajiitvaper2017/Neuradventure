@@ -2,9 +2,11 @@ node_modules/
 .claude/
 .references_source_code/
 .svelte-kit/
+.vscode/
 build/
 
 package-lock.json
 .env
 *.local
 *.log
+.mcp.json

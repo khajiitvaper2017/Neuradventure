@@ -45,7 +45,7 @@
 
     {#if open}
       <div
-        class="absolute left-0 right-0 top-[calc(100%+0.4rem)] z-20 max-h-[min(42vh,340px)] overflow-auto rounded-md border bg-card p-3 shadow-md outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+        class="absolute left-0 right-0 top-[calc(100%+0.4rem)] z-20 max-h-[min(42vh,340px)] overflow-auto rounded-md border bg-card p-3 font-story shadow-md outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
         role="region"
         aria-label={title}
       >

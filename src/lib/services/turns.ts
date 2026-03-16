@@ -12,6 +12,7 @@ import {
   undoCancelLastTurn,
 } from "@/engine/game"
 import { createOrGetSession, publishComplete, publishError, publishPreview } from "@/engine/streaming/hub"
+import { isProbablyOfflineError } from "@/services/requests/offline"
 import type {
   CancelLastResult,
   CreateNpcResult,
@@ -25,11 +26,6 @@ import type { TurnSummary } from "@/shared/types"
 
 const inFlight = new Map<string, ReturnType<typeof processTurn>>()
 const npcInFlight = new Map<string, ReturnType<typeof createNpcFromTurnPrompt>>()
-
-function isProbablyOfflineError(err: unknown): boolean {
-  const msg = err instanceof Error ? err.message : String(err)
-  return msg.includes("Failed to fetch") || msg.includes("NetworkError") || msg.includes("fetch failed")
-}
 
 function asLlmAppError(err: unknown): AppError {
   const message = err instanceof Error ? err.message : String(err)

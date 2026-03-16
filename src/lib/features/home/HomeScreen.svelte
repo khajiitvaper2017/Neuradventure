@@ -4,7 +4,8 @@
   import { chats as chatsService } from "@/services/chats"
   import type { StoryMeta, ChatSummary } from "@/shared/types"
   import type { StoryCharacterGroup, CharacterImportResult } from "@/shared/api-types"
-  import { navigate, openCharSheetForCharacter, showError, showConfirm } from "@/stores/ui"
+  import { navigate, openCharSheetForCharacter } from "@/stores/router"
+  import { showError, showConfirm } from "@/stores/ui"
   import IconDots from "@/components/icons/IconDots.svelte"
   import IconDocument from "@/components/icons/IconDocument.svelte"
   import IconGear from "@/components/icons/IconGear.svelte"
@@ -42,6 +43,7 @@
   import { resetChat } from "@/stores/chat"
   import { loadStoryById } from "@/utils/storyLoader"
   import IconUser from "@/components/icons/IconUser.svelte"
+  import ThemeToggle from "@/components/controls/ThemeToggle.svelte"
   import { Book } from "@lucide/svelte"
 
   let stories: StoryMeta[] = []
@@ -103,22 +105,12 @@
     }
   }
 
-  async function openStory(story: StoryMeta) {
-    try {
-      await loadStoryById(story.id)
-      navigate("game", { reset: true, params: { storyId: story.id } })
-    } catch {
-      showError("Failed to load story")
-    }
+  function openStory(story: StoryMeta) {
+    navigate("game", { reset: true, params: { storyId: story.id } })
   }
 
-  async function openStoryById(id: number) {
-    try {
-      await loadStoryById(id)
-      navigate("game", { reset: true, params: { storyId: id } })
-    } catch {
-      showError("Failed to load story")
-    }
+  function openStoryById(id: number) {
+    navigate("game", { reset: true, params: { storyId: id } })
   }
 
   function openChat(chat: ChatSummary) {
@@ -349,6 +341,9 @@
   <header class="relative border-b px-4 py-6 text-center">
     <h1 class="text-sm font-semibold uppercase tracking-[0.28em] text-primary">Neuradventure</h1>
     <p class="mt-2 text-xs text-muted-foreground">Stories, chats, and characters — all offline on this device.</p>
+    <div class="absolute left-3 top-3">
+      <ThemeToggle />
+    </div>
     <Button
       variant="ghost"
       size="icon"

@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { showLocations } from "@/stores/ui"
+  import { showLocations } from "@/stores/router"
   import { worldState } from "@/stores/game"
   import type { Location } from "@/shared/types"
   import { cn } from "@/utils.js"

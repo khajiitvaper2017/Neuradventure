@@ -74,7 +74,7 @@ const DEFAULT_OPENROUTER_CONNECTOR: OpenRouterConnector = {
 }
 
 export const DEFAULT_SETTINGS: SettingsState = {
-  colorMode: "dark",
+  colorMode: "system",
   streamingEnabled: false,
   sectionFormat: "markdown",
   timeouts: {

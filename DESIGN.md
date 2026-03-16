@@ -10,8 +10,7 @@
 
 ## Color + Theming
 - Tokens follow shadcn-svelte defaults via CSS variables in `src/lib/styles/app.css`.
-- **Accent (brand) color:** `#c85c5c` (fixed).
-  - Drives `--primary` and `--ring` via CSS tokens.
+- The current theme uses shadcn-svelte’s neutral base tokens. (Brand accent customization is not wired into `--primary` / `--ring` yet.)
 - Dark mode is controlled by toggling the `dark` class on `document.documentElement`.
 
 ## Rules

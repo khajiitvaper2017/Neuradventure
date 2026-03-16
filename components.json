@@ -8,7 +8,7 @@
     "components": "@/components",
     "utils": "@/utils",
     "ui": "@/components/ui",
-    "hooks": "$lib/hooks",
+    "hooks": "@/hooks",
     "lib": "@"
   },
   "typescript": true,

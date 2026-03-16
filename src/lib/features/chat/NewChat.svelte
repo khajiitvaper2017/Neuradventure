@@ -3,8 +3,9 @@
   import type { StoryCharacterGroup, StoryNpcGroup } from "@/shared/api-types"
   import { stories as storiesService } from "@/services/stories"
   import { chats } from "@/services/chats"
-  import { streamClient } from "@/services/stream"
-  import { goBack, navigate, openCharSheetForCharacter, showError } from "@/stores/ui"
+  import { subscribeStreamPreview } from "@/services/streamPreview"
+  import { goBack, navigate, openCharSheetForCharacter } from "@/stores/router"
+  import { showError } from "@/stores/ui"
   import { resetChat } from "@/stores/chat"
   import { loadPromptHistory, savePromptHistory, removePromptHistory } from "@/utils/promptHistory"
   import { createRequestId } from "@/utils/ids"
@@ -244,14 +245,7 @@
     generating = true
     setPendingRequest({ kind: "generate.chat", requestId, createdAt: Date.now(), payload: { prompt: trimmed } })
     const unsub = $streamingEnabled
-      ? streamClient.subscribe(requestId, (msg) => {
-          const patch =
-            msg.type === "subscribed"
-              ? ((msg.snapshot ?? {}) as Record<string, unknown>)
-              : msg.type === "stream" && msg.event === "preview"
-                ? (msg.patch as Record<string, unknown>)
-                : null
-          if (!patch) return
+      ? subscribeStreamPreview(requestId, (patch) => {
           if (typeof patch.title === "string") {
             title = patch.title
             titleWasAutofilled = false

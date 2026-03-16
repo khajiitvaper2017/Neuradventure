@@ -3,6 +3,8 @@ import * as db from "@/engine/core/db"
 import { StoryModulesSchema } from "@/engine/schemas/story-modules"
 import { createOrGetSession, publishComplete, publishError, publishPreview } from "@/engine/streaming/hub"
 import { generateCharacter, generateCharacterPart, generateChat, generateStory } from "@/engine/llm"
+import { clearInFlight, getCachedOrInFlight, setInFlight } from "@/services/requests/cache"
+import { isProbablyOfflineError } from "@/services/requests/offline"
 import type {
   GenerateChatResponse,
   GenerateCharacterAppearanceResponse,
@@ -14,13 +16,6 @@ import type {
 } from "@/shared/api-types"
 import type { MainCharacterState, StoryModules } from "@/shared/types"
 
-const inFlight = new Map<string, Promise<unknown>>()
-
-function isProbablyOfflineError(err: unknown): boolean {
-  const msg = err instanceof Error ? err.message : String(err)
-  return msg.includes("Failed to fetch") || msg.includes("NetworkError") || msg.includes("fetch failed")
-}
-
 function asGenerateError(err: unknown): AppError {
   const message = err instanceof Error ? err.message : String(err)
   if (isProbablyOfflineError(err) || message.includes("ECONNREFUSED")) {
@@ -30,16 +25,6 @@ function asGenerateError(err: unknown): AppError {
     )
   }
   return new AppError(500, message || "Generation failed")
-}
-
-function getCachedOrInFlight<T>(requestId: string, kind: string): { cached?: T; inflight?: Promise<T> } {
-  const cached = db.getRequestResult(requestId)
-  if (cached) {
-    if (cached.kind !== kind) throw new AppError(409, `request_id already used for: ${cached.kind}`)
-    return { cached: JSON.parse(cached.response_json) as T }
-  }
-  const inflight = inFlight.get(requestId)
-  return inflight ? { inflight: inflight as Promise<T> } : {}
 }
 
 export const generate = {
@@ -66,14 +51,14 @@ export const generate = {
         onPreviewPatch:
           shouldStream && trimmedRequestId ? (patch) => publishPreview(trimmedRequestId, patch) : undefined,
       })
-      if (trimmedRequestId) inFlight.set(trimmedRequestId, task)
+      if (trimmedRequestId) setInFlight(trimmedRequestId, task)
       try {
         const result = await task
         if (trimmedRequestId) db.setRequestResult(trimmedRequestId, "generate.character", result)
         if (shouldStream && trimmedRequestId) publishComplete(trimmedRequestId)
         return result
       } finally {
-        if (trimmedRequestId) inFlight.delete(trimmedRequestId)
+        if (trimmedRequestId) clearInFlight(trimmedRequestId)
       }
     } catch (err) {
       if (trimmedRequestId && db.getSettings().streamingEnabled)
@@ -164,14 +149,14 @@ export const generate = {
         onPreviewPatch:
           shouldStream && trimmedRequestId ? (patch) => publishPreview(trimmedRequestId, patch) : undefined,
       })
-      if (trimmedRequestId) inFlight.set(trimmedRequestId, task)
+      if (trimmedRequestId) setInFlight(trimmedRequestId, task)
       try {
         const result = await task
         if (trimmedRequestId) db.setRequestResult(trimmedRequestId, "generate.character.part", result)
         if (shouldStream && trimmedRequestId) publishComplete(trimmedRequestId)
         return result
       } finally {
-        if (trimmedRequestId) inFlight.delete(trimmedRequestId)
+        if (trimmedRequestId) clearInFlight(trimmedRequestId)
       }
     } catch (err) {
       if (trimmedRequestId && db.getSettings().streamingEnabled)
@@ -204,14 +189,14 @@ export const generate = {
         onPreviewPatch:
           shouldStream && trimmedRequestId ? (patch) => publishPreview(trimmedRequestId, patch) : undefined,
       })
-      if (trimmedRequestId) inFlight.set(trimmedRequestId, task)
+      if (trimmedRequestId) setInFlight(trimmedRequestId, task)
       try {
         const result = await task
         if (trimmedRequestId) db.setRequestResult(trimmedRequestId, "generate.story", result)
         if (shouldStream && trimmedRequestId) publishComplete(trimmedRequestId)
         return result as unknown as GenerateStoryResponse
       } finally {
-        if (trimmedRequestId) inFlight.delete(trimmedRequestId)
+        if (trimmedRequestId) clearInFlight(trimmedRequestId)
       }
     } catch (err) {
       if (trimmedRequestId && db.getSettings().streamingEnabled)
@@ -238,14 +223,14 @@ export const generate = {
         onPreviewPatch:
           shouldStream && trimmedRequestId ? (patch) => publishPreview(trimmedRequestId, patch) : undefined,
       })
-      if (trimmedRequestId) inFlight.set(trimmedRequestId, task)
+      if (trimmedRequestId) setInFlight(trimmedRequestId, task)
       try {
         const result = await task
         if (trimmedRequestId) db.setRequestResult(trimmedRequestId, "generate.chat", result)
         if (shouldStream && trimmedRequestId) publishComplete(trimmedRequestId)
         return result
       } finally {
-        if (trimmedRequestId) inFlight.delete(trimmedRequestId)
+        if (trimmedRequestId) clearInFlight(trimmedRequestId)
       }
     } catch (err) {
       if (trimmedRequestId && db.getSettings().streamingEnabled)
