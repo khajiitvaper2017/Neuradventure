@@ -6,6 +6,7 @@
   import { Label } from "@/components/ui/label"
   import * as Select from "@/components/ui/select"
   import { Textarea } from "@/components/ui/textarea"
+  import { Braces } from "@lucide/svelte"
 
   type Props = {
     title: string
@@ -131,7 +132,10 @@
 
 <Card>
   <CardHeader>
-    <CardTitle>{title}</CardTitle>
+    <CardTitle class="flex items-center gap-2">
+      <Braces class="size-4 text-muted-foreground" aria-hidden="true" />
+      {title}
+    </CardTitle>
     <CardDescription>{description}</CardDescription>
   </CardHeader>
   <CardContent class="space-y-4">

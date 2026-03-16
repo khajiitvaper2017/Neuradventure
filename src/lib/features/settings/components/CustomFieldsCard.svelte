@@ -10,6 +10,7 @@
   import * as Select from "@/components/ui/select"
   import { Switch } from "@/components/ui/switch"
   import { Separator } from "@/components/ui/separator"
+  import { ListTree } from "@lucide/svelte"
 
   type Props = { active?: boolean }
   let { active = false }: Props = $props()
@@ -188,7 +189,10 @@
 
 <Card>
   <CardHeader>
-    <CardTitle>Custom Fields</CardTitle>
+    <CardTitle class="flex items-center gap-2">
+      <ListTree class="size-4 text-muted-foreground" aria-hidden="true" />
+      Custom Fields
+    </CardTitle>
     <CardDescription>Create user-defined fields for characters (player + NPCs) and world state.</CardDescription>
   </CardHeader>
   <CardContent class="space-y-5">

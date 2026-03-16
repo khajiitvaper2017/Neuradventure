@@ -3,6 +3,8 @@
   import { showConfirm, showError, showQuietNotice } from "@/stores/ui"
   import { pickFile } from "@/utils/filePick"
   import { Button } from "@/components/ui/button"
+  import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+  import { Database, Download, Upload } from "@lucide/svelte"
 
   async function exportBackup() {
     try {
@@ -35,20 +37,27 @@
   }
 </script>
 
-<div class="space-y-4">
-  <div class="text-xs font-medium uppercase tracking-wider text-muted-foreground">Data</div>
+<Card>
+  <CardHeader>
+    <CardTitle class="flex items-center gap-2">
+      <Database class="size-4 text-muted-foreground" aria-hidden="true" />
+      Backup
+    </CardTitle>
+    <CardDescription
+      >Export a backup file for this device, or restore one to overwrite your local library.</CardDescription
+    >
+  </CardHeader>
 
-  <div class="flex flex-col gap-3 rounded-lg border bg-card p-4">
-    <div class="space-y-1">
-      <div class="text-sm font-medium text-foreground">Backup</div>
-      <div class="text-xs text-muted-foreground">
-        Export a backup file for this device, or restore one to overwrite your local library.
-      </div>
-    </div>
-
+  <CardContent>
     <div class="grid gap-2 sm:grid-cols-2">
-      <Button variant="outline" class="w-full" onclick={exportBackup}>Export backup</Button>
-      <Button variant="destructive" class="w-full" onclick={restoreBackup}>Restore backup</Button>
+      <Button variant="outline" class="w-full justify-center gap-2" onclick={exportBackup}>
+        <Download class="size-4" aria-hidden="true" />
+        Export backup
+      </Button>
+      <Button variant="destructive" class="w-full justify-center gap-2" onclick={restoreBackup}>
+        <Upload class="size-4" aria-hidden="true" />
+        Restore backup
+      </Button>
     </div>
-  </div>
-</div>
+  </CardContent>
+</Card>

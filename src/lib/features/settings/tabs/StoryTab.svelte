@@ -11,6 +11,7 @@
   import PromptFormattingCard from "@/features/settings/components/PromptFormattingCard.svelte"
   import PromptTemplatesCard from "@/features/settings/components/PromptTemplatesCard.svelte"
   import { storyDefaults } from "@/stores/settings"
+  import { Braces, FileText, Puzzle } from "@lucide/svelte"
 
   type Props = { active?: boolean }
   let { active = false }: Props = $props()
@@ -207,14 +208,29 @@
 
 <div class="space-y-4">
   <Tabs.Root value={activeSubtab} onValueChange={(next) => (activeSubtab = next as StorySubtab)} class="gap-0">
-    <Tabs.List aria-label="Story settings sections" class="w-full justify-start overflow-x-auto overflow-y-hidden">
-      <Tabs.Trigger value="modules" class="min-w-max flex-1 px-3 text-xs font-medium uppercase tracking-wider">
+    <Tabs.List
+      aria-label="Story settings sections"
+      class="w-full justify-start overflow-x-auto overflow-y-hidden sm:justify-center sm:overflow-x-visible"
+    >
+      <Tabs.Trigger
+        value="modules"
+        class="min-w-max flex flex-1 items-center justify-center gap-2 px-3 text-xs font-medium uppercase tracking-wider sm:min-w-0"
+      >
+        <Puzzle class="size-4" aria-hidden="true" />
         Modules
       </Tabs.Trigger>
-      <Tabs.Trigger value="prompts" class="min-w-max flex-1 px-3 text-xs font-medium uppercase tracking-wider">
+      <Tabs.Trigger
+        value="prompts"
+        class="min-w-max flex flex-1 items-center justify-center gap-2 px-3 text-xs font-medium uppercase tracking-wider sm:min-w-0"
+      >
+        <FileText class="size-4" aria-hidden="true" />
         Prompts
       </Tabs.Trigger>
-      <Tabs.Trigger value="fields" class="min-w-max flex-1 px-3 text-xs font-medium uppercase tracking-wider">
+      <Tabs.Trigger
+        value="fields"
+        class="min-w-max flex flex-1 items-center justify-center gap-2 px-3 text-xs font-medium uppercase tracking-wider sm:min-w-0"
+      >
+        <Braces class="size-4" aria-hidden="true" />
         Fields
       </Tabs.Trigger>
     </Tabs.List>
@@ -223,7 +239,10 @@
       <div class="space-y-4">
         <Card>
           <CardHeader>
-            <CardTitle>Defaults</CardTitle>
+            <CardTitle class="flex items-center gap-2">
+              <Puzzle class="size-4 text-muted-foreground" aria-hidden="true" />
+              Defaults
+            </CardTitle>
             <CardDescription>Default story module settings for new stories.</CardDescription>
           </CardHeader>
           <CardContent>

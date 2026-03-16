@@ -15,6 +15,7 @@
   import { repetitionParams, samplingParams } from "@/features/settings/lib/generationParamDefs"
   import { getOpenRouterParamStatus } from "@/features/settings/lib/openrouterParams"
   import { buildModelSelectOptions, filterModelResults } from "@/features/settings/lib/openrouterModels"
+  import { TriangleAlert } from "@lucide/svelte"
 
   type Props = {
     active?: boolean
@@ -247,7 +248,7 @@
 {#if unsupportedParamLabels.length > 0}
   <div class="rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 text-sm" role="note">
     <div class="flex items-start gap-3">
-      <span class="mt-0.5 text-amber-600 dark:text-amber-400" aria-hidden="true">⚠</span>
+      <TriangleAlert class="mt-0.5 size-4 text-amber-600 dark:text-amber-400" aria-hidden="true" />
       <div>
         <div class="font-medium text-foreground">Unsupported parameters</div>
         <div class="mt-1 text-sm text-muted-foreground">

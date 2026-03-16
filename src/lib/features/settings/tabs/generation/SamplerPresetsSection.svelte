@@ -7,6 +7,7 @@
   import { coercePresetFromJson, filenameToPresetName } from "@/features/settings/lib/presetImport"
   import { Badge } from "@/components/ui/badge"
   import { Button } from "@/components/ui/button"
+  import { Trash, Upload } from "@lucide/svelte"
 
   type Props = {
     active?: boolean
@@ -83,10 +84,11 @@
   <Button
     variant="outline"
     size="sm"
-    class="h-8 rounded-full px-3"
+    class="h-8 rounded-full px-3 gap-2"
     onclick={openImportPreset}
     title="Import a JSON preset file"
   >
+    <Upload class="size-4" aria-hidden="true" />
     Import JSON
   </Button>
   {#each $presets as preset (preset.id ?? preset.name)}
@@ -109,7 +111,7 @@
           title="Delete custom preset"
           aria-label={`Delete preset ${preset.name}`}
         >
-          ×
+          <Trash class="size-4" aria-hidden="true" />
         </Button>
       {/if}
     </div>

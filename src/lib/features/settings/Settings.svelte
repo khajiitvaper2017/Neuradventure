@@ -7,6 +7,17 @@
   import GenerationTab from "@/features/settings/tabs/GenerationTab.svelte"
   import StoryTab from "@/features/settings/tabs/StoryTab.svelte"
   import ChatTab from "@/features/settings/tabs/ChatTab.svelte"
+  import {
+    ArrowLeft,
+    Book,
+    Database,
+    FileSliders,
+    MessageSquare,
+    Settings,
+    SlidersVertical,
+    Sparkles,
+    Wrench,
+  } from "@lucide/svelte"
 
   type SettingsTab = "data" | "generation" | "story" | "chat"
   const SETTINGS_TAB_KEY = "settings_active_tab"
@@ -46,24 +57,23 @@
 
   let generationSection: GenerationSection = $state(loadInitialSection())
 
-  $effect(() => {
+  function persistActiveTab(next: SettingsTab) {
     if (typeof window === "undefined") return
     try {
-      window.localStorage.setItem(SETTINGS_TAB_KEY, activeTab)
+      window.localStorage.setItem(SETTINGS_TAB_KEY, next)
     } catch {
       // Ignore storage failures (e.g., privacy mode).
     }
-  })
+  }
 
-  $effect(() => {
-    if (activeTab !== "generation") return
+  function persistGenerationSection(next: GenerationSection) {
     if (typeof window === "undefined") return
     try {
-      window.localStorage.setItem(GEN_SECTION_KEY, generationSection)
+      window.localStorage.setItem(GEN_SECTION_KEY, next)
     } catch {
-      // ignore
+      // Ignore storage failures (e.g., privacy mode).
     }
-  })
+  }
 
   const tabs: Array<{ value: SettingsTab; label: string }> = [
     { value: "data", label: "Data" },
@@ -82,11 +92,24 @@
 
 <div class="mx-auto flex h-dvh w-full max-w-3xl flex-col">
   <header class="flex items-center gap-3 border-b px-4 py-3">
-    <Button variant="ghost" class="-ml-2" onclick={() => navigate("home")}>← Back</Button>
-    <h2 class="text-base font-semibold text-foreground">Settings</h2>
+    <Button variant="ghost" class="-ml-2 gap-2" onclick={() => navigate("home")}>
+      <ArrowLeft class="size-4" aria-hidden="true" />
+      Back
+    </Button>
+    <h2 class="flex items-center gap-2 text-base font-semibold text-foreground">
+      <Settings class="size-4 text-muted-foreground" aria-hidden="true" />
+      Settings
+    </h2>
   </header>
 
-  <Tabs.Root value={activeTab} onValueChange={(next) => (activeTab = next as SettingsTab)} class="min-h-0 flex-1 gap-0">
+  <Tabs.Root
+    value={activeTab}
+    onValueChange={(next) => {
+      activeTab = next as SettingsTab
+      persistActiveTab(activeTab)
+    }}
+    class="min-h-0 flex-1 gap-0"
+  >
     <div class="border-b px-4 py-3">
       <Tabs.List
         aria-label="Settings tabs"
@@ -95,8 +118,17 @@
         {#each tabs as t (t.value)}
           <Tabs.Trigger
             value={t.value}
-            class="min-w-max flex-1 px-3 text-xs font-medium uppercase tracking-wider sm:min-w-0 sm:px-2"
+            class="min-w-max flex flex-1 items-center justify-center gap-2 px-3 text-xs font-medium uppercase tracking-wider sm:min-w-0 sm:px-2"
           >
+            {#if t.value === "data"}
+              <Database class="size-4" aria-hidden="true" />
+            {:else if t.value === "generation"}
+              <Sparkles class="size-4" aria-hidden="true" />
+            {:else if t.value === "story"}
+              <Book class="size-4" aria-hidden="true" />
+            {:else}
+              <MessageSquare class="size-4" aria-hidden="true" />
+            {/if}
             {t.label}
           </Tabs.Trigger>
         {/each}
@@ -105,7 +137,13 @@
 
     {#if activeTab === "generation"}
       <div class="border-b px-4 py-3">
-        <Tabs.Root value={generationSection} onValueChange={(next) => (generationSection = next as GenerationSection)}>
+        <Tabs.Root
+          value={generationSection}
+          onValueChange={(next) => {
+            generationSection = next as GenerationSection
+            persistGenerationSection(generationSection)
+          }}
+        >
           <Tabs.List
             aria-label="Text generation sections"
             class="w-full justify-start overflow-x-auto overflow-y-hidden sm:justify-center sm:overflow-x-visible"
@@ -113,8 +151,17 @@
             {#each generationSectionTabs as t (t.value)}
               <Tabs.Trigger
                 value={t.value}
-                class="min-w-max flex-1 px-3 text-xs font-medium uppercase tracking-wider sm:min-w-0 sm:px-2"
+                class="min-w-max flex flex-1 items-center justify-center gap-2 px-3 text-xs font-medium uppercase tracking-wider sm:min-w-0 sm:px-2"
               >
+                {#if t.value === "connection"}
+                  <Wrench class="size-4" aria-hidden="true" />
+                {:else if t.value === "defaults"}
+                  <Book class="size-4" aria-hidden="true" />
+                {:else if t.value === "params"}
+                  <SlidersVertical class="size-4" aria-hidden="true" />
+                {:else}
+                  <FileSliders class="size-4" aria-hidden="true" />
+                {/if}
                 {t.label}
               </Tabs.Trigger>
             {/each}

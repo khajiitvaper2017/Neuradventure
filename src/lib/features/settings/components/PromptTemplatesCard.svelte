@@ -7,6 +7,7 @@
   import { Label } from "@/components/ui/label"
   import * as Tabs from "@/components/ui/tabs/index.js"
   import { Textarea } from "@/components/ui/textarea"
+  import { FileText } from "@lucide/svelte"
 
   type Props = {
     allowedNames: PromptTemplateFile["name"][]
@@ -156,7 +157,10 @@
 
 <Card>
   <CardHeader>
-    <CardTitle>{title}</CardTitle>
+    <CardTitle class="flex items-center gap-2">
+      <FileText class="size-4 text-muted-foreground" aria-hidden="true" />
+      {title}
+    </CardTitle>
     <CardDescription>{description}</CardDescription>
   </CardHeader>
   <CardContent class="space-y-4">

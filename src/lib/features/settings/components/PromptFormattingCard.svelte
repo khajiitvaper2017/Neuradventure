@@ -3,6 +3,7 @@
   import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
   import { Label } from "@/components/ui/label"
   import { sectionFormat } from "@/stores/settings"
+  import { CodeXml } from "@lucide/svelte"
 
   const SECTION_FORMAT_OPTIONS: Array<{ value: string; label: string }> = [
     { value: "markdown", label: "Markdown — ## Section" },
@@ -16,7 +17,10 @@
 
 <Card>
   <CardHeader>
-    <CardTitle>Prompt Formatting</CardTitle>
+    <CardTitle class="flex items-center gap-2">
+      <CodeXml class="size-4 text-muted-foreground" aria-hidden="true" />
+      Prompt Formatting
+    </CardTitle>
     <CardDescription>
       Controls how context sections are wrapped in prompts sent to the model. This does not change the required JSON
       output format.

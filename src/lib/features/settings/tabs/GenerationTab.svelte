@@ -6,6 +6,7 @@
   import ParamsBasicSection from "@/features/settings/tabs/generation/ParamsBasicSection.svelte"
   import ParamsAdvancedSection from "@/features/settings/tabs/generation/ParamsAdvancedSection.svelte"
   import TimeoutsSection from "@/features/settings/tabs/generation/TimeoutsSection.svelte"
+  import { Separator } from "@/components/ui/separator"
   import { isChatGenerating } from "@/stores/chat"
   import { isGenerating } from "@/stores/game"
 
@@ -27,13 +28,12 @@
   <ConnectionSection {active} bind:modelSearchResults />
 {:else if section === "defaults"}
   <StoryDefaultsSection />
-  <div class="settings-bottom-pad"></div>
 {:else if section === "advanced"}
   <TimeoutsSection disabled={generationLockActive} />
-  <div class="divider"></div>
+  <Separator class="my-4" />
   <ParamsAdvancedSection {modelSearchResults} />
 {:else}
   <SamplerPresetsSection {active} />
-  <div class="divider"></div>
+  <Separator class="my-4" />
   <ParamsBasicSection {modelSearchResults} />
 {/if}
