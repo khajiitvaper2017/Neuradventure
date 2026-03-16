@@ -150,7 +150,6 @@ function buildContextBlock(opts: ContextBlockOpts): string {
     flags.useCharMajorFlaws
       ? formatTemplate(labels.majorFlaws, { value: character.major_flaws.join(", ") || none })
       : null,
-    flags.useCharQuirks ? formatTemplate(labels.quirks, { value: character.quirks.join(", ") || none }) : null,
     flags.useCharPerks ? formatTemplate(labels.perks, { value: character.perks.join(", ") || none }) : null,
     ...(playerBaseCustom.length > 0 ? playerBaseCustom : []),
   ]

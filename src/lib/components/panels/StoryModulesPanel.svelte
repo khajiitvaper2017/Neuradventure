@@ -37,7 +37,6 @@
     },
     { key: "character_personality_traits", title: "Player personality traits" },
     { key: "character_major_flaws", title: "Player major flaws" },
-    { key: "character_quirks", title: "Player quirks" },
     { key: "character_perks", title: "Player perks" },
     { key: "character_inventory", title: "Player inventory" },
   ]
@@ -46,7 +45,6 @@
     { key: "npc_appearance_clothing", title: "NPC appearance + clothing", gatedByTrackNpcs: true },
     { key: "npc_personality_traits", title: "NPC personality traits", gatedByTrackNpcs: true },
     { key: "npc_major_flaws", title: "NPC major flaws", gatedByTrackNpcs: true },
-    { key: "npc_quirks", title: "NPC quirks", gatedByTrackNpcs: true },
     { key: "npc_perks", title: "NPC perks", gatedByTrackNpcs: true },
     { key: "npc_location", title: "NPC location", gatedByTrackNpcs: true },
     { key: "npc_activity", title: "NPC activity", gatedByTrackNpcs: true },

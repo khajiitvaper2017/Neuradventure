@@ -69,9 +69,6 @@ function resolvePrompt(prompt: ModularPrompt | undefined, modules?: StoryModules
   if (blocks?.character_major_flaws) {
     pushLines(active.character_major_flaws ? blocks.character_major_flaws.on : blocks.character_major_flaws.off)
   }
-  if (blocks?.character_quirks) {
-    pushLines(active.character_quirks ? blocks.character_quirks.on : blocks.character_quirks.off)
-  }
   if (blocks?.character_perks) {
     pushLines(active.character_perks ? blocks.character_perks.on : blocks.character_perks.off)
   }
@@ -86,9 +83,6 @@ function resolvePrompt(prompt: ModularPrompt | undefined, modules?: StoryModules
   }
   if (blocks?.npc_major_flaws) {
     pushLines(active.npc_major_flaws ? blocks.npc_major_flaws.on : blocks.npc_major_flaws.off)
-  }
-  if (blocks?.npc_quirks) {
-    pushLines(active.npc_quirks ? blocks.npc_quirks.on : blocks.npc_quirks.off)
   }
   if (blocks?.npc_perks) {
     pushLines(active.npc_perks ? blocks.npc_perks.on : blocks.npc_perks.off)

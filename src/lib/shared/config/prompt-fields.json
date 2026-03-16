@@ -50,20 +50,17 @@
   "story_modules.character_major_flaws": "Whether to include player major flaws.",
   "story_modules.character_perks": "Whether to include player perks.",
   "story_modules.character_personality_traits": "Whether to include player personality traits.",
-  "story_modules.character_quirks": "Whether to include player quirks.",
   "story_modules.npc_activity": "Whether to include NPC current_activity.",
   "story_modules.npc_appearance_clothing": "Whether to include NPC appearance and clothing fields.",
   "story_modules.npc_location": "Whether to include NPC current_location.",
   "story_modules.npc_major_flaws": "Whether to include NPC major flaws.",
   "story_modules.npc_perks": "Whether to include NPC perks.",
   "story_modules.npc_personality_traits": "Whether to include NPC personality traits.",
-  "story_modules.npc_quirks": "Whether to include NPC quirks.",
   "story_modules.track_background_events": "Whether to generate optional hidden background events per turn.",
   "story_modules.track_locations": "Whether to track locations list and presence.",
   "story_modules.track_npcs": "Whether to track NPC state and updates.",
   "traits.entry": "Trait entry string: 1–8 words; no full sentences.",
   "traits.major_flaws": "List of major flaws describing significant, enduring weaknesses or liabilities. Each entry is a significant, enduring weakness or liability of 1-8 words.",
   "traits.perks": "List of perks describing practical advantages, talents, or resources. Each entry is a concrete advantage, talent, or resource of 1-8 words.",
-  "traits.personality_traits": "List of personality traits describing stable temperament and behavior. Each entry is a concise temperament or behavior descriptor of 1-8 words.",
-  "traits.quirks": "List of quirks describing small, idiosyncratic habits or mannerisms. Each entry is a small, specific habit or mannerism of 1-8 words."
+  "traits.personality_traits": "List of personality traits describing stable temperament and behavior. Each entry is a concise temperament or behavior descriptor of 1-8 words."
 }

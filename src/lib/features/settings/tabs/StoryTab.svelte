@@ -78,10 +78,6 @@
       title: "Player major flaws",
       keys: ["traits.entry", "traits.major_flaws"],
     },
-    character_quirks: {
-      title: "Player quirks",
-      keys: ["traits.entry", "traits.quirks"],
-    },
     character_perks: {
       title: "Player perks",
       keys: ["traits.entry", "traits.perks"],
@@ -113,11 +109,6 @@
       title: "NPC major flaws",
       sharedNote: "Shared prompts (same trait guidance used for player + NPCs).",
       keys: ["traits.entry", "traits.major_flaws"],
-    },
-    npc_quirks: {
-      title: "NPC quirks",
-      sharedNote: "Shared prompts (same trait guidance used for player + NPCs).",
-      keys: ["traits.entry", "traits.quirks"],
     },
     npc_perks: {
       title: "NPC perks",

@@ -104,7 +104,6 @@ function overrideKeyForProperty(propName: string, currentPrefix: string, schemaN
   ) {
     if (propName === "personality_traits") return "traits.personality_traits"
     if (propName === "major_flaws") return "traits.major_flaws"
-    if (propName === "quirks") return "traits.quirks"
     if (propName === "perks") return "traits.perks"
   }
 

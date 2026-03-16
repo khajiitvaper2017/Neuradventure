@@ -489,11 +489,8 @@
                 <div class="mt-2 text-lg font-semibold text-foreground">{selectedPlayerOption.name}</div>
                 <div class="mt-1 text-sm text-muted-foreground">
                   {selectedPlayerOption.state.gender || "Unknown"} ·
-                  {[
-                    ...selectedPlayerOption.state.personality_traits,
-                    ...selectedPlayerOption.state.quirks,
-                    ...selectedPlayerOption.state.perks,
-                  ].join(", ") || "No traits"}
+                  {[...selectedPlayerOption.state.personality_traits, ...selectedPlayerOption.state.perks].join(", ") ||
+                    "No traits"}
                 </div>
               </div>
             {:else}
@@ -577,9 +574,7 @@
                         {member.state.race || "Unknown"} · {member.state.gender || "Unknown"}
                       </div>
                       <div class="mt-1 text-xs text-muted-foreground">
-                        {[...member.state.personality_traits, ...member.state.quirks, ...member.state.perks].join(
-                          ", ",
-                        ) || "No traits"}
+                        {[...member.state.personality_traits, ...member.state.perks].join(", ") || "No traits"}
                       </div>
                     </div>
                   {/each}

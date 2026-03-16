@@ -77,7 +77,6 @@ export const NPCCreationSchema = buildNpcCreationSchema({
   useNpcAppearance: true,
   useNpcPersonalityTraits: true,
   useNpcMajorFlaws: true,
-  useNpcQuirks: true,
   useNpcPerks: true,
   useNpcLocation: true,
   useNpcActivity: true,

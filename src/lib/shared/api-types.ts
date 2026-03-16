@@ -100,7 +100,6 @@ export interface GenerateCharacterResponse {
   current_clothing?: string
   personality_traits?: string[]
   major_flaws?: string[]
-  quirks?: string[]
   perks?: string[]
 }
 
@@ -116,7 +115,6 @@ export interface GenerateCharacterClothingResponse {
 export interface GenerateCharacterTraitsResponse {
   personality_traits: string[]
   major_flaws: string[]
-  quirks: string[]
   perks: string[]
 }
 

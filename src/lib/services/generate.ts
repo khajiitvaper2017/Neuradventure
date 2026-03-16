@@ -123,10 +123,7 @@ export const generate = {
     }
     if (
       part === "traits" &&
-      (!safeModules.character_personality_traits ||
-        !safeModules.character_major_flaws ||
-        !safeModules.character_quirks ||
-        !safeModules.character_perks)
+      (!safeModules.character_personality_traits || !safeModules.character_major_flaws || !safeModules.character_perks)
     ) {
       throw new AppError(400, "Character trait generation is disabled by story modules.")
     }

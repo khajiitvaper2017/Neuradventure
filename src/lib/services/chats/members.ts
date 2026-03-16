@@ -30,7 +30,6 @@ function defaultMemberState(memberKind: db.ChatMemberRow["member_kind"]): db.Cha
     current_clothing: "",
     personality_traits: [],
     major_flaws: [],
-    quirks: [],
     perks: [],
     custom_fields: {},
   }

@@ -269,7 +269,6 @@ export function tavernCardToCharacter(card: TavernCardV2): TavernImportResult {
       current_clothing: "",
       personality_traits: traits,
       major_flaws: [],
-      quirks: [],
       perks: [],
       custom_fields: {},
     },

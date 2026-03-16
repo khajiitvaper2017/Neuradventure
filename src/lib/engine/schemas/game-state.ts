@@ -63,11 +63,9 @@ const LocationsSchema = z
 const defaults = getServerDefaults()
 
 const MajorFlawSchema = z.string().min(1)
-const QuirkSchema = z.string().min(1)
 const PerkSchema = z.string().min(1)
 
 export const MajorFlawsSchema = z.array(MajorFlawSchema)
-export const QuirksSchema = z.array(QuirkSchema)
 export const PerksSchema = z.array(PerkSchema)
 
 const PersonalityTraitsOptionalSchema = z.array(PersonalityTraitSchema)
@@ -93,7 +91,6 @@ const CharacterStateBaseSchema = z
     current_clothing: z.string().min(1).optional().default(defaults.unknown.clothing),
     personality_traits: PersonalityTraitsOptionalSchema.optional().default([]),
     major_flaws: MajorFlawsSchema.optional().default([]),
-    quirks: QuirksSchema.optional().default([]),
     perks: PerksSchema.optional().default([]),
     inventory: z.array(InventoryItemSchema).optional().default([]),
     custom_fields: CustomFieldsSchema,
@@ -134,7 +131,6 @@ const CharacterStateStoredBaseSchema = z
     current_clothing: z.string().optional(),
     personality_traits: z.unknown().optional(),
     major_flaws: z.unknown().optional(),
-    quirks: z.unknown().optional(),
     perks: z.unknown().optional(),
     current_activity: z.string().optional(),
     inventory: z.unknown().optional(),
@@ -162,7 +158,6 @@ const normalizeCharacterStoredBase = (value: z.input<typeof CharacterStateStored
   current_clothing: normalizeNonEmptyString(value.current_clothing, getServerDefaults().unknown.clothing),
   personality_traits: normalizePersonalityTraits(value.personality_traits),
   major_flaws: normalizeTraitList(value.major_flaws),
-  quirks: normalizeTraitList(value.quirks),
   perks: normalizeTraitList(value.perks),
   inventory: normalizeInventoryItems(value.inventory),
   custom_fields: normalizeCustomFields(value.custom_fields),

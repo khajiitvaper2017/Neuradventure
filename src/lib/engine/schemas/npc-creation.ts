@@ -5,17 +5,14 @@ export type NpcCreationFlags = {
   useNpcAppearance: boolean
   useNpcPersonalityTraits: boolean
   useNpcMajorFlaws: boolean
-  useNpcQuirks: boolean
   useNpcPerks: boolean
   useNpcLocation: boolean
   useNpcActivity: boolean
 }
 
 const MajorFlawSchema = z.string().min(1)
-const QuirkSchema = z.string().min(1)
 const PerkSchema = z.string().min(1)
 const MajorFlawsSchema = z.array(MajorFlawSchema)
-const QuirksSchema = z.array(QuirkSchema)
 const PerksSchema = z.array(PerkSchema)
 
 export function buildNpcCreationSchema(flags: NpcCreationFlags, characterCustomFieldsSchema?: z.ZodTypeAny) {
@@ -26,7 +23,6 @@ export function buildNpcCreationSchema(flags: NpcCreationFlags, characterCustomF
     general_description: z.string().min(1),
     ...(flags.useNpcPersonalityTraits ? { personality_traits: PersonalityTraitsSchema } : {}),
     ...(flags.useNpcMajorFlaws ? { major_flaws: MajorFlawsSchema } : {}),
-    ...(flags.useNpcQuirks ? { quirks: QuirksSchema } : {}),
     ...(flags.useNpcPerks ? { perks: PerksSchema } : {}),
     ...(flags.useNpcLocation ? { current_location: z.string().min(1) } : {}),
     ...(flags.useNpcActivity ? { current_activity: z.string().min(1) } : {}),

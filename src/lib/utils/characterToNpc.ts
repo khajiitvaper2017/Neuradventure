@@ -13,7 +13,6 @@ export function characterToNpc(character: StoryCharacterGroup["character"]): NPC
     current_clothing: character.current_clothing,
     personality_traits: [...character.personality_traits],
     major_flaws: [...character.major_flaws],
-    quirks: [...character.quirks],
     perks: [...character.perks],
     inventory: [],
     current_activity: "",

@@ -58,15 +58,14 @@ svelte.config.js        # adapter-static, aliases, Service Worker settings
 ## Code Standards
 
 - Use the newest stable APIs and patterns. Rewrite modules from scratch when it materially improves simplicity.
-- Remove legacy code entirely. Use legacy shims only when they significantly reduce import clutter.
-- Do not leave deprecated code in place.
-- If asked to remove something, remove it completely in simplest way.
+- **Never write legacy or deprecated code.** Never leave it in place. No exceptions — not for compatibility, not for "shims", not for convenience.
+- If asked to remove something, remove it completely in the simplest way.
 
 ---
 
 ## UI & Styling
 
-- **Primitives** — use shadcn-style components (`src/lib/components/ui/**`, Tailwind + Bits UI). Do not reintroduce legacy widgets.
+- **Primitives** — use shadcn-style components (`src/lib/components/ui/**`, Tailwind + Bits UI). Never write or reintroduce legacy widgets under any circumstances.
 - **Raw HTML elements** — never use `<button>`, `<label>`, `<select>`, `<textarea>` etc. outside `ui/**`. Use their capitalized equivalents (`Button`, `Label`, etc.).
 - **Design tokens** — accent color defaults to `#c85c5c` (user-configurable), drives `--primary` and `--ring`. Use `font-story` (Cinzel) for story logs and narrative text. See `DESIGN.md` for full rules.
 - **Component files** — extract new UI components into separate files; keep files under ~1000 lines.

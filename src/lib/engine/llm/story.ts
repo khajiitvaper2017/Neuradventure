@@ -17,7 +17,6 @@ export async function generateStory(
     current_clothing?: string
     personality_traits?: string[]
     major_flaws?: string[]
-    quirks?: string[]
     perks?: string[]
   },
   storyModules?: StoryModules,
@@ -32,7 +31,6 @@ export async function generateStory(
   const noneTitle = defaults.format.noneTitle
   const traits = [
     ...(flags.useCharPersonalityTraits ? (character.personality_traits ?? []) : []),
-    ...(flags.useCharQuirks ? (character.quirks ?? []) : []),
     ...(flags.useCharPerks ? (character.perks ?? []) : []),
   ]
     .map((t) => t.trim())
@@ -71,7 +69,7 @@ export async function generateStory(
                 }),
               ]
             : []),
-          ...(flags.useCharPersonalityTraits || flags.useCharQuirks || flags.useCharPerks
+          ...(flags.useCharPersonalityTraits || flags.useCharPerks
             ? [
                 formatTemplate(llmStrings.characterContextLabels.traits, {
                   value: traits.length > 0 ? traits.join(", ") : unknown,

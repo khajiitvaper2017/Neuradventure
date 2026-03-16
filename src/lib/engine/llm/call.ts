@@ -57,7 +57,6 @@ export async function generateNpcCreation(
       useNpcAppearance: flags.useNpcAppearance,
       useNpcPersonalityTraits: flags.useNpcPersonalityTraits,
       useNpcMajorFlaws: flags.useNpcMajorFlaws,
-      useNpcQuirks: flags.useNpcQuirks,
       useNpcPerks: flags.useNpcPerks,
       useNpcLocation: flags.useNpcLocation,
       useNpcActivity: flags.useNpcActivity,

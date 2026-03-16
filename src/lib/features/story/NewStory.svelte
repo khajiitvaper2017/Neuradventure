@@ -128,7 +128,6 @@
     "character_appearance_clothing",
     "character_personality_traits",
     "character_major_flaws",
-    "character_quirks",
     "character_perks",
     "character_inventory",
   ]
@@ -136,7 +135,6 @@
     "npc_appearance_clothing",
     "npc_personality_traits",
     "npc_major_flaws",
-    "npc_quirks",
     "npc_perks",
     "npc_location",
     "npc_activity",
@@ -519,7 +517,7 @@
                   <div class="text-sm font-medium text-foreground">{npc.name}</div>
                   <div class="mt-1 text-xs text-muted-foreground">{npc.race} · {npc.current_location || "Unknown"}</div>
                   <div class="mt-1 text-xs text-muted-foreground">
-                    {[...npc.personality_traits, ...npc.quirks, ...npc.perks].join(", ") || "No traits"}
+                    {[...npc.personality_traits, ...npc.perks].join(", ") || "No traits"}
                   </div>
                 </div>
               {/each}
@@ -595,9 +593,7 @@
                 <div class="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Selected</div>
                 <div class="mt-2 text-lg font-semibold text-foreground">{charData.name}</div>
                 <div class="mt-1 text-sm text-muted-foreground">
-                  {charData.gender} · {[...charData.personality_traits, ...charData.quirks, ...charData.perks].join(
-                    ", ",
-                  ) || "No traits"}
+                  {charData.gender} · {[...charData.personality_traits, ...charData.perks].join(", ") || "No traits"}
                 </div>
                 <Button
                   variant="outline"

@@ -217,7 +217,6 @@
         customPersonalityTraits = split.custom
       }
       if (majorFlawsEnabled && result.major_flaws) majorFlaws = result.major_flaws
-      if (quirksEnabled && result.quirks) quirks = result.quirks
       if (perksEnabled && result.perks) perks = result.perks
     } catch (err) {
       showError(err instanceof Error ? err.message : "Generation failed")
@@ -263,7 +262,7 @@
     try {
       const prompt = [
         "Use the following SillyTavern character card data to infer missing fields.",
-        "Focus on race, gender, baseline appearance, clothing, personality traits, quirks, and perks.",
+        "Focus on race, gender, baseline appearance, clothing, personality traits, and perks.",
         seed,
       ].join("\n")
       const result = await generateCharacterFromDescription(prompt, activeModules)
@@ -299,7 +298,6 @@
         }
       }
 
-      if (quirksEnabled && quirks.length === 0 && result.quirks) quirks = result.quirks
       if (majorFlawsEnabled && majorFlaws.length === 0 && result.major_flaws) majorFlaws = result.major_flaws
       if (perksEnabled && perks.length === 0 && result.perks) perks = result.perks
     } catch (err) {
@@ -326,17 +324,14 @@
   let customPersonalityTraits = $state<string[]>(initialPersonality.custom)
   let majorFlawInput = $state("")
   let majorFlaws = $state<string[]>(existing?.major_flaws ?? [])
-  let quirkInput = $state("")
   let perkInput = $state("")
-  let quirks = $state<string[]>(existing?.quirks ?? [])
   let perks = $state<string[]>(existing?.perks ?? [])
   const totalPersonalityCount = $derived(selectedTraits.length + customPersonalityTraits.length)
   const activeModules: StoryModules = $derived($pendingStoryModules ?? $storyDefaults)
   const traitsEnabled = $derived(activeModules.character_personality_traits)
   const majorFlawsEnabled = $derived(activeModules.character_major_flaws)
-  const quirksEnabled = $derived(activeModules.character_quirks)
   const perksEnabled = $derived(activeModules.character_perks)
-  const canRegenerateTraits = $derived(traitsEnabled && majorFlawsEnabled && quirksEnabled && perksEnabled)
+  const canRegenerateTraits = $derived(traitsEnabled && majorFlawsEnabled && perksEnabled)
 
   let hoveredTrait = $state<string | null>(null)
 
@@ -383,7 +378,6 @@
     "character_appearance_clothing",
     "character_personality_traits",
     "character_major_flaws",
-    "character_quirks",
     "character_perks",
     "character_inventory",
   ]
@@ -391,7 +385,6 @@
     "npc_appearance_clothing",
     "npc_personality_traits",
     "npc_major_flaws",
-    "npc_quirks",
     "npc_perks",
     "npc_location",
     "npc_activity",
@@ -445,24 +438,12 @@
     customPersonalityTraits = customPersonalityTraits.filter((x) => x !== t)
   }
 
-  function addQuirk() {
-    const t = quirkInput.trim()
-    if (t && !quirks.includes(t)) {
-      quirks = [...quirks, t]
-    }
-    quirkInput = ""
-  }
-
   function addMajorFlaw() {
     const t = majorFlawInput.trim()
     if (t && !majorFlaws.includes(t)) {
       majorFlaws = [...majorFlaws, t]
     }
     majorFlawInput = ""
-  }
-
-  function removeQuirk(t: string) {
-    quirks = quirks.filter((x) => x !== t)
   }
 
   function removeMajorFlaw(t: string) {
@@ -526,7 +507,6 @@
       current_clothing: clothing,
       personality_traits: uniquePersonality([...selectedTraits, ...customPersonalityTraits]),
       major_flaws: majorFlaws,
-      quirks,
       perks,
       custom_fields: existing?.custom_fields ?? {},
     }
@@ -575,7 +555,6 @@
       selectedTraits = split.selected
       customPersonalityTraits = split.custom
       majorFlaws = result.major_flaws
-      quirks = result.quirks
       perks = result.perks
     } catch (err) {
       showError(err instanceof Error ? err.message : "Regeneration failed")
@@ -972,47 +951,6 @@
                       size="sm"
                       class="h-8 rounded-full px-3 text-xs"
                       onclick={() => removeMajorFlaw(t)}
-                    >
-                      {t} <span class="text-foreground/60">×</span>
-                    </Button>
-                  {/each}
-                </div>
-              {/if}
-            </CardContent>
-          </Card>
-        {/if}
-
-        {#if quirksEnabled}
-          <Card>
-            <CardHeader class="space-y-1">
-              <CardTitle class="text-base">Quirks</CardTitle>
-              <CardDescription>Optional.</CardDescription>
-            </CardHeader>
-            <CardContent class="space-y-3">
-              <div class="flex flex-col gap-2 sm:flex-row">
-                <Input
-                  id="quirk-input"
-                  type="text"
-                  bind:value={quirkInput}
-                  placeholder="e.g. counts exits on entry"
-                  onkeydown={(e) => {
-                    if (e.key === "Enter") {
-                      e.preventDefault()
-                      addQuirk()
-                    }
-                  }}
-                />
-                <Button variant="outline" onclick={addQuirk} disabled={!quirkInput.trim()}>+ Add</Button>
-              </div>
-              {#if quirks.length > 0}
-                <div class="flex flex-wrap gap-2">
-                  {#each quirks as t (t)}
-                    <Button
-                      type="button"
-                      variant="secondary"
-                      size="sm"
-                      class="h-8 rounded-full px-3 text-xs"
-                      onclick={() => removeQuirk(t)}
                     >
                       {t} <span class="text-foreground/60">×</span>
                     </Button>

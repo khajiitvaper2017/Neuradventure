@@ -81,10 +81,9 @@
   const useAppearance = $derived($currentStoryModules?.character_appearance_clothing ?? true)
   const usePersonalityTraits = $derived($currentStoryModules?.character_personality_traits ?? true)
   const useMajorFlaws = $derived($currentStoryModules?.character_major_flaws ?? true)
-  const useQuirks = $derived($currentStoryModules?.character_quirks ?? true)
   const usePerks = $derived($currentStoryModules?.character_perks ?? true)
   const useInventory = $derived($currentStoryModules?.character_inventory ?? true)
-  const showTraitSection = $derived(usePersonalityTraits || useMajorFlaws || useQuirks || usePerks)
+  const showTraitSection = $derived(usePersonalityTraits || useMajorFlaws || usePerks)
 
   type InventoryDraft = { name: string; description: string }
   type CharacterDraft = {
@@ -97,7 +96,6 @@
     clothing: string
     personalityTraits: string
     majorFlaws: string
-    quirks: string
     perks: string
     inventory: InventoryDraft[]
     customFields: Record<string, string | string[]>
@@ -112,7 +110,6 @@
     clothing: "",
     personalityTraits: "",
     majorFlaws: "",
-    quirks: "",
     perks: "",
     inventory: [],
     customFields: {},
@@ -243,15 +240,6 @@
         onInput: (v) => (draft.majorFlaws = v),
       })
     }
-    if (useQuirks) {
-      fields.push({
-        id: "cs-quirks",
-        label: "Quirks (comma separated)",
-        kind: "input",
-        value: draft.quirks,
-        onInput: (v) => (draft.quirks = v),
-      })
-    }
     if (usePerks) {
       fields.push({
         id: "cs-perks",
@@ -278,7 +266,6 @@
       clothing: $character.current_clothing,
       personalityTraits: $character.personality_traits.join(", "),
       majorFlaws: $character.major_flaws.join(", "),
-      quirks: $character.quirks.join(", "),
       perks: $character.perks.join(", "),
       inventory: $character.inventory.map((item) => ({ name: item.name, description: item.description })),
       customFields: { ...($character.custom_fields ?? {}) },
@@ -327,7 +314,6 @@
       ? splitCsv(draft.personalityTraits)
       : (existing?.personality_traits ?? [])
     const majorFlaws = useMajorFlaws ? splitCsv(draft.majorFlaws) : (existing?.major_flaws ?? [])
-    const quirks = useQuirks ? splitCsv(draft.quirks) : (existing?.quirks ?? [])
     const perks = usePerks ? splitCsv(draft.perks) : (existing?.perks ?? [])
     const inventory = useInventory
       ? draft.inventory
@@ -363,7 +349,6 @@
         : clothing || existing?.current_clothing || "",
       personality_traits: personalityTraits.length > 0 ? personalityTraits : (existing?.personality_traits ?? []),
       major_flaws: majorFlaws.length > 0 ? majorFlaws : (existing?.major_flaws ?? []),
-      quirks: quirks.length > 0 ? quirks : (existing?.quirks ?? []),
       perks: perks.length > 0 ? perks : (existing?.perks ?? []),
       inventory,
       custom_fields: draft.customFields ?? existing?.custom_fields ?? {},
@@ -615,11 +600,11 @@
         </div>
       {/if}
 
-      {#if showTraitSection && ((usePersonalityTraits && displayCharacter.personality_traits.length > 0) || (useMajorFlaws && displayCharacter.major_flaws.length > 0) || (useQuirks && displayCharacter.quirks.length > 0) || (usePerks && displayCharacter.perks.length > 0))}
+      {#if showTraitSection && ((usePersonalityTraits && displayCharacter.personality_traits.length > 0) || (useMajorFlaws && displayCharacter.major_flaws.length > 0) || (usePerks && displayCharacter.perks.length > 0))}
         <div class="mt-3 rounded-lg border bg-card p-4">
           <div class="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
             <Star size={14} strokeWidth={1.5} class="shrink-0 opacity-70" aria-hidden="true" />
-            <span>Traits · Flaws · Quirks · Perks</span>
+            <span>Traits · Flaws · Perks</span>
           </div>
           <div class="mt-3 flex flex-wrap gap-2">
             {#if usePersonalityTraits}
@@ -629,11 +614,6 @@
             {/if}
             {#if useMajorFlaws}
               {#each displayCharacter.major_flaws as t, index (t + ":" + index)}
-                <Badge variant="outline" class="rounded-full font-mono text-[11px]">{t}</Badge>
-              {/each}
-            {/if}
-            {#if useQuirks}
-              {#each displayCharacter.quirks as t, index (t + ":" + index)}
                 <Badge variant="outline" class="rounded-full font-mono text-[11px]">{t}</Badge>
               {/each}
             {/if}

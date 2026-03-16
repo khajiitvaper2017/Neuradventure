@@ -32,7 +32,6 @@ export function normalizeCharacterBase(input: Partial<CharacterBase>): Character
     current_clothing: input.current_clothing ?? "",
     personality_traits: Array.isArray(input.personality_traits) ? input.personality_traits : [],
     major_flaws: Array.isArray(input.major_flaws) ? input.major_flaws : [],
-    quirks: Array.isArray(input.quirks) ? input.quirks : [],
     perks: Array.isArray(input.perks) ? input.perks : [],
     custom_fields,
   }

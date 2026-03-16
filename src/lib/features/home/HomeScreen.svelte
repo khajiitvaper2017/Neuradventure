@@ -311,7 +311,7 @@
     storyCharacters
       .filter((g) => {
         if (!q) return true
-        const traits = [...g.character.personality_traits, ...g.character.quirks, ...g.character.perks].join(" ")
+        const traits = [...g.character.personality_traits, ...g.character.perks].join(" ")
         return matchesQuery(`${g.character.name} ${g.character.gender} ${g.character.race} ${traits}`, q)
       })
       .slice()

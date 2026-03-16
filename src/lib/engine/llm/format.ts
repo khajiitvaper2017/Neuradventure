@@ -118,7 +118,6 @@ export function formatNPCBaselines(
         (flags.useNpcMajorFlaws
           ? `\n  ${formatTemplate(labels.majorFlaws, { value: npc.major_flaws.join(", ") || none })}`
           : "") +
-        (flags.useNpcQuirks ? `\n  ${formatTemplate(labels.quirks, { value: npc.quirks.join(", ") || none })}` : "") +
         (flags.useNpcPerks ? `\n  ${formatTemplate(labels.perks, { value: npc.perks.join(", ") || none })}` : "") +
         (custom.length > 0 ? `\n${custom.join("\n")}` : "")
 

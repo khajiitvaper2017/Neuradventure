@@ -12,7 +12,6 @@
     "personalityTraits": "Personality traits: {value}",
     "traits": "Traits: {value}",
     "majorFlaws": "Major flaws: {value}",
-    "quirks": "Quirks: {value}",
     "perks": "Perks: {value}",
     "baselineAppearance": "Baseline appearance: {value}",
     "currentAppearance": "Current appearance: {value}",
@@ -26,7 +25,7 @@
     "instruction": "Instruction: Use the context above to regenerate ONLY the requested section.",
     "avoid": {
       "appearance": "Do not reuse or paraphrase the current appearance. Keep it consistent with the identity and traits.",
-      "traits": "Do not reuse the current personality traits, major flaws, quirks, or perks. Keep them consistent with the identity and appearance.",
+      "traits": "Do not reuse the current personality traits, major flaws, or perks. Keep them consistent with the identity and appearance.",
       "clothing": "Do not reuse or paraphrase the current clothing. Keep it consistent with the identity, appearance, and traits."
     }
   },
@@ -42,7 +41,6 @@
     "nameRaceGender": "Race: {race}\nGender: {gender}",
     "personalityTraits": "Personality traits: {value}",
     "majorFlaws": "Major flaws: {value}",
-    "quirks": "Quirks: {value}",
     "perks": "Perks: {value}",
     "location": "Location: {value}",
     "inventory": "Inventory: {value}",

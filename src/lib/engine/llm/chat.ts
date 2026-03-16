@@ -40,7 +40,6 @@ function formatMemberSummary(member: ChatMemberState): string {
     defaults.unknown.generalDescription ||
     defaults.unknown.appearance
   const traits = member.personality_traits?.join(", ") || defaults.unknown.value
-  const quirks = member.quirks?.join(", ") || defaults.unknown.value
   const perks = member.perks?.join(", ") || defaults.unknown.value
   const flaws = member.major_flaws?.join(", ") || defaults.unknown.value
 
@@ -50,7 +49,6 @@ function formatMemberSummary(member: ChatMemberState): string {
     `Gender: ${gender}`,
     `Description: ${description}`,
     `Personality: ${traits}`,
-    `Quirks: ${quirks}`,
     `Perks: ${perks}`,
     `Flaws: ${flaws}`,
   ].join("\n")

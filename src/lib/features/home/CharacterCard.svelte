@@ -45,9 +45,7 @@
   }
 
   const traits = $derived(
-    [...group.character.personality_traits, ...group.character.quirks, ...group.character.perks]
-      .map((t) => t.trim())
-      .filter(Boolean),
+    [...group.character.personality_traits, ...group.character.perks].map((t) => t.trim()).filter(Boolean),
   )
 
   const recentStories = $derived(

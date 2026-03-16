@@ -54,7 +54,7 @@
   function matches(group: StoryCharacterGroup, q: string): boolean {
     if (!q) return true
     const c = group.character
-    const traits = [...c.personality_traits, ...c.quirks, ...c.perks].join(" ")
+    const traits = [...c.personality_traits, ...c.perks].join(" ")
     return `${c.name} ${c.race} ${c.gender} ${traits}`.toLowerCase().includes(q)
   }
 

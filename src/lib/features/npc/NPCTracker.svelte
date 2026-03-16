@@ -44,7 +44,6 @@
   const useNpcAppearance = $derived($currentStoryModules?.npc_appearance_clothing ?? true)
   const useNpcPersonalityTraits = $derived($currentStoryModules?.npc_personality_traits ?? true)
   const useNpcMajorFlaws = $derived($currentStoryModules?.npc_major_flaws ?? true)
-  const useNpcQuirks = $derived($currentStoryModules?.npc_quirks ?? true)
   const useNpcPerks = $derived($currentStoryModules?.npc_perks ?? true)
   const useNpcLocation = $derived($currentStoryModules?.npc_location ?? true)
   const useNpcActivity = $derived($currentStoryModules?.npc_activity ?? true)
@@ -167,15 +166,6 @@
         onInput: (v) => (draft.majorFlaws = v),
       })
     }
-    if (useNpcQuirks) {
-      fields.push({
-        id: npcFieldId(npc, "quirks"),
-        label: "Quirks (comma separated)",
-        kind: "input",
-        value: draft.quirks,
-        onInput: (v) => (draft.quirks = v),
-      })
-    }
     if (useNpcPerks) {
       fields.push({
         id: npcFieldId(npc, "perks"),
@@ -213,7 +203,6 @@
       currentActivity: npc.current_activity,
       traits: npc.personality_traits.join(", "),
       majorFlaws: npc.major_flaws.join(", "),
-      quirks: npc.quirks.join(", "),
       perks: npc.perks.join(", "),
       customFields: { ...(npc.custom_fields ?? {}) },
     }
@@ -248,7 +237,6 @@
     }
     const traits = useNpcPersonalityTraits ? splitCsv(draft.traits) : []
     const majorFlaws = useNpcMajorFlaws ? splitCsv(draft.majorFlaws) : []
-    const quirks = useNpcQuirks ? splitCsv(draft.quirks) : []
     const perks = useNpcPerks ? splitCsv(draft.perks) : []
     const existingNpc = $npcs.find((npc) => npc.name === editingNpcName)
     const nextBaselineAppearance = useNpcAppearance
@@ -284,7 +272,6 @@
           ? majorFlaws
           : (existingNpc?.major_flaws ?? [])
         : (existingNpc?.major_flaws ?? []),
-      quirks: useNpcQuirks ? (quirks.length > 0 ? quirks : (existingNpc?.quirks ?? [])) : (existingNpc?.quirks ?? []),
       perks: useNpcPerks ? (perks.length > 0 ? perks : (existingNpc?.perks ?? [])) : (existingNpc?.perks ?? []),
       custom_fields: draft.customFields ?? existingNpc?.custom_fields ?? {},
       inventory: existingNpc?.inventory ?? [],
@@ -368,7 +355,6 @@
     currentActivity: string
     traits: string
     majorFlaws: string
-    quirks: string
     perks: string
     customFields: Record<string, string | string[]>
   }
@@ -384,7 +370,6 @@
     currentActivity: "",
     traits: "",
     majorFlaws: "",
-    quirks: "",
     perks: "",
     customFields: {},
   })
@@ -436,7 +421,6 @@
       useNpcActivity ? npc.current_activity : "",
       useNpcPersonalityTraits ? npc.personality_traits.join(",") : "",
       useNpcMajorFlaws ? npc.major_flaws.join(",") : "",
-      useNpcQuirks ? npc.quirks.join(",") : "",
       useNpcPerks ? npc.perks.join(",") : "",
     ].join("|")
   }
@@ -721,7 +705,7 @@
               </div>
             {/if}
 
-            {#if (useNpcPersonalityTraits && npc.personality_traits.length > 0) || (useNpcMajorFlaws && npc.major_flaws.length > 0) || (useNpcQuirks && npc.quirks.length > 0) || (useNpcPerks && npc.perks.length > 0)}
+            {#if (useNpcPersonalityTraits && npc.personality_traits.length > 0) || (useNpcMajorFlaws && npc.major_flaws.length > 0) || (useNpcPerks && npc.perks.length > 0)}
               <div class="mt-3 flex items-start gap-2">
                 <Star size={13} strokeWidth={1.5} class="mt-0.5 shrink-0 text-muted-foreground" aria-hidden="true" />
                 <div class="flex flex-wrap gap-2">
@@ -732,11 +716,6 @@
                   {/if}
                   {#if useNpcMajorFlaws}
                     {#each npc.major_flaws as trait, index (trait + ":" + index)}
-                      <Badge variant="outline" class="rounded-full font-mono text-[11px]">{trait}</Badge>
-                    {/each}
-                  {/if}
-                  {#if useNpcQuirks}
-                    {#each npc.quirks as trait, index (trait + ":" + index)}
                       <Badge variant="outline" class="rounded-full font-mono text-[11px]">{trait}</Badge>
                     {/each}
                   {/if}
