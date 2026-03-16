@@ -77,31 +77,23 @@
   let bootstrapError = $state<string | null>(null)
   const routeRestorer = createRouteRestorer()
 
-  function updateSiteIcon() {
+  function updateThemeColor() {
     if (typeof document === "undefined") return
-    if (!appEl) return
+    const container = document.body ?? document.documentElement
+    if (!container) return
 
-    const computed = getComputedStyle(appEl)
-    const bg = computed.getPropertyValue("--background").trim() || "0 0% 0%"
-    const primary = computed.getPropertyValue("--primary").trim() || "0 0% 100%"
-    const border = computed.getPropertyValue("--border").trim() || "0 0% 50%"
+    const probe = document.createElement("div")
+    probe.style.position = "fixed"
+    probe.style.left = "-9999px"
+    probe.style.top = "-9999px"
+    probe.style.visibility = "hidden"
+    probe.style.pointerEvents = "none"
+    probe.style.backgroundColor = "var(--background)"
+    container.appendChild(probe)
 
-    const bgCss = `hsl(${bg})`
-    const primaryCss = `hsl(${primary})`
-    const borderCss = `hsl(${border})`
-
-    const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><rect width="64" height="64" rx="14" fill="${bgCss}"/><rect x="1.5" y="1.5" width="61" height="61" rx="12.5" fill="none" stroke="${borderCss}" stroke-width="3"/><path d="M18 46V18h6l16 20V18h6v28h-6L24 26v20z" fill="${primaryCss}"/></svg>`
-    const href = `data:image/svg+xml,${encodeURIComponent(svg)}`
-
-    let link = document.querySelector('link[rel="icon"][data-neuradventure="dynamic"]') as HTMLLinkElement | null
-    if (!link) {
-      link = document.createElement("link")
-      link.rel = "icon"
-      link.setAttribute("data-neuradventure", "dynamic")
-      document.head.appendChild(link)
-    }
-    link.type = "image/svg+xml"
-    link.href = href
+    const computed = getComputedStyle(probe)
+    const bgCss = computed.backgroundColor
+    probe.remove()
 
     const themeMeta = document.querySelector('meta[name="theme-color"]') as HTMLMetaElement | null
     if (themeMeta) themeMeta.content = bgCss
@@ -109,11 +101,6 @@
 
   $effect(() => {
     syncRouteFromUrl(page.url)
-  })
-
-  $effect(() => {
-    void $colorMode
-    queueMicrotask(() => updateSiteIcon())
   })
 
   $effect(() => {
@@ -125,6 +112,7 @@
       const mode = $colorMode
       const isDark = mode === "dark" || (mode === "system" && mq.matches)
       root.classList.toggle("dark", isDark)
+      queueMicrotask(() => updateThemeColor())
     }
 
     apply()
