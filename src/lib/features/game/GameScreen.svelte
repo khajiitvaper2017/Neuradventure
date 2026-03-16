@@ -353,6 +353,9 @@
 
   async function cancelLastTurn() {
     if ($isGenerating || !$currentStoryId || $turns.length === 0) return
+    const canceledTurn = $turns[$turns.length - 1]
+    const canceledInput = canceledTurn?.player_input?.trim() ?? ""
+    const canceledMode = canceledTurn?.action_mode ?? actionMode
     userActed = true
     isGenerating.set(true)
     try {
@@ -373,8 +376,13 @@
         variantsTurnId = null
       }
       editingTurnId = null
+      if (canceledInput) {
+        input = canceledInput
+        actionMode = canceledMode
+      }
       await tick()
       scrollStoryToBottom({ smooth: true })
+      inputEl?.focus()
     } catch (err) {
       if (err instanceof AppError) {
         showError(err.message)
