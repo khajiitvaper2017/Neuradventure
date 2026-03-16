@@ -142,7 +142,7 @@
       {:else}
         <div
           class={cn(
-            "mt-3 whitespace-pre-line font-story text-sm italic leading-relaxed text-muted-foreground",
+            "mt-3 whitespace-pre-line font-story text-[length:var(--story-size)] italic leading-[var(--story-line)] text-muted-foreground",
             flashOpening && "animate-pulse",
           )}
         >
@@ -229,7 +229,7 @@
               {#each paragraphs(turn.narrative_text) as para, j (j)}
                 <p
                   class={cn(
-                    "mb-4 whitespace-pre-line font-story text-[15px] leading-7 text-foreground",
+                    "mb-4 whitespace-pre-line font-story text-[length:var(--story-size)] leading-[var(--story-line)] text-foreground",
                     isFresh && "animate-in fade-in slide-in-from-bottom-1 duration-300",
                   )}
                   style="animation-delay: {j * 0.06}s"

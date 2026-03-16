@@ -14,9 +14,9 @@
     "check": "svelte-kit sync && eslint src scripts && tsx scripts/check-css-imports.ts && svelte-check && tsc -p tsconfig.node.json"
   },
   "dependencies": {
-    "@fontsource/cinzel": "^5.2.8",
     "@fontsource/geist-mono": "^5.2.7",
     "@fontsource/geist-sans": "^5.2.5",
+    "@fontsource/spectral": "^5.2.8",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "dompurify": "^3.3.3",

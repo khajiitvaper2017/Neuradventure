@@ -6,7 +6,7 @@
 
   import "@fontsource/geist-sans/latin.css"
   import "@fontsource/geist-mono/latin.css"
-  import "@fontsource/cinzel/latin.css"
+  import "@fontsource/spectral/latin.css"
   import "@/styles/app.css"
 
   import { activeScreen, navigate, routeStoryId, routeChatId, syncRouteFromUrl } from "@/stores/router"

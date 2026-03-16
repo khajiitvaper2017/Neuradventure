@@ -44,12 +44,16 @@
     <BackgroundEventsReveal text={backgroundEvents} />
 
     {#if narrativeIsBlockHtml}
-      <div class="stream-preview__para mb-4 whitespace-pre-line text-[15px] leading-7 text-foreground">
+      <div
+        class="stream-preview__para mb-4 whitespace-pre-line text-[length:var(--story-size)] leading-[var(--story-line)] text-foreground"
+      >
         <RichText text={trimmedNarrative} mode="block" />
       </div>
     {:else}
       {#each narrativeParas as para, index (index)}
-        <p class="stream-preview__para mb-4 whitespace-pre-line text-[15px] leading-7 text-foreground">
+        <p
+          class="stream-preview__para mb-4 whitespace-pre-line text-[length:var(--story-size)] leading-[var(--story-line)] text-foreground"
+        >
           <RichText text={para} mode="inline" />
         </p>
       {/each}

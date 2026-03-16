@@ -56,7 +56,7 @@ export default {
       fontFamily: {
         sans: ["Geist Sans", "ui-sans-serif", "system-ui", "sans-serif"],
         mono: ["Geist Mono", "ui-monospace", "SFMono-Regular", "Menlo", "Monaco", "Consolas", "monospace"],
-        story: ["Cinzel", "ui-serif", "Georgia", "serif"],
+        story: ["Spectral", "Georgia", "serif"],
       },
     },
   },
