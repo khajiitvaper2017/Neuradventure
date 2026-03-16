@@ -6,7 +6,8 @@
   import { Badge } from "@/components/ui/badge"
   import { Button } from "@/components/ui/button"
   import { Checkbox } from "@/components/ui/checkbox"
-  import { Input } from "@/components/ui/input"
+  import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+  import * as InputGroup from "@/components/ui/input-group"
   import { Switch } from "@/components/ui/switch"
   import { cn } from "@/utils.js"
   import { isChatGenerating } from "@/stores/chat"
@@ -15,7 +16,7 @@
   import { repetitionParams, samplingParams } from "@/features/settings/lib/generationParamDefs"
   import { getOpenRouterParamStatus } from "@/features/settings/lib/openrouterParams"
   import { buildModelSelectOptions, filterModelResults } from "@/features/settings/lib/openrouterModels"
-  import { TriangleAlert } from "@lucide/svelte"
+  import { TriangleAlert, Wrench } from "@lucide/svelte"
 
   type Props = {
     active?: boolean
@@ -36,33 +37,18 @@
   ]
   let connectorTypeLabel = $derived(connectorTypeOptions.find((o) => o.value === $connector.type)?.label ?? "Select…")
 
-  let generationLockActive = $state(false)
-  $effect(() => {
-    generationLockActive = $isGenerating || $isChatGenerating
-  })
+  let generationLockActive = $derived($isGenerating || $isChatGenerating)
 
-  let connectorUrl = $state($connector.url)
-  let connectorApiKey = $state($connector.api_keys[$connector.type])
+  let connectorUrl = $derived($connector.url)
+  let connectorApiKey = $derived($connector.api_keys[$connector.type])
   let showApiKey = $state(false)
-  let openrouterModelDraft = $state($connector.type === "openrouter" ? $connector.model : OPENROUTER_DEFAULT_MODEL)
+  let openrouterModelDraft = $derived($connector.type === "openrouter" ? $connector.model : OPENROUTER_DEFAULT_MODEL)
   let modelSearchQuery = $state("")
   let modelSearchLoading = $state(false)
   let modelSearchError = $state<string | null>(null)
   let modelSearchOnlyFree = $state(false)
   let modelSearchOnlyJsonSchema = $state(false)
   let modelSearchSelectPlaceholder = $derived(modelSearchResults.length ? "Select model…" : "No results yet")
-
-  $effect(() => {
-    connectorUrl = $connector.url
-  })
-  $effect(() => {
-    connectorApiKey = $connector.api_keys[$connector.type]
-  })
-  $effect(() => {
-    if ($connector.type === "openrouter") {
-      openrouterModelDraft = $connector.model
-    }
-  })
 
   function commitConnector() {
     const trimmedUrl = connectorUrl.trim()
@@ -245,269 +231,299 @@
   }
 </script>
 
-{#if unsupportedParamLabels.length > 0}
-  <div class="rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 text-sm" role="note">
-    <div class="flex items-start gap-3">
-      <TriangleAlert class="mt-0.5 size-4 text-amber-600 dark:text-amber-400" aria-hidden="true" />
-      <div>
-        <div class="font-medium text-foreground">Unsupported parameters</div>
-        <div class="mt-1 text-sm text-muted-foreground">
-          <span class="font-mono text-foreground/90">{$connector.type === "openrouter" ? $connector.model : ""}</span>
-          does not support: {unsupportedParamLabels.join(", ")}. These parameters will be ignored.
+<Card>
+  <CardHeader>
+    <CardTitle class="flex items-center gap-2">
+      <Wrench class="size-4 text-muted-foreground" aria-hidden="true" />
+      Connection
+      {#if generationLockActive}
+        <Badge
+          variant="secondary"
+          class="ml-2 font-mono text-[11px]"
+          title="A generation is in progress; connection controls are locked until it completes"
+        >
+          Generating…
+        </Badge>
+      {/if}
+    </CardTitle>
+    <CardDescription>Configure the OpenAI-compatible backend and connection details.</CardDescription>
+  </CardHeader>
+
+  <CardContent class="space-y-4 pb-6">
+    {#if unsupportedParamLabels.length > 0}
+      <div class="rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 text-sm" role="note">
+        <div class="flex items-start gap-3">
+          <TriangleAlert class="mt-0.5 size-4 text-amber-600 dark:text-amber-400" aria-hidden="true" />
+          <div>
+            <div class="font-medium text-foreground">Unsupported parameters</div>
+            <div class="mt-1 text-sm text-muted-foreground">
+              <span class="font-mono text-foreground/90"
+                >{$connector.type === "openrouter" ? $connector.model : ""}</span
+              >
+              does not support: {unsupportedParamLabels.join(", ")}. These parameters will be ignored.
+            </div>
+          </div>
         </div>
       </div>
-    </div>
-  </div>
-{/if}
-
-<div class="pt-4">
-  <div class="flex items-center justify-between gap-3">
-    <div class="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Connection</div>
-    {#if generationLockActive}
-      <Badge
-        variant="secondary"
-        class="font-mono text-[11px]"
-        title="A generation is in progress; connection controls are locked until it completes"
-      >
-        Generating…
-      </Badge>
     {/if}
-  </div>
-</div>
 
-<div class={cn("flex items-start justify-between gap-4 border-b py-3", generationLockActive && "opacity-60")}>
-  <div class="min-w-0 flex-1 space-y-1">
-    <div class="text-sm font-medium text-foreground">Backend</div>
-    <div class="text-xs text-muted-foreground">Provider for the OpenAI-compatible API endpoint</div>
-  </div>
-  <Select.Root
-    type="single"
-    value={$connector.type}
-    items={connectorTypeOptions}
-    disabled={generationLockActive}
-    onValueChange={(next) => setConnectorType(next as LLMConnector["type"])}
-  >
-    <Select.Trigger class="w-[12rem]" aria-label="Backend">
-      {connectorTypeLabel}
-    </Select.Trigger>
-    <Select.Content>
-      {#each connectorTypeOptions as option (option.value)}
-        <Select.Item {...option} />
-      {/each}
-    </Select.Content>
-  </Select.Root>
-</div>
-
-<div class={cn("flex items-start justify-between gap-4 border-b py-3", generationLockActive && "opacity-60")}>
-  <div class="min-w-0 flex-1 space-y-1">
-    <div class="text-sm font-medium text-foreground">Ctx Limit (Detected)</div>
-    <div class="text-xs text-muted-foreground">Fetched from the current provider (cached)</div>
-  </div>
-  <div class="flex items-center gap-2">
-    <Badge variant="outline" class="font-mono text-[11px] tabular-nums">
-      {$ctxLimitDetected > 0 ? $ctxLimitDetected : "Unknown"}
-    </Badge>
-    <Button
-      variant="outline"
-      size="sm"
-      disabled={ctxRefreshLoading || generationLockActive}
-      onclick={refreshCtxLimitDetected}
+    <div
+      class={cn(
+        "divide-y divide-border overflow-hidden rounded-md border bg-card/50",
+        generationLockActive && "opacity-60",
+      )}
     >
-      {ctxRefreshLoading ? "Refreshing…" : "Refresh"}
-    </Button>
-  </div>
-</div>
-
-<div class={cn("flex items-start justify-between gap-4 border-b py-3", generationLockActive && "opacity-60")}>
-  <div class="min-w-0 flex-1 space-y-1">
-    <div class="text-sm font-medium text-foreground">Ctx Limit (Override)</div>
-    <div class="text-xs text-muted-foreground">
-      0 = auto-detect{#if $ctxLimitDetected > 0}
-        (currently: {$ctxLimitDetected}){/if}
-    </div>
-  </div>
-  <div class="w-28">
-    <Input
-      type="number"
-      value={$generation.ctx_limit}
-      min="0"
-      max="32768"
-      step="1"
-      disabled={generationLockActive}
-      onchange={(e) => handleNumInput("ctx_limit", e, true)}
-    />
-  </div>
-</div>
-
-<div class={cn("flex items-start justify-between gap-4 border-b py-3", generationLockActive && "opacity-60")}>
-  <div class="min-w-0 flex-1 space-y-1">
-    <div class="text-sm font-medium text-foreground">Use streaming</div>
-    <div class="text-xs text-muted-foreground">
-      Stream model output while generating (enables partial output via WebSocket)
-    </div>
-  </div>
-  <Switch
-    checked={$streamingEnabled}
-    disabled={generationLockActive}
-    onCheckedChange={(v) => streamingEnabled.set(v)}
-  />
-</div>
-
-<div class={cn("flex items-start justify-between gap-4 border-b py-3", generationLockActive && "opacity-60")}>
-  <div class="min-w-0 flex-1 space-y-1">
-    <div class="text-sm font-medium text-foreground">API URL</div>
-  </div>
-  <div class="w-[min(62%,22rem)]">
-    <Input
-      type="text"
-      bind:value={connectorUrl}
-      disabled={generationLockActive}
-      onblur={commitConnector}
-      onkeydown={(e) => {
-        if (e.key === "Enter") (e.target as HTMLInputElement).blur()
-      }}
-    />
-  </div>
-</div>
-
-<div class={cn("flex items-start justify-between gap-4 border-b py-3", generationLockActive && "opacity-60")}>
-  <div class="min-w-0 flex-1 space-y-1">
-    <div class="text-sm font-medium text-foreground">API Key</div>
-    <div class="text-xs text-muted-foreground">Stored locally. Never synced.</div>
-  </div>
-  <div class="flex min-w-0 items-center gap-2">
-    <Input
-      class="min-w-0 flex-1"
-      type={showApiKey ? "text" : "password"}
-      bind:value={connectorApiKey}
-      placeholder={$connector.api_keys[$connector.type] === HIDDEN_SECRET_PLACEHOLDER ? "Stored (hidden)" : ""}
-      autocomplete="new-password"
-      spellcheck="false"
-      disabled={generationLockActive}
-      onblur={commitConnector}
-      onkeydown={(e) => {
-        if (e.key === "Enter") (e.target as HTMLInputElement).blur()
-      }}
-    />
-    <Button
-      variant="outline"
-      size="sm"
-      disabled={generationLockActive}
-      onclick={() => {
-        showApiKey = !showApiKey
-      }}
-      title={showApiKey ? "Hide API key" : "Show API key"}
-    >
-      {showApiKey ? "Hide" : "Show"}
-    </Button>
-    <Button
-      variant="outline"
-      size="sm"
-      disabled={generationLockActive}
-      onclick={() => {
-        connectorApiKey = ""
-        commitConnector()
-      }}
-      title="Clear API key"
-    >
-      Clear
-    </Button>
-  </div>
-</div>
-
-{#if $connector.type === "openrouter"}
-  <div class={cn("flex items-start justify-between gap-4 border-b py-3", generationLockActive && "opacity-60")}>
-    <div class="min-w-0 flex-1 space-y-1">
-      <div class="text-sm font-medium text-foreground">Model ID</div>
-      <div class="text-xs text-muted-foreground">Example: openrouter/free</div>
-    </div>
-    <div class="w-[min(62%,22rem)]">
-      <Input
-        class="font-mono"
-        type="text"
-        bind:value={openrouterModelDraft}
-        disabled={generationLockActive}
-        onblur={commitOpenRouterModel}
-        onkeydown={(e) => {
-          if (e.key === "Enter") (e.target as HTMLInputElement).blur()
-        }}
-      />
-    </div>
-  </div>
-
-  <div class={cn("mt-4 rounded-lg border bg-card p-4", generationLockActive && "opacity-60")}>
-    <div class="text-sm font-medium text-foreground">Search Models</div>
-    <div class="mt-0.5 text-xs text-muted-foreground">Queries /models via server proxy (cached)</div>
-
-    <div class="mt-3 flex items-center gap-2 max-[520px]:flex-col max-[520px]:items-stretch">
-      <Input
-        type="text"
-        placeholder="Search model id…"
-        bind:value={modelSearchQuery}
-        disabled={generationLockActive}
-        onkeydown={(e) => {
-          if (e.key === "Enter") void searchModels()
-        }}
-      />
-      <Button variant="outline" disabled={modelSearchLoading || generationLockActive} onclick={searchModels}>
-        {modelSearchLoading ? "Searching…" : "Search"}
-      </Button>
-    </div>
-
-    <div class="mt-3 flex flex-wrap items-center gap-4">
-      <div
-        class={cn(
-          "inline-flex items-center gap-2 text-sm text-foreground",
-          generationLockActive && "pointer-events-none",
-        )}
-      >
-        <Checkbox bind:checked={modelSearchOnlyFree} disabled={generationLockActive} />
-        <span>Free only</span>
+      <div class="flex items-start justify-between gap-4 p-4">
+        <div class="min-w-0 flex-1 space-y-1">
+          <div class="text-sm font-medium text-foreground">Backend</div>
+          <div class="text-xs text-muted-foreground">Provider for the OpenAI-compatible API endpoint</div>
+        </div>
+        <Select.Root
+          type="single"
+          value={$connector.type}
+          items={connectorTypeOptions}
+          disabled={generationLockActive}
+          onValueChange={(next) => setConnectorType(next as LLMConnector["type"])}
+        >
+          <Select.Trigger class="w-[12rem]" aria-label="Backend">
+            {connectorTypeLabel}
+          </Select.Trigger>
+          <Select.Content>
+            {#each connectorTypeOptions as option (option.value)}
+              <Select.Item {...option} />
+            {/each}
+          </Select.Content>
+        </Select.Root>
       </div>
-      <div
-        class={cn(
-          "inline-flex items-center gap-2 text-sm text-foreground",
-          generationLockActive && "pointer-events-none",
-        )}
-      >
-        <Checkbox bind:checked={modelSearchOnlyJsonSchema} disabled={generationLockActive} />
-        <span>JSON Schema only</span>
+
+      <div class="flex items-start justify-between gap-4 p-4">
+        <div class="min-w-0 flex-1 space-y-1">
+          <div class="text-sm font-medium text-foreground">API URL</div>
+        </div>
+        <div class="w-[min(62%,22rem)]">
+          <InputGroup.Root data-disabled={generationLockActive ? "true" : undefined}>
+            <InputGroup.Input
+              type="text"
+              bind:value={connectorUrl}
+              disabled={generationLockActive}
+              onblur={commitConnector}
+              onkeydown={(e) => {
+                if (e.key === "Enter") (e.target as HTMLInputElement).blur()
+              }}
+            />
+          </InputGroup.Root>
+        </div>
       </div>
-      {#if modelSearchResults.length > 0 && (modelSearchOnlyFree || modelSearchOnlyJsonSchema)}
-        <div class="ml-auto text-xs text-muted-foreground">
-          Showing {filteredModelSearchResults.length} / {modelSearchResults.length}
+
+      <div class="flex items-start justify-between gap-4 p-4">
+        <div class="min-w-0 flex-1 space-y-1">
+          <div class="text-sm font-medium text-foreground">API Key</div>
+          <div class="text-xs text-muted-foreground">Stored locally. Never synced.</div>
+        </div>
+        <div class="w-[min(62%,22rem)]">
+          <InputGroup.Root data-disabled={generationLockActive ? "true" : undefined}>
+            <InputGroup.Input
+              class="min-w-0"
+              type={showApiKey ? "text" : "password"}
+              bind:value={connectorApiKey}
+              placeholder={$connector.api_keys[$connector.type] === HIDDEN_SECRET_PLACEHOLDER ? "Stored (hidden)" : ""}
+              autocomplete="new-password"
+              spellcheck="false"
+              disabled={generationLockActive}
+              onblur={commitConnector}
+              onkeydown={(e) => {
+                if (e.key === "Enter") (e.target as HTMLInputElement).blur()
+              }}
+            />
+            <InputGroup.Addon align="inline-end">
+              <InputGroup.Button
+                variant="ghost"
+                size="sm"
+                disabled={generationLockActive}
+                onclick={() => {
+                  showApiKey = !showApiKey
+                }}
+                title={showApiKey ? "Hide API key" : "Show API key"}
+              >
+                {showApiKey ? "Hide" : "Show"}
+              </InputGroup.Button>
+              <InputGroup.Button
+                variant="ghost"
+                size="sm"
+                disabled={generationLockActive}
+                onclick={() => {
+                  connectorApiKey = ""
+                  commitConnector()
+                }}
+                title="Clear API key"
+              >
+                Clear
+              </InputGroup.Button>
+            </InputGroup.Addon>
+          </InputGroup.Root>
+        </div>
+      </div>
+
+      {#if $connector.type === "openrouter"}
+        <div class="flex items-start justify-between gap-4 p-4">
+          <div class="min-w-0 flex-1 space-y-1">
+            <div class="text-sm font-medium text-foreground">Model ID</div>
+            <div class="text-xs text-muted-foreground">Example: openrouter/free</div>
+          </div>
+          <div class="w-[min(62%,22rem)]">
+            <InputGroup.Root data-disabled={generationLockActive ? "true" : undefined}>
+              <InputGroup.Input
+                class="font-mono"
+                type="text"
+                bind:value={openrouterModelDraft}
+                disabled={generationLockActive}
+                onblur={commitOpenRouterModel}
+                onkeydown={(e) => {
+                  if (e.key === "Enter") (e.target as HTMLInputElement).blur()
+                }}
+              />
+            </InputGroup.Root>
+          </div>
+        </div>
+
+        <div class="space-y-3 p-4">
+          <div class="space-y-1">
+            <div class="text-sm font-medium text-foreground">Search Models</div>
+            <div class="text-xs text-muted-foreground">Queries /models via server proxy (cached)</div>
+          </div>
+
+          <InputGroup.Root data-disabled={generationLockActive ? "true" : undefined}>
+            <InputGroup.Input
+              type="text"
+              placeholder="Search model id…"
+              bind:value={modelSearchQuery}
+              disabled={generationLockActive}
+              onkeydown={(e) => {
+                if (e.key === "Enter") void searchModels()
+              }}
+            />
+            <InputGroup.Addon align="inline-end">
+              <InputGroup.Button
+                variant="outline"
+                size="sm"
+                disabled={modelSearchLoading || generationLockActive}
+                onclick={searchModels}
+              >
+                {modelSearchLoading ? "Searching…" : "Search"}
+              </InputGroup.Button>
+            </InputGroup.Addon>
+          </InputGroup.Root>
+
+          <div class="flex flex-wrap items-center gap-4">
+            <div
+              class={cn(
+                "inline-flex items-center gap-2 text-sm text-foreground",
+                generationLockActive && "pointer-events-none",
+              )}
+            >
+              <Checkbox bind:checked={modelSearchOnlyFree} disabled={generationLockActive} />
+              <span>Free only</span>
+            </div>
+            <div
+              class={cn(
+                "inline-flex items-center gap-2 text-sm text-foreground",
+                generationLockActive && "pointer-events-none",
+              )}
+            >
+              <Checkbox bind:checked={modelSearchOnlyJsonSchema} disabled={generationLockActive} />
+              <span>JSON Schema only</span>
+            </div>
+            {#if modelSearchResults.length > 0 && (modelSearchOnlyFree || modelSearchOnlyJsonSchema)}
+              <div class="ml-auto text-xs text-muted-foreground">
+                Showing {filteredModelSearchResults.length} / {modelSearchResults.length}
+              </div>
+            {/if}
+          </div>
+
+          <div>
+            <Select.Root
+              type="single"
+              value={$connector.model}
+              items={modelSelectOptions}
+              disabled={generationLockActive}
+              onValueChange={(v) => pickOpenRouterModel(v)}
+            >
+              <Select.Trigger
+                class="w-full"
+                aria-label="OpenRouter model"
+                data-placeholder={!$connector.model?.trim() ? true : undefined}
+              >
+                {modelSelectOptions.find((o) => o.value === $connector.model)?.label ??
+                  ($connector.model || modelSearchSelectPlaceholder)}
+              </Select.Trigger>
+              <Select.Content>
+                {#each modelSelectOptions as option (option.value)}
+                  <Select.Item {...option} />
+                {/each}
+              </Select.Content>
+            </Select.Root>
+          </div>
+
+          {#if modelSearchError}
+            <div class="text-sm text-destructive">{modelSearchError}</div>
+          {/if}
         </div>
       {/if}
+
+      <div class="flex items-start justify-between gap-4 p-4">
+        <div class="min-w-0 flex-1 space-y-1">
+          <div class="text-sm font-medium text-foreground">Ctx Limit (Detected)</div>
+          <div class="text-xs text-muted-foreground">Fetched from the current provider (cached)</div>
+        </div>
+        <div class="flex items-center gap-2">
+          <Badge variant="outline" class="font-mono text-[11px] tabular-nums">
+            {$ctxLimitDetected > 0 ? $ctxLimitDetected : "Unknown"}
+          </Badge>
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={ctxRefreshLoading || generationLockActive}
+            onclick={refreshCtxLimitDetected}
+          >
+            {ctxRefreshLoading ? "Refreshing…" : "Refresh"}
+          </Button>
+        </div>
+      </div>
+
+      <div class="flex items-start justify-between gap-4 p-4">
+        <div class="min-w-0 flex-1 space-y-1">
+          <div class="text-sm font-medium text-foreground">Ctx Limit (Override)</div>
+          <div class="text-xs text-muted-foreground">
+            0 = auto-detect{#if $ctxLimitDetected > 0}
+              (currently: {$ctxLimitDetected}){/if}
+          </div>
+        </div>
+        <div class="w-28">
+          <InputGroup.Root data-disabled={generationLockActive ? "true" : undefined}>
+            <InputGroup.Input
+              type="number"
+              value={$generation.ctx_limit}
+              min="0"
+              max="32768"
+              step="1"
+              disabled={generationLockActive}
+              onchange={(e) => handleNumInput("ctx_limit", e, true)}
+            />
+          </InputGroup.Root>
+        </div>
+      </div>
+
+      <div class="flex items-start justify-between gap-4 p-4">
+        <div class="min-w-0 flex-1 space-y-1">
+          <div class="text-sm font-medium text-foreground">Use streaming</div>
+          <div class="text-xs text-muted-foreground">Stream model output while generating (enables partial output)</div>
+        </div>
+        <Switch
+          checked={$streamingEnabled}
+          disabled={generationLockActive}
+          onCheckedChange={(v) => streamingEnabled.set(v)}
+        />
+      </div>
     </div>
-
-    <div class="mt-3">
-      <Select.Root
-        type="single"
-        value={$connector.model}
-        items={modelSelectOptions}
-        disabled={generationLockActive}
-        onValueChange={(v) => pickOpenRouterModel(v)}
-      >
-        <Select.Trigger
-          class="w-full"
-          aria-label="OpenRouter model"
-          data-placeholder={!$connector.model?.trim() ? true : undefined}
-        >
-          {modelSelectOptions.find((o) => o.value === $connector.model)?.label ??
-            ($connector.model || modelSearchSelectPlaceholder)}
-        </Select.Trigger>
-        <Select.Content>
-          {#each modelSelectOptions as option (option.value)}
-            <Select.Item {...option} />
-          {/each}
-        </Select.Content>
-      </Select.Root>
-    </div>
-
-    {#if modelSearchError}
-      <div class="mt-2 text-sm text-destructive">{modelSearchError}</div>
-    {/if}
-  </div>
-{/if}
-
-<div class="h-10"></div>
+  </CardContent>
+</Card>

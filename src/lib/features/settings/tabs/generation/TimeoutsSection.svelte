@@ -2,8 +2,10 @@
   import type { TimeoutSettings } from "@/shared/api-types"
   import { DEFAULT_TIMEOUTS, timeouts } from "@/stores/settings"
   import { Button } from "@/components/ui/button"
+  import { Card, CardAction, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
   import { Input } from "@/components/ui/input"
   import { Label } from "@/components/ui/label"
+  import { Clock } from "@lucide/svelte"
 
   type Props = {
     disabled?: boolean
@@ -11,11 +13,7 @@
 
   let { disabled = false }: Props = $props()
 
-  let draftSeconds = $state(String(Math.round($timeouts.llmRequestMs / 1000)))
-
-  $effect(() => {
-    draftSeconds = String(Math.round($timeouts.llmRequestMs / 1000))
-  })
+  let draftSeconds = $derived(String(Math.round($timeouts.llmRequestMs / 1000)))
 
   function parseIntDraft(value: string): number | null {
     const trimmed = value.trim()
@@ -54,29 +52,39 @@
   }
 </script>
 
-<div class="space-y-3 pt-4">
-  <div class="flex flex-wrap items-center justify-between gap-3">
-    <div class="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Timeout</div>
-    <Button size="sm" variant="outline" {disabled} onclick={resetAll} title="Reset timeout">Reset</Button>
-  </div>
+<Card>
+  <CardHeader>
+    <CardTitle class="flex items-center gap-2">
+      <Clock class="size-4 text-muted-foreground" aria-hidden="true" />
+      Timeouts
+    </CardTitle>
+    <CardDescription>Limits for upstream network requests.</CardDescription>
+    <CardAction>
+      <Button size="sm" variant="outline" {disabled} onclick={resetAll} title="Reset timeout">Reset</Button>
+    </CardAction>
+  </CardHeader>
 
-  <div class="flex items-end justify-between gap-4">
-    <div class="space-y-1">
-      <Label for="llm-timeout-seconds">LLM request timeout (seconds)</Label>
-      <div class="text-xs text-muted-foreground">How long the app waits for the model before aborting.</div>
+  <CardContent class="pb-6">
+    <div class="divide-y divide-border overflow-hidden rounded-md border bg-card/50" class:opacity-60={disabled}>
+      <div class="flex items-end justify-between gap-4 p-4">
+        <div class="space-y-1">
+          <Label for="llm-timeout-seconds">LLM request timeout (seconds)</Label>
+          <div class="text-xs text-muted-foreground">How long the app waits for the model before aborting.</div>
+        </div>
+        <div class="w-28">
+          <Input
+            id="llm-timeout-seconds"
+            type="number"
+            min={1}
+            max={3600}
+            step={1}
+            bind:value={draftSeconds}
+            {disabled}
+            onblur={commit}
+            onkeydown={blurOnEnter}
+          />
+        </div>
+      </div>
     </div>
-    <div class="w-28">
-      <Input
-        id="llm-timeout-seconds"
-        type="number"
-        min={1}
-        max={3600}
-        step={1}
-        bind:value={draftSeconds}
-        {disabled}
-        onblur={commit}
-        onkeydown={blurOnEnter}
-      />
-    </div>
-  </div>
-</div>
+  </CardContent>
+</Card>

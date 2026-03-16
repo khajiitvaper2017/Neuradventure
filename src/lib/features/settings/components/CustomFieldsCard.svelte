@@ -4,9 +4,8 @@
   import { cn } from "@/utils.js"
   import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
   import { Button } from "@/components/ui/button"
-  import { Input } from "@/components/ui/input"
+  import * as InputGroup from "@/components/ui/input-group"
   import { Label } from "@/components/ui/label"
-  import { Textarea } from "@/components/ui/textarea"
   import * as Select from "@/components/ui/select"
   import { Switch } from "@/components/ui/switch"
   import { Separator } from "@/components/ui/separator"
@@ -205,23 +204,27 @@
       <div class="grid gap-3 md:grid-cols-2">
         <div class="space-y-2">
           <Label for="new-field-id">Id (slug)</Label>
-          <Input
-            id="new-field-id"
-            placeholder="e.g. mood"
-            value={create.id}
-            oninput={(e) => (create.id = (e.target as HTMLInputElement).value)}
-            disabled={creating}
-          />
+          <InputGroup.Root data-disabled={creating ? "true" : undefined}>
+            <InputGroup.Input
+              id="new-field-id"
+              placeholder="e.g. mood"
+              value={create.id}
+              oninput={(e) => (create.id = (e.target as HTMLInputElement).value)}
+              disabled={creating}
+            />
+          </InputGroup.Root>
         </div>
         <div class="space-y-2">
           <Label for="new-field-label">Label</Label>
-          <Input
-            id="new-field-label"
-            placeholder="e.g. Mood"
-            value={create.label}
-            oninput={(e) => (create.label = (e.target as HTMLInputElement).value)}
-            disabled={creating}
-          />
+          <InputGroup.Root data-disabled={creating ? "true" : undefined}>
+            <InputGroup.Input
+              id="new-field-label"
+              placeholder="e.g. Mood"
+              value={create.label}
+              oninput={(e) => (create.label = (e.target as HTMLInputElement).value)}
+              disabled={creating}
+            />
+          </InputGroup.Root>
         </div>
         <div class="space-y-2">
           <Label>Scope</Label>
@@ -285,13 +288,15 @@
         </div>
         <div class="space-y-2 md:col-span-2">
           <Label for="new-field-prompt">Prompt (schema description)</Label>
-          <Textarea
-            id="new-field-prompt"
-            rows={4}
-            value={create.prompt}
-            oninput={(e) => (create.prompt = (e.target as HTMLTextAreaElement).value)}
-            disabled={creating}
-          />
+          <InputGroup.Root data-disabled={creating ? "true" : undefined} class="min-h-24">
+            <InputGroup.Textarea
+              id="new-field-prompt"
+              rows={4}
+              value={create.prompt}
+              oninput={(e) => (create.prompt = (e.target as HTMLTextAreaElement).value)}
+              disabled={creating}
+            />
+          </InputGroup.Root>
         </div>
       </div>
       <div class="flex justify-end">
@@ -309,7 +314,7 @@
       <div class="space-y-3">
         {#each defs as def (def.id)}
           {@const isEditing = editingId === def.id}
-          <div class={cn("rounded-md border p-4", isEditing && "border-primary/60 ring-1 ring-primary/20")}>
+          <div class={cn("rounded-md border bg-card/50 p-4", isEditing && "border-primary/60 ring-1 ring-primary/20")}>
             <div class="flex flex-wrap items-center justify-between gap-2">
               <div class="min-w-0">
                 <div class="truncate text-sm font-semibold text-foreground">{def.label}</div>
@@ -337,11 +342,18 @@
               <div class="mt-4 grid gap-3 md:grid-cols-2">
                 <div class="space-y-2">
                   <Label>Id</Label>
-                  <Input value={draft.id} disabled />
+                  <InputGroup.Root data-disabled="true">
+                    <InputGroup.Input value={draft.id} disabled />
+                  </InputGroup.Root>
                 </div>
                 <div class="space-y-2">
                   <Label>Label</Label>
-                  <Input value={draft.label} oninput={(e) => (draft!.label = (e.target as HTMLInputElement).value)} />
+                  <InputGroup.Root>
+                    <InputGroup.Input
+                      value={draft.label}
+                      oninput={(e) => (draft!.label = (e.target as HTMLInputElement).value)}
+                    />
+                  </InputGroup.Root>
                 </div>
                 <div class="space-y-2">
                   <Label>Scope</Label>
@@ -405,11 +417,13 @@
                 </div>
                 <div class="space-y-2 md:col-span-2">
                   <Label>Prompt</Label>
-                  <Textarea
-                    rows={4}
-                    value={draft.prompt}
-                    oninput={(e) => (draft!.prompt = (e.target as HTMLTextAreaElement).value)}
-                  />
+                  <InputGroup.Root class="min-h-24">
+                    <InputGroup.Textarea
+                      rows={4}
+                      value={draft.prompt}
+                      oninput={(e) => (draft!.prompt = (e.target as HTMLTextAreaElement).value)}
+                    />
+                  </InputGroup.Root>
                 </div>
                 <div class="space-y-2">
                   <Label>Enabled</Label>
@@ -419,10 +433,12 @@
                 </div>
                 <div class="space-y-2">
                   <Label>Sort order</Label>
-                  <Input
-                    value={String(draft.sort_order)}
-                    oninput={(e) => (draft!.sort_order = Number((e.target as HTMLInputElement).value) || 0)}
-                  />
+                  <InputGroup.Root>
+                    <InputGroup.Input
+                      value={String(draft.sort_order)}
+                      oninput={(e) => (draft!.sort_order = Number((e.target as HTMLInputElement).value) || 0)}
+                    />
+                  </InputGroup.Root>
                 </div>
               </div>
 

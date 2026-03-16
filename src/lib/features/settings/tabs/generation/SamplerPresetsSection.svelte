@@ -7,7 +7,8 @@
   import { coercePresetFromJson, filenameToPresetName } from "@/features/settings/lib/presetImport"
   import { Badge } from "@/components/ui/badge"
   import { Button } from "@/components/ui/button"
-  import { Trash, Upload } from "@lucide/svelte"
+  import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+  import { Tag, Trash, Upload } from "@lucide/svelte"
 
   type Props = {
     active?: boolean
@@ -15,11 +16,8 @@
 
   let { active = false }: Props = $props()
 
-  let presetsLoadedOnce = $state(false)
   $effect(() => {
     if (!active) return
-    if (presetsLoadedOnce) return
-    presetsLoadedOnce = true
     void loadPresets()
   })
 
@@ -79,46 +77,57 @@
   }
 </script>
 
-<div class="pt-4 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Sampler Presets</div>
-<div class="flex flex-wrap gap-2 pt-2">
-  <Button
-    variant="outline"
-    size="sm"
-    class="h-8 rounded-full px-3 gap-2"
-    onclick={openImportPreset}
-    title="Import a JSON preset file"
-  >
-    <Upload class="size-4" aria-hidden="true" />
-    Import JSON
-  </Button>
-  {#each $presets as preset (preset.id ?? preset.name)}
-    <div class="flex items-center gap-1">
+<Card>
+  <CardHeader>
+    <CardTitle class="flex items-center gap-2">
+      <Tag class="size-4 text-muted-foreground" aria-hidden="true" />
+      Sampler Presets
+    </CardTitle>
+    <CardDescription>Quickly apply a known-good sampling configuration.</CardDescription>
+  </CardHeader>
+
+  <CardContent class="pb-6">
+    <div class="flex flex-wrap gap-2">
       <Button
-        variant={activePreset === preset.name ? "secondary" : "outline"}
+        variant="outline"
         size="sm"
-        class="h-8 rounded-full px-3"
-        onclick={() => applyPreset(preset.name)}
-        title={preset.description}
+        class="h-8 rounded-full px-3 gap-2"
+        onclick={openImportPreset}
+        title="Import a JSON preset file"
       >
-        {preset.name}
+        <Upload class="size-4" aria-hidden="true" />
+        Import JSON
       </Button>
-      {#if preset.id}
-        <Button
-          variant="ghost"
-          size="icon"
-          class="h-8 w-8 text-destructive hover:bg-destructive/10 hover:text-destructive"
-          onclick={() => deletePreset(preset)}
-          title="Delete custom preset"
-          aria-label={`Delete preset ${preset.name}`}
+      {#each $presets as preset (preset.id ?? preset.name)}
+        <div class="flex items-center gap-1">
+          <Button
+            variant={activePreset === preset.name ? "secondary" : "outline"}
+            size="sm"
+            class="h-8 rounded-full px-3"
+            onclick={() => applyPreset(preset.name)}
+            title={preset.description}
+          >
+            {preset.name}
+          </Button>
+          {#if preset.id}
+            <Button
+              variant="ghost"
+              size="icon"
+              class="h-8 w-8 text-destructive hover:bg-destructive/10 hover:text-destructive"
+              onclick={() => deletePreset(preset)}
+              title="Delete custom preset"
+              aria-label={`Delete preset ${preset.name}`}
+            >
+              <Trash class="size-4" aria-hidden="true" />
+            </Button>
+          {/if}
+        </div>
+      {/each}
+      {#if activePreset === "Custom"}
+        <Badge variant="outline" class="h-8 rounded-full px-3 font-mono text-[11px] italic text-muted-foreground"
+          >Custom</Badge
         >
-          <Trash class="size-4" aria-hidden="true" />
-        </Button>
       {/if}
     </div>
-  {/each}
-  {#if activePreset === "Custom"}
-    <Badge variant="outline" class="h-8 rounded-full px-3 font-mono text-[11px] italic text-muted-foreground"
-      >Custom</Badge
-    >
-  {/if}
-</div>
+  </CardContent>
+</Card>
