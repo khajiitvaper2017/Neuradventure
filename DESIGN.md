@@ -44,27 +44,3 @@ Use the Svelte MCP server for all Svelte 5 and SvelteKit documentation lookups. 
 ## Codex Agents (multi-agent)
 
 When creating, editing, or reviewing any `.svelte` / `.svelte.ts` / `.svelte.js` file, delegate to the `svelte-file-editor` agent role so it can fetch Svelte docs via the Svelte MCP server and validate edits with `svelte-autofixer`.
-
-### One-time setup
-
-Enable multi-agent and register the role in your Codex config (either global `~/.codex/config.toml` or repo-local `.codex/config.toml`):
-
-```toml
-[features]
-multi_agent = true
-
-[agents."svelte-file-editor"]
-description = "Specialized Svelte 5 code editor for .svelte and .svelte.ts/.svelte.js files (uses Svelte MCP + svelte-autofixer)."
-config_file = "agents/svelte-file-editor.toml"
-```
-
-Create the role config file at `agents/svelte-file-editor.toml` (resolved relative to the `config.toml` that references it). The role instructions should require:
-
-- `list-sections` + `get-documentation` for any uncertain Svelte 5/SvelteKit behavior
-- Always running `svelte-autofixer` after edits and iterating until clean
-
-### Running agents
-
-- Start Codex in the repo root: `codex`
-- Ask explicitly for the role when touching Svelte files, e.g. “Spawn a `svelte-file-editor` agent to update `src/routes/+layout.svelte`.”
-- Use `/agent` in the CLI to switch between active agent threads; tell Codex to stop/close completed threads.
