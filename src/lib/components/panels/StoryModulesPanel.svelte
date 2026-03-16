@@ -2,14 +2,16 @@
   import type { StoryModules } from "@/shared/types"
   import { cn } from "@/utils.js"
   import { Switch } from "@/components/ui/switch"
+  import { Button } from "@/components/ui/button"
 
   type Props = {
     modules: StoryModules
     setModules: (next: StoryModules) => void
     bare?: boolean
+    onOpenPrompts?: (moduleKey: keyof StoryModules) => void
   }
 
-  let { modules, setModules, bare = false }: Props = $props()
+  let { modules, setModules, bare = false, onOpenPrompts }: Props = $props()
 
   function updateModule<K extends keyof StoryModules>(key: K, value: StoryModules[K]) {
     setModules({ ...modules, [key]: value })
@@ -72,11 +74,24 @@
               <div class="text-xs text-muted-foreground">{row.sub}</div>
             {/if}
           </div>
-          <Switch
-            checked={Boolean(modules[row.key])}
-            disabled={gatedDisabled}
-            onCheckedChange={(v) => updateModule(row.key, v as StoryModules[keyof StoryModules])}
-          />
+          <div class="flex items-center gap-2">
+            {#if onOpenPrompts}
+              <Button
+                variant="outline"
+                size="sm"
+                class="h-8"
+                onclick={() => onOpenPrompts?.(row.key)}
+                aria-label={`Edit prompts for ${row.title}`}
+              >
+                Prompts
+              </Button>
+            {/if}
+            <Switch
+              checked={Boolean(modules[row.key])}
+              disabled={gatedDisabled}
+              onCheckedChange={(v) => updateModule(row.key, v as StoryModules[keyof StoryModules])}
+            />
+          </div>
         </div>
       {/each}
     </div>

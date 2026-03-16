@@ -5,7 +5,8 @@ import { PromptConfigSchema, type PromptConfig } from "@/engine/llm/prompt-types
 import narrativeTurn from "@/shared/config/prompts/narrative-turn.json"
 import characterGeneration from "@/shared/config/prompts/character-generation.json"
 import storySetup from "@/shared/config/prompts/story-setup.json"
-import chatMode from "@/shared/config/prompts/chat-mode.json"
+import chatPromptLines from "@/shared/config/prompts/chat-prompt-lines.json"
+import chatSetup from "@/shared/config/prompts/chat-setup.json"
 import npcCreation from "@/shared/config/prompts/npc-creation.json"
 import playerImpersonation from "@/shared/config/prompts/player-impersonation.json"
 
@@ -13,7 +14,8 @@ const PROMPT_CONFIG_SOURCES = [
   { name: "narrative-turn", data: narrativeTurn },
   { name: "character-generation", data: characterGeneration },
   { name: "story-setup", data: storySetup },
-  { name: "chat-mode", data: chatMode },
+  { name: "chat-prompt-lines", data: chatPromptLines },
+  { name: "chat-setup", data: chatSetup },
   { name: "npc-creation", data: npcCreation },
   { name: "player-impersonation", data: playerImpersonation },
 ] as const

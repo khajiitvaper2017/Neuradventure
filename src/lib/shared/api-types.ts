@@ -325,7 +325,8 @@ export type PromptConfigName =
   | "narrative-turn"
   | "character-generation"
   | "story-setup"
-  | "chat-mode"
+  | "chat-prompt-lines"
+  | "chat-setup"
   | "npc-creation"
   | "player-impersonation"
 

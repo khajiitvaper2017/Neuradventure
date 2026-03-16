@@ -5,11 +5,10 @@
   import { ScrollArea } from "@/components/ui/scroll-area"
   import DataTab from "@/features/settings/tabs/DataTab.svelte"
   import GenerationTab from "@/features/settings/tabs/GenerationTab.svelte"
-  import FieldsTab from "@/features/settings/tabs/FieldsTab.svelte"
-  import ModulesTab from "@/features/settings/tabs/ModulesTab.svelte"
-  import PromptsTab from "@/features/settings/tabs/PromptsTab.svelte"
+  import StoryTab from "@/features/settings/tabs/StoryTab.svelte"
+  import ChatTab from "@/features/settings/tabs/ChatTab.svelte"
 
-  type SettingsTab = "data" | "generation" | "fields" | "prompts" | "modules"
+  type SettingsTab = "data" | "generation" | "story" | "chat"
   const SETTINGS_TAB_KEY = "settings_active_tab"
   type GenerationSection = "connection" | "defaults" | "params" | "advanced"
   const GEN_SECTION_KEY = "settings_generation_section"
@@ -21,9 +20,9 @@
       if (stored === "appearance") return "data"
       if (stored === "data") return "data"
       if (stored === "generation") return "generation"
-      if (stored === "fields") return "fields"
-      if (stored === "prompts") return "prompts"
-      if (stored === "modules") return "modules"
+      if (stored === "story") return "story"
+      if (stored === "chat") return "chat"
+      if (stored === "fields" || stored === "prompts" || stored === "modules") return "story"
       return "data"
     } catch {
       return "data"
@@ -69,9 +68,8 @@
   const tabs: Array<{ value: SettingsTab; label: string }> = [
     { value: "data", label: "Data" },
     { value: "generation", label: "LLM" },
-    { value: "fields", label: "Fields" },
-    { value: "prompts", label: "Prompts" },
-    { value: "modules", label: "Modules" },
+    { value: "story", label: "Story" },
+    { value: "chat", label: "Chat" },
   ]
 
   const generationSectionTabs: Array<{ value: GenerationSection; label: string }> = [
@@ -139,21 +137,15 @@
           </div>
         </Tabs.Content>
 
-        <Tabs.Content value="fields">
+        <Tabs.Content value="story">
           <div class="space-y-4">
-            <FieldsTab active={activeTab === "fields"} />
+            <StoryTab active={activeTab === "story"} />
           </div>
         </Tabs.Content>
 
-        <Tabs.Content value="prompts">
+        <Tabs.Content value="chat">
           <div class="space-y-4">
-            <PromptsTab active={activeTab === "prompts"} />
-          </div>
-        </Tabs.Content>
-
-        <Tabs.Content value="modules">
-          <div class="space-y-4">
-            <ModulesTab />
+            <ChatTab active={activeTab === "chat"} />
           </div>
         </Tabs.Content>
       </div>

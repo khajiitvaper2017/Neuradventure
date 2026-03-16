@@ -2,7 +2,7 @@ import { getDb } from "@/engine/db/connection"
 import { DEFAULT_SETTINGS } from "@/engine/db/settings"
 import { ensurePromptConfigDefaults } from "@/engine/db/prompts"
 
-const LATEST_USER_VERSION = 2
+const LATEST_USER_VERSION = 3
 
 function readUserVersion(): number {
   const db = getDb()
@@ -292,6 +292,57 @@ function migrateToV2() {
   }
 }
 
+function migrateToV3() {
+  const database = getDb()
+
+  // Split legacy "chat-mode" prompt config into two separate configs:
+  // - "chat-prompt-lines" => chatPromptLines
+  // - "chat-setup" => generateChatPrompt
+  try {
+    const legacy = database.prepare("SELECT config_json FROM prompt_configs WHERE name = 'chat-mode'").get() as
+      | { config_json: string }
+      | undefined
+    if (!legacy) return
+
+    let parsed: unknown = {}
+    try {
+      parsed = JSON.parse(legacy.config_json) as unknown
+    } catch {
+      parsed = {}
+    }
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return
+    const obj = parsed as Record<string, unknown>
+
+    const nowSql = "strftime('%Y-%m-%dT%H:%M:%fZ','now')"
+    const hasRow = database.prepare("SELECT 1 as ok FROM prompt_configs WHERE name = ? LIMIT 1")
+    const upsert = database.prepare(
+      `INSERT INTO prompt_configs (name, config_json, updated_at)
+       VALUES (?, ?, ${nowSql})
+       ON CONFLICT(name) DO UPDATE SET
+         config_json = excluded.config_json,
+         updated_at = excluded.updated_at`,
+    )
+
+    const chatLinesRow = hasRow.get("chat-prompt-lines") as { ok: number } | undefined
+    const chatSetupRow = hasRow.get("chat-setup") as { ok: number } | undefined
+
+    if (!chatLinesRow && "chatPromptLines" in obj) {
+      upsert.run("chat-prompt-lines", JSON.stringify({ chatPromptLines: obj.chatPromptLines }))
+    }
+    if (!chatSetupRow && "generateChatPrompt" in obj) {
+      upsert.run("chat-setup", JSON.stringify({ generateChatPrompt: obj.generateChatPrompt }))
+    }
+
+    // Keep the legacy row but clear it so it doesn't linger with confusing content.
+    database
+      .prepare(`UPDATE prompt_configs SET config_json = ?, updated_at = ${nowSql} WHERE name = 'chat-mode'`)
+      .run("{}")
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error)
+    console.warn(`[db] Failed to migrate chat-mode prompt config split: ${message}`)
+  }
+}
+
 export function migrateDb() {
   const version = readUserVersion()
   if (version < 1) {
@@ -302,6 +353,11 @@ export function migrateDb() {
   if (version < 2) {
     migrateToV2()
     setUserVersion(2)
+  }
+
+  if (version < 3) {
+    migrateToV3()
+    setUserVersion(3)
   }
 
   // Keep prompt defaults idempotent on all versions.
