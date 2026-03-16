@@ -3,6 +3,8 @@
   import { cn } from "@/utils.js"
   import { Switch } from "@/components/ui/switch"
   import { Button } from "@/components/ui/button"
+  import { Separator } from "@/components/ui/separator"
+  import { SlidersHorizontal } from "@lucide/svelte"
 
   type Props = {
     modules: StoryModules
@@ -35,21 +37,35 @@
       title: "Player appearance + clothing",
       sub: "Show and update appearance/clothing fields",
     },
-    { key: "character_personality_traits", title: "Player personality traits" },
-    { key: "character_major_flaws", title: "Player major flaws" },
-    { key: "character_quirks", title: "Player quirks" },
-    { key: "character_perks", title: "Player perks" },
-    { key: "character_inventory", title: "Player inventory" },
+    {
+      key: "character_personality_traits",
+      title: "Player personality traits",
+      sub: "Track and update personality traits",
+    },
+    { key: "character_major_flaws", title: "Player major flaws", sub: "Track and update major flaws" },
+    { key: "character_quirks", title: "Player quirks", sub: "Track and update quirks" },
+    { key: "character_perks", title: "Player perks", sub: "Track and update perks" },
+    { key: "character_inventory", title: "Player inventory", sub: "Track and update the inventory list" },
   ]
 
   const NPC: Row[] = [
-    { key: "npc_appearance_clothing", title: "NPC appearance + clothing", gatedByTrackNpcs: true },
-    { key: "npc_personality_traits", title: "NPC personality traits", gatedByTrackNpcs: true },
-    { key: "npc_major_flaws", title: "NPC major flaws", gatedByTrackNpcs: true },
-    { key: "npc_quirks", title: "NPC quirks", gatedByTrackNpcs: true },
-    { key: "npc_perks", title: "NPC perks", gatedByTrackNpcs: true },
-    { key: "npc_location", title: "NPC location", gatedByTrackNpcs: true },
-    { key: "npc_activity", title: "NPC activity", gatedByTrackNpcs: true },
+    {
+      key: "npc_appearance_clothing",
+      title: "NPC appearance + clothing",
+      sub: "Track and update appearance/clothing fields",
+      gatedByTrackNpcs: true,
+    },
+    {
+      key: "npc_personality_traits",
+      title: "NPC personality traits",
+      sub: "Track and update personality traits",
+      gatedByTrackNpcs: true,
+    },
+    { key: "npc_major_flaws", title: "NPC major flaws", sub: "Track and update major flaws", gatedByTrackNpcs: true },
+    { key: "npc_quirks", title: "NPC quirks", sub: "Track and update quirks", gatedByTrackNpcs: true },
+    { key: "npc_perks", title: "NPC perks", sub: "Track and update perks", gatedByTrackNpcs: true },
+    { key: "npc_location", title: "NPC location", sub: "Track and update current location", gatedByTrackNpcs: true },
+    { key: "npc_activity", title: "NPC activity", sub: "Track and update current activity", gatedByTrackNpcs: true },
   ]
 </script>
 
@@ -74,23 +90,28 @@
               <div class="text-xs text-muted-foreground">{row.sub}</div>
             {/if}
           </div>
-          <div class="flex items-center gap-2">
-            {#if onOpenPrompts}
-              <Button
-                variant="outline"
-                size="sm"
-                class="h-8"
-                onclick={() => onOpenPrompts?.(row.key)}
-                aria-label={`Edit prompts for ${row.title}`}
-              >
-                Prompts
-              </Button>
-            {/if}
-            <Switch
-              checked={Boolean(modules[row.key])}
-              disabled={gatedDisabled}
-              onCheckedChange={(v) => updateModule(row.key, v as StoryModules[keyof StoryModules])}
-            />
+          <div class="flex items-center justify-end">
+            <div class="inline-flex items-center gap-2 rounded-md border bg-card/50 p-1">
+              <Switch
+                checked={Boolean(modules[row.key])}
+                disabled={gatedDisabled}
+                onCheckedChange={(v) => updateModule(row.key, v as StoryModules[keyof StoryModules])}
+                aria-label={`Toggle ${row.title}`}
+              />
+              {#if onOpenPrompts}
+                <Separator orientation="vertical" class="h-6" />
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  class="h-7 gap-1 px-2 text-xs"
+                  onclick={() => onOpenPrompts?.(row.key)}
+                  aria-label={`Edit prompts for ${row.title}`}
+                >
+                  <SlidersHorizontal class="size-3.5" aria-hidden="true" />
+                  Prompts
+                </Button>
+              {/if}
+            </div>
           </div>
         </div>
       {/each}

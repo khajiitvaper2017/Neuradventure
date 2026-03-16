@@ -16,11 +16,19 @@ export function createNewStory(
 ): number {
   void startingDate
   const settings = db.getSettings()
+  const modules = storyModules ?? settings.storyDefaults
   const now = new Date()
   const fallbackTime = `${now.getHours().toString().padStart(2, "0")}:${now.getMinutes().toString().padStart(2, "0")}`
   const timeCandidate = startingTime?.trim()
   const sceneName = startingScene?.trim() || getServerDefaults().unknown.location
-  const locationSyncedCharacter = { ...character, current_location: sceneName }
+  const locationSyncedCharacter: MainCharacterState = { ...character, current_location: sceneName }
+  if (modules.character_appearance_clothing) {
+    if (!locationSyncedCharacter.current_appearance.trim()) {
+      locationSyncedCharacter.current_appearance = locationSyncedCharacter.baseline_appearance.trim()
+    }
+  } else {
+    locationSyncedCharacter.current_appearance = ""
+  }
   const sceneCharacters = [
     locationSyncedCharacter.name,
     ...npcs
@@ -47,7 +55,7 @@ export function createNewStory(
     locationSyncedCharacter,
     world,
     npcs,
-    storyModules ?? settings.storyDefaults,
+    modules,
     characterId,
     settings.defaultAuthorNote ?? "",
     settings.defaultAuthorNoteDepth ?? 4,

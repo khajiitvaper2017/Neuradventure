@@ -39,6 +39,7 @@
 
   const isGameScreen = $derived($activeScreen === "game")
   const canEdit = $derived((inline || isGameScreen) && $currentStoryId !== null)
+  const isStoryContext = $derived($currentStoryId !== null)
 
   let inspectCharacter = $state<MainCharacterState | null>(null)
   let inspectLoading = $state(false)
@@ -47,7 +48,9 @@
   let inspectFetchNonce = 0
 
   const isInspectMode = $derived(!inline && !isGameScreen && $showCharSheet && $charSheetCharacterId !== null)
-  const displayCharacter = $derived(inline || isGameScreen ? $character : inspectCharacter)
+  const displayCharacter = $derived(
+    inline || isGameScreen ? $character : inspectCharacter ? { ...inspectCharacter, current_appearance: "" } : null,
+  )
 
   function retryInspect() {
     inspectRefresh += 1
@@ -201,29 +204,29 @@
     })
 
     if (useAppearance) {
-      fields.push(
-        {
-          id: "cs-baseline-appearance",
-          label: "Baseline Appearance",
-          kind: "textarea",
-          value: draft.baselineAppearance,
-          onInput: (v) => (draft.baselineAppearance = v),
-        },
-        {
+      fields.push({
+        id: "cs-baseline-appearance",
+        label: "Baseline Appearance",
+        kind: "textarea",
+        value: draft.baselineAppearance,
+        onInput: (v) => (draft.baselineAppearance = v),
+      })
+      if (isStoryContext) {
+        fields.push({
           id: "cs-current-appearance",
           label: "Current Appearance",
           kind: "textarea",
           value: draft.currentAppearance,
           onInput: (v) => (draft.currentAppearance = v),
-        },
-        {
-          id: "cs-clothing",
-          label: "Wearing",
-          kind: "textarea",
-          value: draft.clothing,
-          onInput: (v) => (draft.clothing = v),
-        },
-      )
+        })
+      }
+      fields.push({
+        id: "cs-clothing",
+        label: "Wearing",
+        kind: "textarea",
+        value: draft.clothing,
+        onInput: (v) => (draft.clothing = v),
+      })
     }
     if (usePersonalityTraits) {
       fields.push({
@@ -592,17 +595,29 @@
               {displayCharacter.baseline_appearance}
             </div>
           </div>
+        {:else if !isStoryContext}
+          <div class={cn("mt-3 rounded-lg border bg-card p-4", flashAppearance && "ring-2 ring-primary/30")}>
+            <div class="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+              <Smile size={14} strokeWidth={1.5} class="shrink-0 opacity-70" aria-hidden="true" />
+              <span>Appearance</span>
+            </div>
+            <div class="mt-2 whitespace-pre-line text-sm leading-relaxed text-foreground">
+              {displayCharacter.baseline_appearance}
+            </div>
+          </div>
         {/if}
 
-        <div class={cn("mt-3 rounded-lg border bg-card p-4", flashAppearance && "ring-2 ring-primary/30")}>
-          <div class="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-            <Smile size={14} strokeWidth={1.5} class="shrink-0 opacity-70" aria-hidden="true" />
-            <span>Current Appearance</span>
+        {#if isStoryContext}
+          <div class={cn("mt-3 rounded-lg border bg-card p-4", flashAppearance && "ring-2 ring-primary/30")}>
+            <div class="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+              <Smile size={14} strokeWidth={1.5} class="shrink-0 opacity-70" aria-hidden="true" />
+              <span>Current Appearance</span>
+            </div>
+            <div class="mt-2 whitespace-pre-line text-sm leading-relaxed text-foreground">
+              {displayCharacter.current_appearance}
+            </div>
           </div>
-          <div class="mt-2 whitespace-pre-line text-sm leading-relaxed text-foreground">
-            {displayCharacter.current_appearance}
-          </div>
-        </div>
+        {/if}
 
         <div class={cn("mt-3 rounded-lg border bg-card p-4", flashClothing && "ring-2 ring-primary/30")}>
           <div class="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">

@@ -1,15 +1,8 @@
 <script lang="ts">
   import type { StoryModules } from "@/shared/types"
   import StoryModulesPanel from "@/components/panels/StoryModulesPanel.svelte"
-  import {
-    Dialog,
-    DialogContent,
-    DialogDescription,
-    DialogFooter,
-    DialogHeader,
-    DialogTitle,
-  } from "@/components/ui/dialog"
   import { Button } from "@/components/ui/button"
+  import { Sheet, SheetContent } from "@/components/ui/sheet"
   import { ScrollArea } from "@/components/ui/scroll-area"
 
   type Props = {
@@ -23,25 +16,29 @@
   let { open = false, disabled = false, modules = $bindable(), onCancel, onSave }: Props = $props()
 </script>
 
-<Dialog
+<Sheet
   {open}
   onOpenChange={(next) => {
     if (!next && open) onCancel?.()
   }}
 >
-  <DialogContent class="max-w-4xl">
-    <DialogHeader>
-      <DialogTitle>Story Modules</DialogTitle>
-      <DialogDescription>Control which mechanics are tracked for this story.</DialogDescription>
-    </DialogHeader>
-    <ScrollArea class="max-h-[70dvh] border-y">
-      <div class="px-4 py-3">
+  <SheetContent side="right" class="w-[min(92vw,44rem)] sm:max-w-none p-0">
+    <div class="flex items-center justify-between gap-3 border-b px-4 py-3">
+      <div class="min-w-0">
+        <div class="truncate text-sm font-semibold text-foreground">Story Modules</div>
+        <div class="mt-0.5 text-xs text-muted-foreground">Control which mechanics are tracked for this story.</div>
+      </div>
+      <Button variant="ghost" size="icon" class="h-9 w-9" onclick={onCancel} aria-label="Close">×</Button>
+    </div>
+
+    <ScrollArea class="max-h-[calc(100dvh-7.25rem)]">
+      <div class="p-4">
         <StoryModulesPanel {modules} setModules={(next) => (modules = next)} bare />
       </div>
     </ScrollArea>
-    <DialogFooter class="mt-3">
+    <div class="flex items-center justify-end gap-2 border-t px-4 py-3">
       <Button variant="outline" onclick={onCancel} {disabled}>Cancel</Button>
       <Button onclick={onSave} {disabled}>Save</Button>
-    </DialogFooter>
-  </DialogContent>
-</Dialog>
+    </div>
+  </SheetContent>
+</Sheet>
