@@ -1,11 +1,12 @@
 <script lang="ts">
+  import { tick } from "svelte"
   import { settings as settingsService } from "@/services/settings"
   import { Button } from "@/components/ui/button"
-  import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
+  import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+  import * as InputGroup from "@/components/ui/input-group"
   import { Input } from "@/components/ui/input"
   import { Label } from "@/components/ui/label"
   import * as Select from "@/components/ui/select"
-  import { Textarea } from "@/components/ui/textarea"
   import { Braces } from "@lucide/svelte"
 
   type Props = {
@@ -13,8 +14,8 @@
     description: string
     keys: string[]
     builtins: Record<string, string>
-    overrides: Record<string, string>
-    onOverridesUpdated: (next: Record<string, string>) => void
+    active?: boolean
+    layout?: "split" | "stacked"
     showResetAll?: boolean
     idBase?: string
   }
@@ -24,8 +25,8 @@
     description,
     keys,
     builtins,
-    overrides,
-    onOverridesUpdated,
+    active = true,
+    layout = "split",
     showResetAll = true,
     idBase = "",
   }: Props = $props()
@@ -39,9 +40,16 @@
       "field-prompts",
   )
   const searchId = $derived(`${derivedIdBase}-prompt-search`)
+  const promptId = $derived(`${derivedIdBase}-prompt-text`)
 
   let promptSearch = $state("")
   let selectedKey = $state<string>("")
+  let keySelectOpen = $state(false)
+  let keySearchRef = $state<HTMLInputElement | null>(null)
+
+  let fieldOverrides = $state<Record<string, string>>({})
+  let fieldOverridesLoading = $state(false)
+  let fieldOverridesLoaded = $state(false)
 
   let overrideDraft = $state("")
   let overrideDirty = $state(false)
@@ -64,8 +72,26 @@
       overrideDirty = false
       return
     }
-    overrideDraft = overrides[selectedKey] ?? ""
+    overrideDraft = fieldOverrides[selectedKey] ?? builtins[selectedKey] ?? ""
     overrideDirty = false
+  })
+
+  $effect(() => {
+    if (!active) return
+    if (fieldOverridesLoaded || fieldOverridesLoading) return
+    fieldOverridesLoading = true
+    error = null
+    void (async () => {
+      try {
+        fieldOverrides = await settingsService.fieldPromptOverrides()
+        fieldOverridesLoaded = true
+      } catch (err) {
+        console.error("[field-prompts] Failed to load overrides", err)
+        error = err instanceof Error ? err.message : "Failed to load overrides."
+      } finally {
+        fieldOverridesLoading = false
+      }
+    })()
   })
 
   async function saveOverride() {
@@ -74,13 +100,15 @@
     overrideSaving = true
     try {
       const value = overrideDraft.trim()
-      if (!value) {
+      const builtin = (builtins[selectedKey] ?? "").trim()
+      if (!value || value === builtin) {
         const next = await settingsService.resetFieldPromptOverride(selectedKey)
-        onOverridesUpdated(next)
+        fieldOverrides = next
       } else {
         const next = await settingsService.setFieldPromptOverride(selectedKey, value)
-        onOverridesUpdated(next)
+        fieldOverrides = next
       }
+      overrideDraft = fieldOverrides[selectedKey] ?? builtins[selectedKey] ?? ""
       overrideDirty = false
     } catch (err) {
       console.error("[field-prompts] Failed to save override", err)
@@ -96,7 +124,8 @@
     overrideSaving = true
     try {
       const next = await settingsService.resetFieldPromptOverride(selectedKey)
-      onOverridesUpdated(next)
+      fieldOverrides = next
+      overrideDraft = builtins[selectedKey] ?? ""
       overrideDirty = false
     } catch (err) {
       console.error("[field-prompts] Failed to reset override", err)
@@ -117,15 +146,25 @@
     try {
       await settingsService.resetAllFieldPromptOverrides()
       const next = await settingsService.fieldPromptOverrides()
-      onOverridesUpdated(next)
-      selectedKey = ""
-      overrideDraft = ""
+      fieldOverrides = next
+      overrideDraft = selectedKey ? (builtins[selectedKey] ?? "") : ""
       overrideDirty = false
     } catch (err) {
       console.error("[field-prompts] Failed to reset all overrides", err)
       error = err instanceof Error ? err.message : "Failed to reset all overrides."
     } finally {
       overrideSaving = false
+    }
+  }
+
+  async function setKeySelectOpen(next: boolean) {
+    keySelectOpen = next
+    if (next) {
+      await tick()
+      keySearchRef?.focus()
+      keySearchRef?.select()
+    } else {
+      promptSearch = ""
     }
   }
 </script>
@@ -143,27 +182,33 @@
       <div class="rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">{error}</div>
     {/if}
 
-    <div class="grid gap-3 md:grid-cols-[1fr_1.4fr]">
-      <div class="space-y-2">
-        <Label for={searchId}>Search keys</Label>
-        <Input
-          id={searchId}
-          placeholder="e.g. llm.turn_response"
-          value={promptSearch}
-          oninput={(e) => (promptSearch = (e.target as HTMLInputElement).value)}
-        />
+    {#if layout === "split"}
+      <div class="grid gap-3 md:grid-cols-[1fr_1.4fr]">
         <div class="space-y-2">
           <Label>Key</Label>
           <Select.Root
             type="single"
+            open={keySelectOpen}
             value={selectedKey}
             items={filteredKeys.map((k) => ({ value: k, label: k }))}
+            onOpenChange={(next) => setKeySelectOpen(Boolean(next))}
             onValueChange={(v) => (selectedKey = v as string)}
           >
             <Select.Trigger class="w-full" aria-label="Field prompt key">
               <span class="truncate font-mono text-xs">{selectedKey || "Select…"}</span>
             </Select.Trigger>
             <Select.Content class="max-h-[320px]">
+              <div class="sticky top-0 z-10 border-b bg-popover p-2">
+                <Input
+                  bind:ref={keySearchRef}
+                  id={searchId}
+                  placeholder="Search keys…"
+                  value={promptSearch}
+                  aria-label="Search keys"
+                  class="h-8 w-full"
+                  oninput={(e) => (promptSearch = (e.target as HTMLInputElement).value)}
+                />
+              </div>
               {#each filteredKeys as k (k)}
                 <Select.Item value={k} label={k} />
               {/each}
@@ -171,16 +216,113 @@
           </Select.Root>
           <div class="text-xs text-muted-foreground">{filteredKeys.length} key(s)</div>
         </div>
-      </div>
 
+        <div class="space-y-3">
+          <InputGroup.Root data-disabled={!selectedKey || overrideSaving ? "true" : undefined} class="min-h-24">
+            <InputGroup.Addon align="block-start" class="border-b justify-between gap-2 cursor-default">
+              <div class="space-y-1">
+                <Label for={promptId} class="text-foreground">Prompt</Label>
+                <div class="text-xs text-muted-foreground">
+                  {#if !selectedKey}
+                    Select a key to edit.
+                  {:else}
+                    <span class="font-mono font-medium text-foreground/80">{selectedKey}</span>
+                    {#if (fieldOverrides[selectedKey] ?? "").trim()}
+                      <span> · Override active</span>
+                    {:else}
+                      <span> · Using built-in</span>
+                    {/if}
+                  {/if}
+                </div>
+              </div>
+            </InputGroup.Addon>
+
+            <InputGroup.Textarea
+              id={promptId}
+              rows={6}
+              value={overrideDraft}
+              oninput={(e) => {
+                overrideDraft = (e.target as HTMLTextAreaElement).value
+                overrideDirty = true
+              }}
+              disabled={!selectedKey || overrideSaving}
+            />
+
+            <InputGroup.Addon align="block-end" class="border-t justify-between gap-2 cursor-default">
+              <div class="text-xs text-muted-foreground">
+                Save creates/updates an override. Reset removes the override (built-in).
+              </div>
+              <div class="flex flex-wrap items-center justify-end gap-2">
+                <Button variant="outline" onclick={resetOverride} disabled={!selectedKey || overrideSaving}
+                  >Reset</Button
+                >
+                <Button onclick={saveOverride} disabled={!selectedKey || overrideSaving || !overrideDirty}>
+                  {overrideSaving ? "Saving..." : "Save"}
+                </Button>
+                {#if showResetAll}
+                  <Button variant="destructive" onclick={resetAllOverrides} disabled={overrideSaving}>Reset All</Button>
+                {/if}
+              </div>
+            </InputGroup.Addon>
+          </InputGroup.Root>
+        </div>
+      </div>
+    {:else}
       <div class="space-y-3">
         <div class="space-y-2">
-          <Label>Built-in</Label>
-          <Textarea rows={6} value={selectedKey ? (builtins[selectedKey] ?? "") : ""} disabled />
+          <Label>Key</Label>
+          <Select.Root
+            type="single"
+            open={keySelectOpen}
+            value={selectedKey}
+            items={filteredKeys.map((k) => ({ value: k, label: k }))}
+            onOpenChange={(next) => setKeySelectOpen(Boolean(next))}
+            onValueChange={(v) => (selectedKey = v as string)}
+          >
+            <Select.Trigger class="w-full" aria-label="Field prompt key">
+              <span class="truncate font-mono text-xs">{selectedKey || "Select…"}</span>
+            </Select.Trigger>
+            <Select.Content class="max-h-[320px]">
+              <div class="sticky top-0 z-10 border-b bg-popover p-2">
+                <Input
+                  bind:ref={keySearchRef}
+                  id={searchId}
+                  placeholder="Search keys…"
+                  value={promptSearch}
+                  aria-label="Search keys"
+                  class="h-8 w-full"
+                  oninput={(e) => (promptSearch = (e.target as HTMLInputElement).value)}
+                />
+              </div>
+              {#each filteredKeys as k (k)}
+                <Select.Item value={k} label={k} />
+              {/each}
+            </Select.Content>
+          </Select.Root>
+          <div class="text-xs text-muted-foreground">{filteredKeys.length} key(s)</div>
         </div>
-        <div class="space-y-2">
-          <Label>Override</Label>
-          <Textarea
+
+        <InputGroup.Root data-disabled={!selectedKey || overrideSaving ? "true" : undefined} class="min-h-24">
+          <InputGroup.Addon align="block-start" class="border-b justify-between gap-2 cursor-default">
+            <div class="space-y-1">
+              <Label for={promptId} class="text-foreground">Prompt</Label>
+              <div class="text-xs text-muted-foreground">
+                {#if !selectedKey}
+                  Select a key to edit.
+                {:else}
+                  <span class="font-mono font-medium text-foreground/80">{selectedKey}</span>
+                  {#if (fieldOverrides[selectedKey] ?? "").trim()}
+                    <span> · Override active</span>
+                  {:else}
+                    <span> · Using built-in</span>
+                  {/if}
+                {/if}
+              </div>
+            </div>
+          </InputGroup.Addon>
+
+          <InputGroup.Textarea
+            id={promptId}
             rows={6}
             value={overrideDraft}
             oninput={(e) => {
@@ -189,22 +331,23 @@
             }}
             disabled={!selectedKey || overrideSaving}
           />
-          <div class="text-xs text-muted-foreground">
-            Leave empty to use built-in (saving empty removes the override).
-          </div>
-        </div>
-        <div class="flex flex-wrap items-center justify-end gap-2">
-          <Button variant="outline" onclick={resetOverride} disabled={!selectedKey || overrideSaving}>Reset key</Button>
-          <Button onclick={saveOverride} disabled={!selectedKey || overrideSaving || !overrideDirty}>
-            {overrideSaving ? "Saving..." : "Save override"}
-          </Button>
-        </div>
+
+          <InputGroup.Addon align="block-end" class="border-t justify-between gap-2 cursor-default">
+            <div class="text-xs text-muted-foreground">
+              Save creates/updates an override. Reset removes the override (built-in).
+            </div>
+            <div class="flex flex-wrap items-center justify-end gap-2">
+              <Button variant="outline" onclick={resetOverride} disabled={!selectedKey || overrideSaving}>Reset</Button>
+              <Button onclick={saveOverride} disabled={!selectedKey || overrideSaving || !overrideDirty}>
+                {overrideSaving ? "Saving..." : "Save"}
+              </Button>
+              {#if showResetAll}
+                <Button variant="destructive" onclick={resetAllOverrides} disabled={overrideSaving}>Reset All</Button>
+              {/if}
+            </div>
+          </InputGroup.Addon>
+        </InputGroup.Root>
       </div>
-    </div>
+    {/if}
   </CardContent>
-  {#if showResetAll}
-    <CardFooter class="justify-end">
-      <Button variant="outline" onclick={resetAllOverrides} disabled={overrideSaving}>Reset all overrides</Button>
-    </CardFooter>
-  {/if}
 </Card>

@@ -9,10 +9,9 @@
     DialogHeader,
     DialogTitle,
   } from "@/components/ui/dialog"
+  import * as InputGroup from "@/components/ui/input-group"
   import { Label } from "@/components/ui/label"
   import { ScrollArea } from "@/components/ui/scroll-area"
-  import { Separator } from "@/components/ui/separator"
-  import { Textarea } from "@/components/ui/textarea"
 
   type Props = {
     open?: boolean
@@ -21,27 +20,15 @@
     sharedNote?: string
     keys: string[]
     builtins: Record<string, string>
-    overrides: Record<string, string>
     disabled?: boolean
     onClose: () => void
-    onOverridesUpdated: (next: Record<string, string>) => void
   }
 
-  let {
-    open = false,
-    moduleId,
-    title,
-    sharedNote = "",
-    keys,
-    builtins,
-    overrides,
-    disabled = false,
-    onClose,
-    onOverridesUpdated,
-  }: Props = $props()
+  let { open = false, moduleId, title, sharedNote = "", keys, builtins, disabled = false, onClose }: Props = $props()
 
   const visibleKeys = $derived(keys.filter((k) => typeof builtins[k] === "string"))
 
+  let loading = $state(false)
   let saving = $state(false)
   let error = $state<string | null>(null)
 
@@ -50,17 +37,42 @@
 
   $effect(() => {
     if (!open) return
-    void moduleId
     const nextInitial: Record<string, string> = {}
     const nextDraft: Record<string, string> = {}
     for (const k of visibleKeys) {
-      nextInitial[k] = overrides[k] ?? ""
-      nextDraft[k] = overrides[k] ?? ""
+      const base = builtins[k] ?? ""
+      nextInitial[k] = base
+      nextDraft[k] = base
     }
     initial = nextInitial
     draft = nextDraft
+
     error = null
     saving = false
+    loading = true
+    const openedModule = moduleId
+    void (async () => {
+      try {
+        const overrides = await settingsService.fieldPromptOverrides()
+        if (!open || openedModule !== moduleId) return
+        const nextLoadedInitial: Record<string, string> = {}
+        const nextLoadedDraft: Record<string, string> = {}
+        for (const k of visibleKeys) {
+          const base = builtins[k] ?? ""
+          const effective = overrides[k] ?? base
+          nextLoadedInitial[k] = effective
+          nextLoadedDraft[k] = effective
+        }
+        initial = nextLoadedInitial
+        draft = nextLoadedDraft
+      } catch (err) {
+        console.error("[field-prompts] Failed to load module overrides", err)
+        error = err instanceof Error ? err.message : "Failed to load overrides."
+      } finally {
+        if (!open || openedModule !== moduleId) return
+        loading = false
+      }
+    })()
   })
 
   const dirty = $derived.by(() => {
@@ -75,17 +87,24 @@
   }
 
   function resetKey(key: string) {
-    setDraft(key, "")
+    setDraft(key, builtins[key] ?? "")
   }
 
   function resetModule() {
     const next: Record<string, string> = { ...draft }
-    for (const k of visibleKeys) next[k] = ""
+    for (const k of visibleKeys) next[k] = builtins[k] ?? ""
     draft = next
   }
 
+  function promptIdFor(moduleId: string, key: string) {
+    return `${moduleId}-${key}`
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/(^-|-$)/g, "")
+  }
+
   async function save() {
-    if (saving || !dirty) return
+    if (loading || saving || !dirty) return
     saving = true
     error = null
     try {
@@ -93,11 +112,10 @@
         const before = (initial[k] ?? "").trim()
         const after = (draft[k] ?? "").trim()
         if (before === after) continue
-        if (!after) await settingsService.resetFieldPromptOverride(k)
+        const builtin = (builtins[k] ?? "").trim()
+        if (!after || after === builtin) await settingsService.resetFieldPromptOverride(k)
         else await settingsService.setFieldPromptOverride(k, after)
       }
-      const next = await settingsService.fieldPromptOverrides()
-      onOverridesUpdated(next)
       onClose()
     } catch (err) {
       console.error("[field-prompts] Failed to save module overrides", err)
@@ -134,39 +152,44 @@
         <div class="space-y-4 pr-3">
           {#each visibleKeys as k (k)}
             <div class="rounded-md border p-4">
-              <div class="flex flex-wrap items-center justify-between gap-2">
-                <div class="min-w-0">
-                  <div class="truncate font-mono text-xs text-muted-foreground">{k}</div>
-                </div>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  class="h-8"
-                  onclick={() => resetKey(k)}
-                  disabled={disabled || saving}
-                >
-                  Reset key
-                </Button>
-              </div>
+              <InputGroup.Root data-disabled={disabled || saving || loading ? "true" : undefined} class="min-h-24">
+                <InputGroup.Addon align="block-start" class="border-b justify-between gap-2 cursor-default">
+                  <div class="space-y-1">
+                    <Label for={promptIdFor(moduleId, k)} class="text-foreground">Prompt</Label>
+                    <div class="text-xs text-muted-foreground">
+                      <span class="font-mono font-medium text-foreground/80">{k}</span>
+                      {#if (draft[k] ?? "").trim() === (builtins[k] ?? "").trim()}
+                        <span> · Using built-in</span>
+                      {:else}
+                        <span> · Override active</span>
+                      {/if}
+                    </div>
+                  </div>
+                </InputGroup.Addon>
 
-              <Separator class="my-3" />
+                <InputGroup.Textarea
+                  id={promptIdFor(moduleId, k)}
+                  rows={6}
+                  value={draft[k] ?? ""}
+                  oninput={(e) => setDraft(k, (e.target as HTMLTextAreaElement).value)}
+                  disabled={disabled || saving || loading}
+                />
 
-              <div class="grid gap-3 md:grid-cols-2">
-                <div class="space-y-2">
-                  <Label>Built-in</Label>
-                  <Textarea rows={6} value={builtins[k] ?? ""} disabled />
-                </div>
-                <div class="space-y-2">
-                  <Label>Override</Label>
-                  <Textarea
-                    rows={6}
-                    value={draft[k] ?? ""}
-                    oninput={(e) => setDraft(k, (e.target as HTMLTextAreaElement).value)}
-                    disabled={disabled || saving}
-                  />
-                  <div class="text-xs text-muted-foreground">Leave empty to use built-in.</div>
-                </div>
-              </div>
+                <InputGroup.Addon align="block-end" class="border-t justify-between gap-2 cursor-default">
+                  <div class="text-xs text-muted-foreground">
+                    Save creates/updates an override. Reset removes the override (built-in).
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    class="h-8"
+                    onclick={() => resetKey(k)}
+                    disabled={disabled || saving || loading}
+                  >
+                    Reset
+                  </Button>
+                </InputGroup.Addon>
+              </InputGroup.Root>
             </div>
           {/each}
         </div>
@@ -178,9 +201,9 @@
     {/if}
 
     <DialogFooter class="gap-2">
-      <Button variant="outline" onclick={onClose} disabled={disabled || saving}>Cancel</Button>
-      <Button variant="outline" onclick={resetModule} disabled={disabled || saving}>Reset module</Button>
-      <Button onclick={save} disabled={disabled || saving || !dirty}>{saving ? "Saving..." : "Save"}</Button>
+      <Button variant="outline" onclick={onClose} disabled={disabled || saving || loading}>Cancel</Button>
+      <Button variant="outline" onclick={resetModule} disabled={disabled || saving || loading}>Reset module</Button>
+      <Button onclick={save} disabled={disabled || saving || loading || !dirty}>{saving ? "Saving..." : "Save"}</Button>
     </DialogFooter>
   </DialogContent>
 </Dialog>

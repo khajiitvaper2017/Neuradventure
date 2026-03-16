@@ -7,8 +7,9 @@
         "inline-start": "order-first ps-3 has-[>button]:ms-[-0.45rem] has-[>kbd]:ms-[-0.35rem]",
         "inline-end": "order-last pe-3 has-[>button]:me-[-0.45rem] has-[>kbd]:me-[-0.35rem]",
         "block-start":
-          "order-first w-full justify-start px-3 pt-3 group-has-[>input]/input-group:pt-2.5 [.border-b]:pb-3",
-        "block-end": "order-last w-full justify-start px-3 pb-3 group-has-[>input]/input-group:pb-2.5 [.border-t]:pt-3",
+          "order-first w-full justify-start px-3 pt-3 group-has-[>input]/input-group:pt-2.5 group-has-[>textarea]/input-group:pt-2.5 [.border-b]:pb-3",
+        "block-end":
+          "order-last w-full justify-start px-3 pb-3 group-has-[>input]/input-group:pb-2.5 group-has-[>textarea]/input-group:pb-2.5 [.border-t]:pt-3",
       },
     },
     defaultVariants: {
@@ -44,7 +45,8 @@
     if ((e.target as HTMLElement).closest("button")) {
       return
     }
-    e.currentTarget.parentElement?.querySelector("input")?.focus()
+    const control = e.currentTarget.parentElement?.querySelector<HTMLElement>("[data-slot='input-group-control']")
+    control?.focus()
   }}
   {...restProps}
 >

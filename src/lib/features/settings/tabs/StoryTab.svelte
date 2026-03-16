@@ -190,6 +190,7 @@
         {active}
         keys={storyOtherKeys}
         {builtins}
+        layout="stacked"
         showResetAll={true}
         idBase="story-other-field-prompt-overrides"
       />
@@ -204,6 +205,7 @@
         {active}
         keys={[...CUSTOM_FIELD_CONTAINER_KEYS]}
         {builtins}
+        layout="stacked"
         showResetAll={false}
         idBase="custom-field-container-prompts"
       />

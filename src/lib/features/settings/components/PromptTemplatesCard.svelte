@@ -3,10 +3,10 @@
   import { settings as settingsService } from "@/services/settings"
   import type { PromptTemplateFile } from "@/shared/api-types"
   import { Button } from "@/components/ui/button"
-  import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
+  import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+  import * as InputGroup from "@/components/ui/input-group"
   import { Label } from "@/components/ui/label"
   import * as Tabs from "@/components/ui/tabs/index.js"
-  import { Textarea } from "@/components/ui/textarea"
   import { FileText } from "@lucide/svelte"
 
   type Props = {
@@ -16,6 +16,14 @@
   }
 
   let { allowedNames, title = "Prompt Templates", description = "Edit text stored in SQLite." }: Props = $props()
+
+  const derivedIdBase = $derived(
+    title
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/(^-|-$)/g, "") || "prompt-templates",
+  )
+  const templateId = $derived(`${derivedIdBase}-template-text`)
 
   const PROMPT_LABELS: Record<PromptTemplateFile["name"], string> = {
     "narrative-turn": "Narrative Turn",
@@ -188,25 +196,49 @@
     {/if}
 
     <div class="space-y-2">
-      <div class="space-y-1">
-        <Label>Template (text)</Label>
-        <div class="text-xs text-muted-foreground">
-          {promptLoading
-            ? "Loading…"
-            : promptSelectedRow?.updated_at
-              ? `Updated: ${promptSelectedRow.updated_at}`
-              : "Not loaded"}
-        </div>
-      </div>
+      <InputGroup.Root
+        data-disabled={promptLoading || promptSaving || !promptSelected ? "true" : undefined}
+        class="min-h-[420px]"
+      >
+        <InputGroup.Addon align="block-start" class="border-b justify-between gap-2 cursor-default">
+          <div class="space-y-1">
+            <Label for={templateId} class="text-foreground">Template (text)</Label>
+            <div class="text-xs text-muted-foreground">
+              {promptLoading
+                ? "Loading…"
+                : promptSelectedRow?.updated_at
+                  ? `Updated: ${promptSelectedRow.updated_at}`
+                  : "Not loaded"}
+            </div>
+          </div>
+        </InputGroup.Addon>
 
-      <Textarea
-        class="min-h-[420px] w-full font-mono text-xs leading-relaxed"
-        rows={18}
-        bind:value={promptDraft}
-        spellcheck={false}
-        disabled={promptLoading || promptSaving || !promptSelected}
-        oninput={() => (promptDirty = true)}
-      />
+        <InputGroup.Textarea
+          id={templateId}
+          class="min-h-[420px] font-mono text-xs leading-relaxed"
+          rows={18}
+          bind:value={promptDraft}
+          spellcheck={false}
+          disabled={promptLoading || promptSaving || !promptSelected}
+          oninput={() => (promptDirty = true)}
+        />
+
+        <InputGroup.Addon align="block-end" class="border-t justify-end gap-2 cursor-default flex-wrap">
+          <Button disabled={!promptDirty || promptSaving || promptLoading || !promptSelected} onclick={savePromptFile}>
+            {promptSaving ? "Saving…" : "Save"}
+          </Button>
+          <Button
+            variant="outline"
+            disabled={promptSaving || promptLoading || !promptSelected}
+            onclick={resetPromptFile}>Reset</Button
+          >
+          {#if allowedNames.length > 1}
+            <Button variant="destructive" disabled={promptSaving || promptLoading} onclick={resetAllAllowedPromptFiles}>
+              Reset All
+            </Button>
+          {/if}
+        </InputGroup.Addon>
+      </InputGroup.Root>
     </div>
 
     {#if promptError}
@@ -215,17 +247,4 @@
       </div>
     {/if}
   </CardContent>
-  <CardFooter class="flex flex-wrap gap-2">
-    <Button disabled={!promptDirty || promptSaving || promptLoading || !promptSelected} onclick={savePromptFile}>
-      {promptSaving ? "Saving…" : "Save"}
-    </Button>
-    <Button variant="outline" disabled={promptSaving || promptLoading || !promptSelected} onclick={resetPromptFile}
-      >Reset</Button
-    >
-    {#if allowedNames.length > 1}
-      <Button variant="destructive" disabled={promptSaving || promptLoading} onclick={resetAllAllowedPromptFiles}>
-        Reset All
-      </Button>
-    {/if}
-  </CardFooter>
 </Card>

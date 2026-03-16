@@ -19,10 +19,10 @@
     "h-9 has-[>textarea]:h-auto",
 
     // Variants based on alignment.
-    "has-[>[data-align=inline-start]]:[&>input]:ps-2",
-    "has-[>[data-align=inline-end]]:[&>input]:pe-2",
-    "has-[>[data-align=block-start]]:h-auto has-[>[data-align=block-start]]:flex-col has-[>[data-align=block-start]]:[&>input]:pb-3",
-    "has-[>[data-align=block-end]]:h-auto has-[>[data-align=block-end]]:flex-col has-[>[data-align=block-end]]:[&>input]:pt-3",
+    "has-[>[data-align=inline-start]]:[&>[data-slot=input-group-control]]:ps-2",
+    "has-[>[data-align=inline-end]]:[&>[data-slot=input-group-control]]:pe-2",
+    "has-[>[data-align=block-start]]:h-auto has-[>[data-align=block-start]]:flex-col has-[>[data-align=block-start]]:[&>[data-slot=input-group-control]]:pb-3",
+    "has-[>[data-align=block-end]]:h-auto has-[>[data-align=block-end]]:flex-col has-[>[data-align=block-end]]:[&>[data-slot=input-group-control]]:pt-3",
 
     // Focus state.
     "has-[[data-slot=input-group-control]:focus-visible]:border-ring has-[[data-slot=input-group-control]:focus-visible]:ring-ring/50 has-[[data-slot=input-group-control]:focus-visible]:ring-[3px]",
