@@ -8,12 +8,12 @@ A **static, installable SvelteKit PWA** with no custom backend. Navigation is qu
 
 ## Architecture
 
-| Layer | Technology |
-|---|---|
-| Frontend | Svelte 5 + SvelteKit (SSR disabled, `adapter-static`) |
-| Persistence | `sql.js` (WASM SQLite) → IndexedDB via `navigator.storage.persist()` |
-| LLM | Browser `fetch` → OpenAI-compatible APIs (OpenRouter, LAN KoboldCpp) |
-| Streaming | In-process streaming hub — no WebSocket server |
+| Layer         | Technology                                                                                |
+| ------------- | ----------------------------------------------------------------------------------------- |
+| Frontend      | Svelte 5 + SvelteKit (SSR disabled, `adapter-static`)                                     |
+| Persistence   | `sql.js` (WASM SQLite) → IndexedDB via `navigator.storage.persist()`                      |
+| LLM           | Browser `fetch` → OpenAI-compatible APIs (OpenRouter, LAN KoboldCpp)                      |
+| Streaming     | In-process streaming hub — no WebSocket server                                            |
 | PWA / Offline | `@vite-pwa/sveltekit` (Workbox) — precaches assets + WASM; network-only for LLM endpoints |
 
 ---
@@ -97,15 +97,14 @@ svelte.config.js        # adapter-static, aliases, Service Worker settings
 
 Use the Svelte MCP server for all Svelte 5 and SvelteKit documentation lookups. Call these tools at the start of any task involving Svelte or SvelteKit.
 
-| Tool | When to use |
-|---|---|
-| `list-sections` | First — discover available documentation sections (returns titles, use_cases, paths). |
-| `get-documentation` | After `list-sections` — fetch all sections relevant to the task. Analyze `use_cases` carefully before selecting. |
-| `svelte-autofixer` | Before sending any Svelte code — analyzes for issues and suggestions. Call repeatedly until no issues remain. Don't worry about load. |
+| Tool                | When to use                                                                                                                           |
+| ------------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
+| `list-sections`     | First — discover available documentation sections (returns titles, use_cases, paths).                                                 |
+| `get-documentation` | After `list-sections` — fetch all sections relevant to the task. Analyze `use_cases` carefully before selecting.                      |
+| `svelte-autofixer`  | Before sending any Svelte code — analyzes for issues and suggestions. Call repeatedly until no issues remain. Don't worry about load. |
 
 ---
 
 ## Constraints
 
 **GBNF patterns** — all regex patterns in JSON-to-GBNF conversions must explicitly begin with `^` and end with `$`.
-
