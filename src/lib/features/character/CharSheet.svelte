@@ -557,17 +557,15 @@
         </div>
       </div>
 
-      {#if showBaselineDetails}
-        <div class={cn("mt-3 rounded-lg border bg-card p-4", flashAppearance && "ring-2 ring-primary/30")}>
-          <div class="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-            <Smile size={14} strokeWidth={1.5} class="shrink-0 opacity-70" aria-hidden="true" />
-            <span>Description</span>
-          </div>
-          <div class="mt-2 whitespace-pre-line text-sm leading-relaxed text-foreground">
-            {displayCharacter.general_description || "Unknown description"}
-          </div>
+      <div class={cn("mt-3 rounded-lg border bg-card p-4", flashAppearance && "ring-2 ring-primary/30")}>
+        <div class="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+          <Smile size={14} strokeWidth={1.5} class="shrink-0 opacity-70" aria-hidden="true" />
+          <span>Description</span>
         </div>
-      {/if}
+        <div class="mt-2 whitespace-pre-line text-sm leading-relaxed text-foreground">
+          {displayCharacter.general_description || "Unknown description"}
+        </div>
+      </div>
 
       {#if useAppearance}
         {#if showBaselineDetails}
