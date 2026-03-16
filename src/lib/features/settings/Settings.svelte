@@ -5,14 +5,17 @@
   import { ScrollArea } from "@/components/ui/scroll-area"
   import DataTab from "@/features/settings/tabs/DataTab.svelte"
   import GenerationTab from "@/features/settings/tabs/GenerationTab.svelte"
-  import StoryTab from "@/features/settings/tabs/StoryTab.svelte"
+  import StoryTab, { type StorySection } from "@/features/settings/tabs/StoryTab.svelte"
   import ChatTab from "@/features/settings/tabs/ChatTab.svelte"
   import {
     ArrowLeft,
+    Braces,
     Book,
     Database,
     FileSliders,
+    FileText,
     MessageSquare,
+    Puzzle,
     Settings,
     SlidersVertical,
     Sparkles,
@@ -23,6 +26,7 @@
   const SETTINGS_TAB_KEY = "settings_active_tab"
   type GenerationSection = "connection" | "defaults" | "params" | "advanced"
   const GEN_SECTION_KEY = "settings_generation_section"
+  const STORY_SECTION_KEY = "settings_story_section"
 
   function loadInitialTab(): SettingsTab {
     if (typeof window === "undefined") return "data"
@@ -57,6 +61,33 @@
 
   let generationSection: GenerationSection = $state(loadInitialSection())
 
+  function loadInitialStorySection(): StorySection {
+    if (typeof window === "undefined") return "modules"
+    try {
+      const stored = window.localStorage.getItem(STORY_SECTION_KEY)
+      if (stored === "modules") return "modules"
+      if (stored === "prompts") return "prompts"
+      if (stored === "fields") return "fields"
+
+      const legacyStory = window.localStorage.getItem("settings_story_subtab")
+      if (legacyStory === "modules") return "modules"
+      if (legacyStory === "prompts") return "prompts"
+      if (legacyStory === "fields") return "fields"
+
+      // Legacy migration: old settings_active_tab could store story section directly.
+      const legacy = window.localStorage.getItem(SETTINGS_TAB_KEY)
+      if (legacy === "modules") return "modules"
+      if (legacy === "prompts") return "prompts"
+      if (legacy === "fields") return "fields"
+
+      return "modules"
+    } catch {
+      return "modules"
+    }
+  }
+
+  let storySection: StorySection = $state(loadInitialStorySection())
+
   function persistActiveTab(next: SettingsTab) {
     if (typeof window === "undefined") return
     try {
@@ -75,6 +106,15 @@
     }
   }
 
+  function persistStorySection(next: StorySection) {
+    if (typeof window === "undefined") return
+    try {
+      window.localStorage.setItem(STORY_SECTION_KEY, next)
+    } catch {
+      // Ignore storage failures (e.g., privacy mode).
+    }
+  }
+
   const tabs: Array<{ value: SettingsTab; label: string }> = [
     { value: "data", label: "Data" },
     { value: "generation", label: "LLM" },
@@ -87,6 +127,12 @@
     { value: "defaults", label: "Defaults" },
     { value: "params", label: "Params" },
     { value: "advanced", label: "Advanced" },
+  ]
+
+  const storySectionTabs: Array<{ value: StorySection; label: string }> = [
+    { value: "modules", label: "Modules" },
+    { value: "prompts", label: "Prompts" },
+    { value: "fields", label: "Fields" },
   ]
 </script>
 
@@ -170,6 +216,39 @@
       </div>
     {/if}
 
+    {#if activeTab === "story"}
+      <div class="border-b px-4 py-3">
+        <Tabs.Root
+          value={storySection}
+          onValueChange={(next) => {
+            storySection = next as StorySection
+            persistStorySection(storySection)
+          }}
+        >
+          <Tabs.List
+            aria-label="Story settings sections"
+            class="w-full justify-start overflow-x-auto overflow-y-hidden sm:justify-center sm:overflow-x-visible"
+          >
+            {#each storySectionTabs as t (t.value)}
+              <Tabs.Trigger
+                value={t.value}
+                class="min-w-max flex flex-1 items-center justify-center gap-2 px-3 text-xs font-medium uppercase tracking-wider sm:min-w-0 sm:px-2"
+              >
+                {#if t.value === "modules"}
+                  <Puzzle class="size-4" aria-hidden="true" />
+                {:else if t.value === "prompts"}
+                  <FileText class="size-4" aria-hidden="true" />
+                {:else}
+                  <Braces class="size-4" aria-hidden="true" />
+                {/if}
+                {t.label}
+              </Tabs.Trigger>
+            {/each}
+          </Tabs.List>
+        </Tabs.Root>
+      </div>
+    {/if}
+
     <ScrollArea class="min-h-0 flex-1">
       <div class="px-4 py-4">
         <Tabs.Content value="data">
@@ -186,7 +265,7 @@
 
         <Tabs.Content value="story">
           <div class="space-y-4">
-            <StoryTab active={activeTab === "story"} />
+            <StoryTab active={activeTab === "story"} section={storySection} />
           </div>
         </Tabs.Content>
 

@@ -4,17 +4,21 @@
   import { settings as settingsService } from "@/services/settings"
   import StoryModulesPanel from "@/components/panels/StoryModulesPanel.svelte"
   import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-  import * as Tabs from "@/components/ui/tabs/index.js"
   import CustomFieldsCard from "@/features/settings/components/CustomFieldsCard.svelte"
   import FieldPromptOverridesCard from "@/features/settings/components/FieldPromptOverridesCard.svelte"
   import ModulePromptOverridesDialog from "@/features/settings/components/ModulePromptOverridesDialog.svelte"
   import PromptFormattingCard from "@/features/settings/components/PromptFormattingCard.svelte"
   import PromptTemplatesCard from "@/features/settings/components/PromptTemplatesCard.svelte"
   import { storyDefaults } from "@/stores/settings"
-  import { Braces, FileText, Puzzle } from "@lucide/svelte"
+  import { Puzzle } from "@lucide/svelte"
 
-  type Props = { active?: boolean }
-  let { active = false }: Props = $props()
+  export type StorySection = "modules" | "prompts" | "fields"
+
+  type Props = {
+    active?: boolean
+    section: StorySection
+  }
+  let { active = false, section }: Props = $props()
 
   const builtins = promptFields as Record<string, string>
 
@@ -165,34 +169,6 @@
     storyDefaults.set(next)
   }
 
-  type StorySubtab = "modules" | "prompts" | "fields"
-  const STORY_SUBTAB_KEY = "settings_story_subtab"
-
-  function loadInitialSubtab(): StorySubtab {
-    if (typeof window === "undefined") return "modules"
-    try {
-      const stored = window.localStorage.getItem(STORY_SUBTAB_KEY)
-      if (stored === "modules") return "modules"
-      if (stored === "prompts") return "prompts"
-      if (stored === "fields") return "fields"
-      return "modules"
-    } catch {
-      return "modules"
-    }
-  }
-
-  let activeSubtab = $state<StorySubtab>(loadInitialSubtab())
-
-  $effect(() => {
-    if (!active) return
-    if (typeof window === "undefined") return
-    try {
-      window.localStorage.setItem(STORY_SUBTAB_KEY, activeSubtab)
-    } catch {
-      // ignore
-    }
-  })
-
   let activeModule = $state<ModuleKey | null>(null)
   let moduleDialogOpen = $state(false)
 
@@ -207,101 +183,58 @@
 </script>
 
 <div class="space-y-4">
-  <Tabs.Root value={activeSubtab} onValueChange={(next) => (activeSubtab = next as StorySubtab)} class="gap-0">
-    <Tabs.List
-      aria-label="Story settings sections"
-      class="w-full justify-start overflow-x-auto overflow-y-hidden sm:justify-center sm:overflow-x-visible"
-    >
-      <Tabs.Trigger
-        value="modules"
-        class="min-w-max flex flex-1 items-center justify-center gap-2 px-3 text-xs font-medium uppercase tracking-wider sm:min-w-0"
-      >
-        <Puzzle class="size-4" aria-hidden="true" />
-        Modules
-      </Tabs.Trigger>
-      <Tabs.Trigger
-        value="prompts"
-        class="min-w-max flex flex-1 items-center justify-center gap-2 px-3 text-xs font-medium uppercase tracking-wider sm:min-w-0"
-      >
-        <FileText class="size-4" aria-hidden="true" />
-        Prompts
-      </Tabs.Trigger>
-      <Tabs.Trigger
-        value="fields"
-        class="min-w-max flex flex-1 items-center justify-center gap-2 px-3 text-xs font-medium uppercase tracking-wider sm:min-w-0"
-      >
-        <Braces class="size-4" aria-hidden="true" />
-        Fields
-      </Tabs.Trigger>
-    </Tabs.List>
+  {#if section === "modules"}
+    <div class="space-y-4">
+      <Card>
+        <CardHeader>
+          <CardTitle class="flex items-center gap-2">
+            <Puzzle class="size-4 text-muted-foreground" aria-hidden="true" />
+            Defaults
+          </CardTitle>
+          <CardDescription>Default story module settings for new stories.</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <StoryModulesPanel modules={$storyDefaults} setModules={setStoryDefaults} onOpenPrompts={openModulePrompts} />
+        </CardContent>
+      </Card>
+    </div>
+  {:else if section === "prompts"}
+    <div class="space-y-4">
+      <PromptFormattingCard />
 
-    <Tabs.Content value="modules" class="mt-4">
-      <div class="space-y-4">
-        <Card>
-          <CardHeader>
-            <CardTitle class="flex items-center gap-2">
-              <Puzzle class="size-4 text-muted-foreground" aria-hidden="true" />
-              Defaults
-            </CardTitle>
-            <CardDescription>Default story module settings for new stories.</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <StoryModulesPanel
-              modules={$storyDefaults}
-              setModules={setStoryDefaults}
-              onOpenPrompts={openModulePrompts}
-            />
-          </CardContent>
-        </Card>
-      </div>
-    </Tabs.Content>
+      <PromptTemplatesCard
+        allowedNames={["narrative-turn", "story-setup", "npc-creation", "player-impersonation", "character-generation"]}
+        title="Story Prompt Templates"
+        description="Edit story prompt templates stored in SQLite. Changes affect future generations immediately."
+      />
 
-    <Tabs.Content value="prompts" class="mt-4">
-      <div class="space-y-4">
-        <PromptFormattingCard />
+      <FieldPromptOverridesCard
+        title="Other Field Prompt Overrides"
+        description="Override built-in JSON schema descriptions from prompt-fields.json (only keys not shown under a module)."
+        keys={storyOtherKeys}
+        {builtins}
+        {overrides}
+        onOverridesUpdated={(next) => (overrides = next)}
+        showResetAll={true}
+        idBase="story-other-field-prompt-overrides"
+      />
+    </div>
+  {:else}
+    <div class="space-y-4">
+      <CustomFieldsCard {active} />
 
-        <PromptTemplatesCard
-          allowedNames={[
-            "narrative-turn",
-            "story-setup",
-            "npc-creation",
-            "player-impersonation",
-            "character-generation",
-          ]}
-          title="Story Prompt Templates"
-          description="Edit story prompt templates stored in SQLite. Changes affect future generations immediately."
-        />
-
-        <FieldPromptOverridesCard
-          title="Other Field Prompt Overrides"
-          description="Override built-in JSON schema descriptions from prompt-fields.json (only keys not shown under a module)."
-          keys={storyOtherKeys}
-          {builtins}
-          {overrides}
-          onOverridesUpdated={(next) => (overrides = next)}
-          showResetAll={true}
-          idBase="story-other-field-prompt-overrides"
-        />
-      </div>
-    </Tabs.Content>
-
-    <Tabs.Content value="fields" class="mt-4">
-      <div class="space-y-4">
-        <CustomFieldsCard {active} />
-
-        <FieldPromptOverridesCard
-          title="Custom Field Container Prompts"
-          description="Prompts for the containers used to hold custom field updates."
-          keys={[...CUSTOM_FIELD_CONTAINER_KEYS]}
-          {builtins}
-          {overrides}
-          onOverridesUpdated={(next) => (overrides = next)}
-          showResetAll={false}
-          idBase="custom-field-container-prompts"
-        />
-      </div>
-    </Tabs.Content>
-  </Tabs.Root>
+      <FieldPromptOverridesCard
+        title="Custom Field Container Prompts"
+        description="Prompts for the containers used to hold custom field updates."
+        keys={[...CUSTOM_FIELD_CONTAINER_KEYS]}
+        {builtins}
+        {overrides}
+        onOverridesUpdated={(next) => (overrides = next)}
+        showResetAll={false}
+        idBase="custom-field-container-prompts"
+      />
+    </div>
+  {/if}
 
   {#if activeModule}
     <ModulePromptOverridesDialog
