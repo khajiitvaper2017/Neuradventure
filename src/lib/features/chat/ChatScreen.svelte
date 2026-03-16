@@ -56,12 +56,12 @@
   let showSpeakerPicker = $state(false)
   let greetingLoading = $state(false)
   let greetingApplying = $state(false)
-  let greetingOptions = $state.raw<string[]>([])
+  let greetingOptions = $state<string[]>([])
   let greetingFetchNonce = 0
   let greetingApplyNonce = 0
   let greetingIndex = $state<number>(0)
   let lastGreetingCharId: number | null = null
-  let streamUnsub: null | (() => void) = null
+  let streamUnsub = $state<null | (() => void)>(null)
   let streamReply = $state("")
   let resumeAttemptedFor = ""
   let streamPreviewMode = $state<"append" | "replace">("append")
@@ -127,9 +127,13 @@
     followStream = isNearBottom(logEl)
   }
 
-  const logViewportProps = {
-    onscroll: () => handleLogScroll(),
-  }
+  $effect(() => {
+    const el = logEl
+    if (!el) return
+    const onScroll = () => handleLogScroll()
+    el.addEventListener("scroll", onScroll, { passive: true })
+    return () => el.removeEventListener("scroll", onScroll)
+  })
 
   function jumpToLatest() {
     followStream = true
@@ -191,6 +195,7 @@
   }
 
   $effect(() => {
+    if (typeof window === "undefined") return
     if (!$currentChatId) return
     if ($isChatGenerating) return
     void resumePendingChat("chat.send")
@@ -570,7 +575,7 @@
     />
   {/if}
 
-  <ScrollArea class="min-h-0 flex-1" bind:viewportRef={logEl} viewportProps={logViewportProps}>
+  <ScrollArea class="min-h-0 flex-1" bind:viewportRef={logEl}>
     <div class="px-5 pb-2 pt-6 min-[1200px]:px-10 min-[1200px]:pt-8">
       {#if visibleMessages.length === 0}
         <div

@@ -49,11 +49,11 @@ export async function generateStory(
           formatTemplate(llmStrings.characterContextLabels.race, { value: character.race || unknown }),
           formatTemplate(llmStrings.characterContextLabels.gender, { value: character.gender || unknown }),
           formatTemplate(llmStrings.characterContextLabels.generalDescription, { value: generalDescription }),
-          formatTemplate(llmStrings.characterContextLabels.baselineAppearance, {
-            value: character.baseline_appearance || unknown,
-          }),
           ...(flags.useCharAppearance
             ? [
+                formatTemplate(llmStrings.characterContextLabels.baselineAppearance, {
+                  value: character.baseline_appearance || unknown,
+                }),
                 formatTemplate(llmStrings.characterContextLabels.currentAppearance, {
                   value: character.current_appearance || character.baseline_appearance || unknown,
                 }),

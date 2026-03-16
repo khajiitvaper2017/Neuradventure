@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { onMount } from "svelte"
   import { settings as settingsService } from "@/services/settings"
   import type { PromptTemplateFile } from "@/shared/api-types"
   import { Button } from "@/components/ui/button"
@@ -6,7 +7,6 @@
   import * as InputGroup from "@/components/ui/input-group"
   import { Label } from "@/components/ui/label"
   import * as Tabs from "@/components/ui/tabs/index.js"
-  import { showConfirm } from "@/stores/ui"
   import { FileText } from "@lucide/svelte"
 
   type Props = {
@@ -35,7 +35,7 @@
     "player-impersonation": "Player Impersonation",
   }
 
-  let promptFiles = $state.raw<PromptTemplateFile[]>([])
+  let promptFiles = $state<PromptTemplateFile[]>([])
   let promptSelected = $state<PromptTemplateFile["name"] | null>(null)
   let promptDraft = $state<string>("")
   let promptDirty = $state(false)
@@ -85,15 +85,10 @@
     }
   }
 
-  async function selectPromptFile(name: PromptTemplateFile["name"]) {
+  function selectPromptFile(name: PromptTemplateFile["name"]) {
     if (name === promptSelected) return
-    if (promptDirty) {
-      const ok = await showConfirm({
-        title: "Discard changes?",
-        message: "Discard unsaved prompt changes?",
-        confirmLabel: "Discard",
-        danger: true,
-      })
+    if (promptDirty && typeof window !== "undefined") {
+      const ok = window.confirm("Discard unsaved prompt changes?")
       if (!ok) return
     }
     promptError = null
@@ -122,13 +117,10 @@
 
   async function resetPromptFile() {
     if (promptSaving || !promptSelected) return
-    const ok = await showConfirm({
-      title: "Reset template?",
-      message: "Reset this template to the built-in defaults?",
-      confirmLabel: "Reset",
-      danger: true,
-    })
-    if (!ok) return
+    if (typeof window !== "undefined") {
+      const ok = window.confirm("Reset this template to the built-in defaults?")
+      if (!ok) return
+    }
     promptSaving = true
     promptError = null
     try {
@@ -146,13 +138,10 @@
 
   async function resetAllAllowedPromptFiles() {
     if (promptSaving) return
-    const ok = await showConfirm({
-      title: "Reset templates?",
-      message: "Reset ALL prompt templates in this section to built-in defaults?",
-      confirmLabel: "Reset",
-      danger: true,
-    })
-    if (!ok) return
+    if (typeof window !== "undefined") {
+      const ok = window.confirm("Reset ALL prompt templates in this section to built-in defaults?")
+      if (!ok) return
+    }
     promptSaving = true
     promptError = null
     promptDirty = false
@@ -169,10 +158,7 @@
     }
   }
 
-  const allowedKey = $derived(allowedNames.join("|"))
-
-  $effect(() => {
-    void allowedKey
+  onMount(() => {
     void loadPromptFiles()
   })
 </script>
@@ -191,7 +177,7 @@
     {:else if promptSelected}
       <Tabs.Root
         value={promptSelected}
-        onValueChange={(next) => void selectPromptFile(next as PromptTemplateFile["name"])}
+        onValueChange={(next) => selectPromptFile(next as PromptTemplateFile["name"])}
         class="gap-3"
       >
         <div class="overflow-x-auto pb-1">

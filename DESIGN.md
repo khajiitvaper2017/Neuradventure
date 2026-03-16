@@ -6,7 +6,7 @@
 
 - `font-sans`: Geist Sans
 - `font-mono`: Geist Mono
-- `font-story`: Spectral
+- `font-story`: Cinzel
 
 ## Styling Rules
 

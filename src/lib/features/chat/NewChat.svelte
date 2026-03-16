@@ -30,17 +30,17 @@
   let loading = $state(false)
   let submitting = $state(false)
   let generating = $state(false)
-  let chatPromptHistory = $state.raw<string[]>([])
+  let chatPromptHistory = $state<string[]>([])
 
-  let savedCharacters = $state.raw<StoryCharacterGroup[]>([])
-  let savedNpcs = $state.raw<StoryNpcGroup[]>([])
+  let savedCharacters = $state<StoryCharacterGroup[]>([])
+  let savedNpcs = $state<StoryNpcGroup[]>([])
 
   let playerKey = $state<string | null>(null)
-  let aiKeys = $state.raw<string[]>([])
+  let aiKeys = $state<string[]>([])
   let titleWasAutofilled = $state(false)
 
   let greetingLoading = $state(false)
-  let greetingOptions = $state.raw<string[]>([])
+  let greetingOptions = $state<string[]>([])
   let seedGreetingIndex = $state(0)
   let greetingFetchNonce = 0
   let greetingTemplateOptions = $derived(
