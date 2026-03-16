@@ -1,5 +1,4 @@
 <script lang="ts">
-  import { Badge } from "@/components/ui/badge"
   import { Button } from "@/components/ui/button"
   import { House, LoaderCircle, MapPin, Smile, User, Users } from "@lucide/svelte"
   import ConversationInput from "@/components/inputs/ConversationInput.svelte"
@@ -126,27 +125,17 @@
           </Button>
         {/if}
 
-        {#if $isGenerating && $streamingEnabled}
-          {#if followStream}
-            <Badge
-              variant="secondary"
-              class="h-8 px-2 text-[11px] font-medium"
-              title="Streaming output is following the latest text"
-            >
-              Live
-            </Badge>
-          {:else}
-            <Button
-              variant="outline"
-              size="sm"
-              class="h-8"
-              onclick={onJumpToLatest}
-              title="Jump to the latest streamed output"
-              aria-label="Jump to the latest streamed output"
-            >
-              Jump to latest
-            </Button>
-          {/if}
+        {#if $isGenerating && $streamingEnabled && !followStream}
+          <Button
+            variant="outline"
+            size="sm"
+            class="h-8"
+            onclick={onJumpToLatest}
+            title="Jump to the latest streamed output"
+            aria-label="Jump to the latest streamed output"
+          >
+            Jump to latest
+          </Button>
         {/if}
 
         <Button

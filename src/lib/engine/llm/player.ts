@@ -10,7 +10,13 @@ function sanitizePlayerAction(text: string): string {
   value = value.replace(/^Player action:\s*/i, "")
   const markerIndex = value.search(/\n\s*===\s+/)
   if (markerIndex >= 0) value = value.slice(0, markerIndex)
-  return value.trim()
+  value = value.trim()
+
+  const lines = value
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter((line) => line.length > 0)
+  return (lines[0] ?? "").trim()
 }
 
 export async function generatePlayerAction(
@@ -47,7 +53,6 @@ export async function generatePlayerAction(
   const maxTokens = Math.min(getGenerationParams().max_tokens, 160)
   const raw = await callLLMText(messages, maxTokens, {
     disableRepetition: true,
-    stop: ["\n"],
     requestName: "PlayerAction",
     ...(options.onText ? { onText: options.onText } : {}),
   })

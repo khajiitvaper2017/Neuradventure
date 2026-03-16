@@ -5,7 +5,6 @@
   import BackgroundEventsReveal from "@/components/rich/BackgroundEventsReveal.svelte"
   import RichText from "@/components/rich/RichText.svelte"
   import StreamingTurnPreview from "@/components/rich/StreamingTurnPreview.svelte"
-  import ThinkingDots from "@/components/controls/ThinkingDots.svelte"
   import { looksLikeBlockHtml } from "@/utils/sanitizeHtml"
   import { currentStoryInitialWorld, currentStoryOpeningScenario, turns, worldState, isGenerating } from "@/stores/game"
   import { streamingEnabled } from "@/stores/settings"
@@ -143,7 +142,7 @@
       {:else}
         <div
           class={cn(
-            "mt-3 whitespace-pre-line font-story text-sm italic leading-relaxed text-muted-foreground",
+            "mt-3 whitespace-pre-line font-story text-[length:var(--story-size)] italic leading-[var(--story-line)] text-muted-foreground",
             flashOpening && "animate-pulse",
           )}
         >
@@ -230,7 +229,7 @@
               {#each paragraphs(turn.narrative_text) as para, j (j)}
                 <p
                   class={cn(
-                    "mb-4 whitespace-pre-line font-story text-[15px] leading-7 text-foreground",
+                    "mb-4 whitespace-pre-line font-story text-[length:var(--story-size)] leading-[var(--story-line)] text-foreground",
                     isFresh && "animate-in fade-in slide-in-from-bottom-1 duration-300",
                   )}
                   style="animation-delay: {j * 0.06}s"
@@ -269,10 +268,6 @@
         currentScene={streamScene}
         timeOfDay={streamTime}
       />
-    {/if}
-
-    {#if $isGenerating}
-      <ThinkingDots />
     {/if}
 
     <div class="h-4"></div>

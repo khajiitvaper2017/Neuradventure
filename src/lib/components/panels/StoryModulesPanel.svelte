@@ -1,5 +1,6 @@
 <script lang="ts">
   import type { StoryModules } from "@/shared/types"
+  import { STORY_MODULE_META, STORY_MODULE_SECTIONS, type StoryModuleKey } from "@/shared/story-modules"
   import { cn } from "@/utils.js"
   import { Switch } from "@/components/ui/switch"
   import { Button } from "@/components/ui/button"
@@ -15,66 +16,20 @@
 
   let { modules, setModules, bare = false, onOpenPrompts }: Props = $props()
 
-  function updateModule<K extends keyof StoryModules>(key: K, value: StoryModules[K]) {
+  function updateModule<K extends StoryModuleKey>(key: K, value: boolean) {
     setModules({ ...modules, [key]: value })
   }
-
-  type Row = { key: keyof StoryModules; title: string; sub?: string; gatedByTrackNpcs?: boolean }
-
-  const CORE: Row[] = [
-    { key: "track_npcs", title: "Track NPCs", sub: "New stories track NPC state and updates" },
-    { key: "track_locations", title: "Track locations", sub: "New stories track location lists and presence" },
-    {
-      key: "track_background_events",
-      title: "Track background events",
-      sub: "Generate hidden off-screen events per turn",
-    },
-  ]
-
-  const PLAYER: Row[] = [
-    {
-      key: "character_appearance_clothing",
-      title: "Player appearance + clothing",
-      sub: "Show and update appearance/clothing fields",
-    },
-    {
-      key: "character_personality_traits",
-      title: "Player personality traits",
-      sub: "Track and update personality traits",
-    },
-    { key: "character_major_flaws", title: "Player major flaws", sub: "Track and update major flaws" },
-    { key: "character_perks", title: "Player perks", sub: "Track and update perks" },
-    { key: "character_inventory", title: "Player inventory", sub: "Track and update the inventory list" },
-  ]
-
-  const NPC: Row[] = [
-    {
-      key: "npc_appearance_clothing",
-      title: "NPC appearance + clothing",
-      sub: "Track and update appearance/clothing fields",
-      gatedByTrackNpcs: true,
-    },
-    {
-      key: "npc_personality_traits",
-      title: "NPC personality traits",
-      sub: "Track and update personality traits",
-      gatedByTrackNpcs: true,
-    },
-    { key: "npc_major_flaws", title: "NPC major flaws", sub: "Track and update major flaws", gatedByTrackNpcs: true },
-    { key: "npc_perks", title: "NPC perks", sub: "Track and update perks", gatedByTrackNpcs: true },
-    { key: "npc_location", title: "NPC location", sub: "Track and update current location", gatedByTrackNpcs: true },
-    { key: "npc_activity", title: "NPC activity", sub: "Track and update current activity", gatedByTrackNpcs: true },
-  ]
 </script>
 
-{#snippet Section(title, rows)}
-  <div class={cn(bare ? "space-y-0" : "space-y-0")}>
+{#snippet Section(section)}
+  <div class="space-y-0">
     <div class={cn(bare ? "pb-2 pt-0" : "p-4 pb-2 pt-3")}>
-      <div class="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{title}</div>
+      <div class="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{section.title}</div>
     </div>
     <div class={cn(bare ? "space-y-0" : "px-4 pb-3")}>
-      {#each rows as row (row.key)}
-        {@const gatedDisabled = row.gatedByTrackNpcs && !modules.track_npcs}
+      {#each section.keys as key (key)}
+        {@const meta = STORY_MODULE_META[key]}
+        {@const gatedDisabled = meta.requiresTrackNpcs && !modules.track_npcs}
         <div
           class={cn(
             "flex items-start justify-between gap-4 border-b py-3 last:border-b-0",
@@ -83,18 +38,18 @@
           aria-disabled={gatedDisabled}
         >
           <div class="min-w-0 flex-1 space-y-1">
-            <div class="text-sm font-medium text-foreground">{row.title}</div>
-            {#if row.sub}
-              <div class="text-xs text-muted-foreground">{row.sub}</div>
+            <div class="text-sm font-medium text-foreground">{meta.title}</div>
+            {#if meta.sub}
+              <div class="text-xs text-muted-foreground">{meta.sub}</div>
             {/if}
           </div>
           <div class="flex items-center justify-end">
             <div class="inline-flex items-center gap-2 rounded-md border bg-card/50 p-1">
               <Switch
-                checked={Boolean(modules[row.key])}
+                checked={Boolean(modules[key])}
                 disabled={gatedDisabled}
-                onCheckedChange={(v) => updateModule(row.key, v as StoryModules[keyof StoryModules])}
-                aria-label={`Toggle ${row.title}`}
+                onCheckedChange={(v) => updateModule(key, v)}
+                aria-label={`Toggle ${meta.title}`}
               />
               {#if onOpenPrompts}
                 <Separator orientation="vertical" class="h-6" />
@@ -102,8 +57,8 @@
                   variant="ghost"
                   size="sm"
                   class="h-7 gap-1 px-2 text-xs"
-                  onclick={() => onOpenPrompts?.(row.key)}
-                  aria-label={`Edit prompts for ${row.title}`}
+                  onclick={() => onOpenPrompts?.(key)}
+                  aria-label={`Edit prompts for ${meta.title}`}
                 >
                   <SlidersHorizontal class="size-3.5" aria-hidden="true" />
                   Prompts
@@ -119,8 +74,8 @@
 
 <div class={cn(!bare && "rounded-lg border bg-card")}>
   <div class={cn(bare ? "space-y-6" : "divide-y divide-border")}>
-    {@render Section("Core", CORE)}
-    {@render Section("Player", PLAYER)}
-    {@render Section("NPCs", NPC)}
+    {#each STORY_MODULE_SECTIONS as section (section.id)}
+      {@render Section(section)}
+    {/each}
   </div>
 </div>

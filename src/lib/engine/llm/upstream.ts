@@ -35,6 +35,26 @@ function safeModel(params: ChatCompletionCreateParams): string | null {
   return typeof model === "string" && model.trim() ? model.trim() : null
 }
 
+function shouldLogRequestPayload(): boolean {
+  try {
+    if (import.meta.env.DEV) return true
+  } catch {
+    // ignore
+  }
+  try {
+    return typeof localStorage !== "undefined" && localStorage.getItem("neuradventure:debug:llm_request") === "1"
+  } catch {
+    return false
+  }
+}
+
+function redactHeadersForLog(headers: Record<string, string>): Record<string, string> {
+  const redacted: Record<string, string> = { ...headers }
+  if (typeof redacted.Authorization === "string" && redacted.Authorization.trim())
+    redacted.Authorization = "Bearer [redacted]"
+  return redacted
+}
+
 export function buildChatCompletionsUrl(connector: LLMConnector): string {
   return buildUrl(connector.url, "/chat/completions")
 }
@@ -166,9 +186,14 @@ export async function createChatCompletion(
   const model = safeModel(params)
   const stream = params.stream === true
   const messageCount = safeMessageCount(params)
+  const headers = buildUpstreamHeaders(connector)
   console.info(
     `[llm-http] -> POST ${logUrl} type=${connector.type}${model ? ` model=${model}` : ""} stream=${String(stream)} messages=${messageCount}`,
   )
+  if (shouldLogRequestPayload()) {
+    console.info("[llm-http] request payload", params)
+    console.info("[llm-http] request headers", redactHeadersForLog(headers))
+  }
 
   let res: Response
   try {
@@ -176,7 +201,7 @@ export async function createChatCompletion(
       url,
       {
         method: "POST",
-        headers: buildUpstreamHeaders(connector),
+        headers,
         body: JSON.stringify(params),
       },
       timeoutMs,

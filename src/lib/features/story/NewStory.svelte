@@ -41,6 +41,12 @@
     pendingStoryModules,
   } from "@/stores/game"
   import { storyDefaults, streamingEnabled } from "@/stores/settings"
+  import {
+    countAllEnabled,
+    storyModulesPreviewCore,
+    storyModulesPreviewNpc,
+    storyModulesPreviewPlayer,
+  } from "@/shared/story-modules"
 
   let submitting = $state(false)
   let generating = $state(false)
@@ -49,18 +55,20 @@
   let loadingCharacters = $state(false)
   let loadingNpcs = $state(false)
   let savedNpcs = $state<StoryNpcGroup[]>([])
-  let selectedPlayableKey = $state<string | null>(null)
+  let selectedNpcPlayableKey = $state<string | null>(null)
   let storyPromptHistory = $state<string[]>([])
 
   const STORY_PROMPT_HISTORY_KEY = "na:prompt_history:story"
 
   onMount(() => {
-    loadCharacters()
-    loadNpcs()
+    loadPlayableLibrary()
     void loadPromptHistory(STORY_PROMPT_HISTORY_KEY).then((items) => {
       storyPromptHistory = items
     })
     if (!$pendingStoryModules) pendingStoryModules.set($storyDefaults)
+    if ($pendingCharacterId && $pendingStoryNpcCharacterIds.includes($pendingCharacterId)) {
+      pendingStoryNpcCharacterIds.set($pendingStoryNpcCharacterIds.filter((id) => id !== $pendingCharacterId))
+    }
     const pending = getPendingRequest<{
       prompt: string
       character: Omit<MainCharacterState, "inventory">
@@ -79,31 +87,32 @@
     }
   })
 
-  async function loadCharacters() {
+  async function loadPlayableLibrary() {
     loadingCharacters = true
-    try {
-      savedCharacters = await storiesService.characters()
-    } catch {
-      showError("Failed to load characters")
-    } finally {
-      loadingCharacters = false
-    }
-  }
-
-  async function loadNpcs() {
     loadingNpcs = true
     try {
-      savedNpcs = await storiesService.npcs()
-    } catch {
-      showError("Failed to load NPCs")
+      const [charactersResult, npcResult] = await Promise.allSettled([
+        storiesService.characters(),
+        storiesService.npcs(),
+      ])
+      if (charactersResult.status === "fulfilled") {
+        savedCharacters = charactersResult.value
+      } else {
+        showError("Failed to load characters")
+      }
+      if (npcResult.status === "fulfilled") {
+        savedNpcs = npcResult.value
+      } else {
+        showError("Failed to load NPCs")
+      }
     } finally {
+      loadingCharacters = false
       loadingNpcs = false
     }
   }
 
   function refreshPlayable() {
-    loadCharacters()
-    loadNpcs()
+    loadPlayableLibrary()
   }
 
   function useStoryPrompt(value: string) {
@@ -125,26 +134,6 @@
     pendingStoryNpcCharacterIds.set(unique)
   }
 
-  const PLAYER_MODULE_KEYS: (keyof StoryModules)[] = [
-    "character_appearance_clothing",
-    "character_personality_traits",
-    "character_major_flaws",
-    "character_perks",
-    "character_inventory",
-  ]
-  const NPC_MODULE_KEYS: (keyof StoryModules)[] = [
-    "npc_appearance_clothing",
-    "npc_personality_traits",
-    "npc_major_flaws",
-    "npc_perks",
-    "npc_location",
-    "npc_activity",
-  ]
-
-  function countEnabled(modules: StoryModules, keys: (keyof StoryModules)[]): number {
-    return keys.reduce((acc, k) => acc + (modules[k] === true ? 1 : 0), 0)
-  }
-
   type StoryRef = { id: number; title: string; updated_at: string }
   type PlayableOption = {
     key: string
@@ -154,23 +143,10 @@
   }
 
   const activeModules: StoryModules = $derived($pendingStoryModules ?? $storyDefaults)
-  function countAllEnabled(modules: StoryModules): number {
-    return Object.values(modules).reduce((acc, v) => acc + (v ? 1 : 0), 0)
-  }
-  const modulesEnabledCount = $derived(countAllEnabled(activeModules))
-  const modulesPreviewCore = $derived(
-    `Core: ${activeModules.track_npcs ? "NPCs on" : "NPCs off"} · ${
-      activeModules.track_locations ? "Locations on" : "Locations off"
-    } · Appearance: ${activeModules.character_appearance_clothing ? "on" : "off"}`,
-  )
-  const modulesPreviewPlayer = $derived(
-    `Player fields: ${countEnabled(activeModules, PLAYER_MODULE_KEYS)}/${PLAYER_MODULE_KEYS.length}`,
-  )
-  const modulesPreviewNpc = $derived(
-    activeModules.track_npcs
-      ? `NPC fields: ${countEnabled(activeModules, NPC_MODULE_KEYS)}/${NPC_MODULE_KEYS.length}`
-      : "NPC fields: — (tracking off)",
-  )
+  const modulesEnabledCount = $derived.by(() => countAllEnabled(activeModules))
+  const modulesPreviewCore = $derived.by(() => storyModulesPreviewCore(activeModules))
+  const modulesPreviewPlayer = $derived.by(() => storyModulesPreviewPlayer(activeModules))
+  const modulesPreviewNpc = $derived.by(() => storyModulesPreviewNpc(activeModules))
 
   function formatStoryLabel(stories: StoryRef[]): string {
     if (!stories || stories.length === 0) return "No story yet"
@@ -199,6 +175,12 @@
 
   const hasPlayableOptions = $derived(playableOptions.length > 0)
 
+  const selectedPlayableKey = $derived.by(() => {
+    if ($pendingCharacterId) return `char_${$pendingCharacterId}`
+    if (!selectedNpcPlayableKey) return null
+    return playableOptions.some((o) => o.key === selectedNpcPlayableKey) ? selectedNpcPlayableKey : null
+  })
+
   function selectPlayable(key: string) {
     const option = playableOptions.find((o) => o.key === key)
     if (!option) return
@@ -207,41 +189,22 @@
       if (match) {
         pendingCharacter.set(match.character)
         pendingCharacterId.set(match.id)
+        if ($pendingStoryNpcCharacterIds.includes(match.id)) {
+          pendingStoryNpcCharacterIds.set($pendingStoryNpcCharacterIds.filter((id) => id !== match.id))
+        }
+        selectedNpcPlayableKey = null
       }
     } else {
       const match = savedNpcs.find((n) => n.key === key)
       if (match) {
         pendingCharacter.set(match.npc)
         pendingCharacterId.set(null)
+        selectedNpcPlayableKey = key
       }
     }
-    selectedPlayableKey = key
   }
 
-  function characterIdFromKey(key: string | null): number | null {
-    if (!key || !key.startsWith("char_")) return null
-    const id = Number(key.slice(5))
-    if (!Number.isFinite(id) || id <= 0) return null
-    return id
-  }
-
-  $effect(() => {
-    if ($pendingCharacterId) {
-      selectedPlayableKey = `char_${$pendingCharacterId}`
-      return
-    }
-    if (!$pendingCharacter && selectedPlayableKey?.startsWith("char_")) {
-      selectedPlayableKey = null
-    }
-  })
-
-  const selectedCharacterIdForSheet = $derived(characterIdFromKey(selectedPlayableKey))
-
-  $effect(() => {
-    if (!$pendingCharacterId) return
-    if (!$pendingStoryNpcCharacterIds.includes($pendingCharacterId)) return
-    pendingStoryNpcCharacterIds.set($pendingStoryNpcCharacterIds.filter((id) => id !== $pendingCharacterId))
-  })
+  const selectedCharacterIdForSheet = $derived($pendingCharacterId)
 
   const selectedOption = $derived(playableOptions.find((o) => o.key === selectedPlayableKey) ?? null)
   const playableSelectOptions = $derived(

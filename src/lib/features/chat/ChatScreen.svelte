@@ -31,7 +31,6 @@
   } from "@/features/chat/actions"
   import ConversationInput from "@/components/inputs/ConversationInput.svelte"
   import RichText from "@/components/rich/RichText.svelte"
-  import ThinkingDots from "@/components/controls/ThinkingDots.svelte"
   import { SquarePen, Trash } from "@lucide/svelte"
   import { Badge } from "@/components/ui/badge"
   import { Button } from "@/components/ui/button"
@@ -627,7 +626,7 @@
                   </div>
                 </div>
               {:else}
-                <div class="mt-3 text-sm leading-relaxed text-foreground">
+                <div class="mt-3 font-story text-sm leading-relaxed text-foreground">
                   {#if $isChatGenerating && streamPreviewMode === "replace" && regeneratingMessageId === message.id}
                     {#if $streamingEnabled && streamReply.trim().length > 0}
                       <RichText text={streamReply} mode="block" />
@@ -683,14 +682,10 @@
       {#if $isChatGenerating && $streamingEnabled && streamPreviewMode === "append" && streamReply.trim().length > 0}
         <div class="mt-3 rounded-lg border border-dashed bg-card p-4">
           <div class="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{nextSpeakerName()}</div>
-          <div class="mt-3 text-sm leading-relaxed text-foreground">
+          <div class="mt-3 font-story text-sm leading-relaxed text-foreground">
             <RichText text={streamReply} mode="block" />
           </div>
         </div>
-      {/if}
-
-      {#if $isChatGenerating}
-        <ThinkingDots />
       {/if}
 
       <div class="h-4"></div>
@@ -754,28 +749,18 @@
         </Button>
       {/if}
 
-      {#if $isChatGenerating && $streamingEnabled}
-        {#if followStream}
-          <Badge
-            variant="secondary"
-            class="rounded-full font-mono text-[11px]"
-            title="Streaming output is following the latest text"
-          >
-            Live
-          </Badge>
-        {:else}
-          <Button
-            variant="outline"
-            size="sm"
-            class="h-8 rounded-full px-3"
-            type="button"
-            onclick={jumpToLatest}
-            title="Jump to the latest streamed output"
-            aria-label="Jump to the latest streamed output"
-          >
-            Jump to latest
-          </Button>
-        {/if}
+      {#if $isChatGenerating && $streamingEnabled && !followStream}
+        <Button
+          variant="outline"
+          size="sm"
+          class="h-8 rounded-full px-3"
+          type="button"
+          onclick={jumpToLatest}
+          title="Jump to the latest streamed output"
+          aria-label="Jump to the latest streamed output"
+        >
+          Jump to latest
+        </Button>
       {/if}
 
       <Button

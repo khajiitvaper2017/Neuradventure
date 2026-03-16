@@ -1,6 +1,7 @@
 <script lang="ts">
   import promptFields from "@/shared/config/prompt-fields.json"
   import type { StoryModules } from "@/shared/types"
+  import { STORY_MODULE_META } from "@/shared/story-modules"
   import StoryModulesPanel from "@/components/panels/StoryModulesPanel.svelte"
   import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
   import CustomFieldsCard from "@/features/settings/components/CustomFieldsCard.svelte"
@@ -35,9 +36,8 @@
 
   type ModuleKey = keyof StoryModules
 
-  const MODULE_PROMPT_KEYS: Record<ModuleKey, { title: string; sharedNote?: string; keys: string[] }> = {
+  const MODULE_PROMPT_KEYS: Record<ModuleKey, { sharedNote?: string; keys: string[] }> = {
     track_npcs: {
-      title: "Track NPCs",
       keys: [
         "llm.turn_response.npc_changes",
         "llm.turn_response.npc_introductions",
@@ -46,7 +46,6 @@
       ],
     },
     track_locations: {
-      title: "Track locations",
       keys: [
         "llm.world_state_update.locations",
         "state.location.entry",
@@ -59,11 +58,9 @@
       ],
     },
     track_background_events: {
-      title: "Track background events",
       keys: ["llm.turn_response.background_events"],
     },
     character_appearance_clothing: {
-      title: "Player appearance + clothing",
       keys: [
         "state.character.baseline_appearance",
         "state.character.current_appearance",
@@ -71,19 +68,15 @@
       ],
     },
     character_personality_traits: {
-      title: "Player personality traits",
       keys: ["traits.entry", "traits.personality_traits"],
     },
     character_major_flaws: {
-      title: "Player major flaws",
       keys: ["traits.entry", "traits.major_flaws"],
     },
     character_perks: {
-      title: "Player perks",
       keys: ["traits.entry", "traits.perks"],
     },
     character_inventory: {
-      title: "Player inventory",
       keys: [
         "state.character.inventory",
         "state.inventory_item.entry",
@@ -92,7 +85,6 @@
       ],
     },
     npc_appearance_clothing: {
-      title: "NPC appearance + clothing",
       sharedNote: "Shared prompts (same descriptions used for player + NPC appearance/clothing guidance).",
       keys: [
         "state.character.baseline_appearance",
@@ -101,26 +93,21 @@
       ],
     },
     npc_personality_traits: {
-      title: "NPC personality traits",
       sharedNote: "Shared prompts (same trait guidance used for player + NPCs).",
       keys: ["traits.entry", "traits.personality_traits"],
     },
     npc_major_flaws: {
-      title: "NPC major flaws",
       sharedNote: "Shared prompts (same trait guidance used for player + NPCs).",
       keys: ["traits.entry", "traits.major_flaws"],
     },
     npc_perks: {
-      title: "NPC perks",
       sharedNote: "Shared prompts (same trait guidance used for player + NPCs).",
       keys: ["traits.entry", "traits.perks"],
     },
     npc_location: {
-      title: "NPC location",
       keys: ["llm.npc_update.current_location"],
     },
     npc_activity: {
-      title: "NPC activity",
       keys: ["llm.npc_update.current_activity", "state.character.current_activity"],
     },
   }
@@ -207,7 +194,7 @@
     <ModulePromptOverridesDialog
       open={moduleDialogOpen}
       moduleId={activeModule}
-      title={MODULE_PROMPT_KEYS[activeModule].title}
+      title={STORY_MODULE_META[activeModule].title}
       sharedNote={MODULE_PROMPT_KEYS[activeModule].sharedNote ?? ""}
       keys={MODULE_PROMPT_KEYS[activeModule].keys}
       {builtins}
