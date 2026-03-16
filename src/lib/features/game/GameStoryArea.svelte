@@ -1,8 +1,7 @@
 <script lang="ts">
   import type { TurnSummary, TurnVariantSummary } from "@/shared/types"
   import { cn } from "@/utils.js"
-  import IconPencilSquare from "@/components/icons/IconPencilSquare.svelte"
-  import IconTrash from "@/components/icons/IconTrash.svelte"
+  import { SquarePen, Trash } from "@lucide/svelte"
   import BackgroundEventsReveal from "@/components/rich/BackgroundEventsReveal.svelte"
   import RichText from "@/components/rich/RichText.svelte"
   import StreamingTurnPreview from "@/components/rich/StreamingTurnPreview.svelte"
@@ -124,7 +123,7 @@
             title="Edit opening"
             aria-label="Edit opening"
           >
-            <IconPencilSquare size={12} strokeWidth={2} />
+            <SquarePen size={12} strokeWidth={2} aria-hidden="true" />
           </Button>
         {/if}
       </div>
@@ -180,7 +179,7 @@
           )}
         >
           {#if turn.player_input.trim().length > 0}
-            <IconPencilSquare className="mt-[1px] shrink-0 opacity-60" size={12} strokeWidth={2} />
+            <SquarePen class="mt-[1px] shrink-0 opacity-60" size={12} strokeWidth={2} aria-hidden="true" />
           {/if}
           <span class="min-w-0 flex-1">
             <RichText text={turn.player_input} mode="inline" />
@@ -194,7 +193,7 @@
             title="Edit turn"
             aria-label="Edit turn"
           >
-            <IconPencilSquare size={12} strokeWidth={2} />
+            <SquarePen size={12} strokeWidth={2} aria-hidden="true" />
           </Button>
           <Button
             variant="outline"
@@ -204,7 +203,7 @@
             disabled={$isGenerating}
             title="Delete turn"
           >
-            <IconTrash size={12} strokeWidth={2} />
+            <Trash size={12} strokeWidth={2} aria-hidden="true" />
           </Button>
         </div>
 

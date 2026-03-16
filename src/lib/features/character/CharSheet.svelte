@@ -21,17 +21,19 @@
   import { Input } from "@/components/ui/input"
   import { Sheet, SheetContent } from "@/components/ui/sheet"
   import { ScrollArea } from "@/components/ui/scroll-area"
-  import IconMale from "@/components/icons/IconMale.svelte"
-  import IconFemale from "@/components/icons/IconFemale.svelte"
-  import IconIntersex from "@/components/icons/IconIntersex.svelte"
-  import IconTransgender from "@/components/icons/IconTransgender.svelte"
-  import IconFace from "@/components/icons/IconFace.svelte"
-  import IconShirt from "@/components/icons/IconShirt.svelte"
-  import IconStar from "@/components/icons/IconStar.svelte"
-  import IconCube from "@/components/icons/IconCube.svelte"
-  import IconDotSmall from "@/components/icons/IconDotSmall.svelte"
-  import IconDocument from "@/components/icons/IconDocument.svelte"
-  import IconPencilSquare from "@/components/icons/IconPencilSquare.svelte"
+  import {
+    Box,
+    Dot,
+    FileText,
+    Mars,
+    Shirt,
+    Smile,
+    SquarePen,
+    Star,
+    Transgender,
+    Venus,
+    VenusAndMars,
+  } from "@lucide/svelte"
 
   let { inline = false }: { inline?: boolean } = $props()
 
@@ -471,7 +473,7 @@
         {#if hasBaseCustomDefs || hasCurrentCustomDefs}
           <div class="space-y-3 rounded-lg border bg-card p-4">
             <div class="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-              <IconDocument size={14} strokeWidth={1.5} className="shrink-0 opacity-70" />
+              <FileText size={14} strokeWidth={1.5} class="shrink-0 opacity-70" aria-hidden="true" />
               <span>Custom Fields</span>
             </div>
             {#if hasBaseCustomDefs}
@@ -553,13 +555,13 @@
         <div class="flex items-center gap-2 text-lg font-semibold text-foreground">
           <span class="truncate">{displayCharacter.name}</span>
           {#if genderIcon(displayCharacter.gender) === "male"}
-            <IconMale size={14} strokeWidth={2} className="shrink-0 opacity-60" />
+            <Mars size={14} strokeWidth={2} class="shrink-0 opacity-60" aria-hidden="true" />
           {:else if genderIcon(displayCharacter.gender) === "female"}
-            <IconFemale size={14} strokeWidth={2} className="shrink-0 opacity-60" />
+            <Venus size={14} strokeWidth={2} class="shrink-0 opacity-60" aria-hidden="true" />
           {:else if genderIcon(displayCharacter.gender) === "intersex"}
-            <IconIntersex size={14} strokeWidth={2} className="shrink-0 opacity-60" />
+            <VenusAndMars size={14} strokeWidth={2} class="shrink-0 opacity-60" aria-hidden="true" />
           {:else if genderIcon(displayCharacter.gender) === "transgender"}
-            <IconTransgender size={14} strokeWidth={2} className="shrink-0 opacity-60" />
+            <Transgender size={14} strokeWidth={2} class="shrink-0 opacity-60" aria-hidden="true" />
           {/if}
         </div>
         <div class="mt-1 text-sm italic text-muted-foreground">
@@ -570,7 +572,7 @@
       {#if showBaselineDetails}
         <div class={cn("mt-3 rounded-lg border bg-card p-4", flashAppearance && "ring-2 ring-primary/30")}>
           <div class="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-            <IconFace size={14} strokeWidth={1.5} className="shrink-0 opacity-70" />
+            <Smile size={14} strokeWidth={1.5} class="shrink-0 opacity-70" aria-hidden="true" />
             <span>Description</span>
           </div>
           <div class="mt-2 whitespace-pre-line text-sm leading-relaxed text-foreground">
@@ -583,7 +585,7 @@
         {#if showBaselineDetails}
           <div class={cn("mt-3 rounded-lg border bg-card p-4", flashAppearance && "ring-2 ring-primary/30")}>
             <div class="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-              <IconFace size={14} strokeWidth={1.5} className="shrink-0 opacity-70" />
+              <Smile size={14} strokeWidth={1.5} class="shrink-0 opacity-70" aria-hidden="true" />
               <span>Baseline Appearance</span>
             </div>
             <div class="mt-2 whitespace-pre-line text-sm leading-relaxed text-foreground">
@@ -594,7 +596,7 @@
 
         <div class={cn("mt-3 rounded-lg border bg-card p-4", flashAppearance && "ring-2 ring-primary/30")}>
           <div class="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-            <IconFace size={14} strokeWidth={1.5} className="shrink-0 opacity-70" />
+            <Smile size={14} strokeWidth={1.5} class="shrink-0 opacity-70" aria-hidden="true" />
             <span>Current Appearance</span>
           </div>
           <div class="mt-2 whitespace-pre-line text-sm leading-relaxed text-foreground">
@@ -604,7 +606,7 @@
 
         <div class={cn("mt-3 rounded-lg border bg-card p-4", flashClothing && "ring-2 ring-primary/30")}>
           <div class="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-            <IconShirt size={14} strokeWidth={1.5} className="shrink-0 opacity-70" />
+            <Shirt size={14} strokeWidth={1.5} class="shrink-0 opacity-70" aria-hidden="true" />
             <span>Wearing</span>
           </div>
           <div class="mt-2 whitespace-pre-line text-sm leading-relaxed text-foreground">
@@ -616,7 +618,7 @@
       {#if showTraitSection && ((usePersonalityTraits && displayCharacter.personality_traits.length > 0) || (useMajorFlaws && displayCharacter.major_flaws.length > 0) || (useQuirks && displayCharacter.quirks.length > 0) || (usePerks && displayCharacter.perks.length > 0))}
         <div class="mt-3 rounded-lg border bg-card p-4">
           <div class="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-            <IconStar size={14} strokeWidth={1.5} className="shrink-0 opacity-70" />
+            <Star size={14} strokeWidth={1.5} class="shrink-0 opacity-70" aria-hidden="true" />
             <span>Traits · Flaws · Quirks · Perks</span>
           </div>
           <div class="mt-3 flex flex-wrap gap-2">
@@ -647,7 +649,7 @@
       {#if customCharDefs.length > 0}
         <div class={cn("mt-3 rounded-lg border bg-card p-4", flashCustom && "ring-2 ring-primary/30")}>
           <div class="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-            <IconDocument size={14} strokeWidth={1.5} className="shrink-0 opacity-70" />
+            <FileText size={14} strokeWidth={1.5} class="shrink-0 opacity-70" aria-hidden="true" />
             <span>Custom Fields</span>
           </div>
           <div class="mt-3 space-y-4">
@@ -680,7 +682,7 @@
       {#if useInventory}
         <div class={cn("mt-3 rounded-lg border bg-card p-4", flashInventory && "ring-2 ring-primary/30")}>
           <div class="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-            <IconCube size={14} strokeWidth={1.5} className="shrink-0 opacity-70" />
+            <Box size={14} strokeWidth={1.5} class="shrink-0 opacity-70" aria-hidden="true" />
             <span>Inventory ({displayCharacter.inventory.length})</span>
           </div>
           {#if displayCharacter.inventory.length === 0}
@@ -689,7 +691,7 @@
             <ul class="mt-3 space-y-2">
               {#each displayCharacter.inventory as item, index (index)}
                 <li class="flex items-start gap-2">
-                  <IconDotSmall size={12} strokeWidth={1.5} className="mt-1 shrink-0 text-muted-foreground" />
+                  <Dot size={12} strokeWidth={1.5} class="mt-1 shrink-0 text-muted-foreground" aria-hidden="true" />
                   <div class="min-w-0">
                     <div class="text-sm font-medium text-foreground">{item.name}</div>
                     <div class="mt-0.5 text-xs text-muted-foreground">{item.description}</div>
@@ -712,7 +714,7 @@
   <div class="flex h-dvh flex-col overflow-hidden border-r bg-card">
     <div class="flex items-center justify-between gap-3 border-b px-4 py-3">
       <div class="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-        <IconDocument size={16} strokeWidth={1.5} className="shrink-0 opacity-70" />
+        <FileText size={16} strokeWidth={1.5} class="shrink-0 opacity-70" aria-hidden="true" />
         <span>Character Sheet</span>
       </div>
       <div class="flex items-center gap-2">
@@ -734,7 +736,7 @@
           title="Edit character sheet"
           aria-label="Edit character sheet"
         >
-          <IconPencilSquare size={12} strokeWidth={2} />
+          <SquarePen size={12} strokeWidth={2} aria-hidden="true" />
         </Button>
       </div>
     </div>
@@ -754,7 +756,7 @@
     <SheetContent side="right" class="p-0">
       <div class="flex items-center justify-between gap-3 border-b px-4 py-3">
         <div class="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-          <IconDocument size={16} strokeWidth={1.5} className="shrink-0 opacity-70" />
+          <FileText size={16} strokeWidth={1.5} class="shrink-0 opacity-70" aria-hidden="true" />
           <span>Character Sheet</span>
         </div>
         <div class="flex items-center gap-2">
@@ -776,7 +778,7 @@
             title="Edit character sheet"
             aria-label="Edit character sheet"
           >
-            <IconPencilSquare size={12} strokeWidth={2} />
+            <SquarePen size={12} strokeWidth={2} aria-hidden="true" />
           </Button>
           <Button variant="ghost" size="icon" class="h-9 w-9" onclick={closeCharSheet} aria-label="Close">×</Button>
         </div>

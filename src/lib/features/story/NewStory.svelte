@@ -10,8 +10,7 @@
   import { createRequestId } from "@/utils/ids"
   import { clearPendingRequest, getPendingRequest, setPendingRequest } from "@/utils/pendingRequests"
   import { cn } from "@/utils.js"
-  import IconDocument from "@/components/icons/IconDocument.svelte"
-  import IconPencilSquare from "@/components/icons/IconPencilSquare.svelte"
+  import { FileText, SquarePen } from "@lucide/svelte"
   import PromptHistoryPanel from "@/components/panels/PromptHistoryPanel.svelte"
   import StoryModulesPanel from "@/components/panels/StoryModulesPanel.svelte"
   import * as Select from "@/components/ui/select"
@@ -578,7 +577,7 @@
                     ? "Character details"
                     : "Details available for story characters only"}
                 >
-                  <IconDocument size={16} strokeWidth={1.6} />
+                  <FileText size={16} strokeWidth={1.6} aria-hidden="true" />
                   Details
                 </Button>
                 <Button
@@ -609,7 +608,7 @@
                   title="Edit character"
                   aria-label="Edit character"
                 >
-                  <IconPencilSquare size={12} strokeWidth={2} />
+                  <SquarePen size={12} strokeWidth={2} aria-hidden="true" />
                   Character
                 </Button>
               </div>

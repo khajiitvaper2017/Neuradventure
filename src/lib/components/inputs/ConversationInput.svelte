@@ -1,7 +1,6 @@
 <script lang="ts">
   import type { Snippet } from "svelte"
-  import IconSend from "@/components/icons/IconSend.svelte"
-  import IconSpinner from "@/components/icons/IconSpinner.svelte"
+  import { LoaderCircle, Send } from "@lucide/svelte"
   import { Button } from "@/components/ui/button"
   import { Textarea } from "@/components/ui/textarea"
 
@@ -65,9 +64,9 @@
       aria-label="Send"
     >
       {#if sending}
-        <IconSpinner className="animate-spin" size={16} strokeWidth={2.2} />
+        <LoaderCircle class="animate-spin" size={16} strokeWidth={2.2} aria-hidden="true" />
       {:else}
-        <IconSend size={16} strokeWidth={2.2} />
+        <Send size={16} strokeWidth={2.2} aria-hidden="true" />
       {/if}
     </Button>
   </div>

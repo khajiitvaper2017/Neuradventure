@@ -1,10 +1,7 @@
 <script lang="ts">
   import { stories } from "@/services/stories"
   import { cn } from "@/utils.js"
-  import IconDots from "@/components/icons/IconDots.svelte"
-  import IconMapPin from "@/components/icons/IconMapPin.svelte"
-  import IconUser from "@/components/icons/IconUser.svelte"
-  import IconUsers from "@/components/icons/IconUsers.svelte"
+  import { EllipsisVertical, MapPin, User, Users } from "@lucide/svelte"
   import { Badge } from "@/components/ui/badge"
   import { Button } from "@/components/ui/button"
   import {
@@ -96,7 +93,7 @@
       title={$collapseCharSheet ? "Show character sheet" : "Hide character sheet"}
       onclick={() => collapseCharSheet.update((v) => !v)}
     >
-      <IconUser size={15} strokeWidth={1.8} />
+      <User size={15} strokeWidth={1.8} aria-hidden="true" />
     </Button>
     {#if trackNpcs}
       <Button
@@ -106,7 +103,7 @@
         title={$collapseNPCTracker ? "Show NPC tracker" : "Hide NPC tracker"}
         onclick={() => collapseNPCTracker.update((v) => !v)}
       >
-        <IconUsers size={15} strokeWidth={1.8} />
+        <Users size={15} strokeWidth={1.8} aria-hidden="true" />
       </Button>
     {/if}
     {#if trackLocations}
@@ -120,7 +117,7 @@
         title={$collapseLocationsPanel ? "Show locations" : "Hide locations"}
         onclick={() => collapseLocationsPanel.update((v) => !v)}
       >
-        <IconMapPin size={15} strokeWidth={1.8} />
+        <MapPin size={15} strokeWidth={1.8} aria-hidden="true" />
       </Button>
     {/if}
     <Button
@@ -130,7 +127,7 @@
       title="Character Sheet"
       onclick={() => showCharSheet.update((v) => !v)}
     >
-      <IconUser size={15} strokeWidth={1.8} />
+      <User size={15} strokeWidth={1.8} aria-hidden="true" />
     </Button>
     {#if trackNpcs}
       <Button
@@ -140,7 +137,7 @@
         title="NPC Tracker"
         onclick={() => showNPCTracker.update((v) => !v)}
       >
-        <IconUsers size={15} strokeWidth={1.8} />
+        <Users size={15} strokeWidth={1.8} aria-hidden="true" />
       </Button>
     {/if}
     {#if trackLocations}
@@ -151,7 +148,7 @@
         title="Locations"
         onclick={() => showLocations.update((v) => !v)}
       >
-        <IconMapPin size={15} strokeWidth={1.8} />
+        <MapPin size={15} strokeWidth={1.8} aria-hidden="true" />
       </Button>
     {/if}
     <DropdownMenu open={showMenu} onOpenChange={(next) => (showMenu = next)}>
@@ -159,7 +156,7 @@
         class="inline-flex h-9 w-9 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
       >
         <span class="sr-only">More options</span>
-        <IconDots size={15} strokeWidth={1.8} />
+        <EllipsisVertical size={15} strokeWidth={1.8} aria-hidden="true" />
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" class="w-48">
         <DropdownMenuItem onSelect={() => onOpenMemoryEditor?.()}>Memory</DropdownMenuItem>

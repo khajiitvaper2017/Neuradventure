@@ -19,17 +19,19 @@
   import CustomFieldsEditor from "@/components/inputs/CustomFieldsEditor.svelte"
   import CustomFieldsView from "@/components/inputs/CustomFieldsView.svelte"
   import { cn } from "@/utils.js"
-  import IconMale from "@/components/icons/IconMale.svelte"
-  import IconFemale from "@/components/icons/IconFemale.svelte"
-  import IconIntersex from "@/components/icons/IconIntersex.svelte"
-  import IconTransgender from "@/components/icons/IconTransgender.svelte"
-  import IconFace from "@/components/icons/IconFace.svelte"
-  import IconShirt from "@/components/icons/IconShirt.svelte"
-  import IconDocument from "@/components/icons/IconDocument.svelte"
-  import IconMapPin from "@/components/icons/IconMapPin.svelte"
-  import IconStar from "@/components/icons/IconStar.svelte"
-  import IconPencilSquare from "@/components/icons/IconPencilSquare.svelte"
-  import IconTrash from "@/components/icons/IconTrash.svelte"
+  import {
+    FileText,
+    MapPin,
+    Mars,
+    Shirt,
+    Smile,
+    SquarePen,
+    Star,
+    Transgender,
+    Trash,
+    Venus,
+    VenusAndMars,
+  } from "@lucide/svelte"
   import NPCTrackerHeaderContent from "@/features/npc/NPCTrackerHeaderContent.svelte"
   import { Badge } from "@/components/ui/badge"
   import { Button } from "@/components/ui/button"
@@ -582,13 +584,13 @@
               <div class="flex items-center gap-2">
                 <div class="truncate text-base font-semibold text-foreground">{npc.name}</div>
                 {#if genderIcon(npc.gender) === "male"}
-                  <IconMale size={14} strokeWidth={2} className="shrink-0 opacity-60" />
+                  <Mars size={14} strokeWidth={2} class="shrink-0 opacity-60" aria-hidden="true" />
                 {:else if genderIcon(npc.gender) === "female"}
-                  <IconFemale size={14} strokeWidth={2} className="shrink-0 opacity-60" />
+                  <Venus size={14} strokeWidth={2} class="shrink-0 opacity-60" aria-hidden="true" />
                 {:else if genderIcon(npc.gender) === "intersex"}
-                  <IconIntersex size={14} strokeWidth={2} className="shrink-0 opacity-60" />
+                  <VenusAndMars size={14} strokeWidth={2} class="shrink-0 opacity-60" aria-hidden="true" />
                 {:else if genderIcon(npc.gender) === "transgender"}
-                  <IconTransgender size={14} strokeWidth={2} className="shrink-0 opacity-60" />
+                  <Transgender size={14} strokeWidth={2} class="shrink-0 opacity-60" aria-hidden="true" />
                 {/if}
               </div>
               <div class="mt-0.5 text-sm italic text-muted-foreground">
@@ -609,7 +611,7 @@
                 title={editingNpcName === npc.name ? "Editing NPC" : "Edit NPC"}
                 aria-label={editingNpcName === npc.name ? "Editing NPC" : "Edit NPC"}
               >
-                <IconPencilSquare size={12} strokeWidth={2} />
+                <SquarePen size={12} strokeWidth={2} aria-hidden="true" />
               </Button>
               <Button
                 variant="outline"
@@ -620,7 +622,7 @@
                 title="Delete NPC"
                 aria-label="Delete NPC"
               >
-                <IconTrash size={12} strokeWidth={2} />
+                <Trash size={12} strokeWidth={2} aria-hidden="true" />
               </Button>
             </div>
           </div>
@@ -633,7 +635,7 @@
                   <div
                     class="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground"
                   >
-                    <IconDocument size={13} strokeWidth={1.5} className="shrink-0 opacity-70" />
+                    <FileText size={13} strokeWidth={1.5} class="shrink-0 opacity-70" aria-hidden="true" />
                     <span>Custom Fields</span>
                   </div>
                   {#if hasBaseCustomDefs}
@@ -674,26 +676,26 @@
           {:else}
             {#if useNpcLocation}
               <div class="mt-4 flex items-start gap-2 text-sm text-foreground">
-                <IconMapPin size={13} strokeWidth={1.5} className="mt-0.5 shrink-0 text-muted-foreground" />
+                <MapPin size={13} strokeWidth={1.5} class="mt-0.5 shrink-0 text-muted-foreground" aria-hidden="true" />
                 <span>{npc.current_location}</span>
               </div>
             {/if}
 
             <div class="mt-3 flex items-start gap-2 text-sm text-foreground">
-              <IconDocument size={13} strokeWidth={1.5} className="mt-0.5 shrink-0 text-muted-foreground" />
+              <FileText size={13} strokeWidth={1.5} class="mt-0.5 shrink-0 text-muted-foreground" aria-hidden="true" />
               <span>{npc.general_description || "Unknown description"}</span>
             </div>
 
             {#if useNpcAppearance}
               {#if showBaselineDetails}
                 <div class="mt-3 flex items-start gap-2 text-sm text-foreground">
-                  <IconFace size={13} strokeWidth={1.5} className="mt-0.5 shrink-0 text-muted-foreground" />
+                  <Smile size={13} strokeWidth={1.5} class="mt-0.5 shrink-0 text-muted-foreground" aria-hidden="true" />
                   <span>{npc.baseline_appearance}</span>
                 </div>
               {/if}
 
               <div class="mt-3 flex items-start gap-2 text-sm text-foreground">
-                <IconFace size={13} strokeWidth={1.5} className="mt-0.5 shrink-0 text-muted-foreground" />
+                <Smile size={13} strokeWidth={1.5} class="mt-0.5 shrink-0 text-muted-foreground" aria-hidden="true" />
                 <span>
                   {#each getDiffSegments(npc.baseline_appearance, npc.current_appearance) as segment, index (index)}
                     <span class={cn(segment.added && "font-semibold text-primary")}>{segment.text}</span>
@@ -702,21 +704,26 @@
               </div>
 
               <div class="mt-3 flex items-start gap-2 text-sm italic text-muted-foreground">
-                <IconShirt size={13} strokeWidth={1.5} className="mt-0.5 shrink-0 text-muted-foreground" />
+                <Shirt size={13} strokeWidth={1.5} class="mt-0.5 shrink-0 text-muted-foreground" aria-hidden="true" />
                 <span>{npc.current_clothing}</span>
               </div>
             {/if}
 
             {#if useNpcActivity}
               <div class="mt-3 flex items-start gap-2 text-sm text-foreground">
-                <IconDocument size={13} strokeWidth={1.5} className="mt-0.5 shrink-0 text-muted-foreground" />
+                <FileText
+                  size={13}
+                  strokeWidth={1.5}
+                  class="mt-0.5 shrink-0 text-muted-foreground"
+                  aria-hidden="true"
+                />
                 <span>{npc.current_activity}</span>
               </div>
             {/if}
 
             {#if (useNpcPersonalityTraits && npc.personality_traits.length > 0) || (useNpcMajorFlaws && npc.major_flaws.length > 0) || (useNpcQuirks && npc.quirks.length > 0) || (useNpcPerks && npc.perks.length > 0)}
               <div class="mt-3 flex items-start gap-2">
-                <IconStar size={13} strokeWidth={1.5} className="mt-0.5 shrink-0 text-muted-foreground" />
+                <Star size={13} strokeWidth={1.5} class="mt-0.5 shrink-0 text-muted-foreground" aria-hidden="true" />
                 <div class="flex flex-wrap gap-2">
                   {#if useNpcPersonalityTraits}
                     {#each npc.personality_traits as trait, index (trait + ":" + index)}
@@ -744,7 +751,12 @@
 
             {#if customCharDefs.length > 0}
               <div class="mt-3 flex items-start gap-2">
-                <IconDocument size={13} strokeWidth={1.5} className="mt-0.5 shrink-0 text-muted-foreground" />
+                <FileText
+                  size={13}
+                  strokeWidth={1.5}
+                  class="mt-0.5 shrink-0 text-muted-foreground"
+                  aria-hidden="true"
+                />
                 <div class="min-w-0 flex-1 space-y-3">
                   {#if hasBaseCustomDefs}
                     <div class="space-y-1">

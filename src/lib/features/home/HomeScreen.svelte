@@ -42,7 +42,7 @@
   import ThemeToggle from "@/components/controls/ThemeToggle.svelte"
   import CharacterCard from "@/features/home/CharacterCard.svelte"
   import { pickFile, readFileAsDataUrl } from "@/utils/filePick"
-  import { Book, Ellipsis, Settings, User, Users } from "@lucide/svelte"
+  import { Book, Cog, EllipsisVertical, User, Users } from "@lucide/svelte"
 
   let stories = $state<StoryMeta[]>([])
   let loading = $state(true)
@@ -331,22 +331,22 @@
     </div>
     <div class="absolute right-3 top-3">
       <Button variant="outline" size="icon" onclick={() => navigate("settings")} aria-label="Settings" title="Settings">
-        <Settings size={17} strokeWidth={1.8} />
+        <Cog size={17} strokeWidth={1.8} aria-hidden="true" />
       </Button>
     </div>
   </header>
 
   <div class="grid gap-2 border-b px-4 py-3 grid-cols-3">
     <Button variant="outline" onclick={startNew} class="justify-center">
-      <Book size={14} strokeWidth={2.5} />
+      <Book size={14} strokeWidth={2.5} aria-hidden="true" />
       New Story
     </Button>
     <Button variant="outline" onclick={startNewCharacter} class="justify-center">
-      <User size={14} strokeWidth={2.5} />
+      <User size={14} strokeWidth={2.5} aria-hidden="true" />
       New Character
     </Button>
     <Button variant="outline" onclick={startNewChat} class="justify-center">
-      <Users size={14} strokeWidth={2.5} />
+      <Users size={14} strokeWidth={2.5} aria-hidden="true" />
       New Chat
     </Button>
   </div>
@@ -463,7 +463,7 @@
                       class="inline-flex h-9 w-9 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
                     >
                       <span class="sr-only">Story options</span>
-                      <Ellipsis size={15} strokeWidth={1.8} />
+                      <EllipsisVertical size={15} strokeWidth={1.8} aria-hidden="true" />
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end" class="w-48">
                       <DropdownMenuItem
@@ -568,7 +568,7 @@
                       class="inline-flex h-9 w-9 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
                     >
                       <span class="sr-only">Chat options</span>
-                      <Ellipsis size={15} strokeWidth={1.8} />
+                      <EllipsisVertical size={15} strokeWidth={1.8} aria-hidden="true" />
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end" class="w-48">
                       <DropdownMenuItem

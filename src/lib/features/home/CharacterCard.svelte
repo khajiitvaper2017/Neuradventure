@@ -10,7 +10,7 @@
     DropdownMenuSeparator,
     DropdownMenuTrigger,
   } from "@/components/ui/dropdown-menu"
-  import { Ellipsis, FileText } from "@lucide/svelte"
+  import { EllipsisVertical, FileText } from "@lucide/svelte"
 
   type Props = {
     group: StoryCharacterGroup
@@ -126,12 +126,12 @@
             class="inline-flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
           >
             <span class="sr-only">Character options</span>
-            <Ellipsis size={15} strokeWidth={1.8} />
+            <EllipsisVertical size={15} strokeWidth={1.8} aria-hidden="true" />
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" class="w-48">
             <DropdownMenuItem onSelect={() => onOpenDetails?.(group.id)}>
               <span class="inline-flex items-center gap-2">
-                <FileText size={14} strokeWidth={1.6} />
+                <FileText size={14} strokeWidth={1.6} aria-hidden="true" />
                 Details
               </span>
             </DropdownMenuItem>
