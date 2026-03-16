@@ -1,6 +1,7 @@
 <script lang="ts">
   import { backup as backupService } from "@/services/backup"
   import { showConfirm, showError, showQuietNotice } from "@/stores/ui"
+  import { pickFile } from "@/utils/filePick"
   import { Button } from "@/components/ui/button"
 
   async function exportBackup() {
@@ -22,21 +23,15 @@
     })
     if (!confirmed) return
 
-    const input = document.createElement("input")
-    input.type = "file"
-    input.accept = ".ndbackup,.json,application/json"
-    input.onchange = async () => {
-      const file = input.files?.[0]
-      if (!file) return
-      try {
-        await backupService.restoreAllFromFile(file)
-        showQuietNotice("Backup restored — reloading…")
-        window.setTimeout(() => location.reload(), 250)
-      } catch (err) {
-        showError(err instanceof Error ? err.message : "Failed to restore backup")
-      }
+    const file = await pickFile({ accept: ".ndbackup,.json,application/json" })
+    if (!file) return
+    try {
+      await backupService.restoreAllFromFile(file)
+      showQuietNotice("Backup restored — reloading…")
+      window.setTimeout(() => location.reload(), 250)
+    } catch (err) {
+      showError(err instanceof Error ? err.message : "Failed to restore backup")
     }
-    input.click()
   }
 </script>
 

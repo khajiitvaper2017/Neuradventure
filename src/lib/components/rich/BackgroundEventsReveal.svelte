@@ -56,7 +56,7 @@
         {#if isBlockHtml}
           <div class="text-sm leading-relaxed text-muted-foreground"><RichText text={trimmed} mode="block" /></div>
         {:else}
-          {#each paras as para, index (index)}
+          {#each paras as para, index (`${index}:${para}`)}
             <p class="text-sm leading-relaxed text-muted-foreground"><RichText text={para} mode="inline" /></p>
           {/each}
         {/if}

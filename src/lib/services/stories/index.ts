@@ -1,11 +1,3 @@
-import type { MainCharacterState, NPCState, StoryMeta, StoryModules } from "@/shared/types"
-import type {
-  CharacterImportResult,
-  StoryCharacterGroup,
-  StoryDetail,
-  StoryNpcGroup,
-  UpdateStoryStateResult,
-} from "@/shared/api-types"
 import {
   characters,
   deleteCharacter,
@@ -22,51 +14,33 @@ import { npcs } from "@/services/stories/npcs"
 export const stories = {
   list,
   get,
-  create: create as unknown as (data: {
-    title: string
-    opening_scenario: string
-    starting_scene?: string
-    starting_date?: string
-    starting_time?: string
-    character_id?: number
-    tavern_card?: object
-    tavern_avatar_data_url?: string
-    character_data?: Omit<MainCharacterState, "inventory">
-    npcs?: NPCState[]
-    story_modules?: StoryModules
-  }) => Promise<{ id: number }>,
+  create,
   update,
-  updateState: updateState as unknown as (
-    id: number,
-    data: { character?: MainCharacterState; npcs?: NPCState[]; world?: { memory?: string } },
-  ) => Promise<UpdateStoryStateResult>,
+  updateState,
   delete: deleteStory,
   exportAndDownload,
   import: importStory,
-  characters: characters as unknown as () => Promise<StoryCharacterGroup[]>,
-  getCharacter: getCharacter as unknown as (id: number) => Promise<MainCharacterState>,
+  characters,
+  getCharacter,
   deleteCharacter,
-  npcs: npcs as unknown as () => Promise<StoryNpcGroup[]>,
-  exportCharacterAndDownload: exportCharacterAndDownload as unknown as (
-    charId: number,
-    format?: "neuradventure" | "tavern-card",
-  ) => Promise<void>,
+  npcs,
+  exportCharacterAndDownload,
   getCharacterCard,
-  importCharacter: importCharacter as unknown as (body: object) => Promise<CharacterImportResult>,
+  importCharacter,
 } satisfies {
-  list: () => Promise<StoryMeta[]>
-  get: (id: number) => Promise<StoryDetail>
-  create: (data: unknown) => Promise<{ id: number }>
-  update: (id: number, data: unknown) => Promise<{ ok: boolean }>
-  updateState: (id: number, data: unknown) => Promise<UpdateStoryStateResult>
-  delete: (id: number) => Promise<{ ok: boolean }>
-  exportAndDownload: (id: number, format?: "neuradventure" | "tavern" | "plaintext") => Promise<void>
-  import: (data: object | string) => Promise<{ id: number }>
-  characters: () => Promise<StoryCharacterGroup[]>
-  getCharacter: (id: number) => Promise<MainCharacterState>
-  deleteCharacter: (id: number) => Promise<{ ok: boolean }>
-  npcs: () => Promise<StoryNpcGroup[]>
-  exportCharacterAndDownload: (charId: number, format?: "neuradventure" | "tavern-card") => Promise<void>
-  getCharacterCard: (charId: number) => Promise<object>
-  importCharacter: (body: object) => Promise<CharacterImportResult>
+  list: typeof list
+  get: typeof get
+  create: typeof create
+  update: typeof update
+  updateState: typeof updateState
+  delete: typeof deleteStory
+  exportAndDownload: typeof exportAndDownload
+  import: typeof importStory
+  characters: typeof characters
+  getCharacter: typeof getCharacter
+  deleteCharacter: typeof deleteCharacter
+  npcs: typeof npcs
+  exportCharacterAndDownload: typeof exportCharacterAndDownload
+  getCharacterCard: typeof getCharacterCard
+  importCharacter: typeof importCharacter
 }

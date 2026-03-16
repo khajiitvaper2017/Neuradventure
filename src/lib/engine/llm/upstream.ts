@@ -1,6 +1,7 @@
 import { fetchWithTimeout } from "@/engine/utils/fetch-timeout"
 import type { LLMConnector } from "@/shared/api-types"
 import type { ChatCompletionCreateParams } from "@/engine/llm/openai-types"
+import { OPENROUTER_APP_TITLE } from "@/shared/config/app"
 
 function buildUrl(baseUrl: string, path: string): string {
   const base = baseUrl.replace(/\/?$/, "/")
@@ -52,9 +53,13 @@ export function buildUpstreamHeaders(connector: LLMConnector): Record<string, st
   if (key) headers.Authorization = `Bearer ${key}`
 
   if (connector.type === "openrouter") {
-    headers["HTTP-Referer"] = "http://localhost"
-    headers["X-Title"] = "NeuradventureV2"
-    headers["X-OpenRouter-Title"] = "NeuradventureV2"
+    const referer =
+      typeof location !== "undefined" && typeof location.origin === "string" && location.origin
+        ? location.origin
+        : "http://localhost"
+    headers["HTTP-Referer"] = referer
+    headers["X-Title"] = OPENROUTER_APP_TITLE
+    headers["X-OpenRouter-Title"] = OPENROUTER_APP_TITLE
   }
 
   return headers

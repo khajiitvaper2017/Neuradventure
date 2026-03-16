@@ -163,9 +163,12 @@ export function navigate(
     const url = currentUrl()
     if (url) {
       panelState.set({ panel: null, characterId: null })
-      url.searchParams.delete("panel")
-      url.searchParams.delete("character")
-      replaceState(url, {})
+      const hadPanelParams = url.searchParams.has("panel") || url.searchParams.has("character")
+      if (hadPanelParams) {
+        url.searchParams.delete("panel")
+        url.searchParams.delete("character")
+        replaceState(url, {})
+      }
     }
   }
 

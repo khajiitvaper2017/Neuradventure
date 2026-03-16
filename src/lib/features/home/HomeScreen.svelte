@@ -5,7 +5,7 @@
   import type { StoryMeta, ChatSummary } from "@/shared/types"
   import type { StoryCharacterGroup, CharacterImportResult } from "@/shared/api-types"
   import { navigate, openCharSheetForCharacter } from "@/stores/router"
-  import { showError, showConfirm } from "@/stores/ui"
+  import { showError, showConfirm, showQuietNotice } from "@/stores/ui"
   import IconDots from "@/components/icons/IconDots.svelte"
   import IconDocument from "@/components/icons/IconDocument.svelte"
   import IconGear from "@/components/icons/IconGear.svelte"
@@ -44,6 +44,7 @@
   import { loadStoryById } from "@/utils/storyLoader"
   import IconUser from "@/components/icons/IconUser.svelte"
   import ThemeToggle from "@/components/controls/ThemeToggle.svelte"
+  import { pickFile, readFileAsDataUrl } from "@/utils/filePick"
   import { Book } from "@lucide/svelte"
 
   let stories = $state<StoryMeta[]>([])
@@ -190,77 +191,58 @@
   }
 
   async function importStory() {
-    const input = document.createElement("input")
-    input.type = "file"
-    input.accept = ".json,.jsonl"
-    input.onchange = async () => {
-      const file = input.files?.[0]
-      if (!file) return
+    const file = await pickFile({ accept: ".json,.jsonl" })
+    if (!file) return
+    try {
+      const text = await file.text()
+      let payload: object | string = text
       try {
-        const text = await file.text()
-        let payload: object | string = text
-        try {
-          payload = JSON.parse(text)
-        } catch {
-          // keep raw text for JSONL
-        }
-        const { id } = await storiesService.import(payload)
-        showError(`Story imported (id: ${id})`)
-        await loadStories()
-        await loadCharacters()
+        payload = JSON.parse(text)
       } catch {
-        showError("Failed to import story — invalid format")
+        // keep raw text for JSONL
       }
+      const { id } = await storiesService.import(payload)
+      showQuietNotice(`Story imported (id: ${id})`)
+      await loadStories()
+      await loadCharacters()
+    } catch {
+      showError("Failed to import story — invalid format")
     }
-    input.click()
   }
 
   async function importCharacter() {
-    const input = document.createElement("input")
-    input.type = "file"
-    input.accept = ".json,.png"
-    input.onchange = async () => {
-      const file = input.files?.[0]
-      if (!file) return
-      try {
-        let result: CharacterImportResult
-        if (file.name.toLowerCase().endsWith(".png")) {
-          const buf = await file.arrayBuffer()
-          const bytes = new Uint8Array(buf)
-          let binary = ""
-          const chunkSize = 0x8000
-          for (let i = 0; i < bytes.length; i += chunkSize) {
-            binary += String.fromCharCode(...bytes.subarray(i, i + chunkSize))
-          }
-          const png_base64 = btoa(binary)
-          result = await storiesService.importCharacter({ png_base64, filename: file.name })
-        } else {
-          const text = await file.text()
-          result = await storiesService.importCharacter(JSON.parse(text))
-        }
-        if (result.needs_review) {
-          resetGame()
-          pendingCharacter.set(result.character)
-          pendingCharacterId.set(null)
-          pendingCharacterImportText.set(result.source_text ?? "")
-          pendingCharacterImportCard.set((result as { tavern_card?: object }).tavern_card ?? null)
-          pendingCharacterImportAvatarDataUrl.set(result.tavern_avatar_data_url ?? null)
-          pendingCharacterGenerateDescription.set(result.source_text ?? "")
-          pendingStoryTitle.set("")
-          pendingStoryScenario.set("")
-          pendingStoryNPCs.set([])
-          pendingStoryLocation.set("")
-          pendingStoryModules.set(null)
-          navigate("char-create")
-        } else {
-          showError(`Character "${result.character.name}" imported`)
-          await loadCharacters()
-        }
-      } catch (err) {
-        showError(err instanceof Error ? err.message : "Failed to import character — invalid format")
+    const file = await pickFile({ accept: ".json,.png" })
+    if (!file) return
+    try {
+      let result: CharacterImportResult
+      if (file.name.toLowerCase().endsWith(".png")) {
+        const png_data_url = await readFileAsDataUrl(file)
+        result = await storiesService.importCharacter({ png_data_url, filename: file.name })
+      } else {
+        const text = await file.text()
+        result = await storiesService.importCharacter(JSON.parse(text))
       }
+      if (result.needs_review) {
+        resetGame()
+        pendingCharacter.set(result.character)
+        pendingCharacterId.set(null)
+        pendingCharacterImportText.set(result.source_text ?? "")
+        pendingCharacterImportCard.set((result as { tavern_card?: object }).tavern_card ?? null)
+        pendingCharacterImportAvatarDataUrl.set(result.tavern_avatar_data_url ?? null)
+        pendingCharacterGenerateDescription.set(result.source_text ?? "")
+        pendingStoryTitle.set("")
+        pendingStoryScenario.set("")
+        pendingStoryNPCs.set([])
+        pendingStoryLocation.set("")
+        pendingStoryModules.set(null)
+        navigate("char-create")
+      } else {
+        showQuietNotice(`Character "${result.character.name}" imported`)
+        await loadCharacters()
+      }
+    } catch (err) {
+      showError(err instanceof Error ? err.message : "Failed to import character — invalid format")
     }
-    input.click()
   }
 
   async function exportCharacter(group: StoryCharacterGroup, format: "neuradventure" | "tavern-card") {

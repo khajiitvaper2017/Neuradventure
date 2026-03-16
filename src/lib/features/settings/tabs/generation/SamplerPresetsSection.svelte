@@ -3,6 +3,7 @@
   import { settings as settingsService } from "@/services/settings"
   import { generation } from "@/stores/settings"
   import { loadPresets, presets, refreshPresets } from "@/utils/presets"
+  import { pickFile } from "@/utils/filePick"
   import { coercePresetFromJson, filenameToPresetName } from "@/features/settings/lib/presetImport"
   import { Badge } from "@/components/ui/badge"
   import { Button } from "@/components/ui/button"
@@ -56,18 +57,10 @@
     }
   }
 
-  function openImportPreset() {
-    if (typeof document === "undefined") return
-    const input = document.createElement("input")
-    input.type = "file"
-    input.accept = "application/json,.json"
-    input.onchange = async () => {
-      const file = input.files?.[0]
-      input.value = ""
-      if (!file) return
-      await importPresetFile(file)
-    }
-    input.click()
+  async function openImportPreset() {
+    const file = await pickFile({ accept: "application/json,.json" })
+    if (!file) return
+    await importPresetFile(file)
   }
 
   async function deletePreset(preset: SamplerPreset) {
