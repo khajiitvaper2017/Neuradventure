@@ -22,6 +22,7 @@
   } from "@/components/ui/dropdown-menu"
   import { Input } from "@/components/ui/input"
   import { Label } from "@/components/ui/label"
+  import * as Empty from "@/components/ui/empty"
   import * as Select from "@/components/ui/select"
   import * as Tabs from "@/components/ui/tabs/index.js"
   import { ScrollArea } from "@/components/ui/scroll-area"
@@ -404,32 +405,44 @@
   <ScrollArea class="min-h-0 flex-1">
     <div class="px-4 py-4">
       {#if section === "stories"}
-        <div class="mb-3 flex items-center justify-end gap-2">
-          <Button variant="outline" size="sm" onclick={importStory}>Import story</Button>
-        </div>
+        {#if stories.length > 0}
+          <div class="mb-3 flex items-center justify-end gap-2">
+            <Button variant="outline" size="sm" onclick={importStory}>Import story</Button>
+          </div>
+        {/if}
 
         {#if loading}
-          <div
-            class="grid place-items-center rounded-md border border-dashed p-8 text-center text-sm text-muted-foreground"
-          >
-            Loading stories...
-          </div>
+          <Empty.Root class="border p-8">
+            <Empty.Header>
+              <Empty.Media variant="icon">
+                <Book aria-hidden="true" />
+              </Empty.Media>
+              <Empty.Title>Loading stories…</Empty.Title>
+            </Empty.Header>
+          </Empty.Root>
         {:else if filteredStories.length === 0}
-          <div
-            class="grid place-items-center rounded-md border border-dashed p-8 text-center text-sm text-muted-foreground"
-          >
+          <Empty.Root class="border p-8">
+            <Empty.Header>
+              <Empty.Media variant="icon">
+                <Book aria-hidden="true" />
+              </Empty.Media>
+              {#if stories.length === 0}
+                <Empty.Title>No stories yet</Empty.Title>
+                <Empty.Description>Begin a new adventure above.</Empty.Description>
+              {:else}
+                <Empty.Title>No stories found</Empty.Title>
+                <Empty.Description>Try a different search.</Empty.Description>
+              {/if}
+            </Empty.Header>
             {#if stories.length === 0}
-              <div class="space-y-1">
-                <p>No stories yet.</p>
-                <p class="text-xs text-muted-foreground/80">Begin a new adventure above.</p>
-              </div>
-            {:else}
-              <div class="space-y-1">
-                <p>No stories found.</p>
-                <p class="text-xs text-muted-foreground/80">Try a different search.</p>
-              </div>
+              <Empty.Content>
+                <div class="flex w-full flex-col gap-2 sm:flex-row sm:justify-center">
+                  <Button class="w-full sm:w-auto" onclick={startNew}>Create new story</Button>
+                  <Button variant="outline" class="w-full sm:w-auto" onclick={importStory}>Import story</Button>
+                </div>
+              </Empty.Content>
             {/if}
-          </div>
+          </Empty.Root>
         {:else}
           <div class="grid gap-3" role="list" aria-label="Stories">
             {#each filteredStories as story (story.id)}
@@ -497,27 +510,34 @@
         {/if}
       {:else if section === "chats"}
         {#if loadingChats}
-          <div
-            class="grid place-items-center rounded-md border border-dashed p-8 text-center text-sm text-muted-foreground"
-          >
-            Loading chats...
-          </div>
+          <Empty.Root class="border p-8">
+            <Empty.Header>
+              <Empty.Media variant="icon" aria-hidden="true">
+                <IconUsers size={18} strokeWidth={2} />
+              </Empty.Media>
+              <Empty.Title>Loading chats…</Empty.Title>
+            </Empty.Header>
+          </Empty.Root>
         {:else if filteredChats.length === 0}
-          <div
-            class="grid place-items-center rounded-md border border-dashed p-8 text-center text-sm text-muted-foreground"
-          >
+          <Empty.Root class="border p-8">
+            <Empty.Header>
+              <Empty.Media variant="icon" aria-hidden="true">
+                <IconUsers size={18} strokeWidth={2} />
+              </Empty.Media>
+              {#if chats.length === 0}
+                <Empty.Title>No chats yet</Empty.Title>
+                <Empty.Description>Start a new group chat above.</Empty.Description>
+              {:else}
+                <Empty.Title>No chats found</Empty.Title>
+                <Empty.Description>Try a different search.</Empty.Description>
+              {/if}
+            </Empty.Header>
             {#if chats.length === 0}
-              <div class="space-y-1">
-                <p>No chats yet.</p>
-                <p class="text-xs text-muted-foreground/80">Start a new group chat above.</p>
-              </div>
-            {:else}
-              <div class="space-y-1">
-                <p>No chats found.</p>
-                <p class="text-xs text-muted-foreground/80">Try a different search.</p>
-              </div>
+              <Empty.Content>
+                <Button class="w-full sm:w-auto" onclick={startNewChat}>Create new chat</Button>
+              </Empty.Content>
             {/if}
-          </div>
+          </Empty.Root>
         {:else}
           <div class="grid gap-3" role="list" aria-label="Chats">
             {#each filteredChats as chat (chat.id)}
@@ -594,35 +614,43 @@
           </div>
         {/if}
       {:else if loadingCharacters}
-        <div class="mb-3 flex items-center justify-end gap-2">
-          <Button variant="outline" size="sm" onclick={importCharacter}>Import character</Button>
-        </div>
-
-        <div
-          class="grid place-items-center rounded-md border border-dashed p-8 text-center text-sm text-muted-foreground"
-        >
-          Loading characters...
-        </div>
+        <Empty.Root class="border p-8">
+          <Empty.Header>
+            <Empty.Media variant="icon" aria-hidden="true">
+              <IconUser size={18} strokeWidth={2} />
+            </Empty.Media>
+            <Empty.Title>Loading characters…</Empty.Title>
+          </Empty.Header>
+        </Empty.Root>
       {:else if filteredCharacters.length === 0}
-        <div class="mb-3 flex items-center justify-end gap-2">
-          <Button variant="outline" size="sm" onclick={importCharacter}>Import character</Button>
-        </div>
+        {#if storyCharacters.length > 0}
+          <div class="mb-3 flex items-center justify-end gap-2">
+            <Button variant="outline" size="sm" onclick={importCharacter}>Import character</Button>
+          </div>
+        {/if}
 
-        <div
-          class="grid place-items-center rounded-md border border-dashed p-8 text-center text-sm text-muted-foreground"
-        >
+        <Empty.Root class="border p-8">
+          <Empty.Header>
+            <Empty.Media variant="icon" aria-hidden="true">
+              <IconUser size={18} strokeWidth={2} />
+            </Empty.Media>
+            {#if storyCharacters.length === 0}
+              <Empty.Title>No characters from stories yet</Empty.Title>
+              <Empty.Description>Finish a story to reuse its character here.</Empty.Description>
+            {:else}
+              <Empty.Title>No characters found</Empty.Title>
+              <Empty.Description>Try a different search.</Empty.Description>
+            {/if}
+          </Empty.Header>
           {#if storyCharacters.length === 0}
-            <div class="space-y-1">
-              <p>No characters from stories yet.</p>
-              <p class="text-xs text-muted-foreground/80">Finish a story to reuse its character here.</p>
-            </div>
-          {:else}
-            <div class="space-y-1">
-              <p>No characters found.</p>
-              <p class="text-xs text-muted-foreground/80">Try a different search.</p>
-            </div>
+            <Empty.Content>
+              <div class="flex w-full flex-col gap-2 sm:flex-row sm:justify-center">
+                <Button class="w-full sm:w-auto" onclick={startNewCharacter}>Create new character</Button>
+                <Button variant="outline" class="w-full sm:w-auto" onclick={importCharacter}>Import character</Button>
+              </div>
+            </Empty.Content>
           {/if}
-        </div>
+        </Empty.Root>
       {:else}
         <div class="mb-3 flex items-center justify-end gap-2">
           <Button variant="outline" size="sm" onclick={importCharacter}>Import character</Button>
