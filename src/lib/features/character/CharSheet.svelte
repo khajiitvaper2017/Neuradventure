@@ -3,15 +3,19 @@
   import { get } from "svelte/store"
   import { AppError } from "@/errors"
   import { stories } from "@/services/stories"
+  import { settings as settingsService } from "@/services/settings"
   import { activeScreen, charSheetCharacterId, closeCharSheet, showCharSheet } from "@/stores/router"
   import { showError, showQuietNotice } from "@/stores/ui"
   import { character, currentStoryId, currentStoryModules, llmUpdateId } from "@/stores/game"
   import { timeouts } from "@/stores/settings"
   import type { MainCharacterState } from "@/shared/types"
+  import type { CustomFieldDef } from "@/shared/api-types"
   import { cn } from "@/utils.js"
   import { genderIcon, normalizeGender, splitCsv } from "@/utils/text"
   import EditableFieldList from "@/components/inputs/EditableFieldList.svelte"
   import type { EditField } from "@/components/inputs/editableFieldTypes"
+  import CustomFieldsEditor from "@/components/inputs/CustomFieldsEditor.svelte"
+  import CustomFieldsView from "@/components/inputs/CustomFieldsView.svelte"
   import { Badge } from "@/components/ui/badge"
   import { Button } from "@/components/ui/button"
   import { Input } from "@/components/ui/input"
@@ -54,6 +58,7 @@
     currentAppearance: string
     clothing: string
     inventory: string
+    customFields: string
   }
 
   let lastSigs: CharacterSigs | null = null
@@ -62,10 +67,12 @@
   let flashAppearance = $state(false)
   let flashClothing = $state(false)
   let flashInventory = $state(false)
+  let flashCustom = $state(false)
   let identityTimer: number | null = null
   let appearanceTimer: number | null = null
   let clothingTimer: number | null = null
   let inventoryTimer: number | null = null
+  let customTimer: number | null = null
   let editing = $state(false)
   let saving = $state(false)
   let showBaselineDetails = $state(false)
@@ -91,6 +98,7 @@
     quirks: string
     perks: string
     inventory: InventoryDraft[]
+    customFields: Record<string, string | string[]>
   }
   let draft = $state<CharacterDraft>({
     name: "",
@@ -105,6 +113,31 @@
     quirks: "",
     perks: "",
     inventory: [],
+    customFields: {},
+  })
+
+  let customDefs = $state<CustomFieldDef[]>([])
+  let customDefsLoaded = $state(false)
+
+  const customCharDefs = $derived(customDefs.filter((d) => d.enabled && d.scope === "character"))
+  const hasBaseCustomDefs = $derived(customCharDefs.some((d) => d.placement === "base"))
+  const hasCurrentCustomDefs = $derived(customCharDefs.some((d) => d.placement === "current"))
+
+  async function loadCustomDefsOnce() {
+    if (customDefsLoaded) return
+    try {
+      customDefs = await settingsService.customFields()
+      customDefsLoaded = true
+    } catch (err) {
+      console.warn("[custom-fields] Failed to load defs", err)
+      customDefsLoaded = true
+      customDefs = []
+    }
+  }
+
+  $effect(() => {
+    if (!displayCharacter) return
+    void loadCustomDefsOnce()
   })
 
   function buildCharacterSigs(c: MainCharacterState): CharacterSigs {
@@ -115,6 +148,7 @@
       currentAppearance: c.current_appearance,
       clothing: c.current_clothing,
       inventory: c.inventory.map((item) => `${item.name}:${item.description}`).join("|"),
+      customFields: JSON.stringify(c.custom_fields ?? {}),
     }
   }
 
@@ -141,6 +175,13 @@
     flashInventory = true
     if (inventoryTimer) window.clearTimeout(inventoryTimer)
     inventoryTimer = window.setTimeout(() => (flashInventory = false), flashMs)
+  }
+
+  function triggerCustomFlash() {
+    const flashMs = get(timeouts).uiFlashMs
+    flashCustom = true
+    if (customTimer) window.clearTimeout(customTimer)
+    customTimer = window.setTimeout(() => (flashCustom = false), flashMs)
   }
 
   function characterFields(): EditField[] {
@@ -224,6 +265,7 @@
   function startEdit() {
     if (!canEdit) return
     if (!$character) return
+    void loadCustomDefsOnce()
     draft = {
       name: $character.name,
       race: $character.race,
@@ -237,6 +279,7 @@
       quirks: $character.quirks.join(", "),
       perks: $character.perks.join(", "),
       inventory: $character.inventory.map((item) => ({ name: item.name, description: item.description })),
+      customFields: { ...($character.custom_fields ?? {}) },
     }
     editing = true
   }
@@ -321,6 +364,7 @@
       quirks: quirks.length > 0 ? quirks : (existing?.quirks ?? []),
       perks: perks.length > 0 ? perks : (existing?.perks ?? []),
       inventory,
+      custom_fields: draft.customFields ?? existing?.custom_fields ?? {},
     }
     saving = true
     try {
@@ -394,6 +438,7 @@
           }
           if (useAppearance && nextSigs.clothing !== lastSigs.clothing) triggerFlash("clothing")
           if (useInventory && nextSigs.inventory !== lastSigs.inventory) triggerFlash("inventory")
+          if (nextSigs.customFields !== lastSigs.customFields) triggerCustomFlash()
         }
         lastSigs = nextSigs
       } else {
@@ -414,6 +459,7 @@
     if (appearanceTimer) window.clearTimeout(appearanceTimer)
     if (clothingTimer) window.clearTimeout(clothingTimer)
     if (inventoryTimer) window.clearTimeout(inventoryTimer)
+    if (customTimer) window.clearTimeout(customTimer)
   })
 </script>
 
@@ -422,6 +468,40 @@
     {#if editing}
       <div class="space-y-4">
         <EditableFieldList fields={characterFields()} />
+        {#if hasBaseCustomDefs || hasCurrentCustomDefs}
+          <div class="space-y-3 rounded-lg border bg-card p-4">
+            <div class="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+              <IconDocument size={14} strokeWidth={1.5} className="shrink-0 opacity-70" />
+              <span>Custom Fields</span>
+            </div>
+            {#if hasBaseCustomDefs}
+              <div class="space-y-2">
+                <div class="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Base</div>
+                <CustomFieldsEditor
+                  defs={customDefs}
+                  values={draft.customFields}
+                  setValues={(next) => (draft.customFields = next)}
+                  scope="character"
+                  placement="base"
+                  disabled={saving}
+                />
+              </div>
+            {/if}
+            {#if hasCurrentCustomDefs}
+              <div class="space-y-2">
+                <div class="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Current</div>
+                <CustomFieldsEditor
+                  defs={customDefs}
+                  values={draft.customFields}
+                  setValues={(next) => (draft.customFields = next)}
+                  scope="character"
+                  placement="current"
+                  disabled={saving}
+                />
+              </div>
+            {/if}
+          </div>
+        {/if}
         {#if useInventory}
           <div class="space-y-2">
             <div class="flex items-center justify-between gap-3">
@@ -559,6 +639,39 @@
               {#each displayCharacter.perks as t, index (t + ":" + index)}
                 <Badge variant="outline" class="rounded-full font-mono text-[11px]">{t}</Badge>
               {/each}
+            {/if}
+          </div>
+        </div>
+      {/if}
+
+      {#if customCharDefs.length > 0}
+        <div class={cn("mt-3 rounded-lg border bg-card p-4", flashCustom && "ring-2 ring-primary/30")}>
+          <div class="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+            <IconDocument size={14} strokeWidth={1.5} className="shrink-0 opacity-70" />
+            <span>Custom Fields</span>
+          </div>
+          <div class="mt-3 space-y-4">
+            {#if hasBaseCustomDefs}
+              <div class="space-y-2">
+                <div class="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Base</div>
+                <CustomFieldsView
+                  defs={customDefs}
+                  values={displayCharacter.custom_fields}
+                  scope="character"
+                  placement="base"
+                />
+              </div>
+            {/if}
+            {#if hasCurrentCustomDefs}
+              <div class="space-y-2">
+                <div class="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Current</div>
+                <CustomFieldsView
+                  defs={customDefs}
+                  values={displayCharacter.custom_fields}
+                  scope="character"
+                  placement="current"
+                />
+              </div>
             {/if}
           </div>
         </div>

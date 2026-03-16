@@ -15,6 +15,25 @@ export function getConfig(): PromptConfig {
   return db.getMergedPromptConfig()
 }
 
+function buildCustomFieldsHintLines(): string[] {
+  const defs = db.listCustomFields().filter((d) => d.enabled)
+  if (defs.length === 0) return []
+
+  const charDefs = defs.filter((d) => d.scope === "character")
+  const worldDefs = defs.filter((d) => d.scope === "world")
+
+  const fmt = (d: (typeof defs)[number]) => `${d.id} (${d.value_type}) — ${d.label}`
+
+  const lines: string[] = []
+  lines.push("Custom fields (user-defined):")
+  lines.push(
+    "When something changes, use: character_custom_fields (player), npc_changes[].custom_fields (NPCs), world_state_update.custom_fields (world).",
+  )
+  if (charDefs.length > 0) lines.push(`Enabled character fields: ${charDefs.map(fmt).join("; ")}`)
+  if (worldDefs.length > 0) lines.push(`Enabled world fields: ${worldDefs.map(fmt).join("; ")}`)
+  return lines
+}
+
 function resolvePrompt(prompt: ModularPrompt | undefined, modules?: StoryModules): string[] {
   if (!prompt) return []
   const active = modules ?? DEFAULT_MODULES
@@ -84,7 +103,10 @@ function resolvePrompt(prompt: ModularPrompt | undefined, modules?: StoryModules
 }
 
 export function getSystemPrompt(modules?: StoryModules): string {
-  return resolvePrompt(getConfig().systemPromptLines, modules).join("\n").replace("{npcTraits}", npcTraits.join(", "))
+  const lines = resolvePrompt(getConfig().systemPromptLines, modules)
+  const hint = buildCustomFieldsHintLines()
+  const joined = [...lines, ...(hint.length > 0 ? ["", ...hint] : [])].join("\n")
+  return joined.replace("{npcTraits}", npcTraits.join(", "))
 }
 
 export function getChatPrompt(modules?: StoryModules): string {
@@ -96,7 +118,9 @@ export function getChatPrompt(modules?: StoryModules): string {
 export function getNpcCreationPrompt(modules?: StoryModules): string {
   const config = getConfig()
   const lines = resolvePrompt(config.npcCreationPrompt ?? config.systemPromptLines, modules)
-  return lines.join("\n").replace("{npcTraits}", npcTraits.join(", "))
+  const hint = buildCustomFieldsHintLines()
+  const joined = [...lines, ...(hint.length > 0 ? ["", ...hint] : [])].join("\n")
+  return joined.replace("{npcTraits}", npcTraits.join(", "))
 }
 
 export function getImpersonatePrompt(modules?: StoryModules): string {

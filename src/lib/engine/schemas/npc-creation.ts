@@ -18,7 +18,7 @@ const MajorFlawsSchema = z.array(MajorFlawSchema).max(3)
 const QuirksSchema = z.array(QuirkSchema).max(6)
 const PerksSchema = z.array(PerkSchema).max(6)
 
-export function buildNpcCreationSchema(flags: NpcCreationFlags) {
+export function buildNpcCreationSchema(flags: NpcCreationFlags, characterCustomFieldsSchema?: z.ZodTypeAny) {
   const shape = {
     name: z.string().min(1),
     race: z.string().min(1),
@@ -37,6 +37,7 @@ export function buildNpcCreationSchema(flags: NpcCreationFlags) {
           current_appearance: z.string().min(1),
         }
       : {}),
+    ...(characterCustomFieldsSchema ? { custom_fields: characterCustomFieldsSchema.optional() } : {}),
   }
 
   return z.object(shape).strict()

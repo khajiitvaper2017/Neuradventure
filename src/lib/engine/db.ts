@@ -101,3 +101,26 @@ export {
 
 export type { SamplerPreset, SamplerPresetRow } from "@/engine/db/presets"
 export { deleteSamplerPreset, listSamplerPresets, upsertSamplerPreset } from "@/engine/db/presets"
+
+export type {
+  CustomFieldDef,
+  CustomFieldPlacement,
+  CustomFieldScope,
+  CustomFieldValueType,
+  CharacterCustomFieldPlacement,
+  WorldCustomFieldPlacement,
+} from "@/shared/api-types"
+export {
+  deleteCustomField,
+  getCustomFieldsMaxUpdatedAt,
+  listCustomFields,
+  upsertCustomField,
+} from "@/engine/db/custom-fields"
+
+export {
+  getFieldPromptOverridesMaxUpdatedAt,
+  getFieldPromptOverridesRow,
+  resetAllFieldPromptOverrides,
+  resetFieldPromptOverride,
+  setFieldPromptOverride,
+} from "@/engine/db/field-prompt-overrides"

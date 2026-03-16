@@ -2,7 +2,7 @@ import { getDb } from "@/engine/db/connection"
 import { DEFAULT_SETTINGS } from "@/engine/db/settings"
 import { ensurePromptConfigDefaults } from "@/engine/db/prompts"
 
-const LATEST_USER_VERSION = 1
+const LATEST_USER_VERSION = 2
 
 function readUserVersion(): number {
   const db = getDb()
@@ -258,15 +258,54 @@ function migrateToV1() {
   }
 }
 
+function migrateToV2() {
+  const database = getDb()
+
+  database.exec(`
+    CREATE TABLE IF NOT EXISTS custom_fields (
+      id         TEXT PRIMARY KEY,
+      scope      TEXT NOT NULL,
+      value_type TEXT NOT NULL,
+      label      TEXT NOT NULL,
+      placement  TEXT NOT NULL,
+      prompt     TEXT NOT NULL DEFAULT '',
+      enabled    INTEGER NOT NULL DEFAULT 1,
+      sort_order INTEGER NOT NULL DEFAULT 0,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_custom_fields_scope_sort ON custom_fields(scope, sort_order, label);
+
+    CREATE TABLE IF NOT EXISTS field_prompt_overrides (
+      id            INTEGER PRIMARY KEY CHECK (id = 1),
+      overrides_json TEXT NOT NULL,
+      updated_at    TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+  `)
+
+  const row = database.prepare("SELECT overrides_json FROM field_prompt_overrides WHERE id = 1").get() as
+    | { overrides_json: string }
+    | undefined
+  if (!row) {
+    database.prepare("INSERT INTO field_prompt_overrides (id, overrides_json) VALUES (1, ?)").run("{}")
+  }
+}
+
 export function migrateDb() {
   const version = readUserVersion()
   if (version < 1) {
     migrateToV1()
     setUserVersion(1)
-    return
   }
 
-  // Future migrations go here; keep prompt defaults idempotent.
-  if (version >= 1) ensurePromptConfigDefaults()
-  if (version !== LATEST_USER_VERSION) setUserVersion(LATEST_USER_VERSION)
+  if (version < 2) {
+    migrateToV2()
+    setUserVersion(2)
+  }
+
+  // Keep prompt defaults idempotent on all versions.
+  ensurePromptConfigDefaults()
+
+  if (readUserVersion() !== LATEST_USER_VERSION) setUserVersion(LATEST_USER_VERSION)
 }

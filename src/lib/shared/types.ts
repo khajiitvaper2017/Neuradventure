@@ -29,6 +29,7 @@ export interface CharacterState {
   quirks: string[]
   perks: string[]
   inventory: InventoryItem[]
+  custom_fields: Record<string, string | string[]>
 }
 
 export type MainCharacterState = CharacterState
@@ -61,6 +62,7 @@ export interface WorldState {
   time_of_day: string
   memory: string
   locations: Location[]
+  custom_fields: Record<string, string | string[]>
 }
 
 export interface StoryMeta {

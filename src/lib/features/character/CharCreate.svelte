@@ -428,6 +428,7 @@
       major_flaws: majorFlaws,
       quirks,
       perks,
+      custom_fields: existing?.custom_fields ?? {},
     }
   }
 

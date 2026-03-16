@@ -17,6 +17,8 @@ import { DEFAULT_STORY_MODULES, resolveModuleFlags } from "@/engine/schemas/stor
 import { renderCharacterBook } from "@/engine/utils/tavern/character-book"
 import type { CharacterBook } from "@/engine/utils/converters/tavern"
 import type { ChatCompletionMessageParam } from "@/engine/llm/openai-types"
+import * as db from "@/engine/core/db"
+import type { CustomFieldDef } from "@/shared/api-types"
 
 // ─── Shared context block builder ─────────────────────────────────────────────
 
@@ -101,6 +103,34 @@ function buildContextBlock(opts: ContextBlockOpts): string {
   const modules: StoryModules = opts.modules ?? DEFAULT_STORY_MODULES
   const flags = resolveModuleFlags(modules)
   const generalDescription = character.general_description?.trim() || defaults.unknown.generalDescription
+  const customFieldDefs = db.listCustomFields().filter((d) => d.enabled)
+
+  const formatCustomFieldValue = (value: string | string[]): string => (Array.isArray(value) ? value.join(", ") : value)
+
+  const customLines = (
+    defs: CustomFieldDef[],
+    values: Record<string, string | string[]> | undefined,
+    scope: "character" | "world",
+    placement: CustomFieldDef["placement"],
+  ): string[] => {
+    if (!values) return []
+    const lines: string[] = []
+    for (const def of defs) {
+      if (def.scope !== scope) continue
+      if (def.placement !== placement) continue
+      const value = values[def.id]
+      if (value === undefined) continue
+      const rendered = formatCustomFieldValue(value).trim()
+      if (!rendered) continue
+      lines.push(`${def.label} (${def.id}): ${rendered}`)
+    }
+    return lines
+  }
+
+  const playerBaseCustom = customLines(customFieldDefs, character.custom_fields, "character", "base")
+  const playerCurrentCustom = customLines(customFieldDefs, character.custom_fields, "character", "current")
+  const worldContextCustom = customLines(customFieldDefs, world.custom_fields, "world", "context")
+  const worldMemoryCustom = customLines(customFieldDefs, world.custom_fields, "world", "memory")
 
   const baseLines = [
     formatTemplate(labels.nameRaceGender, {
@@ -122,6 +152,7 @@ function buildContextBlock(opts: ContextBlockOpts): string {
       : null,
     flags.useCharQuirks ? formatTemplate(labels.quirks, { value: character.quirks.join(", ") || none }) : null,
     flags.useCharPerks ? formatTemplate(labels.perks, { value: character.perks.join(", ") || none }) : null,
+    ...(playerBaseCustom.length > 0 ? playerBaseCustom : []),
   ]
     .filter(Boolean)
     .join("\n")
@@ -151,7 +182,9 @@ function buildContextBlock(opts: ContextBlockOpts): string {
   }
 
   const npcBaselineSection =
-    modules.track_npcs && npcs.length > 0 ? wrapSection(sections.npcBaselines, formatNPCBaselines(npcs, flags)) : null
+    modules.track_npcs && npcs.length > 0
+      ? wrapSection(sections.npcBaselines, formatNPCBaselines(npcs, flags, customFieldDefs))
+      : null
 
   const locationSection =
     modules.track_locations && world.locations && world.locations.length > 0
@@ -159,7 +192,11 @@ function buildContextBlock(opts: ContextBlockOpts): string {
       : null
 
   // ── SEMI-STABLE ──
-  const memorySection = world.memory ? wrapSection(sections.memory, world.memory) : null
+  const memorySection = (() => {
+    if (!world.memory) return null
+    const content = worldMemoryCustom.length > 0 ? [world.memory, "", ...worldMemoryCustom].join("\n") : world.memory
+    return wrapSection(sections.memory, content)
+  })()
 
   // ── VOLATILE ──
   const currentSection = wrapSection(
@@ -171,6 +208,7 @@ function buildContextBlock(opts: ContextBlockOpts): string {
       flags.useCharAppearance ? formatTemplate(labels.wearing, { value: character.current_clothing }) : null,
       formatTemplate(labels.location, { value: character.current_location }),
       flags.useCharInventory ? formatTemplate(labels.inventory, { value: formatInventory(character.inventory) }) : null,
+      ...(playerCurrentCustom.length > 0 ? playerCurrentCustom : []),
     ]
       .filter(Boolean)
       .join("\n"),
@@ -178,13 +216,16 @@ function buildContextBlock(opts: ContextBlockOpts): string {
 
   const npcCurrentSection =
     modules.track_npcs && npcs.length > 0
-      ? wrapSection(sections.npcCurrentStates, formatNPCCurrentStates(npcs, flags))
+      ? wrapSection(sections.npcCurrentStates, formatNPCCurrentStates(npcs, flags, customFieldDefs))
       : null
 
   const storyContextSection = wrapSection(
     sections.storyContext,
-    `${formatTemplate(labels.scene, { value: world.current_scene })}\n` +
-      `${formatTemplate(labels.time, { value: world.time_of_day })}`,
+    [
+      formatTemplate(labels.scene, { value: world.current_scene }),
+      formatTemplate(labels.time, { value: world.time_of_day }),
+      ...(worldContextCustom.length > 0 ? worldContextCustom : []),
+    ].join("\n"),
   )
 
   const joinSections = (sections: Array<string | null | undefined>): string => sections.filter(Boolean).join("\n\n")

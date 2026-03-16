@@ -68,6 +68,7 @@ export const UpdateStoryStateRequestSchema = z
     world: z
       .object({
         memory: z.string().min(1).optional(),
+        custom_fields: z.record(z.string(), z.union([z.string(), z.array(z.string())])).optional(),
       })
       .optional(),
   })

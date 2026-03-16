@@ -3,7 +3,7 @@ import { AppError } from "@/errors"
 import * as db from "@/engine/core/db"
 import { getCachedUpstreamModels } from "@/engine/llm/models"
 import { getCtxLimitCached, initCtxLimit } from "@/engine/llm"
-import type { AppSettings, ModelInfo, PromptConfigFile, SamplerPreset } from "@/shared/api-types"
+import type { AppSettings, CustomFieldDef, ModelInfo, PromptConfigFile, SamplerPreset } from "@/shared/api-types"
 import { HIDDEN_SECRET_PLACEHOLDER } from "@/shared/secrets"
 import {
   areConnectorSecretsReady,
@@ -26,6 +26,31 @@ const builtinPresetModules = import.meta.glob("/src/lib/shared/config/presets/*.
   string,
   { default?: unknown } | unknown
 >
+
+const CustomFieldSchema = z.object({
+  id: z
+    .string()
+    .trim()
+    .min(1)
+    .max(64)
+    .regex(/^[a-z][a-z0-9_]*$/, "id must be a lowercase slug (a-z0-9_)"),
+  scope: z.enum(["character", "world"]),
+  value_type: z.enum(["text", "list"]),
+  label: z.string().trim().min(1).max(120),
+  placement: z.enum(["base", "current", "context", "memory"]),
+  prompt: z.string().optional().default(""),
+  enabled: z.boolean().optional().default(true),
+  sort_order: z.number().int().optional().default(0),
+})
+
+function validatePlacement(scope: CustomFieldDef["scope"], placement: CustomFieldDef["placement"]): void {
+  if (scope === "character" && placement !== "base" && placement !== "current") {
+    throw new AppError(400, "Character custom fields must use placement: base or current")
+  }
+  if (scope === "world" && placement !== "context" && placement !== "memory") {
+    throw new AppError(400, "World custom fields must use placement: context or memory")
+  }
+}
 
 function readBuiltinPresets(): BuiltinPreset[] {
   const entries = Object.entries(builtinPresetModules).sort(([a], [b]) => a.localeCompare(b))
@@ -183,6 +208,73 @@ export const settings = {
       return { ok: true, reset }
     } catch (err) {
       const message = err instanceof Error ? err.message : "Failed to reset prompt configs"
+      throw new AppError(400, message)
+    }
+  },
+
+  customFields: async (): Promise<CustomFieldDef[]> => {
+    return db.listCustomFields()
+  },
+
+  upsertCustomField: async (def: Omit<CustomFieldDef, "created_at" | "updated_at">): Promise<CustomFieldDef> => {
+    const parsed = CustomFieldSchema.parse(def) as Omit<CustomFieldDef, "created_at" | "updated_at">
+    validatePlacement(parsed.scope, parsed.placement)
+
+    const existing = db.listCustomFields()
+    const isNew = !existing.some((f) => f.id === parsed.id)
+    if (isNew) {
+      const scopeCount = existing.filter((f) => f.scope === parsed.scope).length
+      if (scopeCount >= 40) throw new AppError(400, "Too many custom fields for this scope (max 40).")
+    }
+
+    try {
+      return db.upsertCustomField(parsed)
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Failed to save custom field"
+      throw new AppError(400, message)
+    }
+  },
+
+  deleteCustomField: async (id: string): Promise<{ ok: boolean }> => {
+    try {
+      const ok = db.deleteCustomField(id)
+      if (!ok) throw new AppError(404, "Custom field not found")
+      return { ok: true }
+    } catch (err) {
+      if (err instanceof AppError) throw err
+      const message = err instanceof Error ? err.message : "Failed to delete custom field"
+      throw new AppError(400, message)
+    }
+  },
+
+  fieldPromptOverrides: async (): Promise<Record<string, string>> => {
+    return db.getFieldPromptOverridesRow().overrides
+  },
+
+  setFieldPromptOverride: async (key: string, value: string): Promise<Record<string, string>> => {
+    try {
+      return db.setFieldPromptOverride(key, value)
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Failed to update field prompt override"
+      throw new AppError(400, message)
+    }
+  },
+
+  resetFieldPromptOverride: async (key: string): Promise<Record<string, string>> => {
+    try {
+      return db.resetFieldPromptOverride(key)
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Failed to reset field prompt override"
+      throw new AppError(400, message)
+    }
+  },
+
+  resetAllFieldPromptOverrides: async (): Promise<{ ok: boolean }> => {
+    try {
+      db.resetAllFieldPromptOverrides()
+      return { ok: true }
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Failed to reset field prompt overrides"
       throw new AppError(400, message)
     }
   },

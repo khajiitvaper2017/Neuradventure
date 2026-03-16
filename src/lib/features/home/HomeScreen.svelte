@@ -332,16 +332,11 @@
     <div class="absolute left-3 top-3">
       <ThemeToggle />
     </div>
-    <Button
-      variant="ghost"
-      size="icon"
-      class="absolute right-3 top-3 h-9 w-9 text-muted-foreground"
-      onclick={() => navigate("settings")}
-      aria-label="Settings"
-      title="Settings"
-    >
-      <IconGear size={17} strokeWidth={1.8} />
-    </Button>
+    <div class="absolute right-3 top-3">
+      <Button variant="outline" size="icon" onclick={() => navigate("settings")} aria-label="Settings" title="Settings">
+        <IconGear size={17} strokeWidth={1.8} />
+      </Button>
+    </div>
   </header>
 
   <div class="grid gap-2 border-b px-4 py-3 grid-cols-3">

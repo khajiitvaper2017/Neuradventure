@@ -5,6 +5,8 @@ import { PersonalityTraitsSchema } from "@/engine/schemas/personality-traits"
 import { resolveModuleFlags, type StoryModules } from "@/engine/schemas/story-modules"
 import type { GenerateCharacterResponse, GenerateStoryResponse } from "@/shared/api-types"
 import { buildNpcCreationSchema } from "@/engine/schemas/npc-creation"
+import * as db from "@/engine/core/db"
+import { buildCharacterCustomFieldsUpdateSchema } from "@/engine/schemas/custom-fields"
 
 const MajorFlawSchema = z.string().min(1)
 const QuirkSchema = z.string().min(1)
@@ -87,15 +89,20 @@ export const StoryResponseSchema = z
 
 export function buildStoryResponseSchema(modules: StoryModules): z.ZodType<GenerateStoryResponse> {
   const flags = resolveModuleFlags(modules)
-  const npcSchema = buildNpcCreationSchema({
-    useNpcActivity: flags.useNpcActivity,
-    useNpcLocation: flags.useNpcLocation,
-    useNpcPersonalityTraits: flags.useNpcPersonalityTraits,
-    useNpcAppearance: flags.useNpcAppearance,
-    useNpcMajorFlaws: flags.useNpcMajorFlaws,
-    useNpcQuirks: flags.useNpcQuirks,
-    useNpcPerks: flags.useNpcPerks,
-  })
+  const customDefs = db.listCustomFields()
+  const npcCustomFields = buildCharacterCustomFieldsUpdateSchema(customDefs)
+  const npcSchema = buildNpcCreationSchema(
+    {
+      useNpcActivity: flags.useNpcActivity,
+      useNpcLocation: flags.useNpcLocation,
+      useNpcPersonalityTraits: flags.useNpcPersonalityTraits,
+      useNpcAppearance: flags.useNpcAppearance,
+      useNpcMajorFlaws: flags.useNpcMajorFlaws,
+      useNpcQuirks: flags.useNpcQuirks,
+      useNpcPerks: flags.useNpcPerks,
+    },
+    npcCustomFields,
+  )
 
   const baseShape = {
     title: z.string().min(1),

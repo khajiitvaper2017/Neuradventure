@@ -302,6 +302,25 @@ export interface AppSettings extends SettingsState {
   ctx_limit_detected?: number
 }
 
+export type CustomFieldScope = "character" | "world"
+export type CustomFieldValueType = "text" | "list"
+export type CharacterCustomFieldPlacement = "base" | "current"
+export type WorldCustomFieldPlacement = "context" | "memory"
+export type CustomFieldPlacement = CharacterCustomFieldPlacement | WorldCustomFieldPlacement
+
+export interface CustomFieldDef {
+  id: string
+  scope: CustomFieldScope
+  value_type: CustomFieldValueType
+  label: string
+  placement: CustomFieldPlacement
+  prompt: string
+  enabled: boolean
+  sort_order: number
+  created_at: string
+  updated_at: string
+}
+
 export type PromptConfigName =
   | "narrative-turn"
   | "character-generation"

@@ -3,17 +3,21 @@
   import { get } from "svelte/store"
   import { AppError } from "@/errors"
   import { stories } from "@/services/stories"
+  import { settings as settingsService } from "@/services/settings"
   import { turns as turnsService } from "@/services/turns"
   import { showNPCTracker } from "@/stores/router"
   import { showError, showQuietNotice, showConfirm } from "@/stores/ui"
   import { timeouts } from "@/stores/settings"
   import { currentStoryId, currentStoryModules, npcs, llmUpdateId, isGenerating, markLlmUpdate } from "@/stores/game"
   import type { NPCState } from "@/shared/types"
+  import type { CustomFieldDef } from "@/shared/api-types"
   import { createRequestId } from "@/utils/ids"
   import { genderIcon, normalizeGender, splitCsv } from "@/utils/text"
   import { getDiffSegments } from "@/utils/textDiff"
   import EditableFieldList from "@/components/inputs/EditableFieldList.svelte"
   import type { EditField } from "@/components/inputs/editableFieldTypes"
+  import CustomFieldsEditor from "@/components/inputs/CustomFieldsEditor.svelte"
+  import CustomFieldsView from "@/components/inputs/CustomFieldsView.svelte"
   import { cn } from "@/utils.js"
   import IconMale from "@/components/icons/IconMale.svelte"
   import IconFemale from "@/components/icons/IconFemale.svelte"
@@ -42,6 +46,29 @@
   const useNpcPerks = $derived($currentStoryModules?.npc_perks ?? true)
   const useNpcLocation = $derived($currentStoryModules?.npc_location ?? true)
   const useNpcActivity = $derived($currentStoryModules?.npc_activity ?? true)
+
+  let customDefs = $state<CustomFieldDef[]>([])
+  let customDefsLoaded = $state(false)
+  const customCharDefs = $derived(customDefs.filter((d) => d.enabled && d.scope === "character"))
+  const hasBaseCustomDefs = $derived(customCharDefs.some((d) => d.placement === "base"))
+  const hasCurrentCustomDefs = $derived(customCharDefs.some((d) => d.placement === "current"))
+
+  async function loadCustomDefsOnce() {
+    if (customDefsLoaded) return
+    try {
+      customDefs = await settingsService.customFields()
+    } catch (err) {
+      console.warn("[custom-fields] Failed to load defs", err)
+      customDefs = []
+    } finally {
+      customDefsLoaded = true
+    }
+  }
+
+  $effect(() => {
+    if (customDefsLoaded) return
+    void loadCustomDefsOnce()
+  })
 
   function npcFieldId(npc: NPCState, field: string): string {
     const base = npc.name
@@ -171,6 +198,7 @@
 
   function startNpcEdit(npc: NPCState) {
     editingNpcName = npc.name
+    void loadCustomDefsOnce()
     draft = {
       name: npc.name,
       race: npc.race,
@@ -185,6 +213,7 @@
       majorFlaws: npc.major_flaws.join(", "),
       quirks: npc.quirks.join(", "),
       perks: npc.perks.join(", "),
+      customFields: { ...(npc.custom_fields ?? {}) },
     }
   }
 
@@ -255,6 +284,7 @@
         : (existingNpc?.major_flaws ?? []),
       quirks: useNpcQuirks ? (quirks.length > 0 ? quirks : (existingNpc?.quirks ?? [])) : (existingNpc?.quirks ?? []),
       perks: useNpcPerks ? (perks.length > 0 ? perks : (existingNpc?.perks ?? [])) : (existingNpc?.perks ?? []),
+      custom_fields: draft.customFields ?? existingNpc?.custom_fields ?? {},
       inventory: existingNpc?.inventory ?? [],
     }
     const updatedList = $npcs.map((npc) => (npc.name === editingNpcName ? updatedNpc : npc))
@@ -338,6 +368,7 @@
     majorFlaws: string
     quirks: string
     perks: string
+    customFields: Record<string, string | string[]>
   }
   let draft = $state<NpcDraft>({
     name: "",
@@ -353,6 +384,7 @@
     majorFlaws: "",
     quirks: "",
     perks: "",
+    customFields: {},
   })
 
   async function addNpc() {
@@ -596,6 +628,42 @@
           {#if editingNpcName === npc.name}
             <div class="mt-4 space-y-4">
               <EditableFieldList fields={npcEditFields(npc)} />
+              {#if hasBaseCustomDefs || hasCurrentCustomDefs}
+                <div class="space-y-3 rounded-lg border bg-card/30 p-3">
+                  <div
+                    class="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground"
+                  >
+                    <IconDocument size={13} strokeWidth={1.5} className="shrink-0 opacity-70" />
+                    <span>Custom Fields</span>
+                  </div>
+                  {#if hasBaseCustomDefs}
+                    <div class="space-y-2">
+                      <div class="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Base</div>
+                      <CustomFieldsEditor
+                        defs={customDefs}
+                        values={draft.customFields}
+                        setValues={(next) => (draft.customFields = next)}
+                        scope="character"
+                        placement="base"
+                        disabled={savingNpc}
+                      />
+                    </div>
+                  {/if}
+                  {#if hasCurrentCustomDefs}
+                    <div class="space-y-2">
+                      <div class="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Current</div>
+                      <CustomFieldsEditor
+                        defs={customDefs}
+                        values={draft.customFields}
+                        setValues={(next) => (draft.customFields = next)}
+                        scope="character"
+                        placement="current"
+                        disabled={savingNpc}
+                      />
+                    </div>
+                  {/if}
+                </div>
+              {/if}
               <div class="flex items-center justify-end gap-2">
                 <Button variant="outline" onclick={cancelNpcEdit} disabled={savingNpc}>Cancel</Button>
                 <Button onclick={saveNpcEdit} disabled={savingNpc || !$currentStoryId}>
@@ -669,6 +737,38 @@
                     {#each npc.perks as trait, index (trait + ":" + index)}
                       <Badge variant="outline" class="rounded-full font-mono text-[11px]">{trait}</Badge>
                     {/each}
+                  {/if}
+                </div>
+              </div>
+            {/if}
+
+            {#if customCharDefs.length > 0}
+              <div class="mt-3 flex items-start gap-2">
+                <IconDocument size={13} strokeWidth={1.5} className="mt-0.5 shrink-0 text-muted-foreground" />
+                <div class="min-w-0 flex-1 space-y-3">
+                  {#if hasBaseCustomDefs}
+                    <div class="space-y-1">
+                      <div class="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Base</div>
+                      <CustomFieldsView
+                        defs={customDefs}
+                        values={npc.custom_fields}
+                        scope="character"
+                        placement="base"
+                      />
+                    </div>
+                  {/if}
+                  {#if hasCurrentCustomDefs}
+                    <div class="space-y-1">
+                      <div class="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                        Current
+                      </div>
+                      <CustomFieldsView
+                        defs={customDefs}
+                        values={npc.custom_fields}
+                        scope="character"
+                        placement="current"
+                      />
+                    </div>
                   {/if}
                 </div>
               </div>

@@ -271,6 +271,7 @@ export function tavernCardToCharacter(card: TavernCardV2): TavernImportResult {
       major_flaws: [],
       quirks: [],
       perks: [],
+      custom_fields: {},
     },
     needs_review: true,
     source: "tavern",

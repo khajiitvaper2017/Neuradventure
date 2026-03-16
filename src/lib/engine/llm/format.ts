@@ -3,6 +3,7 @@ import type { TurnRow } from "@/engine/core/db"
 import { getSectionFormat } from "@/engine/llm/config"
 import { formatTemplate, getLlmStrings, getServerDefaults } from "@/engine/core/strings"
 import type { ModuleFlags } from "@/engine/schemas/story-modules"
+import type { CustomFieldDef } from "@/shared/api-types"
 
 function toTitleCase(tag: string): string {
   return tag.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase())
@@ -69,7 +70,31 @@ export function escapeForInlineJson(value: string): string {
   return value.replace(/\\/g, "\\\\").replace(/"/g, '\\"')
 }
 
-export function formatNPCBaselines(npcs: NPCState[], flags: ModuleFlags): string {
+function customFieldValueLabel(value: string | string[]): string {
+  if (Array.isArray(value)) return value.join(", ")
+  return value
+}
+
+function formatNpcCustomFields(npc: NPCState, defs: CustomFieldDef[], placement: "base" | "current"): string[] {
+  if (!npc.custom_fields) return []
+  const lines: string[] = []
+  for (const def of defs) {
+    if (!def.enabled || def.scope !== "character") continue
+    if (def.placement !== placement) continue
+    const value = npc.custom_fields[def.id]
+    if (value === undefined) continue
+    const label = customFieldValueLabel(value)
+    if (!label.trim()) continue
+    lines.push(`  ${def.label} (${def.id}): ${label}`)
+  }
+  return lines
+}
+
+export function formatNPCBaselines(
+  npcs: NPCState[],
+  flags: ModuleFlags,
+  customFieldDefs: CustomFieldDef[] = [],
+): string {
   if (npcs.length === 0) return ""
   const llmStrings = getLlmStrings()
   const defaults = getServerDefaults()
@@ -78,6 +103,7 @@ export function formatNPCBaselines(npcs: NPCState[], flags: ModuleFlags): string
   const useGeneral = !flags.useNpcAppearance
   return npcs
     .map((npc) => {
+      const custom = customFieldDefs.length > 0 ? formatNpcCustomFields(npc, customFieldDefs, "base") : []
       const content =
         `  ${formatTemplate(labels.race, { value: npc.race })}\n` +
         (npc.gender ? `  ${formatTemplate(labels.gender, { value: npc.gender })}\n` : "") +
@@ -93,14 +119,19 @@ export function formatNPCBaselines(npcs: NPCState[], flags: ModuleFlags): string
           ? `\n  ${formatTemplate(labels.majorFlaws, { value: npc.major_flaws.join(", ") || none })}`
           : "") +
         (flags.useNpcQuirks ? `\n  ${formatTemplate(labels.quirks, { value: npc.quirks.join(", ") || none })}` : "") +
-        (flags.useNpcPerks ? `\n  ${formatTemplate(labels.perks, { value: npc.perks.join(", ") || none })}` : "")
+        (flags.useNpcPerks ? `\n  ${formatTemplate(labels.perks, { value: npc.perks.join(", ") || none })}` : "") +
+        (custom.length > 0 ? `\n${custom.join("\n")}` : "")
 
       return wrapNamedEntry(npc.name, content)
     })
     .join("\n\n")
 }
 
-export function formatNPCCurrentStates(npcs: NPCState[], flags: ModuleFlags): string {
+export function formatNPCCurrentStates(
+  npcs: NPCState[],
+  flags: ModuleFlags,
+  customFieldDefs: CustomFieldDef[] = [],
+): string {
   if (npcs.length === 0) return ""
   const llmStrings = getLlmStrings()
   const labels = llmStrings.characterContextLabels
@@ -109,6 +140,7 @@ export function formatNPCCurrentStates(npcs: NPCState[], flags: ModuleFlags): st
   const useGeneral = !flags.useNpcAppearance
   return npcs
     .map((npc) => {
+      const custom = customFieldDefs.length > 0 ? formatNpcCustomFields(npc, customFieldDefs, "current") : []
       const content =
         (useGeneral
           ? `  ${formatTemplate(labels.generalDescription, {
@@ -117,7 +149,8 @@ export function formatNPCCurrentStates(npcs: NPCState[], flags: ModuleFlags): st
           : `  ${formatTemplate(labels.currentAppearance, { value: npc.current_appearance })}\n` +
             `  ${formatTemplate(contextLabels.wearing, { value: npc.current_clothing })}\n`) +
         (flags.useNpcActivity ? `  ${formatTemplate(labels.currentActivity, { value: npc.current_activity })}\n` : "") +
-        (flags.useNpcLocation ? `  ${formatTemplate(labels.location, { value: npc.current_location })}` : "")
+        (flags.useNpcLocation ? `  ${formatTemplate(labels.location, { value: npc.current_location })}` : "") +
+        (custom.length > 0 ? `\n${custom.join("\n")}` : "")
 
       return wrapNamedEntry(npc.name, content)
     })

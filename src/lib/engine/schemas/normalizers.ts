@@ -205,3 +205,30 @@ export function normalizeLocations(value: unknown, fallbackScene: string): Norma
 
   return locations
 }
+
+export function normalizeCustomFields(value: unknown): Record<string, string | string[]> {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return {}
+  const obj = value as Record<string, unknown>
+  const out: Record<string, string | string[]> = {}
+  for (const [rawKey, rawValue] of Object.entries(obj)) {
+    const key = rawKey.trim()
+    if (!key) continue
+    if (typeof rawValue === "string") {
+      const trimmed = rawValue.trim()
+      if (!trimmed) continue
+      out[key] = trimmed
+      continue
+    }
+    if (Array.isArray(rawValue)) {
+      const items: string[] = []
+      for (const entry of rawValue) {
+        if (typeof entry !== "string") continue
+        const trimmed = entry.trim()
+        if (!trimmed) continue
+        if (!items.includes(trimmed)) items.push(trimmed)
+      }
+      if (items.length > 0) out[key] = items
+    }
+  }
+  return out
+}

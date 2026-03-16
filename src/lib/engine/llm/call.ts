@@ -23,6 +23,8 @@ import type {
   ChatCompletionMessageParam,
   ResponseFormatJSONSchema,
 } from "@/engine/llm/openai-types"
+import * as db from "@/engine/core/db"
+import { buildCharacterCustomFieldsUpdateSchema } from "@/engine/schemas/custom-fields"
 
 export async function callLLM(
   messages: ChatCompletionMessageParam[],
@@ -48,15 +50,20 @@ export async function generateNpcCreation(
 ): Promise<NPCCreation> {
   const modules = storyModules ?? DEFAULT_STORY_MODULES
   const flags = resolveModuleFlags(modules)
-  const creationSchema = buildNpcCreationSchema({
-    useNpcAppearance: flags.useNpcAppearance,
-    useNpcPersonalityTraits: flags.useNpcPersonalityTraits,
-    useNpcMajorFlaws: flags.useNpcMajorFlaws,
-    useNpcQuirks: flags.useNpcQuirks,
-    useNpcPerks: flags.useNpcPerks,
-    useNpcLocation: flags.useNpcLocation,
-    useNpcActivity: flags.useNpcActivity,
-  })
+  const customDefs = db.listCustomFields()
+  const npcCustomFields = buildCharacterCustomFieldsUpdateSchema(customDefs)
+  const creationSchema = buildNpcCreationSchema(
+    {
+      useNpcAppearance: flags.useNpcAppearance,
+      useNpcPersonalityTraits: flags.useNpcPersonalityTraits,
+      useNpcMajorFlaws: flags.useNpcMajorFlaws,
+      useNpcQuirks: flags.useNpcQuirks,
+      useNpcPerks: flags.useNpcPerks,
+      useNpcLocation: flags.useNpcLocation,
+      useNpcActivity: flags.useNpcActivity,
+    },
+    npcCustomFields,
+  )
   const parsed = await callLLMRaw(messages, "NPCCreation", creationSchema)
   return forcedName ? { ...parsed, name: forcedName } : parsed
 }

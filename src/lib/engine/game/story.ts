@@ -31,6 +31,7 @@ export function createNewStory(
     current_scene: sceneName,
     time_of_day: timeCandidate && TIME_OF_DAY_REGEX.test(timeCandidate) ? timeCandidate : fallbackTime,
     memory: opening_scenario.trim(),
+    custom_fields: {},
     locations: [
       {
         name: sceneName,

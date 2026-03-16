@@ -17,5 +17,6 @@ export function characterToNpc(character: StoryCharacterGroup["character"]): NPC
     perks: [...character.perks],
     inventory: [],
     current_activity: "",
+    custom_fields: { ...(character.custom_fields ?? {}) },
   }
 }

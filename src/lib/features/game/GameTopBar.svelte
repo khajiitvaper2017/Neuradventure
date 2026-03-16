@@ -22,6 +22,7 @@
     flashScene?: boolean
     onGoHome?: () => void
     onOpenMemoryEditor?: () => void
+    onOpenWorldFieldsEditor?: () => void
     onOpenAuthorNoteEditor?: () => void
     onOpenModulesEditor?: () => void
   }
@@ -30,6 +31,7 @@
     flashScene = false,
     onGoHome,
     onOpenMemoryEditor,
+    onOpenWorldFieldsEditor,
     onOpenAuthorNoteEditor,
     onOpenModulesEditor,
   }: Props = $props()
@@ -161,6 +163,7 @@
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" class="w-48">
         <DropdownMenuItem onSelect={() => onOpenMemoryEditor?.()}>Memory</DropdownMenuItem>
+        <DropdownMenuItem onSelect={() => onOpenWorldFieldsEditor?.()}>World Fields</DropdownMenuItem>
         <DropdownMenuItem onSelect={() => onOpenAuthorNoteEditor?.()}>Author's Note</DropdownMenuItem>
         <DropdownMenuItem onSelect={() => onOpenModulesEditor?.()}>Story Modules</DropdownMenuItem>
         {#if $currentStoryId}

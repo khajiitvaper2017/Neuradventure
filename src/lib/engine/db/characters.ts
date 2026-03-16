@@ -16,6 +16,11 @@ export interface CharacterRow {
 export function normalizeCharacterBase(input: Partial<CharacterBase>): CharacterBase {
   const baselineAppearance = input.baseline_appearance ?? ""
   const currentAppearance = input.current_appearance ?? baselineAppearance ?? ""
+  const rawCustom = input.custom_fields
+  const custom_fields =
+    rawCustom && typeof rawCustom === "object" && !Array.isArray(rawCustom)
+      ? (rawCustom as Record<string, string | string[]>)
+      : {}
   return {
     name: input.name ?? "",
     race: input.race ?? "",
@@ -29,6 +34,7 @@ export function normalizeCharacterBase(input: Partial<CharacterBase>): Character
     major_flaws: Array.isArray(input.major_flaws) ? input.major_flaws : [],
     quirks: Array.isArray(input.quirks) ? input.quirks : [],
     perks: Array.isArray(input.perks) ? input.perks : [],
+    custom_fields,
   }
 }
 

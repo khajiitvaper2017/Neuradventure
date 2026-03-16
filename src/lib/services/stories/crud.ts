@@ -135,7 +135,11 @@ export async function update(
 
 export async function updateState(
   id: number,
-  data: { character?: MainCharacterState; npcs?: NPCState[]; world?: { memory?: string } },
+  data: {
+    character?: MainCharacterState
+    npcs?: NPCState[]
+    world?: { memory?: string; custom_fields?: Record<string, string | string[]> }
+  },
 ): Promise<UpdateStoryStateResult> {
   const row = db.getStory(id)
   if (!row) throw new AppError(404, "Story not found")
@@ -143,7 +147,18 @@ export async function updateState(
   const { world: currentWorld, npcs: currentNpcs } = parseStoryState(row)
   const nextCharacter = data.character ? MainCharacterStateStoredSchema.parse(data.character) : currentCharacter
   const nextNpcs = data.npcs ? data.npcs.map((n) => NPCStateStoredSchema.parse(n)) : currentNpcs
-  const nextWorld = data.world ? { ...currentWorld, memory: data.world.memory ?? currentWorld.memory } : currentWorld
+  const nextWorld = data.world
+    ? {
+        ...currentWorld,
+        memory: data.world.memory ?? currentWorld.memory,
+        custom_fields:
+          data.world.custom_fields &&
+          typeof data.world.custom_fields === "object" &&
+          !Array.isArray(data.world.custom_fields)
+            ? (data.world.custom_fields as Record<string, string | string[]>)
+            : currentWorld.custom_fields,
+      }
+    : currentWorld
   db.updateStory(id, nextCharacter, nextWorld, nextNpcs)
   return { character: nextCharacter, world: nextWorld, npcs: nextNpcs }
 }
