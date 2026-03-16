@@ -5,7 +5,6 @@
   import BackgroundEventsReveal from "@/components/rich/BackgroundEventsReveal.svelte"
   import RichText from "@/components/rich/RichText.svelte"
   import StreamingTurnPreview from "@/components/rich/StreamingTurnPreview.svelte"
-  import ThinkingDots from "@/components/controls/ThinkingDots.svelte"
   import { looksLikeBlockHtml } from "@/utils/sanitizeHtml"
   import { currentStoryInitialWorld, currentStoryOpeningScenario, turns, worldState, isGenerating } from "@/stores/game"
   import { streamingEnabled } from "@/stores/settings"
@@ -269,10 +268,6 @@
         currentScene={streamScene}
         timeOfDay={streamTime}
       />
-    {/if}
-
-    {#if $isGenerating}
-      <ThinkingDots />
     {/if}
 
     <div class="h-4"></div>
