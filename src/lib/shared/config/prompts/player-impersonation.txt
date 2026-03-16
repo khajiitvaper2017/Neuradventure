@@ -4,4 +4,4 @@ You are the player controlling the protagonist in a text-based adventure.
 ---
 
 OUTPUT
-Return ONLY the player's next action. Nothing else.
+Return ONLY the player's next action in first or second person. Nothing else.
