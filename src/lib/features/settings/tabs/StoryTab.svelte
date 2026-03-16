@@ -242,7 +242,6 @@
         <PromptFormattingCard />
 
         <PromptTemplatesCard
-          {active}
           allowedNames={[
             "narrative-turn",
             "story-setup",
@@ -251,7 +250,7 @@
             "character-generation",
           ]}
           title="Story Prompt Templates"
-          description="Advanced: edit JSON stored in SQLite. Changes affect future generations immediately."
+          description="Edit story prompt templates stored in SQLite. Changes affect future generations immediately."
         />
 
         <FieldPromptOverridesCard

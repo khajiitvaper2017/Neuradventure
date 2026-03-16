@@ -10,125 +10,109 @@ import chatSetupText from "@/shared/config/prompts/chat-setup.txt?raw"
 import npcCreationText from "@/shared/config/prompts/npc-creation.txt?raw"
 import playerImpersonationText from "@/shared/config/prompts/player-impersonation.txt?raw"
 
-function splitPromptText(text: string): string[] {
-  // Keep blank lines (meaningful) but avoid an extra trailing empty line from a final newline.
+function normalizeTemplateText(text: string): string {
   const normalized = text.replace(/\r\n/g, "\n").replace(/\r/g, "\n")
-  const withoutTrailingNewline = normalized.endsWith("\n") ? normalized.slice(0, -1) : normalized
-  return withoutTrailingNewline.length > 0 ? withoutTrailingNewline.split("\n") : []
+  // Avoid producing an extra trailing empty line from the common "final newline" convention.
+  return normalized.endsWith("\n") ? normalized.slice(0, -1) : normalized
 }
 
-const narrativeTurn = { systemPromptLines: { base: splitPromptText(narrativeTurnText) } } as const
-const characterGeneration = { generateCharacterPrompt: { base: splitPromptText(characterGenerationText) } } as const
-const storySetup = { generateStoryPrompt: { base: splitPromptText(storySetupText) } } as const
-const chatPromptLines = { chatPromptLines: { base: splitPromptText(chatPromptLinesText) } } as const
-const chatSetup = { generateChatPrompt: { base: splitPromptText(chatSetupText) } } as const
-const npcCreation = { npcCreationPrompt: { base: splitPromptText(npcCreationText) } } as const
-const playerImpersonation = { impersonatePrompt: { base: splitPromptText(playerImpersonationText) } } as const
+function splitTemplateText(text: string): string[] {
+  const normalized = normalizeTemplateText(text)
+  return normalized.length > 0 ? normalized.split("\n") : []
+}
 
-const PROMPT_CONFIG_SOURCES = [
-  { name: "narrative-turn", data: narrativeTurn },
-  { name: "character-generation", data: characterGeneration },
-  { name: "story-setup", data: storySetup },
-  { name: "chat-prompt-lines", data: chatPromptLines },
-  { name: "chat-setup", data: chatSetup },
-  { name: "npc-creation", data: npcCreation },
-  { name: "player-impersonation", data: playerImpersonation },
+const PROMPT_TEMPLATE_SOURCES = [
+  { name: "narrative-turn", defaultText: narrativeTurnText },
+  { name: "character-generation", defaultText: characterGenerationText },
+  { name: "story-setup", defaultText: storySetupText },
+  { name: "chat-prompt-lines", defaultText: chatPromptLinesText },
+  { name: "chat-setup", defaultText: chatSetupText },
+  { name: "npc-creation", defaultText: npcCreationText },
+  { name: "player-impersonation", defaultText: playerImpersonationText },
 ] as const
 
-export type PromptConfigKey = (typeof PROMPT_CONFIG_SOURCES)[number]["name"]
-export const PROMPT_CONFIG_KEYS = PROMPT_CONFIG_SOURCES.map((x) => x.name) as PromptConfigKey[]
+export type PromptTemplateKey = (typeof PROMPT_TEMPLATE_SOURCES)[number]["name"]
+export const PROMPT_TEMPLATE_KEYS = PROMPT_TEMPLATE_SOURCES.map((x) => x.name) as PromptTemplateKey[]
 
-const PromptConfigKeySchema = z.enum(PROMPT_CONFIG_KEYS as unknown as [PromptConfigKey, ...PromptConfigKey[]])
-
-const PromptConfigFileSchema = PromptConfigSchema.partial().passthrough()
-
-function stripGlobalPromptKeys(raw: unknown): unknown {
-  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return raw
-  const obj = raw as Record<string, unknown>
-  if (!("sectionFormat" in obj)) return raw
-  const cloned = { ...obj }
-  delete cloned.sectionFormat
-  return cloned
-}
+const PromptTemplateKeySchema = z.enum(PROMPT_TEMPLATE_KEYS as unknown as [PromptTemplateKey, ...PromptTemplateKey[]])
 
 function nowSql(): string {
   return "strftime('%Y-%m-%dT%H:%M:%fZ','now')"
 }
 
-function getSourceFor(name: PromptConfigKey): unknown {
-  const src = PROMPT_CONFIG_SOURCES.find((x) => x.name === name)
+function getSourceFor(name: PromptTemplateKey): { defaultText: string } {
+  const src = PROMPT_TEMPLATE_SOURCES.find((x) => x.name === name)
   if (!src) throw new Error(`Unknown prompt config: ${name}`)
-  return src.data
+  return src
 }
 
-function readPromptConfigDefault(name: PromptConfigKey): unknown {
-  return getSourceFor(name)
+function getDefaultTemplateText(name: PromptTemplateKey): string {
+  return normalizeTemplateText(getSourceFor(name).defaultText)
 }
 
-export function ensurePromptConfigDefaults(): void {
+function partialConfigFor(name: PromptTemplateKey, lines: string[]): Record<string, unknown> {
+  if (name === "narrative-turn") return { systemPromptLines: { base: lines } }
+  if (name === "character-generation") return { generateCharacterPrompt: { base: lines } }
+  if (name === "story-setup") return { generateStoryPrompt: { base: lines } }
+  if (name === "chat-prompt-lines") return { chatPromptLines: { base: lines } }
+  if (name === "chat-setup") return { generateChatPrompt: { base: lines } }
+  if (name === "npc-creation") return { npcCreationPrompt: { base: lines } }
+  if (name === "player-impersonation") return { impersonatePrompt: { base: lines } }
+  return {}
+}
+
+export function ensurePromptTemplateDefaults(): void {
   const database = getDb()
   const upsert = database.prepare(
     `INSERT INTO prompt_configs (name, config_json, updated_at)
      VALUES (?, ?, ${nowSql()})
      ON CONFLICT(name) DO NOTHING`,
   )
-  for (const name of PROMPT_CONFIG_KEYS) {
-    try {
-      const raw = readPromptConfigDefault(name)
-      const parsed = PromptConfigFileSchema.parse(raw)
-      upsert.run(name, JSON.stringify(stripGlobalPromptKeys(parsed)))
-    } catch {
-      // skip invalid defaults
-    }
+  for (const name of PROMPT_TEMPLATE_KEYS) {
+    upsert.run(name, getDefaultTemplateText(name))
   }
 }
 
-export type PromptConfigFileRow = {
-  name: PromptConfigKey
-  config_json: string
+export type PromptTemplateFileRow = {
+  name: PromptTemplateKey
+  template_text: string
   updated_at: string
 }
 
-export function listPromptConfigFiles(): PromptConfigFileRow[] {
+export function listPromptTemplateFiles(): PromptTemplateFileRow[] {
+  ensurePromptTemplateDefaults()
   const database = getDb()
   const get = database.prepare("SELECT name, config_json, updated_at FROM prompt_configs WHERE name = ?")
-  const out: PromptConfigFileRow[] = []
-  for (const name of PROMPT_CONFIG_KEYS) {
-    const row = get.get(name) as PromptConfigFileRow | undefined
-    if (!row) continue
-    out.push(row)
+  const out: PromptTemplateFileRow[] = []
+  for (const name of PROMPT_TEMPLATE_KEYS) {
+    const row = get.get(name) as { name: PromptTemplateKey; config_json: string; updated_at: string } | undefined
+    if (!row) {
+      out.push({ name, template_text: getDefaultTemplateText(name), updated_at: "" })
+      continue
+    }
+    out.push({ name: row.name, template_text: String(row.config_json ?? ""), updated_at: row.updated_at })
   }
   return out
 }
 
-function mergePromptConfigFiles(files: Record<PromptConfigKey, unknown>): PromptConfig {
+function mergePromptTemplateFiles(files: Record<PromptTemplateKey, string>): PromptConfig {
   const merged: Record<string, unknown> = {}
-  for (const name of PROMPT_CONFIG_KEYS) {
-    const payload = files[name]
-    if (payload && typeof payload === "object" && !Array.isArray(payload)) {
-      const sanitized = { ...(payload as Record<string, unknown>) }
-      delete sanitized.sectionFormat
-      Object.assign(merged, sanitized)
-    }
+  for (const name of PROMPT_TEMPLATE_KEYS) {
+    const templateText = files[name]
+    const lines = splitTemplateText(templateText)
+    Object.assign(merged, partialConfigFor(name, lines))
   }
   return PromptConfigSchema.parse(merged)
 }
 
-function loadPromptConfigFilesFromDb(): Record<PromptConfigKey, unknown> {
+function loadPromptTemplateFilesFromDb(): Record<PromptTemplateKey, string> {
+  ensurePromptTemplateDefaults()
   const database = getDb()
   const get = database.prepare("SELECT config_json FROM prompt_configs WHERE name = ?")
-  const out = {} as Record<PromptConfigKey, unknown>
-  for (const name of PROMPT_CONFIG_KEYS) {
+  const out = {} as Record<PromptTemplateKey, string>
+  for (const name of PROMPT_TEMPLATE_KEYS) {
     const row = get.get(name) as { config_json: string } | undefined
-    if (!row) {
-      out[name] = stripGlobalPromptKeys(readPromptConfigDefault(name))
-      continue
-    }
-    try {
-      out[name] = stripGlobalPromptKeys(JSON.parse(row.config_json) as unknown)
-    } catch {
-      out[name] = stripGlobalPromptKeys(readPromptConfigDefault(name))
-    }
+    out[name] = typeof row?.config_json === "string" ? String(row.config_json) : getDefaultTemplateText(name)
   }
   return out
 }
@@ -144,34 +128,27 @@ export function getMergedPromptConfig(): PromptConfig {
   const maxUpdatedAt = maxRow?.max_updated_at ?? ""
   if (cachedConfig && maxUpdatedAt && maxUpdatedAt === cachedMaxUpdatedAt) return cachedConfig
 
-  const files = loadPromptConfigFilesFromDb()
+  const files = loadPromptTemplateFilesFromDb()
   try {
-    cachedConfig = mergePromptConfigFiles(files)
+    cachedConfig = mergePromptTemplateFiles(files)
     cachedMaxUpdatedAt = maxUpdatedAt
     return cachedConfig
   } catch {
-    const disk: Record<PromptConfigKey, unknown> = {} as Record<PromptConfigKey, unknown>
-    for (const name of PROMPT_CONFIG_KEYS) disk[name] = readPromptConfigDefault(name)
-    cachedConfig = mergePromptConfigFiles(disk)
+    const disk: Record<PromptTemplateKey, string> = {} as Record<PromptTemplateKey, string>
+    for (const name of PROMPT_TEMPLATE_KEYS) disk[name] = getDefaultTemplateText(name)
+    cachedConfig = mergePromptTemplateFiles(disk)
     cachedMaxUpdatedAt = maxUpdatedAt
     return cachedConfig
   }
 }
 
-export function updatePromptConfigFile(nameRaw: string, configJsonText: string): PromptConfigFileRow {
-  const name = PromptConfigKeySchema.parse(nameRaw)
-  let nextRaw: unknown
-  try {
-    nextRaw = JSON.parse(configJsonText) as unknown
-  } catch (error) {
-    const message = error instanceof Error ? error.message : "Invalid JSON"
-    throw new Error(message)
-  }
-  const nextParsed = stripGlobalPromptKeys(PromptConfigFileSchema.parse(nextRaw))
+export function updatePromptTemplateFile(nameRaw: string, templateText: string): PromptTemplateFileRow {
+  const name = PromptTemplateKeySchema.parse(nameRaw)
+  const nextText = normalizeTemplateText(templateText)
 
-  const existing = loadPromptConfigFilesFromDb()
-  existing[name] = nextParsed
-  mergePromptConfigFiles(existing)
+  const existing = loadPromptTemplateFilesFromDb()
+  existing[name] = nextText
+  mergePromptTemplateFiles(existing)
 
   const database = getDb()
   database
@@ -180,22 +157,21 @@ export function updatePromptConfigFile(nameRaw: string, configJsonText: string):
        VALUES (?, ?, ${nowSql()})
        ON CONFLICT(name) DO UPDATE SET config_json = excluded.config_json, updated_at = excluded.updated_at`,
     )
-    .run(name, JSON.stringify(nextParsed))
+    .run(name, nextText)
 
   cachedConfig = null
   cachedMaxUpdatedAt = ""
 
   const row = database.prepare("SELECT name, config_json, updated_at FROM prompt_configs WHERE name = ?").get(name) as
-    | PromptConfigFileRow
+    | { name: PromptTemplateKey; config_json: string; updated_at: string }
     | undefined
-  if (!row) throw new Error("Failed to save prompt config")
-  return row
+  if (!row) throw new Error("Failed to save prompt template")
+  return { name: row.name, template_text: String(row.config_json ?? ""), updated_at: row.updated_at }
 }
 
-export function resetPromptConfigFile(nameRaw: string): PromptConfigFileRow {
-  const name = PromptConfigKeySchema.parse(nameRaw)
-  const raw = readPromptConfigDefault(name)
-  const parsed = stripGlobalPromptKeys(PromptConfigFileSchema.parse(raw))
+export function resetPromptTemplateFile(nameRaw: string): PromptTemplateFileRow {
+  const name = PromptTemplateKeySchema.parse(nameRaw)
+  const nextText = getDefaultTemplateText(name)
   const database = getDb()
   database
     .prepare(
@@ -203,37 +179,37 @@ export function resetPromptConfigFile(nameRaw: string): PromptConfigFileRow {
        VALUES (?, ?, ${nowSql()})
        ON CONFLICT(name) DO UPDATE SET config_json = excluded.config_json, updated_at = excluded.updated_at`,
     )
-    .run(name, JSON.stringify(parsed))
+    .run(name, nextText)
 
   cachedConfig = null
   cachedMaxUpdatedAt = ""
 
   const row = database.prepare("SELECT name, config_json, updated_at FROM prompt_configs WHERE name = ?").get(name) as
-    | PromptConfigFileRow
+    | { name: PromptTemplateKey; config_json: string; updated_at: string }
     | undefined
-  if (!row) throw new Error("Failed to reset prompt config")
-  return row
+  if (!row) throw new Error("Failed to reset prompt template")
+  return { name: row.name, template_text: String(row.config_json ?? ""), updated_at: row.updated_at }
 }
 
-export function resetAllPromptConfigFiles(): number {
+export function resetAllPromptTemplateFiles(): number {
   const database = getDb()
   const tx = database.transaction(() => {
-    const disk: Record<PromptConfigKey, unknown> = {} as Record<PromptConfigKey, unknown>
-    for (const name of PROMPT_CONFIG_KEYS) {
-      disk[name] = stripGlobalPromptKeys(PromptConfigFileSchema.parse(readPromptConfigDefault(name)))
+    const disk: Record<PromptTemplateKey, string> = {} as Record<PromptTemplateKey, string>
+    for (const name of PROMPT_TEMPLATE_KEYS) {
+      disk[name] = getDefaultTemplateText(name)
     }
 
-    mergePromptConfigFiles(disk)
+    mergePromptTemplateFiles(disk)
 
     const upsert = database.prepare(
       `INSERT INTO prompt_configs (name, config_json, updated_at)
        VALUES (?, ?, ${nowSql()})
        ON CONFLICT(name) DO UPDATE SET config_json = excluded.config_json, updated_at = excluded.updated_at`,
     )
-    for (const name of PROMPT_CONFIG_KEYS) {
-      upsert.run(name, JSON.stringify(disk[name]))
+    for (const name of PROMPT_TEMPLATE_KEYS) {
+      upsert.run(name, disk[name])
     }
-    return PROMPT_CONFIG_KEYS.length
+    return PROMPT_TEMPLATE_KEYS.length
   })
 
   const count = tx()

@@ -3,7 +3,7 @@ import { AppError } from "@/errors"
 import * as db from "@/engine/core/db"
 import { getCachedUpstreamModels } from "@/engine/llm/models"
 import { getCtxLimitCached, initCtxLimit } from "@/engine/llm"
-import type { AppSettings, CustomFieldDef, ModelInfo, PromptConfigFile, SamplerPreset } from "@/shared/api-types"
+import type { AppSettings, CustomFieldDef, ModelInfo, PromptTemplateFile, SamplerPreset } from "@/shared/api-types"
 import { HIDDEN_SECRET_PLACEHOLDER } from "@/shared/secrets"
 import {
   areConnectorSecretsReady,
@@ -65,15 +65,6 @@ function readBuiltinPresets(): BuiltinPreset[] {
     else console.warn(`[presets] Skipping invalid builtin preset: ${path}`)
   }
   return out
-}
-
-function prettyJson(text: string): string {
-  try {
-    const parsed = JSON.parse(text) as unknown
-    return JSON.stringify(parsed, null, 2)
-  } catch {
-    return text
-  }
 }
 
 function mergeConnectorApiKeys(
@@ -177,37 +168,40 @@ export const settings = {
     return { models: filtered.slice(0, max) }
   },
 
-  promptConfigs: async (): Promise<PromptConfigFile[]> => {
-    const rows = db.listPromptConfigFiles()
-    return rows.map((r) => ({ ...r, config_json: prettyJson(r.config_json) }))
+  promptTemplates: async (): Promise<PromptTemplateFile[]> => {
+    const rows = db.listPromptTemplateFiles()
+    return rows.map((r) => ({ ...r }))
   },
 
-  updatePromptConfig: async (name: PromptConfigFile["name"], config_json: string): Promise<PromptConfigFile> => {
+  updatePromptTemplate: async (
+    name: PromptTemplateFile["name"],
+    template_text: string,
+  ): Promise<PromptTemplateFile> => {
     try {
-      const row = db.updatePromptConfigFile(name, config_json)
-      return { ...row, config_json: prettyJson(row.config_json) }
+      const row = db.updatePromptTemplateFile(name, template_text)
+      return { ...row }
     } catch (err) {
-      const message = err instanceof Error ? err.message : "Failed to update prompt config"
+      const message = err instanceof Error ? err.message : "Failed to update prompt template"
       throw new AppError(400, message)
     }
   },
 
-  resetPromptConfig: async (name: PromptConfigFile["name"]): Promise<PromptConfigFile> => {
+  resetPromptTemplate: async (name: PromptTemplateFile["name"]): Promise<PromptTemplateFile> => {
     try {
-      const row = db.resetPromptConfigFile(name)
-      return { ...row, config_json: prettyJson(row.config_json) }
+      const row = db.resetPromptTemplateFile(name)
+      return { ...row }
     } catch (err) {
-      const message = err instanceof Error ? err.message : "Failed to reset prompt config"
+      const message = err instanceof Error ? err.message : "Failed to reset prompt template"
       throw new AppError(400, message)
     }
   },
 
-  resetAllPromptConfigs: async (): Promise<{ ok: boolean; reset: number }> => {
+  resetAllPromptTemplates: async (): Promise<{ ok: boolean; reset: number }> => {
     try {
-      const reset = db.resetAllPromptConfigFiles()
+      const reset = db.resetAllPromptTemplateFiles()
       return { ok: true, reset }
     } catch (err) {
-      const message = err instanceof Error ? err.message : "Failed to reset prompt configs"
+      const message = err instanceof Error ? err.message : "Failed to reset prompt templates"
       throw new AppError(400, message)
     }
   },

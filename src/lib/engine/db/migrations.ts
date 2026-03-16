@@ -1,8 +1,8 @@
 import { getDb } from "@/engine/db/connection"
 import { DEFAULT_SETTINGS } from "@/engine/db/settings"
-import { ensurePromptConfigDefaults } from "@/engine/db/prompts"
+import { ensurePromptTemplateDefaults } from "@/engine/db/prompts"
 
-const LATEST_USER_VERSION = 3
+const LATEST_USER_VERSION = 4
 
 function readUserVersion(): number {
   const db = getDb()
@@ -217,7 +217,7 @@ function migrateToV1() {
     database.prepare("INSERT INTO settings (id, settings_json) VALUES (1, ?)").run(JSON.stringify(DEFAULT_SETTINGS))
   }
 
-  ensurePromptConfigDefaults()
+  ensurePromptTemplateDefaults()
 }
 
 function migrateToV2() {
@@ -254,6 +254,48 @@ function migrateToV2() {
   }
 }
 
+function migrateToV4() {
+  const database = getDb()
+
+  const promptKeyForName: Record<string, string> = {
+    "narrative-turn": "systemPromptLines",
+    "character-generation": "generateCharacterPrompt",
+    "story-setup": "generateStoryPrompt",
+    "chat-prompt-lines": "chatPromptLines",
+    "chat-setup": "generateChatPrompt",
+    "npc-creation": "npcCreationPrompt",
+    "player-impersonation": "impersonatePrompt",
+  }
+
+  const select = database.prepare("SELECT config_json FROM prompt_configs WHERE name = ?")
+  const update = database.prepare(
+    `UPDATE prompt_configs SET config_json = ?, updated_at = strftime('%Y-%m-%dT%H:%M:%fZ','now') WHERE name = ?`,
+  )
+
+  for (const [name, promptKey] of Object.entries(promptKeyForName)) {
+    const row = select.get(name) as { config_json?: string } | undefined
+    const raw = typeof row?.config_json === "string" ? row.config_json : ""
+    const trimmed = raw.trim()
+    if (!trimmed.startsWith("{")) continue
+
+    let parsed: unknown
+    try {
+      parsed = JSON.parse(trimmed) as unknown
+    } catch {
+      continue
+    }
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) continue
+
+    const promptRaw = (parsed as Record<string, unknown>)[promptKey]
+    if (!promptRaw || typeof promptRaw !== "object" || Array.isArray(promptRaw)) continue
+    const base = (promptRaw as Record<string, unknown>).base
+    if (!Array.isArray(base)) continue
+
+    const lines = base.map((x) => (typeof x === "string" ? x : String(x)))
+    update.run(lines.join("\n"), name)
+  }
+}
+
 export function migrateDb() {
   const version = readUserVersion()
   if (version < 1) {
@@ -270,8 +312,13 @@ export function migrateDb() {
     setUserVersion(3)
   }
 
+  if (version < 4) {
+    migrateToV4()
+    setUserVersion(4)
+  }
+
   // Keep prompt defaults idempotent on all versions.
-  ensurePromptConfigDefaults()
+  ensurePromptTemplateDefaults()
 
   if (readUserVersion() !== LATEST_USER_VERSION) setUserVersion(LATEST_USER_VERSION)
 }

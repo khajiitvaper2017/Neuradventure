@@ -1,6 +1,7 @@
 <script lang="ts">
+  import { onMount } from "svelte"
   import { settings as settingsService } from "@/services/settings"
-  import type { PromptConfigFile } from "@/shared/api-types"
+  import type { PromptTemplateFile } from "@/shared/api-types"
   import { Button } from "@/components/ui/button"
   import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
   import { Label } from "@/components/ui/label"
@@ -8,20 +9,14 @@
   import { Textarea } from "@/components/ui/textarea"
 
   type Props = {
-    active?: boolean
-    allowedNames: PromptConfigFile["name"][]
+    allowedNames: PromptTemplateFile["name"][]
     title?: string
     description?: string
   }
 
-  let {
-    active = false,
-    allowedNames,
-    title = "Prompt Templates",
-    description = "Advanced: edit JSON stored in SQLite.",
-  }: Props = $props()
+  let { allowedNames, title = "Prompt Templates", description = "Edit text stored in SQLite." }: Props = $props()
 
-  const PROMPT_LABELS: Record<PromptConfigFile["name"], string> = {
+  const PROMPT_LABELS: Record<PromptTemplateFile["name"], string> = {
     "narrative-turn": "Narrative Turn",
     "character-generation": "Character Generation",
     "story-setup": "Story Setup",
@@ -31,27 +26,25 @@
     "player-impersonation": "Player Impersonation",
   }
 
-  let promptFiles = $state<PromptConfigFile[]>([])
-  let promptSelected = $state<PromptConfigFile["name"] | null>(null)
+  let promptFiles = $state<PromptTemplateFile[]>([])
+  let promptSelected = $state<PromptTemplateFile["name"] | null>(null)
   let promptDraft = $state<string>("")
   let promptDirty = $state(false)
   let promptLoading = $state(false)
   let promptSaving = $state(false)
   let promptError = $state<string | null>(null)
 
-  let loadedOnce = $state(false)
-
   const promptSelectedRow = $derived(
     promptSelected ? (promptFiles.find((p) => p.name === promptSelected) ?? null) : null,
   )
 
-  function allowedSet(): Set<PromptConfigFile["name"]> {
+  function allowedSet(): Set<PromptTemplateFile["name"]> {
     return new Set(allowedNames)
   }
 
-  function sortByAllowed(names: PromptConfigFile[]): PromptConfigFile[] {
+  function sortByAllowed(names: PromptTemplateFile[]): PromptTemplateFile[] {
     const byName = new Map(names.map((n) => [n.name, n]))
-    const out: PromptConfigFile[] = []
+    const out: PromptTemplateFile[] = []
     for (const name of allowedNames) {
       const row = byName.get(name)
       if (row) out.push(row)
@@ -65,7 +58,7 @@
     promptLoading = true
     promptError = null
     try {
-      const rows = await settingsService.promptConfigs()
+      const rows = await settingsService.promptTemplates()
       const filtered = rows.filter((r) => allowedSet().has(r.name))
       promptFiles = sortByAllowed(filtered)
 
@@ -73,18 +66,17 @@
       const nextName = preferred ?? promptFiles[0]?.name ?? null
       promptSelected = nextName
       const row = nextName ? promptFiles.find((r) => r.name === nextName) : null
-      promptDraft = row?.config_json ?? ""
+      promptDraft = row?.template_text ?? ""
       promptDirty = false
-      loadedOnce = true
     } catch (err) {
-      console.error("[prompts] Failed to load prompt configs", err)
-      promptError = "Failed to load prompt configs."
+      console.error("[prompts] Failed to load prompt templates", err)
+      promptError = "Failed to load prompt templates."
     } finally {
       promptLoading = false
     }
   }
 
-  function selectPromptFile(name: PromptConfigFile["name"]) {
+  function selectPromptFile(name: PromptTemplateFile["name"]) {
     if (name === promptSelected) return
     if (promptDirty && typeof window !== "undefined") {
       const ok = window.confirm("Discard unsaved prompt changes?")
@@ -94,27 +86,21 @@
     promptDirty = false
     promptSelected = name
     const row = promptFiles.find((p) => p.name === name)
-    promptDraft = row?.config_json ?? ""
+    promptDraft = row?.template_text ?? ""
   }
 
   async function savePromptFile() {
     if (promptSaving || !promptSelected) return
     promptError = null
-    try {
-      JSON.parse(promptDraft)
-    } catch (err) {
-      promptError = err instanceof Error ? err.message : "Invalid JSON"
-      return
-    }
     promptSaving = true
     try {
-      const updated = await settingsService.updatePromptConfig(promptSelected, promptDraft)
+      const updated = await settingsService.updatePromptTemplate(promptSelected, promptDraft)
       promptFiles = promptFiles.map((p) => (p.name === updated.name ? updated : p))
-      promptDraft = updated.config_json
+      promptDraft = updated.template_text
       promptDirty = false
     } catch (err) {
-      console.error("[prompts] Failed to save prompt config", err)
-      promptError = err instanceof Error ? err.message : "Failed to save prompt config."
+      console.error("[prompts] Failed to save prompt template", err)
+      promptError = err instanceof Error ? err.message : "Failed to save prompt template."
     } finally {
       promptSaving = false
     }
@@ -123,19 +109,19 @@
   async function resetPromptFile() {
     if (promptSaving || !promptSelected) return
     if (typeof window !== "undefined") {
-      const ok = window.confirm("Reset this prompt config to the built-in defaults?")
+      const ok = window.confirm("Reset this template to the built-in defaults?")
       if (!ok) return
     }
     promptSaving = true
     promptError = null
     try {
-      const updated = await settingsService.resetPromptConfig(promptSelected)
+      const updated = await settingsService.resetPromptTemplate(promptSelected)
       promptFiles = promptFiles.map((p) => (p.name === updated.name ? updated : p))
-      promptDraft = updated.config_json
+      promptDraft = updated.template_text
       promptDirty = false
     } catch (err) {
-      console.error("[prompts] Failed to reset prompt config", err)
-      promptError = err instanceof Error ? err.message : "Failed to reset prompt config."
+      console.error("[prompts] Failed to reset prompt template", err)
+      promptError = err instanceof Error ? err.message : "Failed to reset prompt template."
     } finally {
       promptSaving = false
     }
@@ -152,40 +138,19 @@
     promptDirty = false
     try {
       for (const name of allowedNames) {
-        await settingsService.resetPromptConfig(name)
+        await settingsService.resetPromptTemplate(name)
       }
       await loadPromptFiles({ preserveSelection: true })
     } catch (err) {
-      console.error("[prompts] Failed to reset prompt configs", err)
-      promptError = err instanceof Error ? err.message : "Failed to reset prompt configs."
+      console.error("[prompts] Failed to reset prompt templates", err)
+      promptError = err instanceof Error ? err.message : "Failed to reset prompt templates."
     } finally {
       promptSaving = false
     }
   }
 
-  function formatPromptDraft() {
-    promptError = null
-    try {
-      const parsed = JSON.parse(promptDraft) as unknown
-      promptDraft = JSON.stringify(parsed, null, 2)
-      promptDirty = true
-    } catch (err) {
-      promptError = err instanceof Error ? err.message : "Invalid JSON"
-    }
-  }
-
-  $effect(() => {
-    if (!active) return
-    if (loadedOnce) return
+  onMount(() => {
     void loadPromptFiles()
-  })
-
-  $effect(() => {
-    if (promptFiles.length === 0) return
-    if (!promptSelected) return
-    const row = promptFiles.find((p) => p.name === promptSelected) ?? null
-    if (!row) return
-    if (!promptDirty) promptDraft = row.config_json
   })
 </script>
 
@@ -200,7 +165,7 @@
     {:else if promptSelected}
       <Tabs.Root
         value={promptSelected}
-        onValueChange={(next) => selectPromptFile(next as PromptConfigFile["name"])}
+        onValueChange={(next) => selectPromptFile(next as PromptTemplateFile["name"])}
         class="gap-3"
       >
         <div class="overflow-x-auto pb-1">
@@ -220,7 +185,7 @@
 
     <div class="space-y-2">
       <div class="space-y-1">
-        <Label>Config (JSON)</Label>
+        <Label>Template (text)</Label>
         <div class="text-xs text-muted-foreground">
           {promptLoading
             ? "Loading…"
@@ -250,9 +215,6 @@
     <Button disabled={!promptDirty || promptSaving || promptLoading || !promptSelected} onclick={savePromptFile}>
       {promptSaving ? "Saving…" : "Save"}
     </Button>
-    <Button variant="outline" disabled={promptSaving || promptLoading || !promptSelected} onclick={formatPromptDraft}
-      >Format</Button
-    >
     <Button variant="outline" disabled={promptSaving || promptLoading || !promptSelected} onclick={resetPromptFile}
       >Reset</Button
     >

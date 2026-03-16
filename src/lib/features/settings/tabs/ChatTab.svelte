@@ -18,32 +18,30 @@
   let overridesLoadedOnce = $state(false)
   let overridesLoading = $state(false)
 
-  async function loadOverrides() {
-    if (overridesLoading) return
-    overridesLoading = true
-    try {
-      overrides = await settingsService.fieldPromptOverrides()
-      overridesLoadedOnce = true
-    } catch (err) {
-      console.error("[field-prompts] Failed to load overrides", err)
-    } finally {
-      overridesLoading = false
-    }
-  }
-
   $effect(() => {
     if (!active) return
     if (overridesLoadedOnce) return
-    void loadOverrides()
+    if (overridesLoading) return
+
+    overridesLoading = true
+    void (async () => {
+      try {
+        overrides = await settingsService.fieldPromptOverrides()
+        overridesLoadedOnce = true
+      } catch (err) {
+        console.error("[field-prompts] Failed to load overrides", err)
+      } finally {
+        overridesLoading = false
+      }
+    })()
   })
 </script>
 
 <div class="space-y-4">
   <PromptTemplatesCard
-    {active}
     allowedNames={["chat-prompt-lines", "chat-setup"]}
     title="Chat Prompt Template"
-    description="Advanced: edit JSON stored in SQLite. Changes affect future generations immediately."
+    description="Edit chat prompt templates stored in SQLite. Changes affect future generations immediately."
   />
 
   <FieldPromptOverridesCard

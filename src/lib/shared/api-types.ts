@@ -309,7 +309,7 @@ export interface CustomFieldDef {
   updated_at: string
 }
 
-export type PromptConfigName =
+export type PromptTemplateName =
   | "narrative-turn"
   | "character-generation"
   | "story-setup"
@@ -318,9 +318,9 @@ export type PromptConfigName =
   | "npc-creation"
   | "player-impersonation"
 
-export interface PromptConfigFile {
-  name: PromptConfigName
-  config_json: string
+export interface PromptTemplateFile {
+  name: PromptTemplateName
+  template_text: string
   updated_at: string
 }
 

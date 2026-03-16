@@ -88,15 +88,15 @@ export {
   upsertPromptHistoryMany,
 } from "@/engine/db/prompt-history"
 
-export type { PromptConfigKey, PromptConfigFileRow } from "@/engine/db/prompts"
+export type { PromptTemplateKey, PromptTemplateFileRow } from "@/engine/db/prompts"
 export {
-  PROMPT_CONFIG_KEYS,
-  ensurePromptConfigDefaults,
+  PROMPT_TEMPLATE_KEYS,
+  ensurePromptTemplateDefaults,
   getMergedPromptConfig,
-  listPromptConfigFiles,
-  resetAllPromptConfigFiles,
-  resetPromptConfigFile,
-  updatePromptConfigFile,
+  listPromptTemplateFiles,
+  resetAllPromptTemplateFiles,
+  resetPromptTemplateFile,
+  updatePromptTemplateFile,
 } from "@/engine/db/prompts"
 
 export type { SamplerPreset, SamplerPresetRow } from "@/engine/db/presets"
