@@ -6,15 +6,27 @@
   import { Input } from "@/components/ui/input"
   import { Label } from "@/components/ui/label"
 
-  export let characters: StoryCharacterGroup[] = []
-  export let selectedIds: number[] = []
-  export let disabled = false
-  export let locked = false
-  export let excludeCharacterId: number | null = null
-  export let onChange: (nextIds: number[]) => void = () => {}
-  export let onOpenModules: (() => void) | undefined = undefined
+  type Props = {
+    characters?: StoryCharacterGroup[]
+    selectedIds?: number[]
+    disabled?: boolean
+    locked?: boolean
+    excludeCharacterId?: number | null
+    onChange?: (nextIds: number[]) => void
+    onOpenModules?: () => void
+  }
 
-  let query = ""
+  let {
+    characters = [],
+    selectedIds = [],
+    disabled = false,
+    locked = false,
+    excludeCharacterId = null,
+    onChange = () => {},
+    onOpenModules,
+  }: Props = $props()
+
+  let query = $state("")
 
   function isSelected(id: number): boolean {
     return selectedIds.includes(id)
@@ -46,11 +58,11 @@
     return `${c.name} ${c.race} ${c.gender} ${traits}`.toLowerCase().includes(q)
   }
 
-  $: q = query.trim().toLowerCase()
-  $: filtered = characters.filter((g) => matches(g, q))
-  $: selectedGroups = selectedIds
-    .map((id) => characters.find((g) => g.id === id) ?? null)
-    .filter((g): g is StoryCharacterGroup => !!g)
+  const q = $derived(query.trim().toLowerCase())
+  const filtered = $derived(characters.filter((g) => matches(g, q)))
+  const selectedGroups = $derived(
+    selectedIds.map((id) => characters.find((g) => g.id === id) ?? null).filter((g): g is StoryCharacterGroup => !!g),
+  )
 </script>
 
 <div class="rounded-lg border bg-background p-4" aria-label="NPCs from library">

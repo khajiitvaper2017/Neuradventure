@@ -7,18 +7,30 @@
   import { Sheet, SheetContent } from "@/components/ui/sheet"
   import { ScrollArea } from "@/components/ui/scroll-area"
 
-  export let open = false
-  export let title = "Card Inspector"
-  export let loading = false
-  export let error: string | null = null
-  export let card: unknown | null = null
-  export let avatarDataUrl: string | null = null
-  export let onClose: (() => void) | null = null
+  type Props = {
+    open?: boolean
+    title?: string
+    loading?: boolean
+    error?: string | null
+    card?: unknown | null
+    avatarDataUrl?: string | null
+    onClose?: (() => void) | null
+  }
+
+  let {
+    open = false,
+    title = "Card Inspector",
+    loading = false,
+    error = null,
+    card = null,
+    avatarDataUrl = null,
+    onClose = null,
+  }: Props = $props()
 
   type AnyRecord = Record<string, unknown>
 
-  let tab: "fields" | "raw" = "fields"
-  let showEmpty = false
+  let tab = $state<"fields" | "raw">("fields")
+  let showEmpty = $state(false)
 
   function asRecord(value: unknown): AnyRecord | null {
     return value && typeof value === "object" ? (value as AnyRecord) : null
@@ -81,36 +93,42 @@
     return legacy
   }
 
-  $: cardObj = asRecord(card)
-  $: cardData = cardObj ? asRecord(cardObj.data) : null
-  $: spec = cardObj ? asString(cardObj.spec).trim() : ""
-  $: specVersion = cardObj ? asString(cardObj.spec_version).trim() : ""
-  $: name = cardData ? asString(cardData.name).trim() : ""
-  $: creator = cardData ? asString(cardData.creator).trim() : ""
-  $: characterVersion = cardData ? asString(cardData.character_version).trim() : ""
-  $: tags = cardData
-    ? asStringArray(cardData.tags)
-        .map((t) => t.trim())
-        .filter(Boolean)
-    : []
-  $: systemPrompt = cardData ? asString(cardData.system_prompt) : ""
-  $: creatorNotes = cardData ? asString(cardData.creator_notes) : ""
-  $: postHistory = cardData ? asString(cardData.post_history_instructions) : ""
-  $: firstMes = cardData ? asString(cardData.first_mes) : ""
-  $: altGreetings = cardData
-    ? asStringArray(cardData.alternate_greetings)
-        .map((t) => t.trim())
-        .filter(Boolean)
-    : []
-  $: exampleDialogs = cardData ? exampleDialogsFromData(cardData) : ""
-  $: characterBook = cardData ? asRecord(cardData.character_book) : null
-  $: characterBookEntryList = characterBook
-    ? asArray((characterBook as AnyRecord).entries)
-        .map((v) => asRecord(v))
-        .filter((v): v is AnyRecord => !!v)
-    : []
-  $: characterBookEntries = characterBookEntryList.length
-  $: rawJson = prettyJson(card)
+  const cardObj = $derived(asRecord(card))
+  const cardData = $derived(cardObj ? asRecord(cardObj.data) : null)
+  const spec = $derived(cardObj ? asString(cardObj.spec).trim() : "")
+  const specVersion = $derived(cardObj ? asString(cardObj.spec_version).trim() : "")
+  const name = $derived(cardData ? asString(cardData.name).trim() : "")
+  const creator = $derived(cardData ? asString(cardData.creator).trim() : "")
+  const characterVersion = $derived(cardData ? asString(cardData.character_version).trim() : "")
+  const tags = $derived(
+    cardData
+      ? asStringArray(cardData.tags)
+          .map((t) => t.trim())
+          .filter(Boolean)
+      : [],
+  )
+  const systemPrompt = $derived(cardData ? asString(cardData.system_prompt) : "")
+  const creatorNotes = $derived(cardData ? asString(cardData.creator_notes) : "")
+  const postHistory = $derived(cardData ? asString(cardData.post_history_instructions) : "")
+  const firstMes = $derived(cardData ? asString(cardData.first_mes) : "")
+  const altGreetings = $derived(
+    cardData
+      ? asStringArray(cardData.alternate_greetings)
+          .map((t) => t.trim())
+          .filter(Boolean)
+      : [],
+  )
+  const exampleDialogs = $derived(cardData ? exampleDialogsFromData(cardData) : "")
+  const characterBook = $derived(cardData ? asRecord(cardData.character_book) : null)
+  const characterBookEntryList = $derived(
+    characterBook
+      ? asArray((characterBook as AnyRecord).entries)
+          .map((v) => asRecord(v))
+          .filter((v): v is AnyRecord => !!v)
+      : [],
+  )
+  const characterBookEntries = $derived(characterBookEntryList.length)
+  const rawJson = $derived(prettyJson(card))
 
   function close() {
     onClose?.()
@@ -273,7 +291,7 @@
                   </summary>
                   <div class="space-y-3 p-3">
                     {#if characterBookEntryList.length}
-                      {#each characterBookEntryList as entry, i}
+                      {#each characterBookEntryList as entry, i (i)}
                         {@const entryName = asString(entry.name).trim() || `Entry ${i + 1}`}
                         {@const entryEnabled = entry.enabled !== false}
                         {@const entryKeys = asStringArray(entry.keys)

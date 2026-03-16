@@ -11,12 +11,15 @@
   import { Input } from "@/components/ui/input"
   import { Label } from "@/components/ui/label"
 
-  export let open = false
-  export let disabled = false
-  export let titleDraft = ""
+  type Props = {
+    open?: boolean
+    disabled?: boolean
+    titleDraft?: string
+    onCancel?: () => void
+    onSave?: () => void
+  }
 
-  export let onCancel: (() => void) | undefined = undefined
-  export let onSave: (() => void) | undefined = undefined
+  let { open = false, disabled = false, titleDraft = $bindable(""), onCancel, onSave }: Props = $props()
 </script>
 
 <Dialog

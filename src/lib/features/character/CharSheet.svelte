@@ -433,7 +433,7 @@
             {#if draft.inventory.length === 0}
               <div class="text-sm text-muted-foreground">No items yet.</div>
             {:else}
-              {#each draft.inventory as item, index}
+              {#each draft.inventory as item, index (index)}
                 <div class="grid grid-cols-[1fr_1.3fr_auto] items-center gap-2">
                   <Input
                     type="text"
@@ -541,22 +541,22 @@
           </div>
           <div class="mt-3 flex flex-wrap gap-2">
             {#if usePersonalityTraits}
-              {#each displayCharacter.personality_traits as t}
+              {#each displayCharacter.personality_traits as t, index (t + ":" + index)}
                 <Badge variant="outline" class="rounded-full font-mono text-[11px]">{t}</Badge>
               {/each}
             {/if}
             {#if useMajorFlaws}
-              {#each displayCharacter.major_flaws as t}
+              {#each displayCharacter.major_flaws as t, index (t + ":" + index)}
                 <Badge variant="outline" class="rounded-full font-mono text-[11px]">{t}</Badge>
               {/each}
             {/if}
             {#if useQuirks}
-              {#each displayCharacter.quirks as t}
+              {#each displayCharacter.quirks as t, index (t + ":" + index)}
                 <Badge variant="outline" class="rounded-full font-mono text-[11px]">{t}</Badge>
               {/each}
             {/if}
             {#if usePerks}
-              {#each displayCharacter.perks as t}
+              {#each displayCharacter.perks as t, index (t + ":" + index)}
                 <Badge variant="outline" class="rounded-full font-mono text-[11px]">{t}</Badge>
               {/each}
             {/if}
@@ -574,7 +574,7 @@
             <div class="mt-2 text-sm italic text-muted-foreground">Nothing</div>
           {:else}
             <ul class="mt-3 space-y-2">
-              {#each displayCharacter.inventory as item}
+              {#each displayCharacter.inventory as item, index (index)}
                 <li class="flex items-start gap-2">
                   <IconDotSmall size={12} strokeWidth={1.5} className="mt-1 shrink-0 text-muted-foreground" />
                   <div class="min-w-0">

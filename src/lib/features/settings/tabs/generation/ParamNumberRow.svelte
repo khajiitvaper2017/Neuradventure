@@ -4,20 +4,25 @@
   import { Badge } from "@/components/ui/badge"
   import { Input } from "@/components/ui/input"
 
-  export let label: string
-  export let sub: string
-  export let value: unknown
-  export let min: number | undefined = undefined
-  export let max: number | undefined = undefined
-  export let step: number | undefined = undefined
-  export let status: OpenRouterParamStatus
-  export let badge: { label: string; kind: "warning" | "neutral" } | null = null
-  export let badgeTitle = ""
-  export let onChange: (e: Event) => void
-  let inputValue: string | number = ""
-  let ignored = false
-  $: inputValue = typeof value === "number" || typeof value === "string" ? value : value == null ? "" : String(value)
-  $: ignored = status === "unsupported" || status === "not_sent"
+  type Props = {
+    label: string
+    sub: string
+    value: unknown
+    min?: number
+    max?: number
+    step?: number
+    status: OpenRouterParamStatus
+    badge?: { label: string; kind: "warning" | "neutral" } | null
+    badgeTitle?: string
+    onChange: (e: Event) => void
+  }
+
+  let { label, sub, value, min, max, step, status, badge = null, badgeTitle = "", onChange }: Props = $props()
+
+  const inputValue = $derived(
+    typeof value === "number" || typeof value === "string" ? value : value == null ? "" : String(value),
+  )
+  const ignored = $derived(status === "unsupported" || status === "not_sent")
 </script>
 
 <div class={cn("flex items-start justify-between gap-4 border-b py-3", ignored && "opacity-60")}>

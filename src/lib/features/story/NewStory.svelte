@@ -42,17 +42,15 @@
   } from "@/stores/game"
   import { storyDefaults, streamingEnabled } from "@/stores/settings"
 
-  let submitting = false
-  let generating = false
-  let showModulesPanel = false
-  let savedCharacters: StoryCharacterGroup[] = []
-  let loadingCharacters = false
-  let loadingNpcs = false
-  let savedNpcs: StoryNpcGroup[] = []
-  let selectedPlayableKey: string | null = null
-  let selectedCharacterIdForSheet: number | null = null
-  let storyPromptHistory: string[] = []
-  let activeModules: StoryModules = $pendingStoryModules ?? $storyDefaults
+  let submitting = $state(false)
+  let generating = $state(false)
+  let showModulesPanel = $state(false)
+  let savedCharacters = $state<StoryCharacterGroup[]>([])
+  let loadingCharacters = $state(false)
+  let loadingNpcs = $state(false)
+  let savedNpcs = $state<StoryNpcGroup[]>([])
+  let selectedPlayableKey = $state<string | null>(null)
+  let storyPromptHistory = $state<string[]>([])
 
   const STORY_PROMPT_HISTORY_KEY = "na:prompt_history:story"
 
@@ -157,14 +155,20 @@
     storyLabel: string
   }
 
-  $: activeModules = $pendingStoryModules ?? $storyDefaults
-  $: modulesPreviewCore = `Core: ${activeModules.track_npcs ? "NPCs on" : "NPCs off"} · ${
-    activeModules.track_locations ? "Locations on" : "Locations off"
-  } · Appearance: ${activeModules.character_appearance_clothing ? "on" : "off"}`
-  $: modulesPreviewPlayer = `Player fields: ${countEnabled(activeModules, PLAYER_MODULE_KEYS)}/${PLAYER_MODULE_KEYS.length}`
-  $: modulesPreviewNpc = activeModules.track_npcs
-    ? `NPC fields: ${countEnabled(activeModules, NPC_MODULE_KEYS)}/${NPC_MODULE_KEYS.length}`
-    : "NPC fields: — (tracking off)"
+  const activeModules: StoryModules = $derived($pendingStoryModules ?? $storyDefaults)
+  const modulesPreviewCore = $derived(
+    `Core: ${activeModules.track_npcs ? "NPCs on" : "NPCs off"} · ${
+      activeModules.track_locations ? "Locations on" : "Locations off"
+    } · Appearance: ${activeModules.character_appearance_clothing ? "on" : "off"}`,
+  )
+  const modulesPreviewPlayer = $derived(
+    `Player fields: ${countEnabled(activeModules, PLAYER_MODULE_KEYS)}/${PLAYER_MODULE_KEYS.length}`,
+  )
+  const modulesPreviewNpc = $derived(
+    activeModules.track_npcs
+      ? `NPC fields: ${countEnabled(activeModules, NPC_MODULE_KEYS)}/${NPC_MODULE_KEYS.length}`
+      : "NPC fields: — (tracking off)",
+  )
 
   function formatStoryLabel(stories: StoryRef[]): string {
     if (!stories || stories.length === 0) return "No story yet"
@@ -176,7 +180,7 @@
     return extra > 0 ? `${shown.join(", ")} +${extra} more` : shown.join(", ")
   }
 
-  $: playableOptions = [
+  const playableOptions: PlayableOption[] = $derived([
     ...savedCharacters.map((c) => ({
       key: `char_${c.id}`,
       kind: "character" as const,
@@ -189,9 +193,9 @@
       name: n.npc.name,
       storyLabel: formatStoryLabel(n.stories),
     })),
-  ]
+  ])
 
-  $: hasPlayableOptions = playableOptions.length > 0
+  const hasPlayableOptions = $derived(playableOptions.length > 0)
 
   function selectPlayable(key: string) {
     const option = playableOptions.find((o) => o.key === key)
@@ -219,24 +223,32 @@
     return id
   }
 
-  $: if ($pendingCharacterId) {
-    selectedPlayableKey = `char_${$pendingCharacterId}`
-  } else if (!$pendingCharacter && selectedPlayableKey?.startsWith("char_")) {
-    selectedPlayableKey = null
-  }
+  $effect(() => {
+    if ($pendingCharacterId) {
+      selectedPlayableKey = `char_${$pendingCharacterId}`
+      return
+    }
+    if (!$pendingCharacter && selectedPlayableKey?.startsWith("char_")) {
+      selectedPlayableKey = null
+    }
+  })
 
-  $: selectedCharacterIdForSheet = characterIdFromKey(selectedPlayableKey)
+  const selectedCharacterIdForSheet = $derived(characterIdFromKey(selectedPlayableKey))
 
-  $: if ($pendingCharacterId && $pendingStoryNpcCharacterIds.includes($pendingCharacterId)) {
+  $effect(() => {
+    if (!$pendingCharacterId) return
+    if (!$pendingStoryNpcCharacterIds.includes($pendingCharacterId)) return
     pendingStoryNpcCharacterIds.set($pendingStoryNpcCharacterIds.filter((id) => id !== $pendingCharacterId))
-  }
+  })
 
-  $: selectedOption = playableOptions.find((o) => o.key === selectedPlayableKey) ?? null
-  $: playableSelectOptions = playableOptions.map((o) => ({
-    value: o.key,
-    label: `${o.name}${o.kind === "npc" ? " (NPC)" : ""}`,
-  }))
-  $: playableSelectLabel = playableSelectOptions.find((o) => o.value === selectedPlayableKey)?.label ?? ""
+  const selectedOption = $derived(playableOptions.find((o) => o.key === selectedPlayableKey) ?? null)
+  const playableSelectOptions = $derived(
+    playableOptions.map((o) => ({
+      value: o.key,
+      label: `${o.name}${o.kind === "npc" ? " (NPC)" : ""}`,
+    })),
+  )
+  const playableSelectLabel = $derived(playableSelectOptions.find((o) => o.value === selectedPlayableKey)?.label ?? "")
 
   async function runGenerateStory(
     prompt: string,
@@ -312,7 +324,7 @@
     await runGenerateStory(prompt, $pendingCharacter, modules, requestId)
   }
 
-  $: charData = $pendingCharacter
+  const charData = $derived($pendingCharacter)
 
   async function startAdventure() {
     if (!$pendingStoryTitle.trim()) {
@@ -503,7 +515,7 @@
               <CardTitle>Generated NPCs</CardTitle>
             </CardHeader>
             <CardContent class="grid gap-3 sm:grid-cols-2">
-              {#each $pendingStoryNPCs as npc}
+              {#each $pendingStoryNPCs as npc, index (npc.name + ":" + index)}
                 <div class="rounded-lg border bg-card p-3">
                   <div class="text-sm font-medium text-foreground">{npc.name}</div>
                   <div class="mt-1 text-xs text-muted-foreground">{npc.race} · {npc.current_location || "Unknown"}</div>

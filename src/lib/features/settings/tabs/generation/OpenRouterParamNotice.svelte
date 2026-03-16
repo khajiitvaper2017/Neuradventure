@@ -1,6 +1,7 @@
 <script lang="ts">
   import type { GenerationParams, ModelInfo } from "@/shared/api-types"
   import { connector } from "@/stores/settings"
+  import { SvelteMap } from "svelte/reactivity"
   import { Badge } from "@/components/ui/badge"
   import { Button } from "@/components/ui/button"
   import { Card, CardContent } from "@/components/ui/card"
@@ -68,7 +69,7 @@
   let openRouterSummary = $derived.by(() => {
     if ($connector.type !== "openrouter") return null
     const model = getSelectedModel($connector, modelSearchResults)
-    const statusByKey = new Map<keyof GenerationParams, OpenRouterParamStatus>()
+    const statusByKey = new SvelteMap<keyof GenerationParams, OpenRouterParamStatus>()
     for (const k of openRouterPageKeys) statusByKey.set(k, getOpenRouterParamStatus(k, model))
     const notSent = openRouterPageKeys.filter((k) => statusByKey.get(k) === "not_sent")
     const unknown = openRouterPageKeys.filter((k) => statusByKey.get(k) === "unknown")

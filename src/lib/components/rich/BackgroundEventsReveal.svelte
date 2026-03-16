@@ -2,9 +2,13 @@
   import RichText from "@/components/rich/RichText.svelte"
   import { looksLikeBlockHtml } from "@/utils/sanitizeHtml"
 
-  export let text: string | null | undefined
-  export let title = "Background events"
-  let open = false
+  type Props = {
+    text?: string | null
+    title?: string
+  }
+
+  let { text = null, title = "Background events" }: Props = $props()
+  let open = $state(false)
 
   function onWindowKeydown(e: KeyboardEvent) {
     if (!open) return
@@ -23,9 +27,9 @@
       .filter(Boolean)
   }
 
-  $: trimmed = typeof text === "string" ? text.trim() : ""
-  $: paras = trimmed ? paragraphs(trimmed) : []
-  $: isBlockHtml = trimmed ? looksLikeBlockHtml(trimmed) : false
+  const trimmed = $derived(typeof text === "string" ? text.trim() : "")
+  const paras = $derived(trimmed ? paragraphs(trimmed) : [])
+  const isBlockHtml = $derived(trimmed ? looksLikeBlockHtml(trimmed) : false)
 </script>
 
 <svelte:window onkeydown={onWindowKeydown} />
@@ -52,7 +56,7 @@
         {#if isBlockHtml}
           <div class="text-sm leading-relaxed text-muted-foreground"><RichText text={trimmed} mode="block" /></div>
         {:else}
-          {#each paras as para}
+          {#each paras as para, index (index)}
             <p class="text-sm leading-relaxed text-muted-foreground"><RichText text={para} mode="inline" /></p>
           {/each}
         {/if}

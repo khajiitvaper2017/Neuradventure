@@ -1,6 +1,7 @@
 <script lang="ts">
   import { get } from "svelte/store"
   import { onMount } from "svelte"
+  import { SvelteMap, SvelteSet } from "svelte/reactivity"
   import type { StoryModules } from "@/shared/types"
   import { goBack, navigate } from "@/stores/router"
   import { showError, showQuietNotice } from "@/stores/ui"
@@ -58,8 +59,8 @@
   const existing = get(pendingCharacter)
   const splitPersonalityTraits = (traits: string[]) => {
     const cleaned = traits.map((t) => t.trim()).filter(Boolean)
-    const selectedMap = new Map<string, string>()
-    const customMap = new Map<string, string>()
+    const selectedMap = new SvelteMap<string, string>()
+    const customMap = new SvelteMap<string, string>()
     for (const raw of cleaned) {
       const key = normalizeKey(raw)
       const canonical = PERSONALITY_CANONICAL[key]
@@ -76,14 +77,14 @@
   }
   const initialPersonality = splitPersonalityTraits(existing?.personality_traits ?? [])
 
-  let generating = false
-  let savingCharacter = false
-  let autofilling = false
-  let regeneratingAppearance = false
-  let regeneratingClothing = false
-  let regeneratingTraits = false
-  let showModulesPanel = false
-  let promptHistory: string[] = []
+  let generating = $state(false)
+  let savingCharacter = $state(false)
+  let autofilling = $state(false)
+  let regeneratingAppearance = $state(false)
+  let regeneratingClothing = $state(false)
+  let regeneratingTraits = $state(false)
+  let showModulesPanel = $state(false)
+  let promptHistory = $state<string[]>([])
 
   onMount(() => {
     void loadPromptHistory(CHARACTER_PROMPT_HISTORY_KEY).then((items) => {
@@ -170,7 +171,7 @@
   }
 
   function mergeTraits(existing: string[], incoming: string[], limit = 5): string[] {
-    const seen = new Set(existing.map(normalizeKey))
+    const seen = new SvelteSet(existing.map(normalizeKey))
     const out = [...existing]
     for (const trait of incoming) {
       const key = normalizeKey(trait)
@@ -239,35 +240,34 @@
     }
   }
 
-  let name = existing?.name ?? ""
-  let race = existing?.race ?? ""
-  let gender: string = normalizeGender(existing?.gender ?? "Female", "Female")
-  $: genderCustom = gender !== "Male" && gender !== "Female" ? gender : ""
+  let name = $state(existing?.name ?? "")
+  let race = $state(existing?.race ?? "")
+  let gender = $state<string>(normalizeGender(existing?.gender ?? "Female", "Female"))
+  const genderCustom = $derived(gender !== "Male" && gender !== "Female" ? gender : "")
   function setGenderCustom(val: string) {
     const normalized = normalizeGender(val, "")
     gender = normalized || "Female"
   }
-  let generalDescription = existing?.general_description ?? ""
-  let baselineAppearance = existing?.baseline_appearance ?? ""
-  let currentAppearance = existing?.current_appearance ?? ""
-  let currentClothing = existing?.current_clothing ?? ""
-  let selectedTraits: string[] = initialPersonality.selected
-  let customPersonalityInput = ""
-  let customPersonalityTraits: string[] = initialPersonality.custom
-  let majorFlawInput = ""
-  let majorFlaws: string[] = existing?.major_flaws ?? []
-  let quirkInput = ""
-  let perkInput = ""
-  let quirks: string[] = existing?.quirks ?? []
-  let perks: string[] = existing?.perks ?? []
-  $: totalPersonalityCount = selectedTraits.length + customPersonalityTraits.length
-  let activeModules: StoryModules = $pendingStoryModules ?? $storyDefaults
-  $: activeModules = $pendingStoryModules ?? $storyDefaults
-  $: traitsEnabled = activeModules.character_personality_traits
-  $: majorFlawsEnabled = activeModules.character_major_flaws
-  $: quirksEnabled = activeModules.character_quirks
-  $: perksEnabled = activeModules.character_perks
-  $: canRegenerateTraits = traitsEnabled && majorFlawsEnabled && quirksEnabled && perksEnabled
+  let generalDescription = $state(existing?.general_description ?? "")
+  let baselineAppearance = $state(existing?.baseline_appearance ?? "")
+  let currentAppearance = $state(existing?.current_appearance ?? "")
+  let currentClothing = $state(existing?.current_clothing ?? "")
+  let selectedTraits = $state<string[]>(initialPersonality.selected)
+  let customPersonalityInput = $state("")
+  let customPersonalityTraits = $state<string[]>(initialPersonality.custom)
+  let majorFlawInput = $state("")
+  let majorFlaws = $state<string[]>(existing?.major_flaws ?? [])
+  let quirkInput = $state("")
+  let perkInput = $state("")
+  let quirks = $state<string[]>(existing?.quirks ?? [])
+  let perks = $state<string[]>(existing?.perks ?? [])
+  const totalPersonalityCount = $derived(selectedTraits.length + customPersonalityTraits.length)
+  const activeModules: StoryModules = $derived($pendingStoryModules ?? $storyDefaults)
+  const traitsEnabled = $derived(activeModules.character_personality_traits)
+  const majorFlawsEnabled = $derived(activeModules.character_major_flaws)
+  const quirksEnabled = $derived(activeModules.character_quirks)
+  const perksEnabled = $derived(activeModules.character_perks)
+  const canRegenerateTraits = $derived(traitsEnabled && majorFlawsEnabled && quirksEnabled && perksEnabled)
 
   function setModules(next: StoryModules) {
     pendingStoryModules.set(next)
@@ -295,13 +295,19 @@
     return keys.reduce((acc, k) => acc + (modules[k] === true ? 1 : 0), 0)
   }
 
-  $: modulesPreviewCore = `Core: ${activeModules.track_npcs ? "NPCs on" : "NPCs off"} · ${
-    activeModules.track_locations ? "Locations on" : "Locations off"
-  } · Appearance: ${activeModules.character_appearance_clothing ? "on" : "off"}`
-  $: modulesPreviewPlayer = `Player fields: ${countEnabled(activeModules, PLAYER_MODULE_KEYS)}/${PLAYER_MODULE_KEYS.length}`
-  $: modulesPreviewNpc = activeModules.track_npcs
-    ? `NPC fields: ${countEnabled(activeModules, NPC_MODULE_KEYS)}/${NPC_MODULE_KEYS.length}`
-    : "NPC fields: — (tracking off)"
+  const modulesPreviewCore = $derived(
+    `Core: ${activeModules.track_npcs ? "NPCs on" : "NPCs off"} · ${
+      activeModules.track_locations ? "Locations on" : "Locations off"
+    } · Appearance: ${activeModules.character_appearance_clothing ? "on" : "off"}`,
+  )
+  const modulesPreviewPlayer = $derived(
+    `Player fields: ${countEnabled(activeModules, PLAYER_MODULE_KEYS)}/${PLAYER_MODULE_KEYS.length}`,
+  )
+  const modulesPreviewNpc = $derived(
+    activeModules.track_npcs
+      ? `NPC fields: ${countEnabled(activeModules, NPC_MODULE_KEYS)}/${NPC_MODULE_KEYS.length}`
+      : "NPC fields: — (tracking off)",
+  )
 
   function isBlocked(trait: string): boolean {
     const opp = OPPOSITES[trait]
@@ -394,7 +400,7 @@
   }
 
   function buildCharacterContext() {
-    const seen = new Set<string>()
+    const seen = new SvelteSet<string>()
     const uniquePersonality = (traits: string[]) => {
       const out: string[] = []
       for (const raw of traits) {

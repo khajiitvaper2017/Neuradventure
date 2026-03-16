@@ -5,17 +5,33 @@
   import { Button } from "@/components/ui/button"
   import { Textarea } from "@/components/ui/textarea"
 
-  export let value = ""
-  export let placeholder = ""
-  export let disabled = false
-  export let canSend = true
-  export let sending = false
-  export let onSend: (() => void) | undefined = undefined
-  export let onFocus: ((event: FocusEvent) => void) | undefined = undefined
-  export let textareaEl: HTMLTextAreaElement | null = null
-  export let rows = 2
-  export let topControls: Snippet | undefined = undefined
-  export let bottomControls: Snippet | undefined = undefined
+  type Props = {
+    value?: string
+    placeholder?: string
+    disabled?: boolean
+    canSend?: boolean
+    sending?: boolean
+    onSend?: () => void
+    onFocus?: (event: FocusEvent) => void
+    textareaEl?: HTMLTextAreaElement | null
+    rows?: number
+    topControls?: Snippet
+    bottomControls?: Snippet
+  }
+
+  let {
+    value = $bindable(""),
+    placeholder = "",
+    disabled = false,
+    canSend = true,
+    sending = false,
+    onSend,
+    onFocus,
+    textareaEl = $bindable(null),
+    rows = 2,
+    topControls,
+    bottomControls,
+  }: Props = $props()
 
   const canSubmit = () => !disabled && canSend
 

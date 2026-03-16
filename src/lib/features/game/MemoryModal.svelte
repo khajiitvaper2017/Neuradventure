@@ -10,12 +10,15 @@
   import { Button } from "@/components/ui/button"
   import { Textarea } from "@/components/ui/textarea"
 
-  export let open = false
-  export let disabled = false
-  export let draft = ""
+  type Props = {
+    open?: boolean
+    disabled?: boolean
+    draft?: string
+    onCancel?: () => void
+    onSave?: () => void
+  }
 
-  export let onCancel: (() => void) | undefined = undefined
-  export let onSave: (() => void) | undefined = undefined
+  let { open = false, disabled = false, draft = $bindable(""), onCancel, onSave }: Props = $props()
 </script>
 
 <Dialog

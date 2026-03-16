@@ -14,18 +14,31 @@
   import { Textarea } from "@/components/ui/textarea"
   import { Checkbox } from "@/components/ui/checkbox"
 
-  export let open = false
-  export let disabled = false
+  type Props = {
+    open?: boolean
+    disabled?: boolean
+    note?: string
+    position?: number
+    depth?: number
+    interval?: number
+    role?: number
+    embedState?: boolean
+    onCancel?: () => void
+    onSave?: () => void
+  }
 
-  export let note = ""
-  export let position = 1
-  export let depth = 4
-  export let interval = 1
-  export let role = 0
-  export let embedState = false
-
-  export let onCancel: (() => void) | undefined = undefined
-  export let onSave: (() => void) | undefined = undefined
+  let {
+    open = false,
+    disabled = false,
+    note = $bindable(""),
+    position = $bindable(1),
+    depth = $bindable(4),
+    interval = $bindable(1),
+    role = $bindable(0),
+    embedState = $bindable(false),
+    onCancel,
+    onSave,
+  }: Props = $props()
 
   const positionOptions = [
     { value: 2, label: "Before scenario" },
@@ -42,8 +55,8 @@
   const positionSelectOptions = positionOptions.map((o) => ({ value: String(o.value), label: o.label }))
   const roleSelectOptions = roleOptions.map((o) => ({ value: String(o.value), label: o.label }))
 
-  $: positionLabel = positionSelectOptions.find((o) => o.value === String(position))?.label ?? "Select…"
-  $: roleLabel = roleSelectOptions.find((o) => o.value === String(role))?.label ?? "Select…"
+  const positionLabel = $derived(positionSelectOptions.find((o) => o.value === String(position))?.label ?? "Select…")
+  const roleLabel = $derived(roleSelectOptions.find((o) => o.value === String(role))?.label ?? "Select…")
 </script>
 
 <Dialog

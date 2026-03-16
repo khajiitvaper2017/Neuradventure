@@ -3,10 +3,14 @@
   import BackgroundEventsReveal from "@/components/rich/BackgroundEventsReveal.svelte"
   import { looksLikeBlockHtml } from "@/utils/sanitizeHtml"
 
-  export let narrativeText: string | null | undefined
-  export let backgroundEvents: string | null | undefined
-  export let currentScene: string | null | undefined
-  export let timeOfDay: string | null | undefined
+  type Props = {
+    narrativeText?: string | null
+    backgroundEvents?: string | null
+    currentScene?: string | null
+    timeOfDay?: string | null
+  }
+
+  let { narrativeText = null, backgroundEvents = null, currentScene = null, timeOfDay = null }: Props = $props()
 
   function paragraphs(text: string): string[] {
     let normalized = text.replace(/\r\n/g, "\n")
@@ -20,11 +24,11 @@
       .filter(Boolean)
   }
 
-  $: trimmedNarrative = typeof narrativeText === "string" ? narrativeText.trim() : ""
-  $: narrativeParas = trimmedNarrative ? paragraphs(trimmedNarrative) : []
-  $: narrativeIsBlockHtml = trimmedNarrative ? looksLikeBlockHtml(trimmedNarrative) : false
-  $: trimmedBg = typeof backgroundEvents === "string" ? backgroundEvents.trim() : ""
-  $: show = narrativeParas.length > 0 || trimmedBg.length > 0
+  const trimmedNarrative = $derived(typeof narrativeText === "string" ? narrativeText.trim() : "")
+  const narrativeParas = $derived(trimmedNarrative ? paragraphs(trimmedNarrative) : [])
+  const narrativeIsBlockHtml = $derived(trimmedNarrative ? looksLikeBlockHtml(trimmedNarrative) : false)
+  const trimmedBg = $derived(typeof backgroundEvents === "string" ? backgroundEvents.trim() : "")
+  const show = $derived(narrativeParas.length > 0 || trimmedBg.length > 0)
 </script>
 
 {#if show}
@@ -44,7 +48,7 @@
         <RichText text={trimmedNarrative} mode="block" />
       </div>
     {:else}
-      {#each narrativeParas as para}
+      {#each narrativeParas as para, index (index)}
         <p class="stream-preview__para mb-4 whitespace-pre-line text-[15px] leading-7 text-foreground">
           <RichText text={para} mode="inline" />
         </p>

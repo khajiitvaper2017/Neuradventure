@@ -6,11 +6,15 @@
     // no-op
   }
 
-  export let items: string[] = []
-  export let label = "Recent prompts"
-  export let limit = 6
-  export let onUse: (value: string) => void = noop
-  export let onDelete: (value: string) => void = noop
+  type Props = {
+    items?: string[]
+    label?: string
+    limit?: number
+    onUse?: (value: string) => void
+    onDelete?: (value: string) => void
+  }
+
+  let { items = [], label = "Recent prompts", limit = 6, onUse = noop, onDelete = noop }: Props = $props()
 </script>
 
 {#if items.length > 0}

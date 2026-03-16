@@ -12,12 +12,15 @@
   import { Button } from "@/components/ui/button"
   import { ScrollArea } from "@/components/ui/scroll-area"
 
-  export let open = false
-  export let disabled = false
-  export let modules: StoryModules
+  type Props = {
+    open?: boolean
+    disabled?: boolean
+    modules: StoryModules
+    onCancel?: () => void
+    onSave?: () => void
+  }
 
-  export let onCancel: (() => void) | undefined = undefined
-  export let onSave: (() => void) | undefined = undefined
+  let { open = false, disabled = false, modules = $bindable(), onCancel, onSave }: Props = $props()
 </script>
 
 <Dialog

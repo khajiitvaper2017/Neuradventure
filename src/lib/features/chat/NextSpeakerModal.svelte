@@ -10,12 +10,15 @@
   } from "@/components/ui/dialog"
   import { Button } from "@/components/ui/button"
 
-  export let open = false
-  export let disabled = false
-  export let members: ChatMember[] = []
+  type Props = {
+    open?: boolean
+    disabled?: boolean
+    members?: ChatMember[]
+    onPick?: (memberId: number) => void
+    onClose?: () => void
+  }
 
-  export let onPick: ((memberId: number) => void) | undefined = undefined
-  export let onClose: (() => void) | undefined = undefined
+  let { open = false, disabled = false, members = [], onPick, onClose }: Props = $props()
 
   function close() {
     if (disabled) return

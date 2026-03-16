@@ -627,7 +627,7 @@
               <div class="mt-3 flex items-start gap-2 text-sm text-foreground">
                 <IconFace size={13} strokeWidth={1.5} className="mt-0.5 shrink-0 text-muted-foreground" />
                 <span>
-                  {#each getDiffSegments(npc.baseline_appearance, npc.current_appearance) as segment}
+                  {#each getDiffSegments(npc.baseline_appearance, npc.current_appearance) as segment, index (index)}
                     <span class={cn(segment.added && "font-semibold text-primary")}>{segment.text}</span>
                   {/each}
                 </span>
@@ -651,22 +651,22 @@
                 <IconStar size={13} strokeWidth={1.5} className="mt-0.5 shrink-0 text-muted-foreground" />
                 <div class="flex flex-wrap gap-2">
                   {#if useNpcPersonalityTraits}
-                    {#each npc.personality_traits as trait}
+                    {#each npc.personality_traits as trait, index (trait + ":" + index)}
                       <Badge variant="outline" class="rounded-full font-mono text-[11px]">{trait}</Badge>
                     {/each}
                   {/if}
                   {#if useNpcMajorFlaws}
-                    {#each npc.major_flaws as trait}
+                    {#each npc.major_flaws as trait, index (trait + ":" + index)}
                       <Badge variant="outline" class="rounded-full font-mono text-[11px]">{trait}</Badge>
                     {/each}
                   {/if}
                   {#if useNpcQuirks}
-                    {#each npc.quirks as trait}
+                    {#each npc.quirks as trait, index (trait + ":" + index)}
                       <Badge variant="outline" class="rounded-full font-mono text-[11px]">{trait}</Badge>
                     {/each}
                   {/if}
                   {#if useNpcPerks}
-                    {#each npc.perks as trait}
+                    {#each npc.perks as trait, index (trait + ":" + index)}
                       <Badge variant="outline" class="rounded-full font-mono text-[11px]">{trait}</Badge>
                     {/each}
                   {/if}

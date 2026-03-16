@@ -46,23 +46,23 @@
   import ThemeToggle from "@/components/controls/ThemeToggle.svelte"
   import { Book } from "@lucide/svelte"
 
-  let stories: StoryMeta[] = []
-  let loading = true
-  let storyCharacters: StoryCharacterGroup[] = []
-  let loadingCharacters = false
-  let chats: ChatSummary[] = []
-  let loadingChats = false
+  let stories = $state<StoryMeta[]>([])
+  let loading = $state(true)
+  let storyCharacters = $state<StoryCharacterGroup[]>([])
+  let loadingCharacters = $state(false)
+  let chats = $state<ChatSummary[]>([])
+  let loadingChats = $state(false)
 
   type LibrarySection = "stories" | "chats" | "characters"
-  let section: LibrarySection = "stories"
-  let query = ""
-  let sort: "recent" | "az" = "recent"
+  let section = $state<LibrarySection>("stories")
+  let query = $state("")
+  let sort = $state<"recent" | "az">("recent")
   const sortOptions = [
     { value: "recent", label: "Recent" },
     { value: "az", label: "A–Z" },
   ]
 
-  $: sortLabel = sortOptions.find((o) => o.value === sort)?.label ?? "Sort"
+  const sortLabel = $derived(sortOptions.find((o) => o.value === sort)?.label ?? "Sort")
 
   onMount(() => {
     loadStories()
@@ -300,41 +300,47 @@
     return `${Math.floor(h / 24)}d ago`
   }
 
-  $: q = query.trim().toLowerCase()
+  const q = $derived(query.trim().toLowerCase())
 
-  $: filteredStories = stories
-    .filter((s) => {
-      if (!q) return true
-      return matchesQuery(`${s.title} ${s.character_name}`, q)
-    })
-    .slice()
-    .sort((a, b) => {
-      if (sort === "az") return a.title.localeCompare(b.title)
-      return updatedAtMs(b.updated_at) - updatedAtMs(a.updated_at)
-    })
+  const filteredStories = $derived(
+    stories
+      .filter((s) => {
+        if (!q) return true
+        return matchesQuery(`${s.title} ${s.character_name}`, q)
+      })
+      .slice()
+      .sort((a, b) => {
+        if (sort === "az") return a.title.localeCompare(b.title)
+        return updatedAtMs(b.updated_at) - updatedAtMs(a.updated_at)
+      }),
+  )
 
-  $: filteredChats = chats
-    .filter((c) => {
-      if (!q) return true
-      return matchesQuery(`${c.title} ${c.player_name} ${c.participants.join(" ")}`, q)
-    })
-    .slice()
-    .sort((a, b) => {
-      if (sort === "az") return (a.title || a.player_name || "").localeCompare(b.title || b.player_name || "")
-      return updatedAtMs(b.updated_at) - updatedAtMs(a.updated_at)
-    })
+  const filteredChats = $derived(
+    chats
+      .filter((c) => {
+        if (!q) return true
+        return matchesQuery(`${c.title} ${c.player_name} ${c.participants.join(" ")}`, q)
+      })
+      .slice()
+      .sort((a, b) => {
+        if (sort === "az") return (a.title || a.player_name || "").localeCompare(b.title || b.player_name || "")
+        return updatedAtMs(b.updated_at) - updatedAtMs(a.updated_at)
+      }),
+  )
 
-  $: filteredCharacters = storyCharacters
-    .filter((g) => {
-      if (!q) return true
-      const traits = [...g.character.personality_traits, ...g.character.quirks, ...g.character.perks].join(" ")
-      return matchesQuery(`${g.character.name} ${g.character.gender} ${g.character.race} ${traits}`, q)
-    })
-    .slice()
-    .sort((a, b) => {
-      if (sort === "az") return a.character.name.localeCompare(b.character.name)
-      return characterLastPlayedMs(b) - characterLastPlayedMs(a)
-    })
+  const filteredCharacters = $derived(
+    storyCharacters
+      .filter((g) => {
+        if (!q) return true
+        const traits = [...g.character.personality_traits, ...g.character.quirks, ...g.character.perks].join(" ")
+        return matchesQuery(`${g.character.name} ${g.character.gender} ${g.character.race} ${traits}`, q)
+      })
+      .slice()
+      .sort((a, b) => {
+        if (sort === "az") return a.character.name.localeCompare(b.character.name)
+        return characterLastPlayedMs(b) - characterLastPlayedMs(a)
+      }),
+  )
 </script>
 
 <div class="mx-auto flex h-dvh w-full max-w-3xl flex-col">

@@ -21,23 +21,39 @@
     story: "Write story text directly...",
   }
 
-  export let input = ""
-  export let actionMode: ActionMode = "do"
+  type Props = {
+    input?: string
+    actionMode?: ActionMode
+    textareaEl?: HTMLTextAreaElement | null
+    canUndoCancel?: boolean
+    followStream?: boolean
+    isImpersonating?: boolean
+    onSend?: () => void
+    onFocus?: () => void
+    onCancelLastTurn?: () => void
+    onUndoCancelLastTurn?: () => void
+    onJumpToLatest?: () => void
+    onRegenerateLastTurn?: () => void
+    onImpersonatePlayer?: () => void
+    onGoHome?: () => void
+  }
 
-  export let textareaEl: HTMLTextAreaElement | null = null
-
-  export let canUndoCancel = false
-  export let followStream = true
-  export let isImpersonating = false
-
-  export let onSend: (() => void) | undefined = undefined
-  export let onFocus: (() => void) | undefined = undefined
-  export let onCancelLastTurn: (() => void) | undefined = undefined
-  export let onUndoCancelLastTurn: (() => void) | undefined = undefined
-  export let onJumpToLatest: (() => void) | undefined = undefined
-  export let onRegenerateLastTurn: (() => void) | undefined = undefined
-  export let onImpersonatePlayer: (() => void) | undefined = undefined
-  export let onGoHome: (() => void) | undefined = undefined
+  let {
+    input = $bindable(""),
+    actionMode = $bindable("do" as ActionMode),
+    textareaEl = $bindable(null),
+    canUndoCancel = false,
+    followStream = true,
+    isImpersonating = false,
+    onSend,
+    onFocus,
+    onCancelLastTurn,
+    onUndoCancelLastTurn,
+    onJumpToLatest,
+    onRegenerateLastTurn,
+    onImpersonatePlayer,
+    onGoHome,
+  }: Props = $props()
 </script>
 
 <ConversationInput

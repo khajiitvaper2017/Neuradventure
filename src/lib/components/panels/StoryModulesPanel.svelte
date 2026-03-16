@@ -3,9 +3,13 @@
   import { cn } from "@/utils.js"
   import { Switch } from "@/components/ui/switch"
 
-  export let modules: StoryModules
-  export let setModules: (next: StoryModules) => void
-  export let bare = false
+  type Props = {
+    modules: StoryModules
+    setModules: (next: StoryModules) => void
+    bare?: boolean
+  }
+
+  let { modules, setModules, bare = false }: Props = $props()
 
   function updateModule<K extends keyof StoryModules>(key: K, value: StoryModules[K]) {
     setModules({ ...modules, [key]: value })

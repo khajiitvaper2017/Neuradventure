@@ -1,21 +1,25 @@
 <script lang="ts">
   import { tokenizeInline } from "@/utils/inlineTokens"
 
-  export let text = ""
+  type Props = {
+    text?: string
+  }
+
+  let { text = "" }: Props = $props()
 
   const HR_RE = /^\s*-{3,}\s*$/
   function isHrLine(line: string): boolean {
     return HR_RE.test(line)
   }
 
-  $: lines = text.split(/\r?\n/)
+  const lines = $derived(text.split(/\r?\n/))
 </script>
 
 {#each lines as line, index (index)}
   {#if isHrLine(line)}
     <hr class="my-3 border-0 border-t border-primary/40" />
   {:else}
-    {#each tokenizeInline(line) as token}
+    {#each tokenizeInline(line) as token, tokenIndex (tokenIndex)}
       {#if token.type === "text"}
         {token.content}
       {:else if token.type === "code"}

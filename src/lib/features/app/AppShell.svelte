@@ -234,7 +234,13 @@
 </script>
 
 <svelte:head>
-  {@html pwaInfo?.webManifest.linkTag ?? ""}
+  {#if pwaInfo}
+    <link
+      rel="manifest"
+      href={pwaInfo.webManifest.href}
+      crossorigin={pwaInfo.webManifest.useCredentials ? "use-credentials" : undefined}
+    />
+  {/if}
 </svelte:head>
 
 <svelte:window

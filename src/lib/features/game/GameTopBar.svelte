@@ -18,17 +18,25 @@
   import { collapseCharSheet, collapseLocationsPanel, collapseNPCTracker } from "@/stores/ui"
   import { currentStoryId, currentStoryModules, currentStoryTitle, turns, worldState } from "@/stores/game"
 
-  export let flashScene = false
-  export let onGoHome: (() => void) | undefined = undefined
-  export let onOpenMemoryEditor: (() => void) | undefined = undefined
-  export let onOpenAuthorNoteEditor: (() => void) | undefined = undefined
-  export let onOpenModulesEditor: (() => void) | undefined = undefined
+  type Props = {
+    flashScene?: boolean
+    onGoHome?: () => void
+    onOpenMemoryEditor?: () => void
+    onOpenAuthorNoteEditor?: () => void
+    onOpenModulesEditor?: () => void
+  }
 
-  let showMenu = false
-  let trackNpcs = true
-  let trackLocations = true
-  $: trackNpcs = $currentStoryModules?.track_npcs ?? true
-  $: trackLocations = $currentStoryModules?.track_locations ?? true
+  let {
+    flashScene = false,
+    onGoHome,
+    onOpenMemoryEditor,
+    onOpenAuthorNoteEditor,
+    onOpenModulesEditor,
+  }: Props = $props()
+
+  let showMenu = $state(false)
+  const trackNpcs = $derived($currentStoryModules?.track_npcs ?? true)
+  const trackLocations = $derived($currentStoryModules?.track_locations ?? true)
 
   async function exportStory(format: "neuradventure" | "tavern" | "plaintext") {
     showMenu = false

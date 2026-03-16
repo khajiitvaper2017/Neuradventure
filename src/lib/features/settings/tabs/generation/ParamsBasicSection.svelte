@@ -41,7 +41,7 @@
 <OpenRouterParamNotice {modelSearchResults} />
 
 <div class="pt-4 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Sampling</div>
-{#each samplingParams as p}
+{#each samplingParams as p (p.key)}
   {@const status = paramStatus(p.key, $connector, modelSearchResults)}
   {@const badge = badgeForStatus(status)}
   <ParamNumberRow
@@ -61,7 +61,7 @@
 <Separator class="my-4" />
 
 <div class="pt-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Repetition Penalties</div>
-{#each repetitionParams as p}
+{#each repetitionParams as p (p.key)}
   {@const status = paramStatus(p.key, $connector, modelSearchResults)}
   {@const badge = badgeForStatus(status)}
   <ParamNumberRow
@@ -83,7 +83,7 @@
 <div class="pt-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
   DRY (Diverse Repetition Penalty)
 </div>
-{#each dryParams as p}
+{#each dryParams as p (p.key)}
   {@const status = paramStatus(p.key, $connector, modelSearchResults)}
   {@const badge = badgeForStatus(status)}
   <ParamNumberRow
@@ -103,7 +103,7 @@
 <Separator class="my-4" />
 
 <div class="pt-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Mirostat</div>
-{#each mirostatParams as p}
+{#each mirostatParams as p (p.key)}
   {@const status = paramStatus(p.key, $connector, modelSearchResults)}
   {@const badge = badgeForStatus(status)}
   <ParamNumberRow
@@ -123,7 +123,7 @@
 <Separator class="my-4" />
 
 <div class="pt-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Dynamic Temperature</div>
-{#each dynatempParams as p}
+{#each dynatempParams as p (p.key)}
   {@const status = paramStatus(p.key, $connector, modelSearchResults)}
   {@const badge = badgeForStatus(status)}
   <ParamNumberRow
@@ -143,7 +143,7 @@
 <Separator class="my-4" />
 
 <div class="pt-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">XTC (Token Cutting)</div>
-{#each xtcParams as p}
+{#each xtcParams as p (p.key)}
   {@const status = paramStatus(p.key, $connector, modelSearchResults)}
   {@const badge = badgeForStatus(status)}
   <ParamNumberRow
@@ -163,7 +163,7 @@
 <Separator class="my-4" />
 
 <div class="pt-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Other</div>
-{#each otherParams.filter((p) => p.key !== "ctx_limit") as p}
+{#each otherParams.filter((p) => p.key !== "ctx_limit") as p (p.key)}
   {@const status = paramStatus(p.key, $connector, modelSearchResults)}
   {@const badge = badgeForStatus(status)}
   <ParamNumberRow

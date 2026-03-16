@@ -1,5 +1,4 @@
 <script lang="ts">
-  import { onDestroy } from "svelte"
   import type { TurnSummary, TurnVariantSummary } from "@/shared/types"
   import { cn } from "@/utils.js"
   import IconPencilSquare from "@/components/icons/IconPencilSquare.svelte"
@@ -15,52 +14,71 @@
   import { Textarea } from "@/components/ui/textarea"
   import { ScrollArea } from "@/components/ui/scroll-area"
 
-  export let storyDiv: HTMLDivElement | null = null
-  export let initialScrollDone = false
-
-  export let flashScene = false
-  export let flashOpening = false
-
-  export let editingOpening = false
-  export let openingDraft = ""
-  export let startEditOpening: (() => void) | undefined = undefined
-  export let cancelEditOpening: (() => void) | undefined = undefined
-  export let saveOpening: (() => void) | undefined = undefined
-
-  export let editingTurnId: number | null = null
-  export let editPlayerInput = ""
-  export let editNarrative = ""
-  export let startEditTurn: ((turn: TurnSummary) => void) | undefined = undefined
-  export let cancelEditTurn: (() => void) | undefined = undefined
-  export let saveTurnEdit: ((turnId: number) => void) | undefined = undefined
-  export let deleteTurn: ((turnId: number) => void) | undefined = undefined
-
-  export let userActed = false
-  export let regeneratingTurnId: number | null = null
-
-  export let lastTurnVariants: TurnVariantSummary[] = []
-  export let activeVariantId: number | null = null
-  export let selectVariant: ((variantId: number) => void) | undefined = undefined
-
-  export let handleStoryScroll: (() => void) | undefined = undefined
-
-  export let streamNarrative = ""
-  export let streamBackground = ""
-  export let streamScene = ""
-  export let streamTime = ""
-
-  let storyScrollCleanup: (() => void) | null = null
-  $: {
-    storyScrollCleanup?.()
-    storyScrollCleanup = null
-    if (storyDiv && handleStoryScroll) {
-      const el = storyDiv
-      const listener = () => handleStoryScroll?.()
-      el.addEventListener("scroll", listener, { passive: true })
-      storyScrollCleanup = () => el.removeEventListener("scroll", listener)
-    }
+  type Props = {
+    storyDiv?: HTMLDivElement | null
+    initialScrollDone?: boolean
+    flashScene?: boolean
+    flashOpening?: boolean
+    editingOpening?: boolean
+    openingDraft?: string
+    startEditOpening?: () => void
+    cancelEditOpening?: () => void
+    saveOpening?: () => void
+    editingTurnId?: number | null
+    editPlayerInput?: string
+    editNarrative?: string
+    startEditTurn?: (turn: TurnSummary) => void
+    cancelEditTurn?: () => void
+    saveTurnEdit?: (turnId: number) => void
+    deleteTurn?: (turnId: number) => void
+    userActed?: boolean
+    regeneratingTurnId?: number | null
+    lastTurnVariants?: TurnVariantSummary[]
+    activeVariantId?: number | null
+    selectVariant?: (variantId: number) => void
+    handleStoryScroll?: () => void
+    streamNarrative?: string
+    streamBackground?: string
+    streamScene?: string
+    streamTime?: string
   }
-  onDestroy(() => storyScrollCleanup?.())
+
+  let {
+    storyDiv = $bindable(null),
+    initialScrollDone = false,
+    flashScene = false,
+    flashOpening = false,
+    editingOpening = false,
+    openingDraft = $bindable(""),
+    startEditOpening,
+    cancelEditOpening,
+    saveOpening,
+    editingTurnId = null,
+    editPlayerInput = $bindable(""),
+    editNarrative = $bindable(""),
+    startEditTurn,
+    cancelEditTurn,
+    saveTurnEdit,
+    deleteTurn,
+    userActed = false,
+    regeneratingTurnId = null,
+    lastTurnVariants = [],
+    activeVariantId = null,
+    selectVariant,
+    handleStoryScroll,
+    streamNarrative = "",
+    streamBackground = "",
+    streamScene = "",
+    streamTime = "",
+  }: Props = $props()
+
+  $effect(() => {
+    if (!storyDiv || !handleStoryScroll) return
+    const el = storyDiv
+    const listener = () => handleStoryScroll?.()
+    el.addEventListener("scroll", listener, { passive: true })
+    return () => el.removeEventListener("scroll", listener)
+  })
 
   function paragraphs(text: string): string[] {
     let normalized = text.replace(/\r\n/g, "\n")
@@ -210,7 +228,7 @@
                 <RichText text={turn.narrative_text} mode="block" />
               </div>
             {:else}
-              {#each paragraphs(turn.narrative_text) as para, j}
+              {#each paragraphs(turn.narrative_text) as para, j (j)}
                 <p
                   class={cn(
                     "mb-4 whitespace-pre-line font-story text-[15px] leading-7 text-foreground",
