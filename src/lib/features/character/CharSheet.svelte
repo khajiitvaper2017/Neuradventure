@@ -200,14 +200,15 @@
       onInput: (v) => (draft.generalDescription = v),
     })
 
+    fields.push({
+      id: "cs-baseline-appearance",
+      label: "Baseline Appearance",
+      kind: "textarea",
+      value: draft.baselineAppearance,
+      onInput: (v) => (draft.baselineAppearance = v),
+    })
+
     if (useAppearance) {
-      fields.push({
-        id: "cs-baseline-appearance",
-        label: "Baseline Appearance",
-        kind: "textarea",
-        value: draft.baselineAppearance,
-        onInput: (v) => (draft.baselineAppearance = v),
-      })
       if (isStoryContext) {
         fields.push({
           id: "cs-current-appearance",
@@ -337,9 +338,7 @@
       gender,
       general_description: generalDescription,
       current_location: existing?.current_location ?? "",
-      baseline_appearance: !useAppearance
-        ? (existing?.baseline_appearance ?? "")
-        : baselineAppearance || existing?.baseline_appearance || "",
+      baseline_appearance: baselineAppearance || existing?.baseline_appearance || "",
       current_appearance: !useAppearance
         ? (existing?.current_appearance ?? "")
         : currentAppearance ||
@@ -419,11 +418,10 @@
         if (lastSigs) {
           if (nextSigs.identity !== lastSigs.identity) triggerFlash("identity")
           if (nextSigs.generalDescription !== lastSigs.generalDescription) triggerFlash("appearance")
-          if (
-            useAppearance &&
-            (nextSigs.baselineAppearance !== lastSigs.baselineAppearance ||
-              nextSigs.currentAppearance !== lastSigs.currentAppearance)
-          ) {
+          if (nextSigs.baselineAppearance !== lastSigs.baselineAppearance) {
+            triggerFlash("appearance")
+          }
+          if (useAppearance && nextSigs.currentAppearance !== lastSigs.currentAppearance) {
             triggerFlash("appearance")
           }
           if (useAppearance && nextSigs.clothing !== lastSigs.clothing) triggerFlash("clothing")
@@ -557,41 +555,29 @@
         </div>
       </div>
 
-      {#if showBaselineDetails}
+      <div class={cn("mt-3 rounded-lg border bg-card p-4", flashAppearance && "ring-2 ring-primary/30")}>
+        <div class="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+          <Smile size={14} strokeWidth={1.5} class="shrink-0 opacity-70" aria-hidden="true" />
+          <span>Description</span>
+        </div>
+        <div class="mt-2 whitespace-pre-line text-sm leading-relaxed text-foreground">
+          {displayCharacter.general_description || "Unknown description"}
+        </div>
+      </div>
+
+      {#if !useAppearance || showBaselineDetails || !isStoryContext}
         <div class={cn("mt-3 rounded-lg border bg-card p-4", flashAppearance && "ring-2 ring-primary/30")}>
           <div class="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
             <Smile size={14} strokeWidth={1.5} class="shrink-0 opacity-70" aria-hidden="true" />
-            <span>Description</span>
+            <span>{useAppearance ? "Baseline Appearance" : "Baseline Appearance"}</span>
           </div>
           <div class="mt-2 whitespace-pre-line text-sm leading-relaxed text-foreground">
-            {displayCharacter.general_description || "Unknown description"}
+            {displayCharacter.baseline_appearance}
           </div>
         </div>
       {/if}
 
       {#if useAppearance}
-        {#if showBaselineDetails}
-          <div class={cn("mt-3 rounded-lg border bg-card p-4", flashAppearance && "ring-2 ring-primary/30")}>
-            <div class="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-              <Smile size={14} strokeWidth={1.5} class="shrink-0 opacity-70" aria-hidden="true" />
-              <span>Baseline Appearance</span>
-            </div>
-            <div class="mt-2 whitespace-pre-line text-sm leading-relaxed text-foreground">
-              {displayCharacter.baseline_appearance}
-            </div>
-          </div>
-        {:else if !isStoryContext}
-          <div class={cn("mt-3 rounded-lg border bg-card p-4", flashAppearance && "ring-2 ring-primary/30")}>
-            <div class="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-              <Smile size={14} strokeWidth={1.5} class="shrink-0 opacity-70" aria-hidden="true" />
-              <span>Appearance</span>
-            </div>
-            <div class="mt-2 whitespace-pre-line text-sm leading-relaxed text-foreground">
-              {displayCharacter.baseline_appearance}
-            </div>
-          </div>
-        {/if}
-
         {#if isStoryContext}
           <div class={cn("mt-3 rounded-lg border bg-card p-4", flashAppearance && "ring-2 ring-primary/30")}>
             <div class="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">

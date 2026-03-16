@@ -26,6 +26,7 @@
   import PromptHistoryPanel from "@/components/panels/PromptHistoryPanel.svelte"
   import { subscribeStreamPreview } from "@/services/streamPreview"
   import StoryModulesPanel from "@/components/panels/StoryModulesPanel.svelte"
+  import ChipCard from "@/features/character/components/ChipCard.svelte"
   import { Button } from "@/components/ui/button"
   import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
   import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
@@ -318,9 +319,7 @@
   let selectedTraits = $state<string[]>(initialPersonality.selected)
   let customPersonalityInput = $state("")
   let customPersonalityTraits = $state<string[]>(initialPersonality.custom)
-  let majorFlawInput = $state("")
   let majorFlaws = $state<string[]>(existing?.major_flaws ?? [])
-  let perkInput = $state("")
   let perks = $state<string[]>(existing?.perks ?? [])
   const totalPersonalityCount = $derived(selectedTraits.length + customPersonalityTraits.length)
   const activeModules: StoryModules = $derived($pendingStoryModules ?? $storyDefaults)
@@ -404,26 +403,6 @@
     customPersonalityTraits = customPersonalityTraits.filter((x) => x !== t)
   }
 
-  function addMajorFlaw() {
-    const t = majorFlawInput.trim()
-    if (t && !majorFlaws.includes(t)) {
-      majorFlaws = [...majorFlaws, t]
-    }
-    majorFlawInput = ""
-  }
-
-  function removeMajorFlaw(t: string) {
-    majorFlaws = majorFlaws.filter((x) => x !== t)
-  }
-
-  function addPerk() {
-    const t = perkInput.trim()
-    if (t && !perks.includes(t)) {
-      perks = [...perks, t]
-    }
-    perkInput = ""
-  }
-
   function usePrompt(value: string) {
     pendingCharacterGenerateDescription.set(value)
   }
@@ -432,10 +411,6 @@
     void removePromptHistory(CHARACTER_PROMPT_HISTORY_KEY, value).then((items) => {
       promptHistory = items
     })
-  }
-
-  function removePerk(t: string) {
-    perks = perks.filter((x) => x !== t)
   }
 
   function validate() {
@@ -723,16 +698,20 @@
           </CardContent>
         </Card>
 
-        {#if activeModules.character_appearance_clothing}
-          <Card>
-            <CardHeader class="space-y-1">
-              <CardTitle class="text-base">Appearance</CardTitle>
-              <CardDescription>Baseline appearance and starting clothing.</CardDescription>
-            </CardHeader>
-            <CardContent class="space-y-4">
-              <div class="grid gap-2">
-                <div class="flex items-center justify-between gap-3">
-                  <Label for="char-baseline-appearance">Baseline Appearance</Label>
+        <Card>
+          <CardHeader class="space-y-1">
+            <CardTitle class="text-base">Appearance</CardTitle>
+            <CardDescription>
+              {activeModules.character_appearance_clothing
+                ? "Baseline appearance and starting clothing."
+                : "Baseline appearance only (appearance/clothing module disabled)."}
+            </CardDescription>
+          </CardHeader>
+          <CardContent class="space-y-4">
+            <div class="grid gap-2">
+              <div class="flex items-center justify-between gap-3">
+                <Label for="char-baseline-appearance">Baseline Appearance</Label>
+                {#if activeModules.character_appearance_clothing}
                   <Button
                     variant="outline"
                     size="sm"
@@ -741,15 +720,17 @@
                   >
                     {regeneratingAppearance ? "Regenerating..." : "Regenerate"}
                   </Button>
-                </div>
-                <Textarea
-                  id="char-baseline-appearance"
-                  bind:value={baselineAppearance}
-                  placeholder="Permanent, surgical baseline description..."
-                  class="min-h-[96px]"
-                />
+                {/if}
               </div>
+              <Textarea
+                id="char-baseline-appearance"
+                bind:value={baselineAppearance}
+                placeholder="Permanent, surgical baseline description..."
+                class="min-h-[96px]"
+              />
+            </div>
 
+            {#if activeModules.character_appearance_clothing}
               <div class="grid gap-2">
                 <div class="flex items-center justify-between gap-3">
                   <Label for="char-clothing">Starting Clothing</Label>
@@ -769,9 +750,9 @@
                   class="min-h-[96px]"
                 />
               </div>
-            </CardContent>
-          </Card>
-        {/if}
+            {/if}
+          </CardContent>
+        </Card>
 
         {#if traitsEnabled}
           <Card>
@@ -886,85 +867,25 @@
         {/if}
 
         {#if majorFlawsEnabled}
-          <Card>
-            <CardHeader class="space-y-1">
-              <CardTitle class="text-base">Major Flaws</CardTitle>
-              <CardDescription>Optional.</CardDescription>
-            </CardHeader>
-            <CardContent class="space-y-3">
-              <div class="flex flex-col gap-2 sm:flex-row">
-                <Input
-                  id="major-flaw-input"
-                  type="text"
-                  bind:value={majorFlawInput}
-                  placeholder="e.g. crippling fear of fire"
-                  onkeydown={(e) => {
-                    if (e.key === "Enter") {
-                      e.preventDefault()
-                      addMajorFlaw()
-                    }
-                  }}
-                />
-                <Button variant="outline" onclick={addMajorFlaw} disabled={!majorFlawInput.trim()}>+ Add</Button>
-              </div>
-              {#if majorFlaws.length > 0}
-                <div class="flex flex-wrap gap-2">
-                  {#each majorFlaws as t (t)}
-                    <Button
-                      type="button"
-                      variant="secondary"
-                      size="sm"
-                      class="h-8 rounded-full px-3 text-xs"
-                      onclick={() => removeMajorFlaw(t)}
-                    >
-                      {t} <span class="text-foreground/60">×</span>
-                    </Button>
-                  {/each}
-                </div>
-              {/if}
-            </CardContent>
-          </Card>
+          <ChipCard
+            title="Major Flaws"
+            description="Optional."
+            inputId="major-flaw-input"
+            inputLabel="Add a major flaw"
+            placeholder="e.g. crippling fear of fire"
+            bind:items={majorFlaws}
+          />
         {/if}
 
         {#if perksEnabled}
-          <Card>
-            <CardHeader class="space-y-1">
-              <CardTitle class="text-base">Perks</CardTitle>
-              <CardDescription>Optional.</CardDescription>
-            </CardHeader>
-            <CardContent class="space-y-3">
-              <div class="flex flex-col gap-2 sm:flex-row">
-                <Input
-                  id="perk-input"
-                  type="text"
-                  bind:value={perkInput}
-                  placeholder="e.g. trained medic"
-                  onkeydown={(e) => {
-                    if (e.key === "Enter") {
-                      e.preventDefault()
-                      addPerk()
-                    }
-                  }}
-                />
-                <Button variant="outline" onclick={addPerk} disabled={!perkInput.trim()}>+ Add</Button>
-              </div>
-              {#if perks.length > 0}
-                <div class="flex flex-wrap gap-2">
-                  {#each perks as t (t)}
-                    <Button
-                      type="button"
-                      variant="secondary"
-                      size="sm"
-                      class="h-8 rounded-full px-3 text-xs"
-                      onclick={() => removePerk(t)}
-                    >
-                      {t} <span class="text-foreground/60">×</span>
-                    </Button>
-                  {/each}
-                </div>
-              {/if}
-            </CardContent>
-          </Card>
+          <ChipCard
+            title="Perks"
+            description="Optional."
+            inputId="perk-input"
+            inputLabel="Add a perk"
+            placeholder="e.g. trained medic"
+            bind:items={perks}
+          />
         {/if}
       </div>
     </div>

@@ -1,6 +1,7 @@
 <script lang="ts">
   import { settings as settingsService } from "@/services/settings"
   import type { CustomFieldDef, CustomFieldScope, CustomFieldValueType } from "@/shared/api-types"
+  import { showConfirm } from "@/stores/ui"
   import { cn } from "@/utils.js"
   import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
   import { Button } from "@/components/ui/button"
@@ -184,10 +185,13 @@
 
   async function removeField(id: string) {
     if (deleting) return
-    if (typeof window !== "undefined") {
-      const ok = window.confirm(`Delete custom field \"${id}\"? This does not remove existing stored values.`)
-      if (!ok) return
-    }
+    const ok = await showConfirm({
+      title: "Delete custom field",
+      message: `Delete custom field "${id}"? This does not remove existing stored values.`,
+      confirmLabel: "Delete",
+      danger: true,
+    })
+    if (!ok) return
     deleting = true
     error = null
     try {

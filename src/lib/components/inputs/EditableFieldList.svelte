@@ -4,7 +4,11 @@
   import { Label } from "@/components/ui/label"
   import { Textarea } from "@/components/ui/textarea"
 
-  export let fields: EditField[] = []
+  type Props = {
+    fields?: EditField[]
+  }
+
+  let { fields = [] }: Props = $props()
 
   function updateField(field: EditField, event: Event) {
     const target = event.target as HTMLInputElement | HTMLTextAreaElement

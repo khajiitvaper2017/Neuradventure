@@ -51,12 +51,12 @@
   let submitting = $state(false)
   let generating = $state(false)
   let showModulesPanel = $state(false)
-  let savedCharacters = $state<StoryCharacterGroup[]>([])
+  let savedCharacters = $state.raw<StoryCharacterGroup[]>([])
   let loadingCharacters = $state(false)
   let loadingNpcs = $state(false)
-  let savedNpcs = $state<StoryNpcGroup[]>([])
+  let savedNpcs = $state.raw<StoryNpcGroup[]>([])
   let selectedNpcPlayableKey = $state<string | null>(null)
-  let storyPromptHistory = $state<string[]>([])
+  let storyPromptHistory = $state.raw<string[]>([])
 
   const STORY_PROMPT_HISTORY_KEY = "na:prompt_history:story"
 
