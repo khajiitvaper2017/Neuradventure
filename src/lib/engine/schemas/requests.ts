@@ -14,7 +14,6 @@ export const CreateCharacterRequestSchema = z.object({
   current_clothing: z.string().min(1).optional(),
   personality_traits: z.array(z.string()).optional(),
   major_flaws: z.array(z.string()).optional(),
-  quirks: z.array(z.string()).optional(),
   perks: z.array(z.string()).optional(),
 })
 
@@ -41,7 +40,6 @@ export const CreateStoryRequestSchema = z.object({
       current_clothing: z.string().min(1).optional(),
       personality_traits: z.array(z.string()).optional(),
       major_flaws: z.array(z.string()).optional(),
-      quirks: z.array(z.string()).optional(),
       perks: z.array(z.string()).optional(),
     })
     .optional(),
@@ -68,6 +66,7 @@ export const UpdateStoryStateRequestSchema = z
     world: z
       .object({
         memory: z.string().min(1).optional(),
+        custom_fields: z.record(z.string(), z.union([z.string(), z.array(z.string())])).optional(),
       })
       .optional(),
   })

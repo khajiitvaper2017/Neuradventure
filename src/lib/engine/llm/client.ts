@@ -4,6 +4,11 @@ import { findContextLength, getCachedUpstreamModels, getModelSupportedParameters
 import { fetchWithTimeout } from "@/engine/utils/fetch-timeout"
 import type { LlmClient } from "@/engine/llm/openai-types"
 import { createChatCompletion, listModels } from "@/engine/llm/upstream"
+import {
+  INTERNAL_CTX_LIMIT_CACHE_TTL_MS,
+  INTERNAL_SUPPORTED_PARAMS_CACHE_TTL_MS,
+  INTERNAL_UPSTREAM_FETCH_TIMEOUT_MS,
+} from "@/shared/internal-timeouts"
 
 // ─── Client (re-created when connector settings change) ──────────────────────
 
@@ -34,7 +39,7 @@ export async function getCachedSupportedParameters(): Promise<string[] | null> {
 
   const key = `${connector.type}|${connector.url}|${connector.model}`
   const now = Date.now()
-  const ttlMs = getSettings().timeouts.supportedParamsCacheTtlMs
+  const ttlMs = INTERNAL_SUPPORTED_PARAMS_CACHE_TTL_MS
   if (cachedSupportedParamsKey === key && cachedSupportedParams && now - cachedSupportedParamsAt < ttlMs) {
     return cachedSupportedParams
   }
@@ -56,7 +61,7 @@ export async function getCachedSupportedParameters(): Promise<string[] | null> {
 export function getClient(): LlmClient {
   const { connector, timeouts } = getSettings()
   const apiKey = connector.api_keys[connector.type]
-  const key = `${connector.type}|${connector.url}|k=${fnv1a32(apiKey)}|${timeouts.llmRequestMs}|${timeouts.upstreamFetchMs}`
+  const key = `${connector.type}|${connector.url}|k=${fnv1a32(apiKey)}|${timeouts.llmRequestMs}|${INTERNAL_UPSTREAM_FETCH_TIMEOUT_MS}`
   if (cachedClient && cachedClientKey === key) return cachedClient
 
   cachedClient = {
@@ -66,7 +71,7 @@ export function getClient(): LlmClient {
       },
     },
     models: {
-      list: () => listModels(connector, timeouts.upstreamFetchMs),
+      list: () => listModels(connector, INTERNAL_UPSTREAM_FETCH_TIMEOUT_MS),
     },
   }
 
@@ -132,7 +137,7 @@ async function fetchCtxLimitFromKobold(
   connector: Extract<LLMConnector, { type: "koboldcpp" }>,
 ): Promise<number | null> {
   const base = stripV1(connector.url)
-  const timeoutMs = getSettings().timeouts.upstreamFetchMs
+  const timeoutMs = INTERNAL_UPSTREAM_FETCH_TIMEOUT_MS
   const candidates = [
     `${base}/api/extra/true_max_context_length`,
     `${base}/api/v1/config/max_context_length`,
@@ -173,7 +178,7 @@ export async function getCtxLimit(): Promise<number> {
   const now = Date.now()
   const connector = getConnector()
   const key = connectorCtxKey(connector)
-  const ttlMs = getSettings().timeouts.ctxLimitCacheTtlMs
+  const ttlMs = INTERNAL_CTX_LIMIT_CACHE_TTL_MS
   if (cachedCtxLimitKey === key && cachedCtxLimit > 0 && now - cachedCtxLimitAt < ttlMs) return cachedCtxLimit
 
   if (cachedCtxLimitKey !== key) {

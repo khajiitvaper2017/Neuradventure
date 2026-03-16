@@ -151,8 +151,6 @@ function scrubSettingsConnectorSecrets(settings: unknown): unknown {
   if (!connectorRaw || typeof connectorRaw !== "object") return settings
   const connector = connectorRaw as Record<string, unknown>
 
-  if ("api_key" in connector) delete connector.api_key
-
   const apiKeysRaw = connector.api_keys
   const apiKeys =
     apiKeysRaw && typeof apiKeysRaw === "object" && !Array.isArray(apiKeysRaw)
@@ -186,9 +184,6 @@ async function migrateSecretsOutOfSettingsDb(): Promise<void> {
   if (!connector || typeof connector !== "object") return
   const conn = connector as Record<string, unknown>
 
-  const type = typeof conn.type === "string" ? conn.type : null
-  const legacyKey = typeof conn.api_key === "string" ? conn.api_key : null
-
   const apiKeysRaw = conn.api_keys
   const apiKeys =
     apiKeysRaw && typeof apiKeysRaw === "object" && !Array.isArray(apiKeysRaw)
@@ -217,13 +212,6 @@ async function migrateSecretsOutOfSettingsDb(): Promise<void> {
     !hasCachedConnectorApiKey("openrouter")
   ) {
     toWrite.push(["openrouter", openrouter])
-  }
-  if (legacyKey && legacyKey.trim() && legacyKey.trim() !== HIDDEN_SECRET_PLACEHOLDER) {
-    if (type === "openrouter") {
-      if (!hasCachedConnectorApiKey("openrouter")) toWrite.push(["openrouter", legacyKey])
-    } else {
-      if (!hasCachedConnectorApiKey("koboldcpp")) toWrite.push(["koboldcpp", legacyKey])
-    }
   }
 
   if (toWrite.length === 0) {

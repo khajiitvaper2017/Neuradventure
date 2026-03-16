@@ -13,6 +13,8 @@ type PersistSchema = {
 const PERSIST_DB_NAME = "neuradventure_sqljs_v1"
 const PERSIST_STORE = "files"
 const PERSIST_KEY = "neuradventure.db"
+const DB_WRITE_LOCK = "neuradventure_sqljs_write_v1"
+const DB_BROADCAST_CHANNEL = "neuradventure_db_updates_v1"
 
 let sqlPromise: Promise<SqlJsStatic> | null = null
 let db: SqlJsDatabase | null = null
@@ -20,6 +22,44 @@ let persistDb: IDBPDatabase<PersistSchema> | null = null
 
 let persistTimer: number | null = null
 let dirty = false
+
+function canUseNavigatorLocks(): boolean {
+  return (
+    typeof navigator !== "undefined" &&
+    "locks" in navigator &&
+    !!(navigator as unknown as { locks?: { request?: unknown } }).locks &&
+    typeof (navigator as unknown as { locks: { request: unknown } }).locks.request === "function"
+  )
+}
+
+async function withDbWriteLock<T>(fn: () => Promise<T>): Promise<T> {
+  if (!canUseNavigatorLocks()) return await fn()
+  const locks = (
+    navigator as unknown as {
+      locks: { request: (name: string, options: { mode: "exclusive" }, cb: () => Promise<T>) => Promise<T> }
+    }
+  ).locks
+  return await locks.request(DB_WRITE_LOCK, { mode: "exclusive" }, fn)
+}
+
+function publishDbUpdated(): void {
+  if (typeof window === "undefined") return
+  const detail = { at: Date.now() }
+  try {
+    if (typeof BroadcastChannel !== "undefined") {
+      const bc = new BroadcastChannel(DB_BROADCAST_CHANNEL)
+      bc.postMessage({ type: "db_updated", ...detail })
+      bc.close()
+    }
+  } catch {
+    // ignore
+  }
+  try {
+    window.dispatchEvent(new CustomEvent("neuradventure:db-updated", { detail }))
+  } catch {
+    // ignore
+  }
+}
 
 function schedulePersist() {
   dirty = true
@@ -65,7 +105,9 @@ async function loadPersistedBytes(): Promise<Uint8Array | null> {
 
 async function savePersistedBytes(bytes: Uint8Array): Promise<void> {
   const idb = await getPersistDb()
-  await idb.put(PERSIST_STORE, bytes, PERSIST_KEY)
+  await withDbWriteLock(async () => {
+    await idb.put(PERSIST_STORE, bytes, PERSIST_KEY)
+  })
 }
 
 async function getSql(): Promise<SqlJsStatic> {
@@ -133,6 +175,7 @@ export async function flushDb(): Promise<void> {
     const bytes = current.export()
     await savePersistedBytes(bytes)
     dirty = false
+    publishDbUpdated()
   } catch {
     // ignore persistence errors
   }
@@ -150,6 +193,7 @@ export async function restoreDbBytes(bytes: Uint8Array): Promise<void> {
   db = next
   dirty = false
   persistTimer = null
+  publishDbUpdated()
 }
 
 export function getDb(): EngineDb {

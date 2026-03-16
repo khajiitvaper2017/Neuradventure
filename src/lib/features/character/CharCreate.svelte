@@ -29,9 +29,11 @@
   import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
   import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
   import { Input } from "@/components/ui/input"
+  import * as InputGroup from "@/components/ui/input-group"
   import { Label } from "@/components/ui/label"
   import { Textarea } from "@/components/ui/textarea"
   import { ScrollArea } from "@/components/ui/scroll-area"
+  import * as ToggleGroup from "@/components/ui/toggle-group"
   import {
     generateCharacterFromDescription,
     generateCharacterAppearance,
@@ -56,6 +58,73 @@
     }, []),
   )
 
+  const PERSONALITY_INDEX = new Map(PERSONALITY_OPTIONS.map((t, i) => [t, i]))
+
+  const TRAIT_GROUPS: Array<{ title: string; pairs: Array<[string, string]> }> = [
+    {
+      title: "Drive & Motivation",
+      pairs: [
+        ["Ambitious", "Complacent"],
+        ["Passionate", "Apathetic"],
+        ["Impulsive", "Deliberate"],
+        ["Greedy", "Disciplined"],
+      ],
+    },
+    {
+      title: "Mindset & Worldview",
+      pairs: [
+        ["Curious", "Closed-minded"],
+        ["Idealistic", "Cynical"],
+        ["Naive", "Clever"],
+        ["Rigid", "Adaptable"],
+      ],
+    },
+    {
+      title: "Morality & Ethics",
+      pairs: [
+        ["Honest", "Deceitful"],
+        ["Selfish", "Selfless"],
+        ["Empathetic", "Cruel"],
+        ["Loyal", "Treacherous"],
+        ["Forgiving", "Vindictive"],
+      ],
+    },
+    {
+      title: "Agency & Courage",
+      pairs: [
+        ["Courageous", "Cowardly"],
+        ["Resourceful", "Helpless"],
+        ["Decisive", "Indecisive"],
+      ],
+    },
+    {
+      title: "Social Behavior",
+      pairs: [
+        ["Outgoing", "Reserved"],
+        ["Rebellious", "Conformist"],
+        ["Domineering", "Submissive"],
+      ],
+    },
+    {
+      title: "Trust & Openness",
+      pairs: [
+        ["Trusting", "Paranoid"],
+        ["Transparent", "Secretive"],
+      ],
+    },
+    {
+      title: "Self-Perception & Ego",
+      pairs: [
+        ["Humble", "Arrogant"],
+        ["Modest", "Vulgar"],
+      ],
+    },
+    {
+      title: "Emotional Expression",
+      pairs: [["Vulnerable", "Stoic"]],
+    },
+  ]
+
   const existing = get(pendingCharacter)
   const splitPersonalityTraits = (traits: string[]) => {
     const cleaned = traits.map((t) => t.trim()).filter(Boolean)
@@ -65,14 +134,15 @@
       const key = normalizeKey(raw)
       const canonical = PERSONALITY_CANONICAL[key]
       if (canonical) {
+        const opposite = OPPOSITES[canonical]
+        if (opposite && selectedMap.has(normalizeKey(opposite))) continue
         if (!selectedMap.has(key)) selectedMap.set(key, canonical)
       } else if (!customMap.has(key)) {
         customMap.set(key, raw)
       }
     }
-    const selected = Array.from(selectedMap.values()).filter((_, i) => i < 5)
-    const remaining = 5 - selected.length
-    const custom = Array.from(customMap.values()).filter((_, i) => i < remaining)
+    const selected = Array.from(selectedMap.values())
+    const custom = Array.from(customMap.values())
     return { selected, custom }
   }
   const initialPersonality = splitPersonalityTraits(existing?.personality_traits ?? [])
@@ -119,7 +189,6 @@
           if (modules.character_appearance_clothing) {
             if (typeof patch.baseline_appearance === "string") {
               baselineAppearance = patch.baseline_appearance
-              if (!currentAppearance.trim()) currentAppearance = patch.baseline_appearance
             }
             if (typeof patch.current_clothing === "string") currentClothing = patch.current_clothing
           }
@@ -136,7 +205,6 @@
       if (modules.character_appearance_clothing) {
         if (result.baseline_appearance) {
           baselineAppearance = result.baseline_appearance
-          currentAppearance = result.baseline_appearance
         }
         if (result.current_clothing) currentClothing = result.current_clothing
       }
@@ -147,7 +215,6 @@
         customPersonalityTraits = split.custom
       }
       if (majorFlawsEnabled && result.major_flaws) majorFlaws = result.major_flaws
-      if (quirksEnabled && result.quirks) quirks = result.quirks
       if (perksEnabled && result.perks) perks = result.perks
     } catch (err) {
       showError(err instanceof Error ? err.message : "Generation failed")
@@ -170,7 +237,7 @@
     return !trimmed || /^unknown\b/i.test(trimmed)
   }
 
-  function mergeTraits(existing: string[], incoming: string[], limit = 5): string[] {
+  function mergeTraits(existing: string[], incoming: string[]): string[] {
     const seen = new SvelteSet(existing.map(normalizeKey))
     const out = [...existing]
     for (const trait of incoming) {
@@ -178,7 +245,6 @@
       if (!key || seen.has(key)) continue
       out.push(trait)
       seen.add(key)
-      if (out.length >= limit) break
     }
     return out
   }
@@ -194,7 +260,7 @@
     try {
       const prompt = [
         "Use the following SillyTavern character card data to infer missing fields.",
-        "Focus on race, gender, baseline appearance, clothing, personality traits, quirks, and perks.",
+        "Focus on race, gender, baseline appearance, clothing, personality traits, and perks.",
         seed,
       ].join("\n")
       const result = await generateCharacterFromDescription(prompt, activeModules)
@@ -210,8 +276,6 @@
       if (activeModules.character_appearance_clothing) {
         if (isMissingText(baselineAppearance) && result.baseline_appearance)
           baselineAppearance = result.baseline_appearance
-        if (isMissingText(currentAppearance) && result.baseline_appearance)
-          currentAppearance = result.baseline_appearance
         if (isMissingText(currentClothing) && result.current_clothing) currentClothing = result.current_clothing
       }
 
@@ -222,15 +286,14 @@
           const split = splitPersonalityTraits(generatedTraits)
           selectedTraits = split.selected
           customPersonalityTraits = split.custom
-        } else if (existingTraits.length < 5) {
-          const merged = mergeTraits(existingTraits, generatedTraits, 5)
+        } else {
+          const merged = mergeTraits(existingTraits, generatedTraits)
           const split = splitPersonalityTraits(merged)
           selectedTraits = split.selected
           customPersonalityTraits = split.custom
         }
       }
 
-      if (quirksEnabled && quirks.length === 0 && result.quirks) quirks = result.quirks
       if (majorFlawsEnabled && majorFlaws.length === 0 && result.major_flaws) majorFlaws = result.major_flaws
       if (perksEnabled && perks.length === 0 && result.perks) perks = result.perks
     } catch (err) {
@@ -250,24 +313,57 @@
   }
   let generalDescription = $state(existing?.general_description ?? "")
   let baselineAppearance = $state(existing?.baseline_appearance ?? "")
-  let currentAppearance = $state(existing?.current_appearance ?? "")
   let currentClothing = $state(existing?.current_clothing ?? "")
   let selectedTraits = $state<string[]>(initialPersonality.selected)
   let customPersonalityInput = $state("")
   let customPersonalityTraits = $state<string[]>(initialPersonality.custom)
   let majorFlawInput = $state("")
   let majorFlaws = $state<string[]>(existing?.major_flaws ?? [])
-  let quirkInput = $state("")
   let perkInput = $state("")
-  let quirks = $state<string[]>(existing?.quirks ?? [])
   let perks = $state<string[]>(existing?.perks ?? [])
   const totalPersonalityCount = $derived(selectedTraits.length + customPersonalityTraits.length)
   const activeModules: StoryModules = $derived($pendingStoryModules ?? $storyDefaults)
   const traitsEnabled = $derived(activeModules.character_personality_traits)
   const majorFlawsEnabled = $derived(activeModules.character_major_flaws)
-  const quirksEnabled = $derived(activeModules.character_quirks)
   const perksEnabled = $derived(activeModules.character_perks)
-  const canRegenerateTraits = $derived(traitsEnabled && majorFlawsEnabled && quirksEnabled && perksEnabled)
+  const canRegenerateTraits = $derived(traitsEnabled && majorFlawsEnabled && perksEnabled)
+
+  let hoveredTrait = $state<string | null>(null)
+
+  function byPersonalityIndex(a: string, b: string): number {
+    return (PERSONALITY_INDEX.get(a) ?? 9999) - (PERSONALITY_INDEX.get(b) ?? 9999)
+  }
+
+  function traitPairValue(a: string, b: string): string[] {
+    const out: string[] = []
+    if (selectedTraits.includes(a)) out.push(a)
+    if (selectedTraits.includes(b)) out.push(b)
+    return out
+  }
+
+  function setTraitPairValue(a: string, b: string, next: string[]) {
+    const prev = traitPairValue(a, b)
+    const added = next.filter((t) => !prev.includes(t))
+    let chosen = next
+    if (chosen.length > 1) {
+      const lastAdded = added[added.length - 1] ?? chosen[chosen.length - 1]
+      chosen = lastAdded ? [lastAdded] : chosen.slice(0, 1)
+    }
+    const rest = selectedTraits.filter((t) => t !== a && t !== b)
+    selectedTraits = [...rest, ...chosen].slice().sort(byPersonalityIndex)
+  }
+
+  function pairTraitClass(trait: string, opposite: string): string {
+    const hovered = hoveredTrait === trait
+    const linkedHover = hoveredTrait === trait || hoveredTrait === opposite
+    const oppositeSelected = selectedTraits.includes(opposite) && !selectedTraits.includes(trait)
+    return cn(
+      "flex-1 justify-center text-xs",
+      oppositeSelected && "text-muted-foreground",
+      linkedHover && "ring-1 ring-primary/25 ring-inset",
+      hovered && "ring-2 ring-primary/35 ring-inset",
+    )
+  }
 
   function setModules(next: StoryModules) {
     pendingStoryModules.set(next)
@@ -277,7 +373,6 @@
     "character_appearance_clothing",
     "character_personality_traits",
     "character_major_flaws",
-    "character_quirks",
     "character_perks",
     "character_inventory",
   ]
@@ -285,7 +380,6 @@
     "npc_appearance_clothing",
     "npc_personality_traits",
     "npc_major_flaws",
-    "npc_quirks",
     "npc_perks",
     "npc_location",
     "npc_activity",
@@ -309,27 +403,21 @@
       : "NPC fields: — (tracking off)",
   )
 
-  function isBlocked(trait: string): boolean {
-    const opp = OPPOSITES[trait]
-    return opp != null && selectedTraits.includes(opp)
-  }
-
-  function toggleTrait(trait: string) {
-    if (selectedTraits.includes(trait)) {
-      selectedTraits = selectedTraits.filter((t) => t !== trait)
-    } else if (totalPersonalityCount < 5 && !isBlocked(trait)) {
-      selectedTraits = [...selectedTraits, trait]
-    }
-  }
-
   function addCustomPersonalityTrait() {
     const t = customPersonalityInput.trim()
-    if (!t || totalPersonalityCount >= 5) return
+    if (!t) return
     const key = normalizeKey(t)
     const canonical = PERSONALITY_CANONICAL[key]
     if (canonical) {
-      if (!selectedTraits.includes(canonical) && !isBlocked(canonical)) {
-        selectedTraits = [...selectedTraits, canonical]
+      if (selectedTraits.includes(canonical)) {
+        customPersonalityInput = ""
+        return
+      }
+      const opposite = OPPOSITES[canonical]
+      if (opposite && selectedTraits.includes(opposite)) {
+        selectedTraits = [...selectedTraits.filter((x) => x !== opposite), canonical].slice().sort(byPersonalityIndex)
+      } else {
+        selectedTraits = [...selectedTraits, canonical].slice().sort(byPersonalityIndex)
       }
       customPersonalityInput = ""
       return
@@ -345,24 +433,12 @@
     customPersonalityTraits = customPersonalityTraits.filter((x) => x !== t)
   }
 
-  function addQuirk() {
-    const t = quirkInput.trim()
-    if (t && !quirks.includes(t)) {
-      quirks = [...quirks, t]
-    }
-    quirkInput = ""
-  }
-
   function addMajorFlaw() {
     const t = majorFlawInput.trim()
     if (t && !majorFlaws.includes(t)) {
       majorFlaws = [...majorFlaws, t]
     }
     majorFlawInput = ""
-  }
-
-  function removeQuirk(t: string) {
-    quirks = quirks.filter((x) => x !== t)
   }
 
   function removeMajorFlaw(t: string) {
@@ -422,17 +498,18 @@
       general_description: generalDescription.trim() || serverDefaults.unknown.generalDescription,
       current_location: existing?.current_location ?? serverDefaults.unknown.location,
       baseline_appearance: baseline,
-      current_appearance: currentAppearance.trim() || baseline,
+      current_appearance: baseline,
       current_clothing: clothing,
-      personality_traits: uniquePersonality([...selectedTraits, ...customPersonalityTraits]).filter((_, i) => i < 5),
+      personality_traits: uniquePersonality([...selectedTraits, ...customPersonalityTraits]),
       major_flaws: majorFlaws,
-      quirks,
       perks,
+      custom_fields: existing?.custom_fields ?? {},
     }
   }
 
   function buildCharacterData() {
-    return buildCharacterContext()
+    const base = buildCharacterContext()
+    return { ...base, current_appearance: "" }
   }
 
   async function regenerateAppearance() {
@@ -446,13 +523,11 @@
     const unsub = $streamingEnabled
       ? subscribeStreamPreview(requestId, (patch) => {
           if (typeof patch.baseline_appearance === "string") baselineAppearance = patch.baseline_appearance
-          if (typeof patch.current_appearance === "string") currentAppearance = patch.current_appearance
         })
       : null
     try {
       const result = await generateCharacterAppearance(buildCharacterContext(), activeModules, requestId)
       baselineAppearance = result.baseline_appearance
-      currentAppearance = result.current_appearance
     } catch (err) {
       showError(err instanceof Error ? err.message : "Regeneration failed")
     } finally {
@@ -474,7 +549,6 @@
       selectedTraits = split.selected
       customPersonalityTraits = split.custom
       majorFlaws = result.major_flaws
-      quirks = result.quirks
       perks = result.perks
     } catch (err) {
       showError(err instanceof Error ? err.message : "Regeneration failed")
@@ -612,34 +686,41 @@
 
               <div class="grid gap-2">
                 <Label id="gender-label" for="gender-custom">Gender</Label>
-                <div class="flex flex-wrap gap-2">
-                  {#each ["Male", "Female"] as g (g)}
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      class={cn(
-                        "flex-1 justify-center",
-                        gender === g &&
-                          "border-primary/50 bg-primary/10 text-primary hover:bg-primary/15 hover:text-primary",
-                      )}
-                      onclick={() => (gender = g)}
-                      aria-pressed={gender === g}
-                    >
-                      {g}
-                    </Button>
-                  {/each}
-                  <Input
+                <InputGroup.Root data-disabled={generating ? "true" : undefined}>
+                  <InputGroup.Button
+                    size="sm"
+                    variant={gender === "Male" ? "default" : "ghost"}
+                    class={cn("min-w-[7ch] font-semibold", gender !== "Male" && "text-muted-foreground")}
+                    onclick={() => (gender = "Male")}
+                    aria-pressed={gender === "Male"}
+                    disabled={generating}
+                  >
+                    Male
+                  </InputGroup.Button>
+                  <InputGroup.Button
+                    size="sm"
+                    variant={gender === "Female" ? "default" : "ghost"}
+                    class={cn("min-w-[7ch] font-semibold", gender !== "Female" && "text-muted-foreground")}
+                    onclick={() => (gender = "Female")}
+                    aria-pressed={gender === "Female"}
+                    disabled={generating}
+                  >
+                    Female
+                  </InputGroup.Button>
+                  <InputGroup.Input
                     id="gender-custom"
                     type="text"
-                    placeholder="or specify…"
+                    placeholder="Custom…"
                     value={genderCustom}
                     class={cn(
-                      "min-w-[12ch] flex-[2_1_12ch]",
-                      gender !== "Male" && gender !== "Female" && "border-primary/50",
+                      "min-w-[14ch]",
+                      gender !== "Male" && gender !== "Female" && "text-foreground font-medium",
                     )}
+                    disabled={generating}
+                    aria-labelledby="gender-label"
                     oninput={(e) => setGenderCustom((e.target as HTMLInputElement).value)}
                   />
-                </div>
+                </InputGroup.Root>
                 <p class="text-xs text-muted-foreground">Pick Male/Female or type a custom value.</p>
               </div>
             </div>
@@ -726,7 +807,7 @@
             <CardHeader class="flex flex-row items-start justify-between gap-3 space-y-0">
               <div class="space-y-1">
                 <CardTitle class="text-base">Traits</CardTitle>
-                <CardDescription>Pick up to 5 total traits (including custom).</CardDescription>
+                <CardDescription>Pick opposites and add custom traits.</CardDescription>
               </div>
               <Button
                 variant="outline"
@@ -738,24 +819,53 @@
               </Button>
             </CardHeader>
             <CardContent class="space-y-4">
-              <div class="flex flex-wrap gap-2">
-                {#each PERSONALITY_OPTIONS as trait (trait)}
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    class={cn(
-                      "h-8 rounded-full px-3 text-xs",
-                      selectedTraits.includes(trait) &&
-                        "border-primary/50 bg-primary/10 text-primary hover:bg-primary/15",
-                      isBlocked(trait) && !selectedTraits.includes(trait) && "opacity-50",
-                    )}
-                    onclick={() => toggleTrait(trait)}
-                    disabled={!selectedTraits.includes(trait) && (totalPersonalityCount >= 5 || isBlocked(trait))}
-                    aria-pressed={selectedTraits.includes(trait)}
-                  >
-                    {trait}
-                  </Button>
+              <div class="flex items-center justify-between gap-3">
+                <div class="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Opposites</div>
+                <div class="text-xs font-mono text-muted-foreground">Selected: {totalPersonalityCount}</div>
+              </div>
+
+              <div class="space-y-6">
+                {#each TRAIT_GROUPS as group (group.title)}
+                  <div class="space-y-2">
+                    <div class="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                      {group.title}
+                    </div>
+                    <div class="grid gap-2 sm:grid-cols-2">
+                      {#each group.pairs as pair (pair[0] + "↔" + pair[1])}
+                        {@const a = pair[0]}
+                        {@const b = pair[1]}
+                        <ToggleGroup.Root
+                          type="multiple"
+                          value={traitPairValue(a, b)}
+                          onValueChange={(next) => setTraitPairValue(a, b, next)}
+                          variant="outline"
+                          size="sm"
+                          spacing={0}
+                          class="w-full"
+                          aria-label={`${a} versus ${b}`}
+                        >
+                          <ToggleGroup.Item
+                            value={a}
+                            aria-label={a}
+                            class={pairTraitClass(a, b)}
+                            onmouseenter={() => (hoveredTrait = a)}
+                            onmouseleave={() => (hoveredTrait = null)}
+                          >
+                            {a}
+                          </ToggleGroup.Item>
+                          <ToggleGroup.Item
+                            value={b}
+                            aria-label={b}
+                            class={pairTraitClass(b, a)}
+                            onmouseenter={() => (hoveredTrait = b)}
+                            onmouseleave={() => (hoveredTrait = null)}
+                          >
+                            {b}
+                          </ToggleGroup.Item>
+                        </ToggleGroup.Root>
+                      {/each}
+                    </div>
+                  </div>
                 {/each}
               </div>
 
@@ -767,7 +877,6 @@
                     type="text"
                     bind:value={customPersonalityInput}
                     placeholder="e.g. Recklessly brave"
-                    disabled={totalPersonalityCount >= 5}
                     onkeydown={(e) => {
                       if (e.key === "Enter") {
                         e.preventDefault()
@@ -778,12 +887,12 @@
                   <Button
                     variant="outline"
                     onclick={addCustomPersonalityTrait}
-                    disabled={totalPersonalityCount >= 5 || !customPersonalityInput.trim()}
+                    disabled={!customPersonalityInput.trim()}
                   >
                     + Add
                   </Button>
                 </div>
-                <p class="text-xs text-muted-foreground">Optional; counts toward the 5-trait limit.</p>
+                <p class="text-xs text-muted-foreground">Optional.</p>
               </div>
 
               {#if customPersonalityTraits.length > 0}
@@ -836,47 +945,6 @@
                       size="sm"
                       class="h-8 rounded-full px-3 text-xs"
                       onclick={() => removeMajorFlaw(t)}
-                    >
-                      {t} <span class="text-foreground/60">×</span>
-                    </Button>
-                  {/each}
-                </div>
-              {/if}
-            </CardContent>
-          </Card>
-        {/if}
-
-        {#if quirksEnabled}
-          <Card>
-            <CardHeader class="space-y-1">
-              <CardTitle class="text-base">Quirks</CardTitle>
-              <CardDescription>Optional.</CardDescription>
-            </CardHeader>
-            <CardContent class="space-y-3">
-              <div class="flex flex-col gap-2 sm:flex-row">
-                <Input
-                  id="quirk-input"
-                  type="text"
-                  bind:value={quirkInput}
-                  placeholder="e.g. counts exits on entry"
-                  onkeydown={(e) => {
-                    if (e.key === "Enter") {
-                      e.preventDefault()
-                      addQuirk()
-                    }
-                  }}
-                />
-                <Button variant="outline" onclick={addQuirk} disabled={!quirkInput.trim()}>+ Add</Button>
-              </div>
-              {#if quirks.length > 0}
-                <div class="flex flex-wrap gap-2">
-                  {#each quirks as t (t)}
-                    <Button
-                      type="button"
-                      variant="secondary"
-                      size="sm"
-                      class="h-8 rounded-full px-3 text-xs"
-                      onclick={() => removeQuirk(t)}
                     >
                       {t} <span class="text-foreground/60">×</span>
                     </Button>
@@ -965,8 +1033,10 @@
     <DialogHeader>
       <DialogTitle>Story Modules</DialogTitle>
     </DialogHeader>
-    <div class="mt-3">
-      <StoryModulesPanel modules={activeModules} {setModules} bare />
-    </div>
+    <ScrollArea class="mt-3 max-h-[70dvh]">
+      <div class="pr-4">
+        <StoryModulesPanel modules={activeModules} {setModules} bare />
+      </div>
+    </ScrollArea>
   </DialogContent>
 </Dialog>

@@ -38,6 +38,7 @@
   import { cn } from "@/utils.js"
   import { Button } from "@/components/ui/button"
   import { ScrollArea } from "@/components/ui/scroll-area"
+  import { createRouteRestorer } from "@/features/app/routeRestore"
 
   let { children } = $props()
 
@@ -74,6 +75,7 @@
   let restoringChat = $state(false)
   let bootstrapped = $state(false)
   let bootstrapError = $state<string | null>(null)
+  const routeRestorer = createRouteRestorer()
 
   function updateSiteIcon() {
     if (typeof document === "undefined") return
@@ -132,37 +134,39 @@
   })
 
   $effect(() => {
-    if (!bootstrapped) return
-    if ($activeScreen !== "game") return
-    if (!$routeStoryId) return
-    if ($currentStoryId === $routeStoryId) return
-    if (restoringStory) return
-    restoringStory = true
-    void loadStoryById($routeStoryId)
-      .catch(() => {
+    void routeRestorer.maybeRestoreStory({
+      bootstrapped,
+      activeScreen: $activeScreen,
+      routeId: $routeStoryId,
+      currentId: $currentStoryId,
+      isRestoring: () => restoringStory,
+      setRestoring: (next) => {
+        restoringStory = next
+      },
+      load: loadStoryById,
+      onError: () => {
         showError("Failed to load story")
         navigate("home", { replace: true, reset: true })
-      })
-      .finally(() => {
-        restoringStory = false
-      })
+      },
+    })
   })
 
   $effect(() => {
-    if (!bootstrapped) return
-    if ($activeScreen !== "chat") return
-    if (!$routeChatId) return
-    if ($currentChatId === $routeChatId) return
-    if (restoringChat) return
-    restoringChat = true
-    void loadChatById($routeChatId)
-      .catch(() => {
+    void routeRestorer.maybeRestoreChat({
+      bootstrapped,
+      activeScreen: $activeScreen,
+      routeId: $routeChatId,
+      currentId: $currentChatId,
+      isRestoring: () => restoringChat,
+      setRestoring: (next) => {
+        restoringChat = next
+      },
+      load: loadChatById,
+      onError: () => {
         showError("Failed to load chat")
         navigate("home", { replace: true, reset: true })
-      })
-      .finally(() => {
-        restoringChat = false
-      })
+      },
+    })
   })
 
   let gameActive = $derived($activeScreen === "game")

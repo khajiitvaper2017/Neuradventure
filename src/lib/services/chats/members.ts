@@ -17,11 +17,9 @@ export function memberNameFromState(state: db.ChatMemberState | null): string {
   return state.name?.trim() || defaults.unknown.value
 }
 
-export function resolveMemberState(member: db.ChatMemberRow): db.ChatMemberState {
-  const parsed = parseMemberState(member.state_json)
-  if (parsed) return parsed
+function defaultMemberState(memberKind: db.ChatMemberRow["member_kind"]): db.ChatMemberState {
   const defaults = getServerDefaults()
-  return {
+  const base = {
     name: defaults.unknown.value,
     race: "",
     gender: "",
@@ -32,33 +30,24 @@ export function resolveMemberState(member: db.ChatMemberRow): db.ChatMemberState
     current_clothing: "",
     personality_traits: [],
     major_flaws: [],
-    quirks: [],
     perks: [],
+    custom_fields: {},
   }
+  return memberKind === "npc" ? { ...base, current_activity: "" } : base
+}
+
+export function resolveMemberState(member: db.ChatMemberRow): db.ChatMemberState {
+  const parsed = parseMemberState(member.state_json)
+  if (parsed) return parsed
+  return defaultMemberState(member.member_kind)
 }
 
 export function buildChatMembersForPrompt(members: db.ChatMemberRow[]): ChatMember[] {
-  const defaults = getServerDefaults()
   return members.map((member) => ({
     id: member.id,
     role: member.role,
     sort_order: member.sort_order,
-    state:
-      parseMemberState(member.state_json) ??
-      ({
-        name: memberNameFromState(null),
-        race: "",
-        gender: "",
-        general_description: defaults.unknown.generalDescription,
-        current_location: "",
-        baseline_appearance: "",
-        current_appearance: "",
-        current_clothing: "",
-        personality_traits: [],
-        major_flaws: [],
-        quirks: [],
-        perks: [],
-      } as db.ChatMemberState),
+    state: parseMemberState(member.state_json) ?? defaultMemberState(member.member_kind),
   }))
 }
 

@@ -26,9 +26,9 @@ export interface CharacterState {
   current_clothing: string
   personality_traits: string[]
   major_flaws: string[]
-  quirks: string[]
   perks: string[]
   inventory: InventoryItem[]
+  custom_fields: Record<string, string | string[]>
 }
 
 export type MainCharacterState = CharacterState
@@ -44,13 +44,11 @@ export interface StoryModules {
   character_appearance_clothing: boolean
   character_personality_traits: boolean
   character_major_flaws: boolean
-  character_quirks: boolean
   character_perks: boolean
   character_inventory: boolean
   npc_appearance_clothing: boolean
   npc_personality_traits: boolean
   npc_major_flaws: boolean
-  npc_quirks: boolean
   npc_perks: boolean
   npc_location: boolean
   npc_activity: boolean
@@ -61,6 +59,7 @@ export interface WorldState {
   time_of_day: string
   memory: string
   locations: Location[]
+  custom_fields: Record<string, string | string[]>
 }
 
 export interface StoryMeta {

@@ -47,12 +47,17 @@ function buildWorldUpdate(baseWorld: WorldState, update: TurnResponse["world_sta
     modules.track_locations && update.locations
       ? mergeLocations(baseWorld.locations, update.locations)
       : baseWorld.locations
+  const nextCustomFields =
+    update.custom_fields && typeof update.custom_fields === "object" && !Array.isArray(update.custom_fields)
+      ? { ...baseWorld.custom_fields, ...(update.custom_fields as Record<string, string | string[]>) }
+      : baseWorld.custom_fields
 
   return {
     current_scene: nextCurrentScene,
     time_of_day: nextTimeOfDay,
     memory: baseWorld.memory,
     locations: nextLocations,
+    custom_fields: nextCustomFields,
   }
 }
 

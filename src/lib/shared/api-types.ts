@@ -100,7 +100,6 @@ export interface GenerateCharacterResponse {
   current_clothing?: string
   personality_traits?: string[]
   major_flaws?: string[]
-  quirks?: string[]
   perks?: string[]
 }
 
@@ -116,7 +115,6 @@ export interface GenerateCharacterClothingResponse {
 export interface GenerateCharacterTraitsResponse {
   personality_traits: string[]
   major_flaws: string[]
-  quirks: string[]
   perks: string[]
 }
 
@@ -260,18 +258,6 @@ export type SectionFormat = "xml" | "markdown" | "equals" | "bbcode" | "colon" |
 
 export interface TimeoutSettings {
   llmRequestMs: number
-  upstreamFetchMs: number
-  streamSessionTtlMs: number
-  modelsCacheTtlMs: number
-  supportedParamsCacheTtlMs: number
-  ctxLimitCacheTtlMs: number
-  pendingRequestTtlMs: number
-  uiErrorToastMs: number
-  uiQuietNoticeMs: number
-  uiFlashMs: number
-  uiKeyboardScrollDelayMs: number
-  uiResumePendingTurnDelayMs: number
-  fieldWatchDebounceMs: number
 }
 
 export interface ModelInfo {
@@ -302,17 +288,37 @@ export interface AppSettings extends SettingsState {
   ctx_limit_detected?: number
 }
 
-export type PromptConfigName =
+export type CustomFieldScope = "character" | "world"
+export type CustomFieldValueType = "text" | "list"
+export type CharacterCustomFieldPlacement = "base" | "current"
+export type WorldCustomFieldPlacement = "context" | "memory"
+export type CustomFieldPlacement = CharacterCustomFieldPlacement | WorldCustomFieldPlacement
+
+export interface CustomFieldDef {
+  id: string
+  scope: CustomFieldScope
+  value_type: CustomFieldValueType
+  label: string
+  placement: CustomFieldPlacement
+  prompt: string
+  enabled: boolean
+  sort_order: number
+  created_at: string
+  updated_at: string
+}
+
+export type PromptTemplateName =
   | "narrative-turn"
   | "character-generation"
   | "story-setup"
-  | "chat-mode"
+  | "chat-prompt-lines"
+  | "chat-setup"
   | "npc-creation"
   | "player-impersonation"
 
-export interface PromptConfigFile {
-  name: PromptConfigName
-  config_json: string
+export interface PromptTemplateFile {
+  name: PromptTemplateName
+  template_text: string
   updated_at: string
 }
 

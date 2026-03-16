@@ -1,10 +1,16 @@
 <script lang="ts">
   import { onDestroy, onMount, tick, untrack } from "svelte"
-  import { get } from "svelte/store"
   import { AppError } from "@/errors"
   import type { StoryModules, TurnSummary, TurnVariantSummary } from "@/shared/types"
+  import type { CustomFieldDef } from "@/shared/api-types"
+  import {
+    INTERNAL_UI_FLASH_MS,
+    INTERNAL_UI_KEYBOARD_SCROLL_DELAY_MS,
+    INTERNAL_UI_RESUME_PENDING_TURN_DELAY_MS,
+  } from "@/shared/internal-timeouts"
   import { DEFAULT_STORY_MODULES } from "@/engine/schemas/story-modules"
   import { stories } from "@/services/stories"
+  import { settings as settingsService } from "@/services/settings"
   import { turns as turnsService } from "@/services/turns"
   import { subscribeStreamPreview } from "@/services/streamPreview"
   import { navigate } from "@/stores/router"
@@ -14,7 +20,7 @@
   import { scrollToBottom } from "@/utils/scroll"
   import { isNearBottom } from "@/utils/scrollFollow"
   import AuthorsNoteModal from "@/components/overlays/AuthorsNoteModal.svelte"
-  import { streamingEnabled, timeouts } from "@/stores/settings"
+  import { streamingEnabled } from "@/stores/settings"
   import {
     currentStoryId,
     currentStoryOpeningScenario,
@@ -40,6 +46,7 @@
   import GameInputZone from "@/features/game/GameInputZone.svelte"
   import MemoryModal from "@/features/game/MemoryModal.svelte"
   import StoryModulesModal from "@/features/game/StoryModulesModal.svelte"
+  import WorldFieldsModal from "@/features/game/WorldFieldsModal.svelte"
 
   type ActionMode = "do" | "say" | "story"
 
@@ -59,6 +66,10 @@
   let canUndoCancel = $state(false)
   let showMemoryEditor = $state(false)
   let memoryDraft = $state("")
+  let showWorldFieldsEditor = $state(false)
+  let worldFieldsDraft = $state<Record<string, string | string[]>>({})
+  let worldFieldsDefs = $state<CustomFieldDef[]>([])
+  let worldFieldsSaving = $state(false)
   let showAuthorNoteEditor = $state(false)
   let authorNoteDraft = $state("")
   let authorNoteDepthDraft = $state(4)
@@ -156,7 +167,7 @@
     if (sceneFlashTimer) window.clearTimeout(sceneFlashTimer)
     sceneFlashTimer = window.setTimeout(() => {
       flashScene = false
-    }, get(timeouts).uiFlashMs)
+    }, INTERNAL_UI_FLASH_MS)
   }
 
   function triggerOpeningFlash() {
@@ -164,7 +175,7 @@
     if (openingFlashTimer) window.clearTimeout(openingFlashTimer)
     openingFlashTimer = window.setTimeout(() => {
       flashOpening = false
-    }, get(timeouts).uiFlashMs)
+    }, INTERNAL_UI_FLASH_MS)
   }
 
   function handleLlmWarnings(warnings?: string[]) {
@@ -295,7 +306,7 @@
     resumeAttemptedFor = pending.requestId
     window.setTimeout(() => {
       void resumePendingTurn(pending)
-    }, get(timeouts).uiResumePendingTurnDelayMs)
+    }, INTERNAL_UI_RESUME_PENDING_TURN_DELAY_MS)
   })
 
   async function regenerateLastTurn() {
@@ -449,6 +460,30 @@
     }
   }
 
+  async function openWorldFieldsEditor() {
+    worldFieldsDraft = { ...($worldState?.custom_fields ?? {}) }
+    showWorldFieldsEditor = true
+    try {
+      worldFieldsDefs = await settingsService.customFields()
+    } catch {
+      showError("Failed to load custom fields")
+    }
+  }
+
+  async function saveWorldFields() {
+    if (!$currentStoryId) return
+    try {
+      worldFieldsSaving = true
+      const result = await stories.updateState($currentStoryId, { world: { custom_fields: worldFieldsDraft } })
+      worldState.set(result.world)
+      showWorldFieldsEditor = false
+    } catch {
+      showError("Failed to update world fields")
+    } finally {
+      worldFieldsSaving = false
+    }
+  }
+
   function openAuthorNoteEditor() {
     authorNoteDraft = $currentStoryAuthorNote
     authorNoteDepthDraft = $currentStoryAuthorNoteDepth
@@ -568,7 +603,7 @@
   function scheduleKeyboardScroll() {
     if (keyboardScrollTimer) window.clearTimeout(keyboardScrollTimer)
     requestAnimationFrame(() => scrollStoryToBottom())
-    keyboardScrollTimer = window.setTimeout(() => scrollStoryToBottom(), get(timeouts).uiKeyboardScrollDelayMs)
+    keyboardScrollTimer = window.setTimeout(() => scrollStoryToBottom(), INTERNAL_UI_KEYBOARD_SCROLL_DELAY_MS)
   }
 
   function goHome() {
@@ -739,6 +774,7 @@
     {flashScene}
     onGoHome={goHome}
     onOpenMemoryEditor={openMemoryEditor}
+    onOpenWorldFieldsEditor={() => void openWorldFieldsEditor()}
     onOpenAuthorNoteEditor={openAuthorNoteEditor}
     onOpenModulesEditor={openModulesEditor}
   />
@@ -749,6 +785,16 @@
     bind:draft={memoryDraft}
     onCancel={() => (showMemoryEditor = false)}
     onSave={saveMemory}
+  />
+
+  <WorldFieldsModal
+    open={showWorldFieldsEditor}
+    disabled={$isGenerating || worldFieldsSaving}
+    defs={worldFieldsDefs}
+    values={worldFieldsDraft}
+    setValues={(next) => (worldFieldsDraft = next)}
+    onCancel={() => (showWorldFieldsEditor = false)}
+    onSave={() => void saveWorldFields()}
   />
 
   <!-- ── Author's Note editor overlay ──────────────────── -->

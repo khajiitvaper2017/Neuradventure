@@ -3,10 +3,7 @@
   import { worldState } from "@/stores/game"
   import type { Location } from "@/shared/types"
   import { cn } from "@/utils.js"
-  import IconMapPin from "@/components/icons/IconMapPin.svelte"
-  import IconUsers from "@/components/icons/IconUsers.svelte"
-  import IconCube from "@/components/icons/IconCube.svelte"
-  import IconDocument from "@/components/icons/IconDocument.svelte"
+  import { Box, FileText, MapPin, Users } from "@lucide/svelte"
   import { Badge } from "@/components/ui/badge"
   import { Button } from "@/components/ui/button"
   import { Sheet, SheetContent } from "@/components/ui/sheet"
@@ -66,17 +63,17 @@
 
           <div class="mt-2 space-y-2">
             <div class="flex items-start gap-2 text-xs leading-snug text-foreground/90">
-              <IconDocument size={13} strokeWidth={1.5} className="mt-0.5 shrink-0 text-muted-foreground" />
+              <FileText size={13} strokeWidth={1.5} class="mt-0.5 shrink-0 text-muted-foreground" aria-hidden="true" />
               <span>{location.description}</span>
             </div>
 
             <div class="flex items-start gap-2 text-xs leading-snug text-muted-foreground">
-              <IconUsers size={13} strokeWidth={1.5} className="mt-0.5 shrink-0 text-muted-foreground" />
+              <Users size={13} strokeWidth={1.5} class="mt-0.5 shrink-0 text-muted-foreground" aria-hidden="true" />
               <span>{listLabel(location.characters)}</span>
             </div>
 
             <div class="flex items-start gap-2 text-xs leading-snug text-muted-foreground">
-              <IconCube size={13} strokeWidth={1.5} className="mt-0.5 shrink-0 text-muted-foreground" />
+              <Box size={13} strokeWidth={1.5} class="mt-0.5 shrink-0 text-muted-foreground" aria-hidden="true" />
               <span>{itemLabel(location.available_items)}</span>
             </div>
           </div>
@@ -91,7 +88,7 @@
     <div
       class="flex items-center gap-2 border-b px-4 py-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground"
     >
-      <IconMapPin size={16} strokeWidth={1.5} className="shrink-0 opacity-70" />
+      <MapPin size={16} strokeWidth={1.5} class="shrink-0 opacity-70" aria-hidden="true" />
       <span>Locations ({sortedLocations.length})</span>
     </div>
     <ScrollArea class="min-h-0 flex-1">
@@ -105,7 +102,7 @@
     <SheetContent side="right" class="p-0">
       <div class="flex items-center justify-between gap-3 border-b px-4 py-3">
         <div class="flex min-w-0 items-center gap-2">
-          <IconMapPin size={16} strokeWidth={1.5} className="shrink-0 opacity-70" />
+          <MapPin size={16} strokeWidth={1.5} class="shrink-0 opacity-70" aria-hidden="true" />
           <div class="truncate text-sm font-semibold text-foreground">Locations ({sortedLocations.length})</div>
         </div>
         <Button variant="ghost" size="icon" class="h-9 w-9" onclick={() => showLocations.set(false)} aria-label="Close">

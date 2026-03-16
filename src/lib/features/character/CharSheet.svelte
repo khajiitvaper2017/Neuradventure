@@ -3,36 +3,43 @@
   import { get } from "svelte/store"
   import { AppError } from "@/errors"
   import { stories } from "@/services/stories"
+  import { settings as settingsService } from "@/services/settings"
   import { activeScreen, charSheetCharacterId, closeCharSheet, showCharSheet } from "@/stores/router"
   import { showError, showQuietNotice } from "@/stores/ui"
   import { character, currentStoryId, currentStoryModules, llmUpdateId } from "@/stores/game"
-  import { timeouts } from "@/stores/settings"
+  import { INTERNAL_UI_FLASH_MS } from "@/shared/internal-timeouts"
   import type { MainCharacterState } from "@/shared/types"
+  import type { CustomFieldDef } from "@/shared/api-types"
   import { cn } from "@/utils.js"
   import { genderIcon, normalizeGender, splitCsv } from "@/utils/text"
   import EditableFieldList from "@/components/inputs/EditableFieldList.svelte"
   import type { EditField } from "@/components/inputs/editableFieldTypes"
+  import CustomFieldsEditor from "@/components/inputs/CustomFieldsEditor.svelte"
+  import CustomFieldsView from "@/components/inputs/CustomFieldsView.svelte"
   import { Badge } from "@/components/ui/badge"
   import { Button } from "@/components/ui/button"
   import { Input } from "@/components/ui/input"
   import { Sheet, SheetContent } from "@/components/ui/sheet"
   import { ScrollArea } from "@/components/ui/scroll-area"
-  import IconMale from "@/components/icons/IconMale.svelte"
-  import IconFemale from "@/components/icons/IconFemale.svelte"
-  import IconIntersex from "@/components/icons/IconIntersex.svelte"
-  import IconTransgender from "@/components/icons/IconTransgender.svelte"
-  import IconFace from "@/components/icons/IconFace.svelte"
-  import IconShirt from "@/components/icons/IconShirt.svelte"
-  import IconStar from "@/components/icons/IconStar.svelte"
-  import IconCube from "@/components/icons/IconCube.svelte"
-  import IconDotSmall from "@/components/icons/IconDotSmall.svelte"
-  import IconDocument from "@/components/icons/IconDocument.svelte"
-  import IconPencilSquare from "@/components/icons/IconPencilSquare.svelte"
+  import {
+    Box,
+    Dot,
+    FileText,
+    Mars,
+    Shirt,
+    Smile,
+    SquarePen,
+    Star,
+    Transgender,
+    Venus,
+    VenusAndMars,
+  } from "@lucide/svelte"
 
   let { inline = false }: { inline?: boolean } = $props()
 
   const isGameScreen = $derived($activeScreen === "game")
   const canEdit = $derived((inline || isGameScreen) && $currentStoryId !== null)
+  const isStoryContext = $derived($currentStoryId !== null)
 
   let inspectCharacter = $state<MainCharacterState | null>(null)
   let inspectLoading = $state(false)
@@ -41,7 +48,9 @@
   let inspectFetchNonce = 0
 
   const isInspectMode = $derived(!inline && !isGameScreen && $showCharSheet && $charSheetCharacterId !== null)
-  const displayCharacter = $derived(inline || isGameScreen ? $character : inspectCharacter)
+  const displayCharacter = $derived(
+    inline || isGameScreen ? $character : inspectCharacter ? { ...inspectCharacter, current_appearance: "" } : null,
+  )
 
   function retryInspect() {
     inspectRefresh += 1
@@ -54,6 +63,7 @@
     currentAppearance: string
     clothing: string
     inventory: string
+    customFields: string
   }
 
   let lastSigs: CharacterSigs | null = null
@@ -62,20 +72,21 @@
   let flashAppearance = $state(false)
   let flashClothing = $state(false)
   let flashInventory = $state(false)
+  let flashCustom = $state(false)
   let identityTimer: number | null = null
   let appearanceTimer: number | null = null
   let clothingTimer: number | null = null
   let inventoryTimer: number | null = null
+  let customTimer: number | null = null
   let editing = $state(false)
   let saving = $state(false)
   let showBaselineDetails = $state(false)
   const useAppearance = $derived($currentStoryModules?.character_appearance_clothing ?? true)
   const usePersonalityTraits = $derived($currentStoryModules?.character_personality_traits ?? true)
   const useMajorFlaws = $derived($currentStoryModules?.character_major_flaws ?? true)
-  const useQuirks = $derived($currentStoryModules?.character_quirks ?? true)
   const usePerks = $derived($currentStoryModules?.character_perks ?? true)
   const useInventory = $derived($currentStoryModules?.character_inventory ?? true)
-  const showTraitSection = $derived(usePersonalityTraits || useMajorFlaws || useQuirks || usePerks)
+  const showTraitSection = $derived(usePersonalityTraits || useMajorFlaws || usePerks)
 
   type InventoryDraft = { name: string; description: string }
   type CharacterDraft = {
@@ -88,9 +99,9 @@
     clothing: string
     personalityTraits: string
     majorFlaws: string
-    quirks: string
     perks: string
     inventory: InventoryDraft[]
+    customFields: Record<string, string | string[]>
   }
   let draft = $state<CharacterDraft>({
     name: "",
@@ -102,9 +113,33 @@
     clothing: "",
     personalityTraits: "",
     majorFlaws: "",
-    quirks: "",
     perks: "",
     inventory: [],
+    customFields: {},
+  })
+
+  let customDefs = $state<CustomFieldDef[]>([])
+  let customDefsLoaded = $state(false)
+
+  const customCharDefs = $derived(customDefs.filter((d) => d.enabled && d.scope === "character"))
+  const hasBaseCustomDefs = $derived(customCharDefs.some((d) => d.placement === "base"))
+  const hasCurrentCustomDefs = $derived(customCharDefs.some((d) => d.placement === "current"))
+
+  async function loadCustomDefsOnce() {
+    if (customDefsLoaded) return
+    try {
+      customDefs = await settingsService.customFields()
+      customDefsLoaded = true
+    } catch (err) {
+      console.warn("[custom-fields] Failed to load defs", err)
+      customDefsLoaded = true
+      customDefs = []
+    }
+  }
+
+  $effect(() => {
+    if (!displayCharacter) return
+    void loadCustomDefsOnce()
   })
 
   function buildCharacterSigs(c: MainCharacterState): CharacterSigs {
@@ -115,11 +150,12 @@
       currentAppearance: c.current_appearance,
       clothing: c.current_clothing,
       inventory: c.inventory.map((item) => `${item.name}:${item.description}`).join("|"),
+      customFields: JSON.stringify(c.custom_fields ?? {}),
     }
   }
 
   function triggerFlash(kind: "identity" | "appearance" | "clothing" | "inventory") {
-    const flashMs = get(timeouts).uiFlashMs
+    const flashMs = INTERNAL_UI_FLASH_MS
     if (kind === "identity") {
       flashIdentity = true
       if (identityTimer) window.clearTimeout(identityTimer)
@@ -143,6 +179,13 @@
     inventoryTimer = window.setTimeout(() => (flashInventory = false), flashMs)
   }
 
+  function triggerCustomFlash() {
+    const flashMs = INTERNAL_UI_FLASH_MS
+    flashCustom = true
+    if (customTimer) window.clearTimeout(customTimer)
+    customTimer = window.setTimeout(() => (flashCustom = false), flashMs)
+  }
+
   function characterFields(): EditField[] {
     const fields: EditField[] = [
       { id: "cs-name", label: "Name", kind: "input", value: draft.name, onInput: (v) => (draft.name = v) },
@@ -158,29 +201,29 @@
     })
 
     if (useAppearance) {
-      fields.push(
-        {
-          id: "cs-baseline-appearance",
-          label: "Baseline Appearance",
-          kind: "textarea",
-          value: draft.baselineAppearance,
-          onInput: (v) => (draft.baselineAppearance = v),
-        },
-        {
+      fields.push({
+        id: "cs-baseline-appearance",
+        label: "Baseline Appearance",
+        kind: "textarea",
+        value: draft.baselineAppearance,
+        onInput: (v) => (draft.baselineAppearance = v),
+      })
+      if (isStoryContext) {
+        fields.push({
           id: "cs-current-appearance",
           label: "Current Appearance",
           kind: "textarea",
           value: draft.currentAppearance,
           onInput: (v) => (draft.currentAppearance = v),
-        },
-        {
-          id: "cs-clothing",
-          label: "Wearing",
-          kind: "textarea",
-          value: draft.clothing,
-          onInput: (v) => (draft.clothing = v),
-        },
-      )
+        })
+      }
+      fields.push({
+        id: "cs-clothing",
+        label: "Wearing",
+        kind: "textarea",
+        value: draft.clothing,
+        onInput: (v) => (draft.clothing = v),
+      })
     }
     if (usePersonalityTraits) {
       fields.push({
@@ -200,15 +243,6 @@
         onInput: (v) => (draft.majorFlaws = v),
       })
     }
-    if (useQuirks) {
-      fields.push({
-        id: "cs-quirks",
-        label: "Quirks (comma separated)",
-        kind: "input",
-        value: draft.quirks,
-        onInput: (v) => (draft.quirks = v),
-      })
-    }
     if (usePerks) {
       fields.push({
         id: "cs-perks",
@@ -224,6 +258,7 @@
   function startEdit() {
     if (!canEdit) return
     if (!$character) return
+    void loadCustomDefsOnce()
     draft = {
       name: $character.name,
       race: $character.race,
@@ -234,9 +269,9 @@
       clothing: $character.current_clothing,
       personalityTraits: $character.personality_traits.join(", "),
       majorFlaws: $character.major_flaws.join(", "),
-      quirks: $character.quirks.join(", "),
       perks: $character.perks.join(", "),
       inventory: $character.inventory.map((item) => ({ name: item.name, description: item.description })),
+      customFields: { ...($character.custom_fields ?? {}) },
     }
     editing = true
   }
@@ -282,7 +317,6 @@
       ? splitCsv(draft.personalityTraits)
       : (existing?.personality_traits ?? [])
     const majorFlaws = useMajorFlaws ? splitCsv(draft.majorFlaws) : (existing?.major_flaws ?? [])
-    const quirks = useQuirks ? splitCsv(draft.quirks) : (existing?.quirks ?? [])
     const perks = usePerks ? splitCsv(draft.perks) : (existing?.perks ?? [])
     const inventory = useInventory
       ? draft.inventory
@@ -318,9 +352,9 @@
         : clothing || existing?.current_clothing || "",
       personality_traits: personalityTraits.length > 0 ? personalityTraits : (existing?.personality_traits ?? []),
       major_flaws: majorFlaws.length > 0 ? majorFlaws : (existing?.major_flaws ?? []),
-      quirks: quirks.length > 0 ? quirks : (existing?.quirks ?? []),
       perks: perks.length > 0 ? perks : (existing?.perks ?? []),
       inventory,
+      custom_fields: draft.customFields ?? existing?.custom_fields ?? {},
     }
     saving = true
     try {
@@ -394,6 +428,7 @@
           }
           if (useAppearance && nextSigs.clothing !== lastSigs.clothing) triggerFlash("clothing")
           if (useInventory && nextSigs.inventory !== lastSigs.inventory) triggerFlash("inventory")
+          if (nextSigs.customFields !== lastSigs.customFields) triggerCustomFlash()
         }
         lastSigs = nextSigs
       } else {
@@ -414,6 +449,7 @@
     if (appearanceTimer) window.clearTimeout(appearanceTimer)
     if (clothingTimer) window.clearTimeout(clothingTimer)
     if (inventoryTimer) window.clearTimeout(inventoryTimer)
+    if (customTimer) window.clearTimeout(customTimer)
   })
 </script>
 
@@ -422,6 +458,40 @@
     {#if editing}
       <div class="space-y-4">
         <EditableFieldList fields={characterFields()} />
+        {#if hasBaseCustomDefs || hasCurrentCustomDefs}
+          <div class="space-y-3 rounded-lg border bg-card p-4">
+            <div class="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+              <FileText size={14} strokeWidth={1.5} class="shrink-0 opacity-70" aria-hidden="true" />
+              <span>Custom Fields</span>
+            </div>
+            {#if hasBaseCustomDefs}
+              <div class="space-y-2">
+                <div class="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Base</div>
+                <CustomFieldsEditor
+                  defs={customDefs}
+                  values={draft.customFields}
+                  setValues={(next) => (draft.customFields = next)}
+                  scope="character"
+                  placement="base"
+                  disabled={saving}
+                />
+              </div>
+            {/if}
+            {#if hasCurrentCustomDefs}
+              <div class="space-y-2">
+                <div class="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Current</div>
+                <CustomFieldsEditor
+                  defs={customDefs}
+                  values={draft.customFields}
+                  setValues={(next) => (draft.customFields = next)}
+                  scope="character"
+                  placement="current"
+                  disabled={saving}
+                />
+              </div>
+            {/if}
+          </div>
+        {/if}
         {#if useInventory}
           <div class="space-y-2">
             <div class="flex items-center justify-between gap-3">
@@ -473,13 +543,13 @@
         <div class="flex items-center gap-2 text-lg font-semibold text-foreground">
           <span class="truncate">{displayCharacter.name}</span>
           {#if genderIcon(displayCharacter.gender) === "male"}
-            <IconMale size={14} strokeWidth={2} className="shrink-0 opacity-60" />
+            <Mars size={14} strokeWidth={2} class="shrink-0 opacity-60" aria-hidden="true" />
           {:else if genderIcon(displayCharacter.gender) === "female"}
-            <IconFemale size={14} strokeWidth={2} className="shrink-0 opacity-60" />
+            <Venus size={14} strokeWidth={2} class="shrink-0 opacity-60" aria-hidden="true" />
           {:else if genderIcon(displayCharacter.gender) === "intersex"}
-            <IconIntersex size={14} strokeWidth={2} className="shrink-0 opacity-60" />
+            <VenusAndMars size={14} strokeWidth={2} class="shrink-0 opacity-60" aria-hidden="true" />
           {:else if genderIcon(displayCharacter.gender) === "transgender"}
-            <IconTransgender size={14} strokeWidth={2} className="shrink-0 opacity-60" />
+            <Transgender size={14} strokeWidth={2} class="shrink-0 opacity-60" aria-hidden="true" />
           {/if}
         </div>
         <div class="mt-1 text-sm italic text-muted-foreground">
@@ -490,7 +560,7 @@
       {#if showBaselineDetails}
         <div class={cn("mt-3 rounded-lg border bg-card p-4", flashAppearance && "ring-2 ring-primary/30")}>
           <div class="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-            <IconFace size={14} strokeWidth={1.5} className="shrink-0 opacity-70" />
+            <Smile size={14} strokeWidth={1.5} class="shrink-0 opacity-70" aria-hidden="true" />
             <span>Description</span>
           </div>
           <div class="mt-2 whitespace-pre-line text-sm leading-relaxed text-foreground">
@@ -503,8 +573,18 @@
         {#if showBaselineDetails}
           <div class={cn("mt-3 rounded-lg border bg-card p-4", flashAppearance && "ring-2 ring-primary/30")}>
             <div class="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-              <IconFace size={14} strokeWidth={1.5} className="shrink-0 opacity-70" />
+              <Smile size={14} strokeWidth={1.5} class="shrink-0 opacity-70" aria-hidden="true" />
               <span>Baseline Appearance</span>
+            </div>
+            <div class="mt-2 whitespace-pre-line text-sm leading-relaxed text-foreground">
+              {displayCharacter.baseline_appearance}
+            </div>
+          </div>
+        {:else if !isStoryContext}
+          <div class={cn("mt-3 rounded-lg border bg-card p-4", flashAppearance && "ring-2 ring-primary/30")}>
+            <div class="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+              <Smile size={14} strokeWidth={1.5} class="shrink-0 opacity-70" aria-hidden="true" />
+              <span>Appearance</span>
             </div>
             <div class="mt-2 whitespace-pre-line text-sm leading-relaxed text-foreground">
               {displayCharacter.baseline_appearance}
@@ -512,19 +592,21 @@
           </div>
         {/if}
 
-        <div class={cn("mt-3 rounded-lg border bg-card p-4", flashAppearance && "ring-2 ring-primary/30")}>
-          <div class="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-            <IconFace size={14} strokeWidth={1.5} className="shrink-0 opacity-70" />
-            <span>Current Appearance</span>
+        {#if isStoryContext}
+          <div class={cn("mt-3 rounded-lg border bg-card p-4", flashAppearance && "ring-2 ring-primary/30")}>
+            <div class="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+              <Smile size={14} strokeWidth={1.5} class="shrink-0 opacity-70" aria-hidden="true" />
+              <span>Current Appearance</span>
+            </div>
+            <div class="mt-2 whitespace-pre-line text-sm leading-relaxed text-foreground">
+              {displayCharacter.current_appearance}
+            </div>
           </div>
-          <div class="mt-2 whitespace-pre-line text-sm leading-relaxed text-foreground">
-            {displayCharacter.current_appearance}
-          </div>
-        </div>
+        {/if}
 
         <div class={cn("mt-3 rounded-lg border bg-card p-4", flashClothing && "ring-2 ring-primary/30")}>
           <div class="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-            <IconShirt size={14} strokeWidth={1.5} className="shrink-0 opacity-70" />
+            <Shirt size={14} strokeWidth={1.5} class="shrink-0 opacity-70" aria-hidden="true" />
             <span>Wearing</span>
           </div>
           <div class="mt-2 whitespace-pre-line text-sm leading-relaxed text-foreground">
@@ -533,11 +615,11 @@
         </div>
       {/if}
 
-      {#if showTraitSection && ((usePersonalityTraits && displayCharacter.personality_traits.length > 0) || (useMajorFlaws && displayCharacter.major_flaws.length > 0) || (useQuirks && displayCharacter.quirks.length > 0) || (usePerks && displayCharacter.perks.length > 0))}
+      {#if showTraitSection && ((usePersonalityTraits && displayCharacter.personality_traits.length > 0) || (useMajorFlaws && displayCharacter.major_flaws.length > 0) || (usePerks && displayCharacter.perks.length > 0))}
         <div class="mt-3 rounded-lg border bg-card p-4">
           <div class="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-            <IconStar size={14} strokeWidth={1.5} className="shrink-0 opacity-70" />
-            <span>Traits · Flaws · Quirks · Perks</span>
+            <Star size={14} strokeWidth={1.5} class="shrink-0 opacity-70" aria-hidden="true" />
+            <span>Traits · Flaws · Perks</span>
           </div>
           <div class="mt-3 flex flex-wrap gap-2">
             {#if usePersonalityTraits}
@@ -550,11 +632,6 @@
                 <Badge variant="outline" class="rounded-full font-mono text-[11px]">{t}</Badge>
               {/each}
             {/if}
-            {#if useQuirks}
-              {#each displayCharacter.quirks as t, index (t + ":" + index)}
-                <Badge variant="outline" class="rounded-full font-mono text-[11px]">{t}</Badge>
-              {/each}
-            {/if}
             {#if usePerks}
               {#each displayCharacter.perks as t, index (t + ":" + index)}
                 <Badge variant="outline" class="rounded-full font-mono text-[11px]">{t}</Badge>
@@ -564,10 +641,43 @@
         </div>
       {/if}
 
+      {#if customCharDefs.length > 0}
+        <div class={cn("mt-3 rounded-lg border bg-card p-4", flashCustom && "ring-2 ring-primary/30")}>
+          <div class="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+            <FileText size={14} strokeWidth={1.5} class="shrink-0 opacity-70" aria-hidden="true" />
+            <span>Custom Fields</span>
+          </div>
+          <div class="mt-3 space-y-4">
+            {#if hasBaseCustomDefs}
+              <div class="space-y-2">
+                <div class="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Base</div>
+                <CustomFieldsView
+                  defs={customDefs}
+                  values={displayCharacter.custom_fields}
+                  scope="character"
+                  placement="base"
+                />
+              </div>
+            {/if}
+            {#if hasCurrentCustomDefs}
+              <div class="space-y-2">
+                <div class="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Current</div>
+                <CustomFieldsView
+                  defs={customDefs}
+                  values={displayCharacter.custom_fields}
+                  scope="character"
+                  placement="current"
+                />
+              </div>
+            {/if}
+          </div>
+        </div>
+      {/if}
+
       {#if useInventory}
         <div class={cn("mt-3 rounded-lg border bg-card p-4", flashInventory && "ring-2 ring-primary/30")}>
           <div class="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-            <IconCube size={14} strokeWidth={1.5} className="shrink-0 opacity-70" />
+            <Box size={14} strokeWidth={1.5} class="shrink-0 opacity-70" aria-hidden="true" />
             <span>Inventory ({displayCharacter.inventory.length})</span>
           </div>
           {#if displayCharacter.inventory.length === 0}
@@ -576,7 +686,7 @@
             <ul class="mt-3 space-y-2">
               {#each displayCharacter.inventory as item, index (index)}
                 <li class="flex items-start gap-2">
-                  <IconDotSmall size={12} strokeWidth={1.5} className="mt-1 shrink-0 text-muted-foreground" />
+                  <Dot size={12} strokeWidth={1.5} class="mt-1 shrink-0 text-muted-foreground" aria-hidden="true" />
                   <div class="min-w-0">
                     <div class="text-sm font-medium text-foreground">{item.name}</div>
                     <div class="mt-0.5 text-xs text-muted-foreground">{item.description}</div>
@@ -599,7 +709,7 @@
   <div class="flex h-dvh flex-col overflow-hidden border-r bg-card">
     <div class="flex items-center justify-between gap-3 border-b px-4 py-3">
       <div class="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-        <IconDocument size={16} strokeWidth={1.5} className="shrink-0 opacity-70" />
+        <FileText size={16} strokeWidth={1.5} class="shrink-0 opacity-70" aria-hidden="true" />
         <span>Character Sheet</span>
       </div>
       <div class="flex items-center gap-2">
@@ -621,7 +731,7 @@
           title="Edit character sheet"
           aria-label="Edit character sheet"
         >
-          <IconPencilSquare size={12} strokeWidth={2} />
+          <SquarePen size={12} strokeWidth={2} aria-hidden="true" />
         </Button>
       </div>
     </div>
@@ -641,7 +751,7 @@
     <SheetContent side="right" class="p-0">
       <div class="flex items-center justify-between gap-3 border-b px-4 py-3">
         <div class="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-          <IconDocument size={16} strokeWidth={1.5} className="shrink-0 opacity-70" />
+          <FileText size={16} strokeWidth={1.5} class="shrink-0 opacity-70" aria-hidden="true" />
           <span>Character Sheet</span>
         </div>
         <div class="flex items-center gap-2">
@@ -663,7 +773,7 @@
             title="Edit character sheet"
             aria-label="Edit character sheet"
           >
-            <IconPencilSquare size={12} strokeWidth={2} />
+            <SquarePen size={12} strokeWidth={2} aria-hidden="true" />
           </Button>
           <Button variant="ghost" size="icon" class="h-9 w-9" onclick={closeCharSheet} aria-label="Close">×</Button>
         </div>

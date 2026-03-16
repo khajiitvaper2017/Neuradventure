@@ -15,13 +15,18 @@ export function supportsJsonSchema(model: ModelInfo): boolean {
   return Array.isArray(model.supported_parameters) && model.supported_parameters.includes("structured_outputs")
 }
 
-export function filterModelResults(
-  models: ModelInfo[],
-  opts: { onlyFree: boolean; onlyJsonSchema: boolean },
-): ModelInfo[] {
+export function supportsJsonObject(model: ModelInfo): boolean {
+  return Array.isArray(model.supported_parameters) && model.supported_parameters.includes("response_format")
+}
+
+export function supportsJson(model: ModelInfo): boolean {
+  return supportsJsonSchema(model) || supportsJsonObject(model)
+}
+
+export function filterModelResults(models: ModelInfo[], opts: { onlyFree: boolean; onlyJson: boolean }): ModelInfo[] {
   let out = models
   if (opts.onlyFree) out = out.filter(isFreeModel)
-  if (opts.onlyJsonSchema) out = out.filter(supportsJsonSchema)
+  if (opts.onlyJson) out = out.filter(supportsJson)
   return out
 }
 
@@ -44,8 +49,7 @@ function formatModelLabel(model: ModelInfo, extraTags: string[] = []): string {
   const tags: string[] = []
   if (isFreeModel(model)) tags.push("free")
   if (supportsJsonSchema(model)) tags.push("json_schema")
-  else if (Array.isArray(model.supported_parameters) && model.supported_parameters.includes("response_format"))
-    tags.push("json_object")
+  else if (supportsJsonObject(model)) tags.push("json_object")
 
   tags.push(...extraTags.filter((t) => t.trim().length > 0))
   if (tags.length > 0) parts.push(tags.join(", "))
@@ -59,9 +63,9 @@ export function buildModelSelectOptions(args: {
   pinned: Array<{ id: string; label: string }>
   pinnedTags?: (id: string) => string[]
   onlyFree: boolean
-  onlyJsonSchema: boolean
+  onlyJson: boolean
 }): Array<{ value: string; label: string }> {
-  const { models, currentModel, pinned, pinnedTags, onlyFree, onlyJsonSchema } = args
+  const { models, currentModel, pinned, pinnedTags, onlyFree, onlyJson } = args
   const out: Array<{ value: string; label: string }> = []
   const seen = new Set<string>()
   const push = (id: string, label: string) => {
@@ -70,7 +74,7 @@ export function buildModelSelectOptions(args: {
     out.push({ value: id, label })
   }
 
-  const filtered = filterModelResults(models, { onlyFree, onlyJsonSchema })
+  const filtered = filterModelResults(models, { onlyFree, onlyJson })
 
   if (currentModel) {
     const info = findModelInfoById(models, currentModel)
@@ -81,7 +85,7 @@ export function buildModelSelectOptions(args: {
     const info = findModelInfoById(models, p.id)
     const tags = pinnedTags?.(p.id) ?? []
     const label = info ? formatModelLabel(info, tags) : p.label
-    if (!onlyFree && !onlyJsonSchema) {
+    if (!onlyFree && !onlyJson) {
       push(p.id, label)
       continue
     }

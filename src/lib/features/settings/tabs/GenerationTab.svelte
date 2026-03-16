@@ -27,13 +27,10 @@
   <ConnectionSection {active} bind:modelSearchResults />
 {:else if section === "defaults"}
   <StoryDefaultsSection />
-  <div class="settings-bottom-pad"></div>
 {:else if section === "advanced"}
   <TimeoutsSection disabled={generationLockActive} />
-  <div class="divider"></div>
   <ParamsAdvancedSection {modelSearchResults} />
 {:else}
   <SamplerPresetsSection {active} />
-  <div class="divider"></div>
   <ParamsBasicSection {modelSearchResults} />
 {/if}

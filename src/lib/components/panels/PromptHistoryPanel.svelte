@@ -1,5 +1,5 @@
 <script lang="ts">
-  import IconTrash from "@/components/icons/IconTrash.svelte"
+  import { Trash } from "@lucide/svelte"
   import { Button } from "@/components/ui/button"
 
   const noop = (_value: string) => {
@@ -40,7 +40,7 @@
             aria-label="Delete prompt"
             title="Delete prompt"
           >
-            <IconTrash size={14} strokeWidth={2} className="text-current" />
+            <Trash size={14} strokeWidth={2} class="text-current" aria-hidden="true" />
           </Button>
         </div>
       {/each}

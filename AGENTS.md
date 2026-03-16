@@ -8,12 +8,12 @@ A **static, installable SvelteKit PWA** with no custom backend. Navigation is qu
 
 ## Architecture
 
-| Layer | Technology |
-|---|---|
-| Frontend | Svelte 5 + SvelteKit (SSR disabled, `adapter-static`) |
-| Persistence | `sql.js` (WASM SQLite) → IndexedDB via `navigator.storage.persist()` |
-| LLM | Browser `fetch` → OpenAI-compatible APIs (OpenRouter, LAN KoboldCpp) |
-| Streaming | In-process streaming hub — no WebSocket server |
+| Layer         | Technology                                                                                |
+| ------------- | ----------------------------------------------------------------------------------------- |
+| Frontend      | Svelte 5 + SvelteKit (SSR disabled, `adapter-static`)                                     |
+| Persistence   | `sql.js` (WASM SQLite) → IndexedDB via `navigator.storage.persist()`                      |
+| LLM           | Browser `fetch` → OpenAI-compatible APIs (OpenRouter, LAN KoboldCpp)                      |
+| Streaming     | In-process streaming hub — no WebSocket server                                            |
 | PWA / Offline | `@vite-pwa/sveltekit` (Workbox) — precaches assets + WASM; network-only for LLM endpoints |
 
 ---
@@ -50,7 +50,7 @@ svelte.config.js        # adapter-static, aliases, Service Worker settings
 - **Plan revisions** — base revised plans on prior ones unless fundamentally incompatible.
 - **Dependencies** — propose new libraries when they meaningfully simplify code; remove any unused packages.
 - **After major edits:** run `npm run lint` and `npm run check`.
-- **End of workflow:** always run `npm run format`.
+- **End of workflow:** always run `npm run format`. Don't restore or checkout any affected by format files that you didn't change. Just ignore.
 - **Linting gaps** — if an error bypasses current checks, update linting config to catch it going forward.
 
 ---
@@ -58,14 +58,14 @@ svelte.config.js        # adapter-static, aliases, Service Worker settings
 ## Code Standards
 
 - Use the newest stable APIs and patterns. Rewrite modules from scratch when it materially improves simplicity.
-- Remove legacy code entirely. Use legacy shims only when they significantly reduce import clutter.
-- Do not leave deprecated code in place.
+- **Never write legacy or deprecated code.** Never leave it in place. No exceptions — not for compatibility, not for "shims", not for convenience.
+- If asked to remove something, remove it completely in the simplest way.
 
 ---
 
 ## UI & Styling
 
-- **Primitives** — use shadcn-style components (`src/lib/components/ui/**`, Tailwind + Bits UI). Do not reintroduce legacy widgets.
+- **Primitives** — use shadcn-style components (`src/lib/components/ui/**`, Tailwind + Bits UI). Never write or reintroduce legacy widgets under any circumstances.
 - **Raw HTML elements** — never use `<button>`, `<label>`, `<select>`, `<textarea>` etc. outside `ui/**`. Use their capitalized equivalents (`Button`, `Label`, etc.).
 - **Design tokens** — accent color defaults to `#c85c5c` (user-configurable), drives `--primary` and `--ring`. Use `font-story` (Cinzel) for story logs and narrative text. See `DESIGN.md` for full rules.
 - **Component files** — extract new UI components into separate files; keep files under ~1000 lines.
@@ -92,19 +92,6 @@ svelte.config.js        # adapter-static, aliases, Service Worker settings
 
 ---
 
-## Svelte MCP Tools
-
-Use the Svelte MCP server for all Svelte 5 and SvelteKit documentation lookups. Call these tools at the start of any task involving Svelte or SvelteKit.
-
-| Tool | When to use |
-|---|---|
-| `list-sections` | First — discover available documentation sections (returns titles, use_cases, paths). |
-| `get-documentation` | After `list-sections` — fetch all sections relevant to the task. Analyze `use_cases` carefully before selecting. |
-| `svelte-autofixer` | Before sending any Svelte code — analyzes for issues and suggestions. Call repeatedly until no issues remain. Don't worry about load. |
-
----
-
 ## Constraints
 
 **GBNF patterns** — all regex patterns in JSON-to-GBNF conversions must explicitly begin with `^` and end with `$`.
-

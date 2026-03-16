@@ -58,11 +58,13 @@ function childPrefixOverride(currentPrefix: string, propName: string, schemaName
     if (propName === "current_inventory") return "state.inventory_item"
     if (propName === "npc_changes") return "llm.npc_update"
     if (propName === "npc_introductions") return "state.character"
+    if (propName === "character_custom_fields") return "state.character.custom_fields"
   }
 
   // World state nested contexts
   if (schemaName === "TurnResponse" && currentPrefix === "llm.world_state_update") {
     if (propName === "locations") return "state.location"
+    if (propName === "custom_fields") return "llm.world_state_update.custom_fields"
   }
 
   // Location nested contexts
@@ -73,6 +75,19 @@ function childPrefixOverride(currentPrefix: string, propName: string, schemaName
   // StoryResponse nested contexts
   if (schemaName === "StoryResponse" && currentPrefix === "generation.story") {
     if (propName === "pregen_npcs") return "state.character"
+  }
+
+  // NPC update nested contexts
+  if (schemaName === "TurnResponse" && currentPrefix === "llm.npc_update") {
+    if (propName === "custom_fields") return "state.character.custom_fields"
+  }
+
+  // Character creation/update nested contexts
+  if (
+    (schemaName === "NPCCreation" || schemaName === "GenerateCharacterResponse" || schemaName === "StoryResponse") &&
+    currentPrefix === "state.character"
+  ) {
+    if (propName === "custom_fields") return "state.character.custom_fields"
   }
 
   return null
@@ -89,7 +104,6 @@ function overrideKeyForProperty(propName: string, currentPrefix: string, schemaN
   ) {
     if (propName === "personality_traits") return "traits.personality_traits"
     if (propName === "major_flaws") return "traits.major_flaws"
-    if (propName === "quirks") return "traits.quirks"
     if (propName === "perks") return "traits.perks"
   }
 

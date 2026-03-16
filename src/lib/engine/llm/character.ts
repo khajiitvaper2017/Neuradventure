@@ -54,7 +54,6 @@ type CharacterGenerationContext = {
   current_clothing: string
   personality_traits: string[]
   major_flaws: string[]
-  quirks: string[]
   perks: string[]
 }
 
@@ -79,7 +78,6 @@ function formatCharacterContext(context: CharacterGenerationContext, part: "appe
   } else if (part === "appearance") {
     lines.push(formatTemplate(labels.personalityTraits, { value: context.personality_traits.join(", ") || unknown }))
     lines.push(formatTemplate(labels.majorFlaws, { value: context.major_flaws.join(", ") || noneTitle }))
-    lines.push(formatTemplate(labels.quirks, { value: context.quirks.join(", ") || noneTitle }))
     lines.push(formatTemplate(labels.perks, { value: context.perks.join(", ") || noneTitle }))
   } else {
     lines.push(
@@ -90,7 +88,6 @@ function formatCharacterContext(context: CharacterGenerationContext, part: "appe
     lines.push(formatTemplate(labels.currentAppearance, { value: context.current_appearance.trim() || unknown }))
     lines.push(formatTemplate(labels.personalityTraits, { value: context.personality_traits.join(", ") || unknown }))
     lines.push(formatTemplate(labels.majorFlaws, { value: context.major_flaws.join(", ") || noneTitle }))
-    lines.push(formatTemplate(labels.quirks, { value: context.quirks.join(", ") || noneTitle }))
     lines.push(formatTemplate(labels.perks, { value: context.perks.join(", ") || noneTitle }))
   }
 

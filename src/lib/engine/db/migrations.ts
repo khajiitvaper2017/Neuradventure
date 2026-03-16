@@ -1,8 +1,8 @@
 import { getDb } from "@/engine/db/connection"
 import { DEFAULT_SETTINGS } from "@/engine/db/settings"
-import { ensurePromptConfigDefaults } from "@/engine/db/prompts"
+import { ensurePromptTemplateDefaults } from "@/engine/db/prompts"
 
-const LATEST_USER_VERSION = 1
+const LATEST_USER_VERSION = 4
 
 function readUserVersion(): number {
   const db = getDb()
@@ -217,44 +217,82 @@ function migrateToV1() {
     database.prepare("INSERT INTO settings (id, settings_json) VALUES (1, ?)").run(JSON.stringify(DEFAULT_SETTINGS))
   }
 
-  ensurePromptConfigDefaults()
+  ensurePromptTemplateDefaults()
+}
 
-  // Migrate legacy chat scenario into a system message at message_index = 0.
-  try {
-    const chatsWithScenario = database
-      .prepare("SELECT id, scenario, created_at FROM chats WHERE TRIM(scenario) != ''")
-      .all() as Array<{ id: number; scenario: string; created_at: string }>
+function migrateToV2() {
+  const database = getDb()
 
-    if (chatsWithScenario.length > 0) {
-      const getMinIndex = database.prepare(
-        "SELECT MIN(message_index) as min_index FROM chat_messages WHERE chat_id = ?",
-      )
-      const getPlayerMember = database.prepare(
-        "SELECT id FROM chat_members WHERE chat_id = ? AND role = 'player' ORDER BY sort_order ASC, id ASC LIMIT 1",
-      )
-      const insertSystem = database.prepare(
-        `INSERT INTO chat_messages (chat_id, message_index, speaker_member_id, role, content, created_at)
-         VALUES (?, 0, ?, 'system', ?, ?)`,
-      )
-      const clearScenario = database.prepare("UPDATE chats SET scenario = '' WHERE id = ?")
+  database.exec(`
+    CREATE TABLE IF NOT EXISTS custom_fields (
+      id         TEXT PRIMARY KEY,
+      scope      TEXT NOT NULL,
+      value_type TEXT NOT NULL,
+      label      TEXT NOT NULL,
+      placement  TEXT NOT NULL,
+      prompt     TEXT NOT NULL DEFAULT '',
+      enabled    INTEGER NOT NULL DEFAULT 1,
+      sort_order INTEGER NOT NULL DEFAULT 0,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
 
-      const tx = database.transaction((rows: Array<{ id: number; scenario: string; created_at: string }>) => {
-        for (const row of rows) {
-          const player = getPlayerMember.get(row.id) as { id: number } | undefined
-          if (!player) continue
-          const minRow = getMinIndex.get(row.id) as { min_index: number | null } | undefined
-          const minIndex = minRow?.min_index ?? null
-          if (minIndex !== 0) {
-            insertSystem.run(row.id, player.id, row.scenario.trim(), row.created_at || new Date().toISOString())
-          }
-          clearScenario.run(row.id)
-        }
-      })
-      tx(chatsWithScenario)
+    CREATE INDEX IF NOT EXISTS idx_custom_fields_scope_sort ON custom_fields(scope, sort_order, label);
+
+    CREATE TABLE IF NOT EXISTS field_prompt_overrides (
+      id            INTEGER PRIMARY KEY CHECK (id = 1),
+      overrides_json TEXT NOT NULL,
+      updated_at    TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+  `)
+
+  const row = database.prepare("SELECT overrides_json FROM field_prompt_overrides WHERE id = 1").get() as
+    | { overrides_json: string }
+    | undefined
+  if (!row) {
+    database.prepare("INSERT INTO field_prompt_overrides (id, overrides_json) VALUES (1, ?)").run("{}")
+  }
+}
+
+function migrateToV4() {
+  const database = getDb()
+
+  const promptKeyForName: Record<string, string> = {
+    "narrative-turn": "systemPromptLines",
+    "character-generation": "generateCharacterPrompt",
+    "story-setup": "generateStoryPrompt",
+    "chat-prompt-lines": "chatPromptLines",
+    "chat-setup": "generateChatPrompt",
+    "npc-creation": "npcCreationPrompt",
+    "player-impersonation": "impersonatePrompt",
+  }
+
+  const select = database.prepare("SELECT config_json FROM prompt_configs WHERE name = ?")
+  const update = database.prepare(
+    `UPDATE prompt_configs SET config_json = ?, updated_at = strftime('%Y-%m-%dT%H:%M:%fZ','now') WHERE name = ?`,
+  )
+
+  for (const [name, promptKey] of Object.entries(promptKeyForName)) {
+    const row = select.get(name) as { config_json?: string } | undefined
+    const raw = typeof row?.config_json === "string" ? row.config_json : ""
+    const trimmed = raw.trim()
+    if (!trimmed.startsWith("{")) continue
+
+    let parsed: unknown
+    try {
+      parsed = JSON.parse(trimmed) as unknown
+    } catch {
+      continue
     }
-  } catch (error) {
-    const message = error instanceof Error ? error.message : String(error)
-    console.warn(`[db] Failed to migrate legacy chat scenario: ${message}`)
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) continue
+
+    const promptRaw = (parsed as Record<string, unknown>)[promptKey]
+    if (!promptRaw || typeof promptRaw !== "object" || Array.isArray(promptRaw)) continue
+    const base = (promptRaw as Record<string, unknown>).base
+    if (!Array.isArray(base)) continue
+
+    const lines = base.map((x) => (typeof x === "string" ? x : String(x)))
+    update.run(lines.join("\n"), name)
   }
 }
 
@@ -263,10 +301,24 @@ export function migrateDb() {
   if (version < 1) {
     migrateToV1()
     setUserVersion(1)
-    return
   }
 
-  // Future migrations go here; keep prompt defaults idempotent.
-  if (version >= 1) ensurePromptConfigDefaults()
-  if (version !== LATEST_USER_VERSION) setUserVersion(LATEST_USER_VERSION)
+  if (version < 2) {
+    migrateToV2()
+    setUserVersion(2)
+  }
+
+  if (version < 3) {
+    setUserVersion(3)
+  }
+
+  if (version < 4) {
+    migrateToV4()
+    setUserVersion(4)
+  }
+
+  // Keep prompt defaults idempotent on all versions.
+  ensurePromptTemplateDefaults()
+
+  if (readUserVersion() !== LATEST_USER_VERSION) setUserVersion(LATEST_USER_VERSION)
 }

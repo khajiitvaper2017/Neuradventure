@@ -5,13 +5,13 @@ import { PersonalityTraitsSchema } from "@/engine/schemas/personality-traits"
 import { resolveModuleFlags, type StoryModules } from "@/engine/schemas/story-modules"
 import type { GenerateCharacterResponse, GenerateStoryResponse } from "@/shared/api-types"
 import { buildNpcCreationSchema } from "@/engine/schemas/npc-creation"
+import * as db from "@/engine/core/db"
+import { buildCharacterCustomFieldsUpdateSchema } from "@/engine/schemas/custom-fields"
 
 const MajorFlawSchema = z.string().min(1)
-const QuirkSchema = z.string().min(1)
 const PerkSchema = z.string().min(1)
-const MajorFlawsStrictSchema = z.array(MajorFlawSchema).max(3)
-const QuirksStrictSchema = z.array(QuirkSchema)
-const PerksStrictSchema = z.array(PerkSchema).max(5)
+const MajorFlawsStrictSchema = z.array(MajorFlawSchema)
+const PerksStrictSchema = z.array(PerkSchema)
 
 export const GenerateCharacterResponseSchema = z
   .object({
@@ -23,7 +23,6 @@ export const GenerateCharacterResponseSchema = z
     baseline_appearance: z.string().min(1).optional(),
     current_clothing: z.string().min(1).optional(),
     major_flaws: MajorFlawsStrictSchema.optional(),
-    quirks: QuirksStrictSchema.optional(),
     perks: PerksStrictSchema.optional(),
   })
   .strict()
@@ -43,7 +42,6 @@ export function buildGenerateCharacterResponseSchema(modules: StoryModules): z.Z
       : {}),
     ...(flags.useCharPersonalityTraits ? { personality_traits: PersonalityTraitsSchema } : {}),
     ...(flags.useCharMajorFlaws ? { major_flaws: MajorFlawsStrictSchema } : {}),
-    ...(flags.useCharQuirks ? { quirks: QuirksStrictSchema } : {}),
     ...(flags.useCharPerks ? { perks: PerksStrictSchema } : {}),
   }
 
@@ -67,7 +65,6 @@ export const GenerateCharacterTraitsResponseSchema = z
   .object({
     personality_traits: PersonalityTraitsSchema,
     major_flaws: MajorFlawsStrictSchema,
-    quirks: QuirksStrictSchema,
     perks: PerksStrictSchema,
   })
   .strict()
@@ -87,15 +84,19 @@ export const StoryResponseSchema = z
 
 export function buildStoryResponseSchema(modules: StoryModules): z.ZodType<GenerateStoryResponse> {
   const flags = resolveModuleFlags(modules)
-  const npcSchema = buildNpcCreationSchema({
-    useNpcActivity: flags.useNpcActivity,
-    useNpcLocation: flags.useNpcLocation,
-    useNpcPersonalityTraits: flags.useNpcPersonalityTraits,
-    useNpcAppearance: flags.useNpcAppearance,
-    useNpcMajorFlaws: flags.useNpcMajorFlaws,
-    useNpcQuirks: flags.useNpcQuirks,
-    useNpcPerks: flags.useNpcPerks,
-  })
+  const customDefs = db.listCustomFields()
+  const npcCustomFields = buildCharacterCustomFieldsUpdateSchema(customDefs)
+  const npcSchema = buildNpcCreationSchema(
+    {
+      useNpcActivity: flags.useNpcActivity,
+      useNpcLocation: flags.useNpcLocation,
+      useNpcPersonalityTraits: flags.useNpcPersonalityTraits,
+      useNpcAppearance: flags.useNpcAppearance,
+      useNpcMajorFlaws: flags.useNpcMajorFlaws,
+      useNpcPerks: flags.useNpcPerks,
+    },
+    npcCustomFields,
+  )
 
   const baseShape = {
     title: z.string().min(1),

@@ -221,7 +221,7 @@ export function tavernCardToCharacter(card: TavernCardV2): TavernImportResult {
       customTraits.push(trait)
     }
   }
-  const traits = [...matchedTraits, ...customTraits].slice(0, 5)
+  const traits = [...matchedTraits, ...customTraits]
 
   // Extract baseline description + appearance from description field
   const descLines = description
@@ -269,8 +269,8 @@ export function tavernCardToCharacter(card: TavernCardV2): TavernImportResult {
       current_clothing: "",
       personality_traits: traits,
       major_flaws: [],
-      quirks: [],
       perks: [],
+      custom_fields: {},
     },
     needs_review: true,
     source: "tavern",

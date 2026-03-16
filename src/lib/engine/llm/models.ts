@@ -1,6 +1,6 @@
-import { getSettings } from "@/engine/core/db"
 import type { LLMConnector } from "@/shared/api-types"
 import { listModels } from "@/engine/llm/upstream"
+import { INTERNAL_MODELS_CACHE_TTL_MS, INTERNAL_UPSTREAM_FETCH_TIMEOUT_MS } from "@/shared/internal-timeouts"
 
 export type UpstreamModelInfo = {
   id: string
@@ -58,7 +58,7 @@ function parseModelsPayload(payload: unknown): UpstreamModelInfo[] {
 }
 
 async function fetchUpstreamModels(connector: LLMConnector): Promise<UpstreamModelInfo[]> {
-  const timeoutMs = getSettings().timeouts.upstreamFetchMs
+  const timeoutMs = INTERNAL_UPSTREAM_FETCH_TIMEOUT_MS
   const payload = await listModels(connector, timeoutMs)
   return parseModelsPayload(payload)
 }
@@ -67,7 +67,7 @@ export async function getCachedUpstreamModels(connector: LLMConnector): Promise<
   const key = cacheKey(connector)
   const now = Date.now()
   const cached = modelsCache.get(key)
-  const ttlMs = getSettings().timeouts.modelsCacheTtlMs
+  const ttlMs = INTERNAL_MODELS_CACHE_TTL_MS
   if (cached && now - cached.fetchedAt < ttlMs) return cached.models
 
   try {

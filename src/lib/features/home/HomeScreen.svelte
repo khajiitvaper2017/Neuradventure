@@ -5,11 +5,7 @@
   import type { StoryMeta, ChatSummary } from "@/shared/types"
   import type { StoryCharacterGroup, CharacterImportResult } from "@/shared/api-types"
   import { navigate, openCharSheetForCharacter } from "@/stores/router"
-  import { showError, showConfirm } from "@/stores/ui"
-  import IconDots from "@/components/icons/IconDots.svelte"
-  import IconDocument from "@/components/icons/IconDocument.svelte"
-  import IconGear from "@/components/icons/IconGear.svelte"
-  import IconUsers from "@/components/icons/IconUsers.svelte"
+  import { showError, showConfirm, showQuietNotice } from "@/stores/ui"
   import { Badge } from "@/components/ui/badge"
   import { Button } from "@/components/ui/button"
   import { Card } from "@/components/ui/card"
@@ -22,6 +18,7 @@
   } from "@/components/ui/dropdown-menu"
   import { Input } from "@/components/ui/input"
   import { Label } from "@/components/ui/label"
+  import * as Empty from "@/components/ui/empty"
   import * as Select from "@/components/ui/select"
   import * as Tabs from "@/components/ui/tabs/index.js"
   import { ScrollArea } from "@/components/ui/scroll-area"
@@ -42,9 +39,10 @@
   } from "@/stores/game"
   import { resetChat } from "@/stores/chat"
   import { loadStoryById } from "@/utils/storyLoader"
-  import IconUser from "@/components/icons/IconUser.svelte"
   import ThemeToggle from "@/components/controls/ThemeToggle.svelte"
-  import { Book } from "@lucide/svelte"
+  import CharacterCard from "@/features/home/CharacterCard.svelte"
+  import { pickFile, readFileAsDataUrl } from "@/utils/filePick"
+  import { Book, Cog, EllipsisVertical, User, Users } from "@lucide/svelte"
 
   let stories = $state<StoryMeta[]>([])
   let loading = $state(true)
@@ -190,77 +188,58 @@
   }
 
   async function importStory() {
-    const input = document.createElement("input")
-    input.type = "file"
-    input.accept = ".json,.jsonl"
-    input.onchange = async () => {
-      const file = input.files?.[0]
-      if (!file) return
+    const file = await pickFile({ accept: ".json,.jsonl" })
+    if (!file) return
+    try {
+      const text = await file.text()
+      let payload: object | string = text
       try {
-        const text = await file.text()
-        let payload: object | string = text
-        try {
-          payload = JSON.parse(text)
-        } catch {
-          // keep raw text for JSONL
-        }
-        const { id } = await storiesService.import(payload)
-        showError(`Story imported (id: ${id})`)
-        await loadStories()
-        await loadCharacters()
+        payload = JSON.parse(text)
       } catch {
-        showError("Failed to import story — invalid format")
+        // keep raw text for JSONL
       }
+      const { id } = await storiesService.import(payload)
+      showQuietNotice(`Story imported (id: ${id})`)
+      await loadStories()
+      await loadCharacters()
+    } catch {
+      showError("Failed to import story — invalid format")
     }
-    input.click()
   }
 
   async function importCharacter() {
-    const input = document.createElement("input")
-    input.type = "file"
-    input.accept = ".json,.png"
-    input.onchange = async () => {
-      const file = input.files?.[0]
-      if (!file) return
-      try {
-        let result: CharacterImportResult
-        if (file.name.toLowerCase().endsWith(".png")) {
-          const buf = await file.arrayBuffer()
-          const bytes = new Uint8Array(buf)
-          let binary = ""
-          const chunkSize = 0x8000
-          for (let i = 0; i < bytes.length; i += chunkSize) {
-            binary += String.fromCharCode(...bytes.subarray(i, i + chunkSize))
-          }
-          const png_base64 = btoa(binary)
-          result = await storiesService.importCharacter({ png_base64, filename: file.name })
-        } else {
-          const text = await file.text()
-          result = await storiesService.importCharacter(JSON.parse(text))
-        }
-        if (result.needs_review) {
-          resetGame()
-          pendingCharacter.set(result.character)
-          pendingCharacterId.set(null)
-          pendingCharacterImportText.set(result.source_text ?? "")
-          pendingCharacterImportCard.set((result as { tavern_card?: object }).tavern_card ?? null)
-          pendingCharacterImportAvatarDataUrl.set(result.tavern_avatar_data_url ?? null)
-          pendingCharacterGenerateDescription.set(result.source_text ?? "")
-          pendingStoryTitle.set("")
-          pendingStoryScenario.set("")
-          pendingStoryNPCs.set([])
-          pendingStoryLocation.set("")
-          pendingStoryModules.set(null)
-          navigate("char-create")
-        } else {
-          showError(`Character "${result.character.name}" imported`)
-          await loadCharacters()
-        }
-      } catch (err) {
-        showError(err instanceof Error ? err.message : "Failed to import character — invalid format")
+    const file = await pickFile({ accept: ".json,.png" })
+    if (!file) return
+    try {
+      let result: CharacterImportResult
+      if (file.name.toLowerCase().endsWith(".png")) {
+        const png_data_url = await readFileAsDataUrl(file)
+        result = await storiesService.importCharacter({ png_data_url, filename: file.name })
+      } else {
+        const text = await file.text()
+        result = await storiesService.importCharacter(JSON.parse(text))
       }
+      if (result.needs_review) {
+        resetGame()
+        pendingCharacter.set(result.character)
+        pendingCharacterId.set(null)
+        pendingCharacterImportText.set(result.source_text ?? "")
+        pendingCharacterImportCard.set((result as { tavern_card?: object }).tavern_card ?? null)
+        pendingCharacterImportAvatarDataUrl.set(result.tavern_avatar_data_url ?? null)
+        pendingCharacterGenerateDescription.set(result.source_text ?? "")
+        pendingStoryTitle.set("")
+        pendingStoryScenario.set("")
+        pendingStoryNPCs.set([])
+        pendingStoryLocation.set("")
+        pendingStoryModules.set(null)
+        navigate("char-create")
+      } else {
+        showQuietNotice(`Character "${result.character.name}" imported`)
+        await loadCharacters()
+      }
+    } catch (err) {
+      showError(err instanceof Error ? err.message : "Failed to import character — invalid format")
     }
-    input.click()
   }
 
   async function exportCharacter(group: StoryCharacterGroup, format: "neuradventure" | "tavern-card") {
@@ -332,7 +311,7 @@
     storyCharacters
       .filter((g) => {
         if (!q) return true
-        const traits = [...g.character.personality_traits, ...g.character.quirks, ...g.character.perks].join(" ")
+        const traits = [...g.character.personality_traits, ...g.character.perks].join(" ")
         return matchesQuery(`${g.character.name} ${g.character.gender} ${g.character.race} ${traits}`, q)
       })
       .slice()
@@ -350,29 +329,24 @@
     <div class="absolute left-3 top-3">
       <ThemeToggle />
     </div>
-    <Button
-      variant="ghost"
-      size="icon"
-      class="absolute right-3 top-3 h-9 w-9 text-muted-foreground"
-      onclick={() => navigate("settings")}
-      aria-label="Settings"
-      title="Settings"
-    >
-      <IconGear size={17} strokeWidth={1.8} />
-    </Button>
+    <div class="absolute right-3 top-3">
+      <Button variant="outline" size="icon" onclick={() => navigate("settings")} aria-label="Settings" title="Settings">
+        <Cog size={17} strokeWidth={1.8} aria-hidden="true" />
+      </Button>
+    </div>
   </header>
 
   <div class="grid gap-2 border-b px-4 py-3 grid-cols-3">
     <Button variant="outline" onclick={startNew} class="justify-center">
-      <Book size={14} strokeWidth={2.5} />
+      <Book size={14} strokeWidth={2.5} aria-hidden="true" />
       New Story
     </Button>
     <Button variant="outline" onclick={startNewCharacter} class="justify-center">
-      <IconUser size={14} strokeWidth={2.5} />
+      <User size={14} strokeWidth={2.5} aria-hidden="true" />
       New Character
     </Button>
     <Button variant="outline" onclick={startNewChat} class="justify-center">
-      <IconUsers size={14} strokeWidth={2.5} />
+      <Users size={14} strokeWidth={2.5} aria-hidden="true" />
       New Chat
     </Button>
   </div>
@@ -427,32 +401,44 @@
   <ScrollArea class="min-h-0 flex-1">
     <div class="px-4 py-4">
       {#if section === "stories"}
-        <div class="mb-3 flex items-center justify-end gap-2">
-          <Button variant="outline" size="sm" onclick={importStory}>Import story</Button>
-        </div>
+        {#if stories.length > 0}
+          <div class="mb-3 flex items-center justify-end gap-2">
+            <Button variant="outline" size="sm" onclick={importStory}>Import story</Button>
+          </div>
+        {/if}
 
         {#if loading}
-          <div
-            class="grid place-items-center rounded-md border border-dashed p-8 text-center text-sm text-muted-foreground"
-          >
-            Loading stories...
-          </div>
+          <Empty.Root class="border p-8">
+            <Empty.Header>
+              <Empty.Media variant="icon">
+                <Book aria-hidden="true" />
+              </Empty.Media>
+              <Empty.Title>Loading stories…</Empty.Title>
+            </Empty.Header>
+          </Empty.Root>
         {:else if filteredStories.length === 0}
-          <div
-            class="grid place-items-center rounded-md border border-dashed p-8 text-center text-sm text-muted-foreground"
-          >
+          <Empty.Root class="border p-8">
+            <Empty.Header>
+              <Empty.Media variant="icon">
+                <Book aria-hidden="true" />
+              </Empty.Media>
+              {#if stories.length === 0}
+                <Empty.Title>No stories yet</Empty.Title>
+                <Empty.Description>Begin a new adventure above.</Empty.Description>
+              {:else}
+                <Empty.Title>No stories found</Empty.Title>
+                <Empty.Description>Try a different search.</Empty.Description>
+              {/if}
+            </Empty.Header>
             {#if stories.length === 0}
-              <div class="space-y-1">
-                <p>No stories yet.</p>
-                <p class="text-xs text-muted-foreground/80">Begin a new adventure above.</p>
-              </div>
-            {:else}
-              <div class="space-y-1">
-                <p>No stories found.</p>
-                <p class="text-xs text-muted-foreground/80">Try a different search.</p>
-              </div>
+              <Empty.Content>
+                <div class="flex w-full flex-col gap-2 sm:flex-row sm:justify-center">
+                  <Button class="w-full sm:w-auto" onclick={startNew}>Create new story</Button>
+                  <Button variant="outline" class="w-full sm:w-auto" onclick={importStory}>Import story</Button>
+                </div>
+              </Empty.Content>
             {/if}
-          </div>
+          </Empty.Root>
         {:else}
           <div class="grid gap-3" role="list" aria-label="Stories">
             {#each filteredStories as story (story.id)}
@@ -477,7 +463,7 @@
                       class="inline-flex h-9 w-9 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
                     >
                       <span class="sr-only">Story options</span>
-                      <IconDots size={15} strokeWidth={1.8} />
+                      <EllipsisVertical size={15} strokeWidth={1.8} aria-hidden="true" />
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end" class="w-48">
                       <DropdownMenuItem
@@ -520,27 +506,34 @@
         {/if}
       {:else if section === "chats"}
         {#if loadingChats}
-          <div
-            class="grid place-items-center rounded-md border border-dashed p-8 text-center text-sm text-muted-foreground"
-          >
-            Loading chats...
-          </div>
+          <Empty.Root class="border p-8">
+            <Empty.Header>
+              <Empty.Media variant="icon" aria-hidden="true">
+                <Users size={18} strokeWidth={2} />
+              </Empty.Media>
+              <Empty.Title>Loading chats…</Empty.Title>
+            </Empty.Header>
+          </Empty.Root>
         {:else if filteredChats.length === 0}
-          <div
-            class="grid place-items-center rounded-md border border-dashed p-8 text-center text-sm text-muted-foreground"
-          >
+          <Empty.Root class="border p-8">
+            <Empty.Header>
+              <Empty.Media variant="icon" aria-hidden="true">
+                <Users size={18} strokeWidth={2} />
+              </Empty.Media>
+              {#if chats.length === 0}
+                <Empty.Title>No chats yet</Empty.Title>
+                <Empty.Description>Start a new group chat above.</Empty.Description>
+              {:else}
+                <Empty.Title>No chats found</Empty.Title>
+                <Empty.Description>Try a different search.</Empty.Description>
+              {/if}
+            </Empty.Header>
             {#if chats.length === 0}
-              <div class="space-y-1">
-                <p>No chats yet.</p>
-                <p class="text-xs text-muted-foreground/80">Start a new group chat above.</p>
-              </div>
-            {:else}
-              <div class="space-y-1">
-                <p>No chats found.</p>
-                <p class="text-xs text-muted-foreground/80">Try a different search.</p>
-              </div>
+              <Empty.Content>
+                <Button class="w-full sm:w-auto" onclick={startNewChat}>Create new chat</Button>
+              </Empty.Content>
             {/if}
-          </div>
+          </Empty.Root>
         {:else}
           <div class="grid gap-3" role="list" aria-label="Chats">
             {#each filteredChats as chat (chat.id)}
@@ -575,7 +568,7 @@
                       class="inline-flex h-9 w-9 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
                     >
                       <span class="sr-only">Chat options</span>
-                      <IconDots size={15} strokeWidth={1.8} />
+                      <EllipsisVertical size={15} strokeWidth={1.8} aria-hidden="true" />
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end" class="w-48">
                       <DropdownMenuItem
@@ -617,35 +610,43 @@
           </div>
         {/if}
       {:else if loadingCharacters}
-        <div class="mb-3 flex items-center justify-end gap-2">
-          <Button variant="outline" size="sm" onclick={importCharacter}>Import character</Button>
-        </div>
-
-        <div
-          class="grid place-items-center rounded-md border border-dashed p-8 text-center text-sm text-muted-foreground"
-        >
-          Loading characters...
-        </div>
+        <Empty.Root class="border p-8">
+          <Empty.Header>
+            <Empty.Media variant="icon" aria-hidden="true">
+              <User size={18} strokeWidth={2} />
+            </Empty.Media>
+            <Empty.Title>Loading characters…</Empty.Title>
+          </Empty.Header>
+        </Empty.Root>
       {:else if filteredCharacters.length === 0}
-        <div class="mb-3 flex items-center justify-end gap-2">
-          <Button variant="outline" size="sm" onclick={importCharacter}>Import character</Button>
-        </div>
+        {#if storyCharacters.length > 0}
+          <div class="mb-3 flex items-center justify-end gap-2">
+            <Button variant="outline" size="sm" onclick={importCharacter}>Import character</Button>
+          </div>
+        {/if}
 
-        <div
-          class="grid place-items-center rounded-md border border-dashed p-8 text-center text-sm text-muted-foreground"
-        >
+        <Empty.Root class="border p-8">
+          <Empty.Header>
+            <Empty.Media variant="icon" aria-hidden="true">
+              <User size={18} strokeWidth={2} />
+            </Empty.Media>
+            {#if storyCharacters.length === 0}
+              <Empty.Title>No characters from stories yet</Empty.Title>
+              <Empty.Description>Finish a story to reuse its character here.</Empty.Description>
+            {:else}
+              <Empty.Title>No characters found</Empty.Title>
+              <Empty.Description>Try a different search.</Empty.Description>
+            {/if}
+          </Empty.Header>
           {#if storyCharacters.length === 0}
-            <div class="space-y-1">
-              <p>No characters from stories yet.</p>
-              <p class="text-xs text-muted-foreground/80">Finish a story to reuse its character here.</p>
-            </div>
-          {:else}
-            <div class="space-y-1">
-              <p>No characters found.</p>
-              <p class="text-xs text-muted-foreground/80">Try a different search.</p>
-            </div>
+            <Empty.Content>
+              <div class="flex w-full flex-col gap-2 sm:flex-row sm:justify-center">
+                <Button class="w-full sm:w-auto" onclick={startNewCharacter}>Create new character</Button>
+                <Button variant="outline" class="w-full sm:w-auto" onclick={importCharacter}>Import character</Button>
+              </div>
+            </Empty.Content>
           {/if}
-        </div>
+        </Empty.Root>
       {:else}
         <div class="mb-3 flex items-center justify-end gap-2">
           <Button variant="outline" size="sm" onclick={importCharacter}>Import character</Button>
@@ -653,123 +654,14 @@
 
         <div class="grid gap-3" role="list" aria-label="Characters">
           {#each filteredCharacters as group (group.id)}
-            <Card class="group">
-              <div class="flex items-start gap-2 p-3">
-                <Button
-                  type="button"
-                  variant="ghost"
-                  class="h-auto min-w-0 flex-1 flex-col items-start justify-start gap-0 p-0 text-left hover:bg-transparent"
-                  onclick={() => openCharSheetForCharacter(group.id)}
-                >
-                  <div class="flex items-center gap-3">
-                    {#if group.card?.avatar}
-                      <img class="h-10 w-10 rounded-full border object-cover" src={group.card.avatar} alt="" />
-                    {:else}
-                      <div class="h-10 w-10 rounded-full border bg-muted" aria-hidden="true"></div>
-                    {/if}
-                    <div class="min-w-0">
-                      <div class="truncate text-sm font-semibold">{group.character.name}</div>
-                      <div class="mt-0.5 text-xs text-muted-foreground">
-                        {group.character.gender} · {group.character.race}
-                      </div>
-                    </div>
-                  </div>
-
-                  <div class="mt-2 text-xs text-muted-foreground">
-                    {[...group.character.personality_traits, ...group.character.quirks, ...group.character.perks].join(
-                      ", ",
-                    ) || "No traits"}
-                  </div>
-
-                  {#if group.stories.length > 0}
-                    <div class="mt-2 text-xs text-muted-foreground">
-                      {group.stories.length} stories · Last played
-                      {relativeTime(new Date(characterLastPlayedMs(group)).toISOString())}
-                    </div>
-                  {:else}
-                    <div class="mt-2 text-xs text-muted-foreground">No stories yet</div>
-                  {/if}
-
-                  {#if group.stories.length > 0}
-                    <div class="mt-3 flex flex-wrap gap-1.5" aria-label="Recent stories">
-                      {#each group.stories
-                        .slice()
-                        .sort((a, b) => updatedAtMs(b.updated_at) - updatedAtMs(a.updated_at))
-                        .slice(0, 4) as s (s.id)}
-                        <Badge variant="outline" class="px-2 py-0 text-[11px] font-medium">
-                          {s.title}
-                        </Badge>
-                      {/each}
-                      {#if group.stories.length > 4}
-                        <Badge variant="outline" class="px-2 py-0 text-[11px] font-medium text-muted-foreground">
-                          +{group.stories.length - 4}
-                        </Badge>
-                      {/if}
-                    </div>
-                  {/if}
-                </Button>
-
-                <DropdownMenu>
-                  <DropdownMenuTrigger
-                    class="inline-flex h-9 w-9 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
-                  >
-                    <span class="sr-only">Character options</span>
-                    <IconDots size={15} strokeWidth={1.8} />
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end" class="w-48">
-                    <DropdownMenuItem onSelect={() => openCharSheetForCharacter(group.id)}>
-                      <span class="inline-flex items-center gap-2">
-                        <IconDocument size={14} strokeWidth={1.6} />
-                        Details
-                      </span>
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onSelect={() => startNewWithCharacter(group)}>New Story</DropdownMenuItem>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem onSelect={() => void exportCharacter(group, "tavern-card")}
-                      >Export ST</DropdownMenuItem
-                    >
-                    <DropdownMenuItem onSelect={() => void exportCharacter(group, "neuradventure")}
-                      >Export JSON</DropdownMenuItem
-                    >
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem
-                      class="text-destructive focus:text-destructive"
-                      onSelect={() => deleteCharacter(group.id)}
-                    >
-                      Delete
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              </div>
-
-              {#if group.stories.length > 0}
-                <div class="border-t px-3 py-3">
-                  <details class="rounded-md border bg-muted/30 p-3">
-                    <summary
-                      class="cursor-pointer select-none text-xs font-semibold uppercase tracking-wider text-muted-foreground"
-                    >
-                      Stories <span class="ml-1 rounded-full bg-background px-2 py-0.5 text-[11px]"
-                        >{group.stories.length}</span
-                      >
-                    </summary>
-                    <div class="mt-3 grid gap-1">
-                      {#each group.stories
-                        .slice()
-                        .sort((a, b) => updatedAtMs(b.updated_at) - updatedAtMs(a.updated_at)) as s (s.id)}
-                        <Button
-                          type="button"
-                          variant="link"
-                          class="h-auto justify-start p-0 text-left text-sm font-normal text-foreground/90 hover:underline"
-                          onclick={() => openStoryById(s.id)}
-                        >
-                          {s.title}
-                        </Button>
-                      {/each}
-                    </div>
-                  </details>
-                </div>
-              {/if}
-            </Card>
+            <CharacterCard
+              {group}
+              onOpenDetails={openCharSheetForCharacter}
+              onStartNewStory={startNewWithCharacter}
+              onOpenStory={openStoryById}
+              onExport={exportCharacter}
+              onDelete={deleteCharacter}
+            />
           {/each}
         </div>
       {/if}

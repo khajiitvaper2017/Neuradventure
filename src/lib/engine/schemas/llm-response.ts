@@ -3,7 +3,14 @@ import { NPCStateUpdateBaseSchema } from "@/engine/schemas/npc-state-update-base
 import { InventoryItemSchema, WorldStateUpdateSchema } from "@/engine/schemas/game-state"
 import { buildNpcCreationSchema } from "@/engine/schemas/npc-creation"
 
-type NPCStateUpdateBase = z.infer<typeof NPCStateUpdateBaseSchema>
+type NPCStateUpdateOutput = z.infer<typeof NPCStateUpdateBaseSchema> & {
+  custom_fields?: Record<string, string | string[]>
+}
+
+const CustomFieldsAnySchema = z.record(
+  z.string().min(1),
+  z.union([z.string().min(1), z.array(z.string().min(1)).min(1)]),
+)
 
 export type NPCUpdateFlags = {
   allowLocation: boolean
@@ -20,11 +27,12 @@ export const buildNPCStateUpdateSchema = (
     allowClothing: true,
     allowActivity: true,
   },
-): z.ZodType<NPCStateUpdateBase> => {
+  customFieldsSchema?: z.ZodTypeAny,
+): z.ZodType<NPCStateUpdateOutput> => {
   const base = NPCStateUpdateBaseSchema.extend({ name: nameSchema })
   const withRace = base.extend({ race: z.string().min(1) })
   const withGender = base.extend({ gender: z.string().min(1) })
-  const variants: z.ZodType<NPCStateUpdateBase>[] = [withRace, withGender]
+  const variants: z.ZodTypeAny[] = [withRace, withGender]
   if (flags.allowLocation) {
     variants.push(
       base.extend({
@@ -53,18 +61,22 @@ export const buildNPCStateUpdateSchema = (
       }),
     )
   }
-  return z.union(
-    variants as [z.ZodType<NPCStateUpdateBase>, z.ZodType<NPCStateUpdateBase>, ...z.ZodType<NPCStateUpdateBase>[]],
-  )
+  if (customFieldsSchema) {
+    variants.push(
+      base.extend({
+        custom_fields: customFieldsSchema,
+      }),
+    )
+  }
+  return z.union(variants as [z.ZodTypeAny, z.ZodTypeAny, ...z.ZodTypeAny[]]) as z.ZodType<NPCStateUpdateOutput>
 }
 
-export const NPCStateUpdateSchema = buildNPCStateUpdateSchema(z.string().min(1))
+export const NPCStateUpdateSchema = buildNPCStateUpdateSchema(z.string().min(1), undefined, CustomFieldsAnySchema)
 
 export const NPCCreationSchema = buildNpcCreationSchema({
   useNpcAppearance: true,
   useNpcPersonalityTraits: true,
   useNpcMajorFlaws: true,
-  useNpcQuirks: true,
   useNpcPerks: true,
   useNpcLocation: true,
   useNpcActivity: true,
@@ -84,8 +96,12 @@ export const BackgroundEventsSection = z
   }, z.string().min(1))
   .optional()
 
-export const buildNPCChangesSection = (nameSchema: z.ZodType<string>, flags?: NPCUpdateFlags) => {
-  const updateSchema = buildNPCStateUpdateSchema(nameSchema, flags)
+export const buildNPCChangesSection = (
+  nameSchema: z.ZodType<string>,
+  flags?: NPCUpdateFlags,
+  customFieldsSchema: z.ZodTypeAny = CustomFieldsAnySchema,
+) => {
+  const updateSchema = buildNPCStateUpdateSchema(nameSchema, flags, customFieldsSchema)
   return z.array(updateSchema)
 }
 export const NPCChangesSection = buildNPCChangesSection(z.string().min(1))
@@ -99,6 +115,7 @@ export const TurnResponseSchema = z
     current_clothing: CurrentClothingSection.optional(),
     current_appearance: SetCurrentAppearanceSection.optional(),
     current_inventory: SetCurrentInventorySection.optional(),
+    character_custom_fields: CustomFieldsAnySchema.optional(),
     world_state_update: WorldStateUpdateSchema.optional().default({}),
     npc_changes: NPCChangesSection.optional(),
     npc_introductions: NPCIntroductionsSection.optional(),

@@ -1,12 +1,7 @@
 <script lang="ts">
   import { Badge } from "@/components/ui/badge"
   import { Button } from "@/components/ui/button"
-  import IconFace from "@/components/icons/IconFace.svelte"
-  import IconHome from "@/components/icons/IconHome.svelte"
-  import IconMapPin from "@/components/icons/IconMapPin.svelte"
-  import IconSpinner from "@/components/icons/IconSpinner.svelte"
-  import IconUser from "@/components/icons/IconUser.svelte"
-  import IconUsers from "@/components/icons/IconUsers.svelte"
+  import { House, LoaderCircle, MapPin, Smile, User, Users } from "@lucide/svelte"
   import ConversationInput from "@/components/inputs/ConversationInput.svelte"
   import { showCharSheet, showLocations, showNPCTracker } from "@/stores/router"
   import { isGenerating, turns } from "@/stores/game"
@@ -176,9 +171,9 @@
           aria-label="Impersonate player action"
         >
           {#if isImpersonating}
-            <IconSpinner className="animate-spin" size={14} strokeWidth={2.2} />
+            <LoaderCircle class="animate-spin" size={14} strokeWidth={2.2} aria-hidden="true" />
           {:else}
-            <IconFace size={14} strokeWidth={2} />
+            <Smile size={14} strokeWidth={2} aria-hidden="true" />
           {/if}
         </Button>
       </div>
@@ -194,7 +189,7 @@
       title="Stories"
       aria-label="Stories"
     >
-      <IconHome size={14} strokeWidth={1.8} />
+      <House size={14} strokeWidth={1.8} aria-hidden="true" />
     </Button>
     <Button
       variant="ghost"
@@ -204,7 +199,7 @@
       title="Character"
       aria-label="Character"
     >
-      <IconUser size={14} strokeWidth={1.8} />
+      <User size={14} strokeWidth={1.8} aria-hidden="true" />
     </Button>
     <Button
       variant="ghost"
@@ -214,7 +209,7 @@
       title="NPCs"
       aria-label="NPCs"
     >
-      <IconUsers size={14} strokeWidth={1.8} />
+      <Users size={14} strokeWidth={1.8} aria-hidden="true" />
     </Button>
     <Button
       variant="ghost"
@@ -224,7 +219,7 @@
       title="Locations"
       aria-label="Locations"
     >
-      <IconMapPin size={14} strokeWidth={1.8} />
+      <MapPin size={14} strokeWidth={1.8} aria-hidden="true" />
     </Button>
   {/snippet}
 </ConversationInput>

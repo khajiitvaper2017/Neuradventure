@@ -10,16 +10,16 @@
   import { createRequestId } from "@/utils/ids"
   import { clearPendingRequest, getPendingRequest, setPendingRequest } from "@/utils/pendingRequests"
   import { cn } from "@/utils.js"
-  import IconDocument from "@/components/icons/IconDocument.svelte"
-  import IconPencilSquare from "@/components/icons/IconPencilSquare.svelte"
+  import { FileText, SquarePen } from "@lucide/svelte"
   import PromptHistoryPanel from "@/components/panels/PromptHistoryPanel.svelte"
   import StoryModulesPanel from "@/components/panels/StoryModulesPanel.svelte"
   import * as Select from "@/components/ui/select"
+  import { Badge } from "@/components/ui/badge"
   import { Button } from "@/components/ui/button"
   import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-  import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
   import { Input } from "@/components/ui/input"
   import { Label } from "@/components/ui/label"
+  import { Sheet, SheetContent } from "@/components/ui/sheet"
   import { Textarea } from "@/components/ui/textarea"
   import { ScrollArea } from "@/components/ui/scroll-area"
   import NpcLibraryPicker from "@/features/story/NpcLibraryPicker.svelte"
@@ -129,7 +129,6 @@
     "character_appearance_clothing",
     "character_personality_traits",
     "character_major_flaws",
-    "character_quirks",
     "character_perks",
     "character_inventory",
   ]
@@ -137,7 +136,6 @@
     "npc_appearance_clothing",
     "npc_personality_traits",
     "npc_major_flaws",
-    "npc_quirks",
     "npc_perks",
     "npc_location",
     "npc_activity",
@@ -156,6 +154,10 @@
   }
 
   const activeModules: StoryModules = $derived($pendingStoryModules ?? $storyDefaults)
+  function countAllEnabled(modules: StoryModules): number {
+    return Object.values(modules).reduce((acc, v) => acc + (v ? 1 : 0), 0)
+  }
+  const modulesEnabledCount = $derived(countAllEnabled(activeModules))
   const modulesPreviewCore = $derived(
     `Core: ${activeModules.track_npcs ? "NPCs on" : "NPCs off"} · ${
       activeModules.track_locations ? "Locations on" : "Locations off"
@@ -341,9 +343,7 @@
     }
     if (charData) {
       const missing: string[] = []
-      const useAppearance = $pendingStoryModules?.character_appearance_clothing ?? true
       if (!charData.general_description?.trim()) missing.push("Description")
-      if (useAppearance && !charData.current_appearance?.trim()) missing.push("Current appearance")
       if (missing.length > 0) {
         showError(`Missing ${missing.join(", ")}. Generate the story or fill these fields.`)
         return
@@ -457,77 +457,6 @@
           </CardContent>
         </Card>
 
-        <div class="space-y-2">
-          <Label for="story-title">Story Title</Label>
-          <Input id="story-title" type="text" bind:value={$pendingStoryTitle} placeholder="Name your adventure..." />
-        </div>
-
-        <div class="space-y-2">
-          <Label for="story-scenario">Opening Scenario</Label>
-          <Textarea
-            id="story-scenario"
-            bind:value={$pendingStoryScenario}
-            placeholder="Describe the starting situation. Where is your character? What's happening?"
-            rows={6}
-          />
-        </div>
-
-        <div class="space-y-2">
-          <Label for="story-location">Starting Location</Label>
-          <Input
-            id="story-location"
-            type="text"
-            bind:value={$pendingStoryLocation}
-            placeholder="e.g. The lower decks of the airship"
-          />
-        </div>
-
-        <Card>
-          <CardHeader class="flex-row items-start justify-between gap-3 space-y-0">
-            <div class="space-y-1">
-              <CardTitle>Story Modules</CardTitle>
-              <CardDescription>Configure which systems are active for this story.</CardDescription>
-            </div>
-            <Button variant="outline" onclick={() => (showModulesPanel = true)} disabled={generating || submitting}>
-              Edit
-            </Button>
-          </CardHeader>
-          <CardContent class="space-y-1 text-sm text-muted-foreground">
-            <div>{modulesPreviewCore}</div>
-            <div>{modulesPreviewPlayer}</div>
-            <div>{modulesPreviewNpc}</div>
-          </CardContent>
-        </Card>
-
-        <NpcLibraryPicker
-          characters={savedCharacters}
-          selectedIds={$pendingStoryNpcCharacterIds}
-          disabled={!activeModules.track_npcs}
-          locked={generating || submitting}
-          excludeCharacterId={$pendingCharacterId}
-          onChange={setNpcCharacterIds}
-          onOpenModules={() => (showModulesPanel = true)}
-        />
-
-        {#if $pendingStoryNPCs.length > 0}
-          <Card>
-            <CardHeader>
-              <CardTitle>Generated NPCs</CardTitle>
-            </CardHeader>
-            <CardContent class="grid gap-3 sm:grid-cols-2">
-              {#each $pendingStoryNPCs as npc, index (npc.name + ":" + index)}
-                <div class="rounded-lg border bg-card p-3">
-                  <div class="text-sm font-medium text-foreground">{npc.name}</div>
-                  <div class="mt-1 text-xs text-muted-foreground">{npc.race} · {npc.current_location || "Unknown"}</div>
-                  <div class="mt-1 text-xs text-muted-foreground">
-                    {[...npc.personality_traits, ...npc.quirks, ...npc.perks].join(", ") || "No traits"}
-                  </div>
-                </div>
-              {/each}
-            </CardContent>
-          </Card>
-        {/if}
-
         <Card>
           <CardHeader>
             <CardTitle>Character</CardTitle>
@@ -578,7 +507,7 @@
                     ? "Character details"
                     : "Details available for story characters only"}
                 >
-                  <IconDocument size={16} strokeWidth={1.6} />
+                  <FileText size={16} strokeWidth={1.6} aria-hidden="true" />
                   Details
                 </Button>
                 <Button
@@ -596,9 +525,7 @@
                 <div class="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Selected</div>
                 <div class="mt-2 text-lg font-semibold text-foreground">{charData.name}</div>
                 <div class="mt-1 text-sm text-muted-foreground">
-                  {charData.gender} · {[...charData.personality_traits, ...charData.quirks, ...charData.perks].join(
-                    ", ",
-                  ) || "No traits"}
+                  {charData.gender} · {[...charData.personality_traits, ...charData.perks].join(", ") || "No traits"}
                 </div>
                 <Button
                   variant="outline"
@@ -609,7 +536,7 @@
                   title="Edit character"
                   aria-label="Edit character"
                 >
-                  <IconPencilSquare size={12} strokeWidth={2} />
+                  <SquarePen size={12} strokeWidth={2} aria-hidden="true" />
                   Character
                 </Button>
               </div>
@@ -624,18 +551,115 @@
             {/if}
           </CardContent>
         </Card>
+
+        <div class="space-y-2">
+          <Label for="story-title">Story Title</Label>
+          <Input id="story-title" type="text" bind:value={$pendingStoryTitle} placeholder="Name your adventure..." />
+        </div>
+
+        <div class="space-y-2">
+          <Label for="story-scenario">Opening Scenario</Label>
+          <Textarea
+            id="story-scenario"
+            bind:value={$pendingStoryScenario}
+            placeholder="Describe the starting situation. Where is your character? What's happening?"
+            rows={6}
+          />
+        </div>
+
+        <div class="space-y-2">
+          <Label for="story-location">Starting Location</Label>
+          <Input
+            id="story-location"
+            type="text"
+            bind:value={$pendingStoryLocation}
+            placeholder="e.g. The lower decks of the airship"
+          />
+        </div>
+
+        <Card>
+          <CardHeader class="flex-row items-start justify-between gap-3 space-y-0">
+            <div class="space-y-1">
+              <CardTitle>Story Modules</CardTitle>
+              <CardDescription>Configure which systems are active for this story.</CardDescription>
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              class="h-8 gap-2"
+              onclick={() => (showModulesPanel = true)}
+              disabled={generating || submitting}
+            >
+              Modules
+              <Badge variant="secondary" class="h-5 px-1.5 font-mono text-[10px] tabular-nums">
+                {modulesEnabledCount}
+              </Badge>
+            </Button>
+          </CardHeader>
+          <CardContent class="space-y-1 text-sm text-muted-foreground">
+            <div>{modulesPreviewCore}</div>
+            <div>{modulesPreviewPlayer}</div>
+            <div>{modulesPreviewNpc}</div>
+          </CardContent>
+        </Card>
+
+        <NpcLibraryPicker
+          characters={savedCharacters}
+          selectedIds={$pendingStoryNpcCharacterIds}
+          disabled={!activeModules.track_npcs}
+          locked={generating || submitting}
+          excludeCharacterId={$pendingCharacterId}
+          onChange={setNpcCharacterIds}
+          onOpenModules={() => (showModulesPanel = true)}
+        />
+
+        {#if $pendingStoryNPCs.length > 0}
+          <Card>
+            <CardHeader>
+              <CardTitle>Generated NPCs</CardTitle>
+            </CardHeader>
+            <CardContent class="grid gap-3 sm:grid-cols-2">
+              {#each $pendingStoryNPCs as npc, index (npc.name + ":" + index)}
+                <div class="rounded-lg border bg-card p-3">
+                  <div class="text-sm font-medium text-foreground">{npc.name}</div>
+                  <div class="mt-1 text-xs text-muted-foreground">{npc.race} · {npc.current_location || "Unknown"}</div>
+                  <div class="mt-1 text-xs text-muted-foreground">
+                    {[...npc.personality_traits, ...npc.perks].join(", ") || "No traits"}
+                  </div>
+                </div>
+              {/each}
+            </CardContent>
+          </Card>
+        {/if}
       </div>
     </div>
   </ScrollArea>
 
-  <Dialog open={showModulesPanel} onOpenChange={(next) => (showModulesPanel = next)}>
-    <DialogContent class="max-w-xl">
-      <DialogHeader>
-        <DialogTitle>Story Modules</DialogTitle>
-      </DialogHeader>
-      <StoryModulesPanel modules={activeModules} {setModules} bare />
-    </DialogContent>
-  </Dialog>
+  <Sheet open={showModulesPanel} onOpenChange={(next) => (showModulesPanel = next)}>
+    <SheetContent side="right" class="w-[min(92vw,44rem)] sm:max-w-none p-0">
+      <div class="flex items-center justify-between gap-3 border-b px-4 py-3">
+        <div class="min-w-0">
+          <div class="truncate text-sm font-semibold text-foreground">Story Modules</div>
+          <div class="mt-0.5 text-xs text-muted-foreground">Configure which systems are active for this story.</div>
+        </div>
+        <Button
+          variant="ghost"
+          size="icon"
+          class="h-9 w-9"
+          onclick={() => (showModulesPanel = false)}
+          aria-label="Close"
+        >
+          ×
+        </Button>
+      </div>
+
+      <ScrollArea class="max-h-[calc(100dvh-3.25rem)]">
+        <div class="p-4">
+          <StoryModulesPanel modules={activeModules} {setModules} bare />
+        </div>
+      </ScrollArea>
+    </SheetContent>
+  </Sheet>
 
   <div class="border-t px-4 py-4">
     <Button class="w-full" onclick={startAdventure} disabled={submitting || generating}>

@@ -11,7 +11,7 @@
   import { createRequestId } from "@/utils/ids"
   import { clearPendingRequest, getPendingRequest, setPendingRequest } from "@/utils/pendingRequests"
   import { cn } from "@/utils.js"
-  import IconDocument from "@/components/icons/IconDocument.svelte"
+  import { FileText } from "@lucide/svelte"
   import PromptHistoryPanel from "@/components/panels/PromptHistoryPanel.svelte"
   import * as Select from "@/components/ui/select"
   import { Button } from "@/components/ui/button"
@@ -474,7 +474,7 @@
                   disabled={generating || submitting || !selectedPlayerCharId}
                   title={selectedPlayerCharId ? "Character details" : "Details available for story characters only"}
                 >
-                  <IconDocument size={16} strokeWidth={1.6} />
+                  <FileText size={16} strokeWidth={1.6} aria-hidden="true" />
                   Details
                 </Button>
                 <Button variant="outline" onclick={refreshPlayable} disabled={generating || submitting || loading}
@@ -489,11 +489,8 @@
                 <div class="mt-2 text-lg font-semibold text-foreground">{selectedPlayerOption.name}</div>
                 <div class="mt-1 text-sm text-muted-foreground">
                   {selectedPlayerOption.state.gender || "Unknown"} ·
-                  {[
-                    ...selectedPlayerOption.state.personality_traits,
-                    ...selectedPlayerOption.state.quirks,
-                    ...selectedPlayerOption.state.perks,
-                  ].join(", ") || "No traits"}
+                  {[...selectedPlayerOption.state.personality_traits, ...selectedPlayerOption.state.perks].join(", ") ||
+                    "No traits"}
                 </div>
               </div>
             {:else}
@@ -555,7 +552,7 @@
                           openCharSheetForCharacter(option.character_id)
                         }}
                       >
-                        <IconDocument size={16} strokeWidth={1.6} />
+                        <FileText size={16} strokeWidth={1.6} aria-hidden="true" />
                       </Button>
                     {/if}
                   </div>
@@ -577,9 +574,7 @@
                         {member.state.race || "Unknown"} · {member.state.gender || "Unknown"}
                       </div>
                       <div class="mt-1 text-xs text-muted-foreground">
-                        {[...member.state.personality_traits, ...member.state.quirks, ...member.state.perks].join(
-                          ", ",
-                        ) || "No traits"}
+                        {[...member.state.personality_traits, ...member.state.perks].join(", ") || "No traits"}
                       </div>
                     </div>
                   {/each}

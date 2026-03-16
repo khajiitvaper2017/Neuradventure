@@ -1,5 +1,5 @@
 <script lang="ts">
-  import IconUsers from "@/components/icons/IconUsers.svelte"
+  import { Users } from "@lucide/svelte"
   import { Button } from "@/components/ui/button"
 
   let {
@@ -22,7 +22,7 @@
 </script>
 
 <div class="flex w-full items-center gap-2">
-  <IconUsers size={16} strokeWidth={1.5} className="shrink-0 opacity-70" />
+  <Users size={16} strokeWidth={1.5} class="shrink-0 opacity-70" aria-hidden="true" />
   <span class="min-w-0 truncate text-xs font-semibold uppercase tracking-wider text-muted-foreground">
     Known NPCs ({count})
   </span>

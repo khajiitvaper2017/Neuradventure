@@ -11,6 +11,15 @@ import { normalizeGender } from "@/engine/schemas/normalizers"
 import { NPCStateStoredSchema } from "@/engine/core/models"
 import type { ModuleFlags } from "@/engine/schemas/story-modules"
 
+function mergeCustomFields(
+  base: Record<string, string | string[]> | undefined,
+  patch: unknown,
+): Record<string, string | string[]> {
+  const current = base && typeof base === "object" ? base : {}
+  if (!patch || typeof patch !== "object" || Array.isArray(patch)) return current
+  return { ...current, ...(patch as Record<string, string | string[]>) }
+}
+
 export function applyPlayerUpdate(
   character: MainCharacterState,
   turnResponse: TurnResponse,
@@ -32,6 +41,7 @@ export function applyPlayerUpdate(
     ...character,
     ...appearance,
     inventory: flags.useCharInventory ? (turnResponse.current_inventory ?? character.inventory) : character.inventory,
+    custom_fields: mergeCustomFields(character.custom_fields, turnResponse.character_custom_fields),
   }
 }
 
@@ -148,6 +158,7 @@ export function applyNPCUpdates(npcs: NPCState[], updates: NPCStateUpdate[], fla
         ? (patch.current_clothing ?? npc.current_clothing)
         : npc.current_clothing,
       current_activity: flags.useNpcActivity ? (patch.current_activity ?? npc.current_activity) : npc.current_activity,
+      custom_fields: mergeCustomFields(npc.custom_fields, patch.custom_fields),
     }
   })
 }

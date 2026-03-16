@@ -1,10 +1,9 @@
 <script lang="ts">
+  import type { StoryModules } from "@/shared/types"
   import { stories } from "@/services/stories"
   import { cn } from "@/utils.js"
-  import IconDots from "@/components/icons/IconDots.svelte"
-  import IconMapPin from "@/components/icons/IconMapPin.svelte"
-  import IconUser from "@/components/icons/IconUser.svelte"
-  import IconUsers from "@/components/icons/IconUsers.svelte"
+  import { EllipsisVertical, MapPin, Puzzle, User, Users } from "@lucide/svelte"
+  import { DEFAULT_STORY_MODULES } from "@/engine/schemas/story-modules"
   import { Badge } from "@/components/ui/badge"
   import { Button } from "@/components/ui/button"
   import {
@@ -22,6 +21,7 @@
     flashScene?: boolean
     onGoHome?: () => void
     onOpenMemoryEditor?: () => void
+    onOpenWorldFieldsEditor?: () => void
     onOpenAuthorNoteEditor?: () => void
     onOpenModulesEditor?: () => void
   }
@@ -30,6 +30,7 @@
     flashScene = false,
     onGoHome,
     onOpenMemoryEditor,
+    onOpenWorldFieldsEditor,
     onOpenAuthorNoteEditor,
     onOpenModulesEditor,
   }: Props = $props()
@@ -37,6 +38,11 @@
   let showMenu = $state(false)
   const trackNpcs = $derived($currentStoryModules?.track_npcs ?? true)
   const trackLocations = $derived($currentStoryModules?.track_locations ?? true)
+  const MODULE_KEYS = Object.keys(DEFAULT_STORY_MODULES) as (keyof StoryModules)[]
+  function countEnabled(modules: StoryModules): number {
+    return MODULE_KEYS.reduce((acc, k) => acc + (modules[k] ? 1 : 0), 0)
+  }
+  const modulesEnabledCount = $derived(countEnabled($currentStoryModules ?? DEFAULT_STORY_MODULES))
 
   async function exportStory(format: "neuradventure" | "tavern" | "plaintext") {
     showMenu = false
@@ -94,7 +100,7 @@
       title={$collapseCharSheet ? "Show character sheet" : "Hide character sheet"}
       onclick={() => collapseCharSheet.update((v) => !v)}
     >
-      <IconUser size={15} strokeWidth={1.8} />
+      <User size={15} strokeWidth={1.8} aria-hidden="true" />
     </Button>
     {#if trackNpcs}
       <Button
@@ -104,7 +110,7 @@
         title={$collapseNPCTracker ? "Show NPC tracker" : "Hide NPC tracker"}
         onclick={() => collapseNPCTracker.update((v) => !v)}
       >
-        <IconUsers size={15} strokeWidth={1.8} />
+        <Users size={15} strokeWidth={1.8} aria-hidden="true" />
       </Button>
     {/if}
     {#if trackLocations}
@@ -118,7 +124,7 @@
         title={$collapseLocationsPanel ? "Show locations" : "Hide locations"}
         onclick={() => collapseLocationsPanel.update((v) => !v)}
       >
-        <IconMapPin size={15} strokeWidth={1.8} />
+        <MapPin size={15} strokeWidth={1.8} aria-hidden="true" />
       </Button>
     {/if}
     <Button
@@ -128,7 +134,7 @@
       title="Character Sheet"
       onclick={() => showCharSheet.update((v) => !v)}
     >
-      <IconUser size={15} strokeWidth={1.8} />
+      <User size={15} strokeWidth={1.8} aria-hidden="true" />
     </Button>
     {#if trackNpcs}
       <Button
@@ -138,7 +144,7 @@
         title="NPC Tracker"
         onclick={() => showNPCTracker.update((v) => !v)}
       >
-        <IconUsers size={15} strokeWidth={1.8} />
+        <Users size={15} strokeWidth={1.8} aria-hidden="true" />
       </Button>
     {/if}
     {#if trackLocations}
@@ -149,18 +155,34 @@
         title="Locations"
         onclick={() => showLocations.update((v) => !v)}
       >
-        <IconMapPin size={15} strokeWidth={1.8} />
+        <MapPin size={15} strokeWidth={1.8} aria-hidden="true" />
       </Button>
     {/if}
+
+    {#if onOpenModulesEditor}
+      <Button
+        variant="outline"
+        size="sm"
+        class="h-8 gap-2 px-2 text-xs"
+        title="Story Modules"
+        onclick={() => onOpenModulesEditor?.()}
+      >
+        <Puzzle size={14} strokeWidth={1.8} class="shrink-0 text-muted-foreground" aria-hidden="true" />
+        <span class="hidden min-[420px]:inline">Modules</span>
+        <Badge variant="secondary" class="h-5 px-1.5 font-mono text-[10px] tabular-nums">{modulesEnabledCount}</Badge>
+      </Button>
+    {/if}
+
     <DropdownMenu open={showMenu} onOpenChange={(next) => (showMenu = next)}>
       <DropdownMenuTrigger
         class="inline-flex h-9 w-9 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
       >
         <span class="sr-only">More options</span>
-        <IconDots size={15} strokeWidth={1.8} />
+        <EllipsisVertical size={15} strokeWidth={1.8} aria-hidden="true" />
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" class="w-48">
         <DropdownMenuItem onSelect={() => onOpenMemoryEditor?.()}>Memory</DropdownMenuItem>
+        <DropdownMenuItem onSelect={() => onOpenWorldFieldsEditor?.()}>World Fields</DropdownMenuItem>
         <DropdownMenuItem onSelect={() => onOpenAuthorNoteEditor?.()}>Author's Note</DropdownMenuItem>
         <DropdownMenuItem onSelect={() => onOpenModulesEditor?.()}>Story Modules</DropdownMenuItem>
         {#if $currentStoryId}

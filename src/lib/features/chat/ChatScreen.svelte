@@ -32,8 +32,7 @@
   import ConversationInput from "@/components/inputs/ConversationInput.svelte"
   import RichText from "@/components/rich/RichText.svelte"
   import ThinkingDots from "@/components/controls/ThinkingDots.svelte"
-  import IconPencilSquare from "@/components/icons/IconPencilSquare.svelte"
-  import IconTrash from "@/components/icons/IconTrash.svelte"
+  import { SquarePen, Trash } from "@lucide/svelte"
   import { Badge } from "@/components/ui/badge"
   import { Button } from "@/components/ui/button"
   import { ScrollArea } from "@/components/ui/scroll-area"
@@ -541,7 +540,7 @@
         title="Edit title"
         aria-label="Edit title"
       >
-        <IconPencilSquare size={12} strokeWidth={2} />
+        <SquarePen size={12} strokeWidth={2} aria-hidden="true" />
       </Button>
       {#if showNextSpeakerControl()}
         <Button
@@ -604,7 +603,7 @@
                     title="Edit message"
                     aria-label="Edit message"
                   >
-                    <IconPencilSquare size={12} strokeWidth={2} />
+                    <SquarePen size={12} strokeWidth={2} aria-hidden="true" />
                   </Button>
                   <Button
                     variant="outline"
@@ -614,7 +613,7 @@
                     disabled={$isChatGenerating}
                     title="Delete message"
                   >
-                    <IconTrash size={12} strokeWidth={2} />
+                    <Trash size={12} strokeWidth={2} aria-hidden="true" />
                   </Button>
                 </div>
               </div>

@@ -1,29 +1,35 @@
-# Neuradventure UI System (shadcn-svelte + Tailwind)
+# Neuradventure UI System
 
-**Archetype:** Minimalist / Refined  
-**Differentiator:** quiet micro-contrast (hairline borders + deliberate focus rings) + “library shelf” information density
+**Style:** Minimalist — hairline borders, deliberate focus rings, dense information layout.
 
-## Typography
-- `font-sans`: Geist Sans (UI)
-- `font-mono`: Geist Mono (code/ids)
-- `font-story`: Cinzel (narrative/story log text)
+## Fonts
 
-## Color + Theming
-- Tokens follow shadcn-svelte defaults via CSS variables in `src/lib/styles/app.css`.
-- The current theme uses shadcn-svelte’s neutral base tokens. (Brand accent customization is not wired into `--primary` / `--ring` yet.)
-- Dark mode is controlled by toggling the `dark` class on `document.documentElement`.
+- `font-sans`: Geist Sans
+- `font-mono`: Geist Mono
+- `font-story`: Cinzel
 
-## Rules
-- Prefer shadcn-svelte primitives in `src/lib/components/ui/**` for common controls.
-- install them via `npx shadcn-svelte@latest add ___` 
-- Prefer Tailwind utilities over bespoke CSS.
-- Avoid component-scoped `<style>` blocks; keep styling in utilities + tokens.
-- Any custom CSS must live in `src/lib/styles/app.css` under an explicit `@layer` and remain minimal.
+## Styling Rules
 
-## Use MCP Tools:
+- Use shadcn-svelte components from `src/lib/components/ui/**`
+- Install via: `npx shadcn-svelte@latest add <name>`
+- Use Tailwind utilities — no component `<style>` blocks
+- Custom CSS goes in `src/lib/styles/app.css` inside an `@layer`, keep it minimal
+- Prefer Input Group pattern
 
-- shadcn-svelte-list — List components, blocks, charts, and docs (returns Markdown lists)
-- shadcn-svelte-get — Retrieve detailed component/block/doc content as structured JSON (content, metadata, codeBlocks)
-- shadcn-svelte-icons — Browse and search Lucide Svelte icons by name/tag (returns Markdown with install + usage snippets;  accepts an optional names array for explicit icon selection; supports limit (total returned) and importLimit (how many to include in imports); uses dynamic upstream icon data)
-- shadcn-svelte-search — Fuzzy search across components and docs (returns Markdown for display and a results array for  programmatic use)
-- bits-ui-get — Access Bits UI component API documentation with AI-optimized content from llms.txt endpoints (provides  structured API reference tables, implementation details, and clean markdown formatting)
+## MCP Tools — use these, don't guess
+
+- `shadcn-svelte-list` — list available components/blocks/charts
+- `shadcn-svelte-get` — get component details and code
+- `shadcn-svelte-icons` — search Lucide icons
+- `shadcn-svelte-search` — fuzzy search components/docs
+- `bits-ui-get` — Bits UI API reference
+
+## Svelte — always look up docs before writing code
+
+1. `list-sections` → find relevant docs
+2. `get-documentation` → read them
+3. `svelte-autofixer` → validate all `.svelte` files before finishing; repeat until clean
+
+## When editing `.svelte` files
+
+Use the `svelte-file-editor` agent role — it fetches Svelte docs and runs autofixer.

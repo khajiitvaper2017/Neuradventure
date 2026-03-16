@@ -5,7 +5,7 @@ import * as db from "@/engine/core/db"
 import type { ModularPrompt, PromptConfig, SectionFormat } from "@/engine/llm/prompt-types"
 import { npcTraits } from "@/engine/schemas/npc-traits"
 
-// ─── Prompt config (stored in SQLite, seeded from shared/config/prompts/*.json) ──────────
+// ─── Prompt config (stored in SQLite, seeded from shared/config/prompts/*.txt) ──────────
 
 const DEFAULT_MODULES: StoryModules = { ...DEFAULT_STORY_MODULES }
 
@@ -13,6 +13,25 @@ export { npcTraits }
 
 export function getConfig(): PromptConfig {
   return db.getMergedPromptConfig()
+}
+
+function buildCustomFieldsHintLines(): string[] {
+  const defs = db.listCustomFields().filter((d) => d.enabled)
+  if (defs.length === 0) return []
+
+  const charDefs = defs.filter((d) => d.scope === "character")
+  const worldDefs = defs.filter((d) => d.scope === "world")
+
+  const fmt = (d: (typeof defs)[number]) => `${d.id} (${d.value_type}) — ${d.label}`
+
+  const lines: string[] = []
+  lines.push("Custom fields (user-defined):")
+  lines.push(
+    "When something changes, use: character_custom_fields (player), npc_changes[].custom_fields (NPCs), world_state_update.custom_fields (world).",
+  )
+  if (charDefs.length > 0) lines.push(`Enabled character fields: ${charDefs.map(fmt).join("; ")}`)
+  if (worldDefs.length > 0) lines.push(`Enabled world fields: ${worldDefs.map(fmt).join("; ")}`)
+  return lines
 }
 
 function resolvePrompt(prompt: ModularPrompt | undefined, modules?: StoryModules): string[] {
@@ -50,9 +69,6 @@ function resolvePrompt(prompt: ModularPrompt | undefined, modules?: StoryModules
   if (blocks?.character_major_flaws) {
     pushLines(active.character_major_flaws ? blocks.character_major_flaws.on : blocks.character_major_flaws.off)
   }
-  if (blocks?.character_quirks) {
-    pushLines(active.character_quirks ? blocks.character_quirks.on : blocks.character_quirks.off)
-  }
   if (blocks?.character_perks) {
     pushLines(active.character_perks ? blocks.character_perks.on : blocks.character_perks.off)
   }
@@ -68,9 +84,6 @@ function resolvePrompt(prompt: ModularPrompt | undefined, modules?: StoryModules
   if (blocks?.npc_major_flaws) {
     pushLines(active.npc_major_flaws ? blocks.npc_major_flaws.on : blocks.npc_major_flaws.off)
   }
-  if (blocks?.npc_quirks) {
-    pushLines(active.npc_quirks ? blocks.npc_quirks.on : blocks.npc_quirks.off)
-  }
   if (blocks?.npc_perks) {
     pushLines(active.npc_perks ? blocks.npc_perks.on : blocks.npc_perks.off)
   }
@@ -84,7 +97,10 @@ function resolvePrompt(prompt: ModularPrompt | undefined, modules?: StoryModules
 }
 
 export function getSystemPrompt(modules?: StoryModules): string {
-  return resolvePrompt(getConfig().systemPromptLines, modules).join("\n").replace("{npcTraits}", npcTraits.join(", "))
+  const lines = resolvePrompt(getConfig().systemPromptLines, modules)
+  const hint = buildCustomFieldsHintLines()
+  const joined = [...lines, ...(hint.length > 0 ? ["", ...hint] : [])].join("\n")
+  return joined.replace("{npcTraits}", npcTraits.join(", "))
 }
 
 export function getChatPrompt(modules?: StoryModules): string {
@@ -96,7 +112,9 @@ export function getChatPrompt(modules?: StoryModules): string {
 export function getNpcCreationPrompt(modules?: StoryModules): string {
   const config = getConfig()
   const lines = resolvePrompt(config.npcCreationPrompt ?? config.systemPromptLines, modules)
-  return lines.join("\n").replace("{npcTraits}", npcTraits.join(", "))
+  const hint = buildCustomFieldsHintLines()
+  const joined = [...lines, ...(hint.length > 0 ? ["", ...hint] : [])].join("\n")
+  return joined.replace("{npcTraits}", npcTraits.join(", "))
 }
 
 export function getImpersonatePrompt(modules?: StoryModules): string {

@@ -1,7 +1,14 @@
 import SETTINGS_FIELDS from "@/shared/config/settings-fields.json"
-import SCHEMA_FIELDS from "@/shared/config/schema-fields.json"
+import PROMPT_FIELDS from "@/shared/config/prompt-fields.json"
+import {
+  getCustomFieldsMaxUpdatedAt,
+  getFieldPromptOverridesMaxUpdatedAt,
+  getFieldPromptOverridesRow,
+  listCustomFields,
+} from "@/engine/core/db"
 
 type LeafLookup = {
+  byFullKey: Map<string, string>
   byKey: Map<string, string>
   bySuffix: Map<string, string>
   ambiguous: Set<string>
@@ -14,6 +21,11 @@ function normalizeWrappedKey(raw: string): string {
     return trimmed.slice(1, -1).trim()
   }
   return trimmed
+}
+
+function isWrappedReferenceValue(value: string): boolean {
+  const trimmed = value.trim()
+  return trimmed.startsWith("{") && trimmed.endsWith("}") && trimmed.length >= 3
 }
 
 function getFieldByPath(pathKey: string, root: Record<string, unknown>): string | null {
@@ -47,13 +59,17 @@ function flattenLeafEntries(root: Record<string, unknown>): FlatEntry[] {
   return out
 }
 
-function buildLeafLookup(schemaFields: Record<string, unknown>, settingsFields: Record<string, unknown>): LeafLookup {
+function buildLeafLookup(entries: FlatEntry[]): LeafLookup {
+  const byFullKey = new Map<string, string>()
   const byKey = new Map<string, string>()
   const ambiguous = new Set<string>()
   const bySuffix = new Map<string, string>()
   const ambiguousSuffix = new Set<string>()
 
-  const entries = [...flattenLeafEntries(schemaFields), ...flattenLeafEntries(settingsFields)]
+  for (const { fullKey, value } of entries) {
+    if (!fullKey) continue
+    byFullKey.set(fullKey, value)
+  }
 
   for (const { fullKey, value } of entries) {
     const parts = fullKey.split(".").filter(Boolean)
@@ -81,23 +97,99 @@ function buildLeafLookup(schemaFields: Record<string, unknown>, settingsFields: 
     }
   }
 
-  return { byKey, bySuffix, ambiguous, ambiguousSuffix }
+  return { byFullKey, byKey, bySuffix, ambiguous, ambiguousSuffix }
 }
 
 const SETTINGS = SETTINGS_FIELDS as unknown as Record<string, unknown>
-const SCHEMA = SCHEMA_FIELDS as unknown as Record<string, unknown>
-const leafLookup = buildLeafLookup(SCHEMA, SETTINGS)
+const SCHEMA = PROMPT_FIELDS as unknown as Record<string, unknown>
 
-export function resolveFieldShortcut(key: string): string | null {
+type CachedLookup = {
+  version: string
+  lookup: LeafLookup
+}
+
+let cachedLookup: CachedLookup | null = null
+
+function buildDynamicEntries(): FlatEntry[] {
+  const baseEntries = [...flattenLeafEntries(SCHEMA), ...flattenLeafEntries(SETTINGS)]
+
+  const overrides = getFieldPromptOverridesRow().overrides
+  const overrideEntries = Object.entries(overrides)
+    .map(([fullKey, value]) => ({ fullKey, value }))
+    .filter((e) => e.fullKey.trim().length > 0)
+
+  const overrideMap = new Map<string, string>(overrideEntries.map((e) => [e.fullKey, e.value]))
+  const mergedBase = baseEntries.map((e) =>
+    overrideMap.has(e.fullKey) ? { ...e, value: overrideMap.get(e.fullKey)! } : e,
+  )
+
+  // Custom field prompts behave like built-in prompt-field leaves.
+  const customDefs = listCustomFields()
+  const customEntries: FlatEntry[] = []
+  for (const def of customDefs) {
+    const id = def.id.trim()
+    if (!id) continue
+    const prompt = String(def.prompt ?? "").trim()
+    if (!prompt) continue
+    if (def.scope === "character") {
+      customEntries.push({ fullKey: `state.character.custom_fields.${id}`, value: prompt })
+    } else if (def.scope === "world") {
+      customEntries.push({ fullKey: `llm.world_state_update.custom_fields.${id}`, value: prompt })
+    }
+  }
+
+  // Overrides that refer to keys not present in the built-ins should still resolve.
+  const baseKeySet = new Set(mergedBase.map((e) => e.fullKey))
+  const extraOverrideEntries = overrideEntries.filter((e) => !baseKeySet.has(e.fullKey))
+
+  return [...mergedBase, ...extraOverrideEntries, ...customEntries]
+}
+
+function getLookup(): LeafLookup {
+  const version = `${getFieldPromptOverridesMaxUpdatedAt()}|${getCustomFieldsMaxUpdatedAt()}`
+  if (cachedLookup && cachedLookup.version === version) return cachedLookup.lookup
+  const entries = buildDynamicEntries()
+  const lookup = buildLeafLookup(entries)
+  cachedLookup = { version, lookup }
+  return lookup
+}
+
+function resolveFieldShortcutOnce(key: string): string | null {
   if (!key) return null
   const normalized = normalizeWrappedKey(key)
   if (!normalized) return null
   if (normalized.includes(".")) {
-    const exact = getFieldByPath(normalized, SCHEMA) ?? getFieldByPath(normalized, SETTINGS)
+    const lookup = getLookup()
+    const exact =
+      lookup.byFullKey.get(normalized) ?? getFieldByPath(normalized, SCHEMA) ?? getFieldByPath(normalized, SETTINGS)
     if (exact) return exact
-    return leafLookup.bySuffix.get(normalized) ?? null
+    return lookup.bySuffix.get(normalized) ?? null
   }
-  return leafLookup.byKey.get(normalized) ?? null
+  return getLookup().byKey.get(normalized) ?? null
+}
+
+export function resolveFieldShortcut(key: string): string | null {
+  let current = normalizeWrappedKey(key)
+  if (!current) return null
+
+  const seen = new Set<string>()
+  for (let depth = 0; depth < 8; depth++) {
+    if (seen.has(current)) return null
+    seen.add(current)
+
+    const resolved = resolveFieldShortcutOnce(current)
+    if (!resolved) return null
+
+    if (isWrappedReferenceValue(resolved)) {
+      current = normalizeWrappedKey(resolved)
+      if (!current) return null
+      continue
+    }
+
+    return resolved
+  }
+
+  return null
 }
 
 export function replaceFieldShortcuts(text: string): string {
