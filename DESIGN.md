@@ -68,4 +68,3 @@ Create the role config file at `agents/svelte-file-editor.toml` (resolved relati
 - Start Codex in the repo root: `codex`
 - Ask explicitly for the role when touching Svelte files, e.g. “Spawn a `svelte-file-editor` agent to update `src/routes/+layout.svelte`.”
 - Use `/agent` in the CLI to switch between active agent threads; tell Codex to stop/close completed threads.
-
