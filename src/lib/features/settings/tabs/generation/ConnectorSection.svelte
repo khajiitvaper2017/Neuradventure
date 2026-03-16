@@ -16,7 +16,7 @@
   import { repetitionParams, samplingParams } from "@/features/settings/lib/generationParamDefs"
   import { getOpenRouterParamStatus } from "@/features/settings/lib/openrouterParams"
   import { buildModelSelectOptions, filterModelResults } from "@/features/settings/lib/openrouterModels"
-  import { TriangleAlert, Wrench } from "@lucide/svelte"
+  import { Search, TriangleAlert, Wrench } from "@lucide/svelte"
 
   type Props = {
     active?: boolean
@@ -47,8 +47,7 @@
   let modelSearchLoading = $state(false)
   let modelSearchError = $state<string | null>(null)
   let modelSearchOnlyFree = $state(false)
-  let modelSearchOnlyJsonSchema = $state(false)
-  let modelSearchSelectPlaceholder = $derived(modelSearchResults.length ? "Select model…" : "No results yet")
+  let modelSearchOnlyJson = $state(false)
 
   function commitConnector() {
     const trimmedUrl = connectorUrl.trim()
@@ -126,11 +125,15 @@
 
   function mergeModels(existing: ModelInfo[], incoming: ModelInfo[]): ModelInfo[] {
     if (!incoming.length) return existing
-    const seen = new Set(existing.map((m) => m.id))
+    const seen: Record<string, true> = Object.create(null)
+    for (const m of existing) {
+      if (!m.id) continue
+      seen[m.id] = true
+    }
     const out = [...existing]
     for (const m of incoming) {
-      if (!m.id || seen.has(m.id)) continue
-      seen.add(m.id)
+      if (!m.id || seen[m.id]) continue
+      seen[m.id] = true
       out.push(m)
     }
     return out
@@ -185,7 +188,7 @@
   let filteredModelSearchResults = $derived.by(() =>
     filterModelResults(modelSearchResults, {
       onlyFree: modelSearchOnlyFree,
-      onlyJsonSchema: modelSearchOnlyJsonSchema,
+      onlyJson: modelSearchOnlyJson,
     }),
   )
 
@@ -196,7 +199,7 @@
       pinned: OPENROUTER_PINNED_MODELS,
       pinnedTags,
       onlyFree: modelSearchOnlyFree,
-      onlyJsonSchema: modelSearchOnlyJsonSchema,
+      onlyJson: modelSearchOnlyJson,
     }),
   )
 
@@ -393,6 +396,9 @@
           </div>
 
           <InputGroup.Root data-disabled={generationLockActive ? "true" : undefined}>
+            <InputGroup.Addon>
+              <Search class="size-4" aria-hidden="true" />
+            </InputGroup.Addon>
             <InputGroup.Input
               type="text"
               placeholder="Search model id…"
@@ -404,10 +410,10 @@
             />
             <InputGroup.Addon align="inline-end">
               <InputGroup.Button
-                variant="outline"
                 size="sm"
                 disabled={modelSearchLoading || generationLockActive}
                 onclick={searchModels}
+                title="Search models"
               >
                 {modelSearchLoading ? "Searching…" : "Search"}
               </InputGroup.Button>
@@ -430,38 +436,42 @@
                 generationLockActive && "pointer-events-none",
               )}
             >
-              <Checkbox bind:checked={modelSearchOnlyJsonSchema} disabled={generationLockActive} />
-              <span>JSON Schema only</span>
+              <Checkbox bind:checked={modelSearchOnlyJson} disabled={generationLockActive} />
+              <span>JSON filter</span>
+              <span class="text-xs text-muted-foreground">(schema/object)</span>
             </div>
-            {#if modelSearchResults.length > 0 && (modelSearchOnlyFree || modelSearchOnlyJsonSchema)}
+            {#if modelSearchResults.length > 0 && (modelSearchOnlyFree || modelSearchOnlyJson)}
               <div class="ml-auto text-xs text-muted-foreground">
                 Showing {filteredModelSearchResults.length} / {modelSearchResults.length}
               </div>
             {/if}
           </div>
 
-          <div>
-            <Select.Root
-              type="single"
-              value={$connector.model}
-              items={modelSelectOptions}
-              disabled={generationLockActive}
-              onValueChange={(v) => pickOpenRouterModel(v)}
-            >
-              <Select.Trigger
-                class="w-full"
-                aria-label="OpenRouter model"
-                data-placeholder={!$connector.model?.trim() ? true : undefined}
-              >
-                {modelSelectOptions.find((o) => o.value === $connector.model)?.label ??
-                  ($connector.model || modelSearchSelectPlaceholder)}
-              </Select.Trigger>
-              <Select.Content>
+          <div class="overflow-hidden rounded-md border bg-card/50">
+            {#if modelSelectOptions.length === 0}
+              <div class="p-3 text-sm text-muted-foreground">No results yet. Search above.</div>
+            {:else}
+              <div class="max-h-72 overflow-auto">
                 {#each modelSelectOptions as option (option.value)}
-                  <Select.Item {...option} />
+                  <Button
+                    variant="ghost"
+                    class={cn(
+                      "h-auto w-full justify-start gap-2 px-3 py-2 text-left whitespace-normal",
+                      option.value === $connector.model && "bg-accent",
+                    )}
+                    disabled={generationLockActive}
+                    onclick={() => pickOpenRouterModel(option.value)}
+                  >
+                    <span class={cn("min-w-0 flex-1 break-words", option.value === $connector.model && "font-medium")}>
+                      {option.label}
+                    </span>
+                    {#if option.value === $connector.model}
+                      <Badge variant="secondary" class="font-mono text-[11px]">selected</Badge>
+                    {/if}
+                  </Button>
                 {/each}
-              </Select.Content>
-            </Select.Root>
+              </div>
+            {/if}
           </div>
 
           {#if modelSearchError}
