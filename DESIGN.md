@@ -30,3 +30,15 @@
 - shadcn-svelte-icons — Browse and search Lucide Svelte icons by name/tag (returns Markdown with install + usage snippets; accepts an optional names array for explicit icon selection; supports limit (total returned) and importLimit (how many to include in imports); uses dynamic upstream icon data)
 - shadcn-svelte-search — Fuzzy search across components and docs (returns Markdown for display and a results array for programmatic use)
 - bits-ui-get — Access Bits UI component API documentation with AI-optimized content from llms.txt endpoints (provides structured API reference tables, implementation details, and clean markdown formatting)
+
+## Svelte MCP Tools
+
+Use the Svelte MCP server for all Svelte 5 and SvelteKit documentation lookups. Call these tools at the start of any task involving Svelte or SvelteKit.
+
+| Tool                | When to use                                                                                                                                                                 |
+| ------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `list-sections`     | First — discover available documentation sections (returns titles, use_cases, paths).                                                                                       |
+| `get-documentation` | After `list-sections` — fetch all sections relevant to the task. Analyze `use_cases` carefully before selecting.                                                            |
+| `svelte-autofixer`  | Before sending any Svelte code — analyzes for issues and suggestions. Call repeatedly until no issues remain. Don't worry about load. Fix suggestions too. Call in batches. |
+
+

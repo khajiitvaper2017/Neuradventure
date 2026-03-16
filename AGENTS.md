@@ -93,18 +93,6 @@ svelte.config.js        # adapter-static, aliases, Service Worker settings
 
 ---
 
-## Svelte MCP Tools
-
-Use the Svelte MCP server for all Svelte 5 and SvelteKit documentation lookups. Call these tools at the start of any task involving Svelte or SvelteKit.
-
-| Tool                | When to use                                                                                                                                                                 |
-| ------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `list-sections`     | First — discover available documentation sections (returns titles, use_cases, paths).                                                                                       |
-| `get-documentation` | After `list-sections` — fetch all sections relevant to the task. Analyze `use_cases` carefully before selecting.                                                            |
-| `svelte-autofixer`  | Before sending any Svelte code — analyzes for issues and suggestions. Call repeatedly until no issues remain. Don't worry about load. Fix suggestions too. Call in batches. |
-
----
-
 ## Constraints
 
 **GBNF patterns** — all regex patterns in JSON-to-GBNF conversions must explicitly begin with `^` and end with `$`.
