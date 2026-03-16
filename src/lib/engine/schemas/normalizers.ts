@@ -124,19 +124,10 @@ export function normalizePersonalityTraits(value: unknown): string[] {
 }
 
 export function normalizeTraitList(value: unknown): string[] {
-  const items: string[] = []
-  if (Array.isArray(value)) {
-    for (const entry of value) {
-      if (typeof entry !== "string") continue
-      const trimmed = entry.trim()
-      if (!trimmed) continue
-      if (!items.includes(trimmed)) items.push(trimmed)
-    }
-  }
-  return items
+  return normalizeUniqueStringList(value)
 }
 
-function normalizeStringList(value: unknown): string[] {
+function normalizeUniqueStringList(value: unknown): string[] {
   const items: string[] = []
   if (Array.isArray(value)) {
     for (const entry of value) {
@@ -173,7 +164,7 @@ export function normalizeLocations(value: unknown, fallbackScene: string): Norma
       const name = normalizeNonEmptyString(obj.name, "")
       if (!name) continue
       const description = normalizeNonEmptyString(obj.description, getServerDefaults().unknown.locationDetails)
-      const characters = normalizeStringList(obj.characters)
+      const characters = normalizeUniqueStringList(obj.characters)
       const available_items = normalizeLocationItems(obj.available_items)
       locations.push({ name, description, characters, available_items })
     }

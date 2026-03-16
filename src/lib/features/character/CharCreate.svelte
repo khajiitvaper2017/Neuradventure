@@ -3,6 +3,7 @@
   import { onMount } from "svelte"
   import { SvelteMap, SvelteSet } from "svelte/reactivity"
   import type { StoryModules } from "@/shared/types"
+  import { storyModulesPreviewCore, storyModulesPreviewNpc, storyModulesPreviewPlayer } from "@/shared/story-modules"
   import { goBack, navigate } from "@/stores/router"
   import { showError, showQuietNotice } from "@/stores/ui"
   import { cn } from "@/utils.js"
@@ -369,39 +370,9 @@
     pendingStoryModules.set(next)
   }
 
-  const PLAYER_MODULE_KEYS: (keyof StoryModules)[] = [
-    "character_appearance_clothing",
-    "character_personality_traits",
-    "character_major_flaws",
-    "character_perks",
-    "character_inventory",
-  ]
-  const NPC_MODULE_KEYS: (keyof StoryModules)[] = [
-    "npc_appearance_clothing",
-    "npc_personality_traits",
-    "npc_major_flaws",
-    "npc_perks",
-    "npc_location",
-    "npc_activity",
-  ]
-
-  function countEnabled(modules: StoryModules, keys: (keyof StoryModules)[]): number {
-    return keys.reduce((acc, k) => acc + (modules[k] === true ? 1 : 0), 0)
-  }
-
-  const modulesPreviewCore = $derived(
-    `Core: ${activeModules.track_npcs ? "NPCs on" : "NPCs off"} · ${
-      activeModules.track_locations ? "Locations on" : "Locations off"
-    } · Appearance: ${activeModules.character_appearance_clothing ? "on" : "off"}`,
-  )
-  const modulesPreviewPlayer = $derived(
-    `Player fields: ${countEnabled(activeModules, PLAYER_MODULE_KEYS)}/${PLAYER_MODULE_KEYS.length}`,
-  )
-  const modulesPreviewNpc = $derived(
-    activeModules.track_npcs
-      ? `NPC fields: ${countEnabled(activeModules, NPC_MODULE_KEYS)}/${NPC_MODULE_KEYS.length}`
-      : "NPC fields: — (tracking off)",
-  )
+  const modulesPreviewCore = $derived.by(() => storyModulesPreviewCore(activeModules))
+  const modulesPreviewPlayer = $derived.by(() => storyModulesPreviewPlayer(activeModules))
+  const modulesPreviewNpc = $derived.by(() => storyModulesPreviewNpc(activeModules))
 
   function addCustomPersonalityTrait() {
     const t = customPersonalityInput.trim()
