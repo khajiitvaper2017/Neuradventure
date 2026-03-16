@@ -15,7 +15,8 @@ export interface CharacterRow {
 
 export function normalizeCharacterBase(input: Partial<CharacterBase>): CharacterBase {
   const baselineAppearance = input.baseline_appearance ?? ""
-  const currentAppearance = input.current_appearance ?? baselineAppearance ?? ""
+  // Current appearance is story-scoped state. Keep it empty in the character library.
+  const currentAppearance = ""
   const rawCustom = input.custom_fields
   const custom_fields =
     rawCustom && typeof rawCustom === "object" && !Array.isArray(rawCustom)

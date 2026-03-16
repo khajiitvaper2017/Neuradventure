@@ -189,7 +189,6 @@
           if (modules.character_appearance_clothing) {
             if (typeof patch.baseline_appearance === "string") {
               baselineAppearance = patch.baseline_appearance
-              if (!currentAppearance.trim()) currentAppearance = patch.baseline_appearance
             }
             if (typeof patch.current_clothing === "string") currentClothing = patch.current_clothing
           }
@@ -206,7 +205,6 @@
       if (modules.character_appearance_clothing) {
         if (result.baseline_appearance) {
           baselineAppearance = result.baseline_appearance
-          currentAppearance = result.baseline_appearance
         }
         if (result.current_clothing) currentClothing = result.current_clothing
       }
@@ -278,8 +276,6 @@
       if (activeModules.character_appearance_clothing) {
         if (isMissingText(baselineAppearance) && result.baseline_appearance)
           baselineAppearance = result.baseline_appearance
-        if (isMissingText(currentAppearance) && result.baseline_appearance)
-          currentAppearance = result.baseline_appearance
         if (isMissingText(currentClothing) && result.current_clothing) currentClothing = result.current_clothing
       }
 
@@ -317,7 +313,6 @@
   }
   let generalDescription = $state(existing?.general_description ?? "")
   let baselineAppearance = $state(existing?.baseline_appearance ?? "")
-  let currentAppearance = $state(existing?.current_appearance ?? "")
   let currentClothing = $state(existing?.current_clothing ?? "")
   let selectedTraits = $state<string[]>(initialPersonality.selected)
   let customPersonalityInput = $state("")
@@ -503,7 +498,7 @@
       general_description: generalDescription.trim() || serverDefaults.unknown.generalDescription,
       current_location: existing?.current_location ?? serverDefaults.unknown.location,
       baseline_appearance: baseline,
-      current_appearance: currentAppearance.trim() || baseline,
+      current_appearance: baseline,
       current_clothing: clothing,
       personality_traits: uniquePersonality([...selectedTraits, ...customPersonalityTraits]),
       major_flaws: majorFlaws,
@@ -513,7 +508,8 @@
   }
 
   function buildCharacterData() {
-    return buildCharacterContext()
+    const base = buildCharacterContext()
+    return { ...base, current_appearance: "" }
   }
 
   async function regenerateAppearance() {
@@ -527,13 +523,11 @@
     const unsub = $streamingEnabled
       ? subscribeStreamPreview(requestId, (patch) => {
           if (typeof patch.baseline_appearance === "string") baselineAppearance = patch.baseline_appearance
-          if (typeof patch.current_appearance === "string") currentAppearance = patch.current_appearance
         })
       : null
     try {
       const result = await generateCharacterAppearance(buildCharacterContext(), activeModules, requestId)
       baselineAppearance = result.baseline_appearance
-      currentAppearance = result.current_appearance
     } catch (err) {
       showError(err instanceof Error ? err.message : "Regeneration failed")
     } finally {
