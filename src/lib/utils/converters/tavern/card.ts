@@ -264,6 +264,7 @@ export function tavernCardToCharacter(card: TavernCardV2): TavernImportResult {
       })(),
       general_description: generalDescription,
       current_location: "",
+      current_activity: "",
       baseline_appearance: baselineAppearance,
       current_appearance: baselineAppearance,
       current_clothing: "",

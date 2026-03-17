@@ -438,6 +438,7 @@
         gender,
         general_description: generalDescription,
         current_location: useLocation ? location || existing.current_location || "" : (existing.current_location ?? ""),
+        current_activity: existing.current_activity ?? "",
         baseline_appearance: !useAppearance
           ? (existing.baseline_appearance ?? "")
           : baselineAppearance || existing.baseline_appearance || "",

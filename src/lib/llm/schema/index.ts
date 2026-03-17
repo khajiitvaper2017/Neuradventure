@@ -15,6 +15,7 @@ import {
   buildCharacterCustomFieldsUpdateSchema,
   buildWorldCustomFieldsUpdateSchema,
 } from "@/domain/story/schemas/custom-fields"
+import { isCustomFieldModuleEnabled } from "@/domain/story/custom-field-modules"
 
 const DEFAULT_MODULES: StoryModules = { ...DEFAULT_STORY_MODULES }
 
@@ -24,8 +25,13 @@ export function buildTurnResponseSchema(
 ): z.ZodType<TurnResponse, unknown> {
   const uniqueNames = Array.from(new Set(knownNpcs.map((npc) => npc.name.trim()).filter((name) => name.length > 0)))
   const flags = resolveModuleFlags(modules)
-  const customFieldDefs = db.listCustomFields()
-  const characterCustomFields = buildCharacterCustomFieldsUpdateSchema(customFieldDefs)
+  const customFieldDefs = db.listCustomFields().filter((d) => d.enabled)
+  const characterDefs = customFieldDefs.filter((d) => d.scope === "character")
+  const playerCharacterDefs = characterDefs.filter((d) => isCustomFieldModuleEnabled(modules, d.id, "character"))
+  const npcCharacterDefs = characterDefs.filter((d) => isCustomFieldModuleEnabled(modules, d.id, "npc"))
+  const characterCustomFields =
+    playerCharacterDefs.length > 0 ? buildCharacterCustomFieldsUpdateSchema(playerCharacterDefs) : null
+  const npcCustomFields = npcCharacterDefs.length > 0 ? buildCharacterCustomFieldsUpdateSchema(npcCharacterDefs) : null
   const worldCustomFields = buildWorldCustomFieldsUpdateSchema(customFieldDefs)
   const npcCreationSchema = buildNpcCreationSchema(
     {
@@ -36,14 +42,18 @@ export function buildTurnResponseSchema(
       useNpcLocation: flags.useNpcLocation,
       useNpcActivity: flags.useNpcActivity,
     },
-    characterCustomFields,
+    npcCustomFields ?? undefined,
   )
 
   let schema: z.ZodObject = TurnResponseSchema
 
-  schema = schema.extend({
-    character_custom_fields: characterCustomFields.optional(),
-  })
+  if (characterCustomFields) {
+    schema = schema.extend({
+      character_custom_fields: characterCustomFields.optional(),
+    })
+  } else {
+    schema = schema.omit({ character_custom_fields: true })
+  }
 
   schema = schema.extend({
     world_state_update: WorldStateUpdateSchema.extend({ custom_fields: worldCustomFields.optional() }),
@@ -57,8 +67,9 @@ export function buildTurnResponseSchema(
         allowAppearance: flags.useNpcAppearance,
         allowClothing: flags.useNpcAppearance,
         allowActivity: flags.useNpcActivity,
+        allowInventory: flags.useNpcInventory,
       },
-      characterCustomFields,
+      npcCustomFields ?? undefined,
     )
     schema = schema.extend({
       npc_changes: z.array(emptyUpdates).max(0).optional(),
@@ -72,8 +83,9 @@ export function buildTurnResponseSchema(
         allowAppearance: flags.useNpcAppearance,
         allowClothing: flags.useNpcAppearance,
         allowActivity: flags.useNpcActivity,
+        allowInventory: flags.useNpcInventory,
       },
-      characterCustomFields,
+      npcCustomFields ?? undefined,
     )
     schema = schema.extend({
       npc_changes: z.array(emptyUpdates).max(0).optional(),
@@ -87,8 +99,9 @@ export function buildTurnResponseSchema(
         allowAppearance: flags.useNpcAppearance,
         allowClothing: flags.useNpcAppearance,
         allowActivity: flags.useNpcActivity,
+        allowInventory: flags.useNpcInventory,
       },
-      characterCustomFields,
+      npcCustomFields ?? undefined,
     )
     schema = schema.extend({
       npc_changes: npcChangesSchema.optional(),
@@ -107,6 +120,10 @@ export function buildTurnResponseSchema(
 
   if (!flags.useCharInventory) {
     schema = schema.omit({ current_inventory: true })
+  }
+
+  if (!flags.useCharActivity) {
+    schema = schema.omit({ current_activity: true })
   }
 
   if (!modules.track_background_events) {

@@ -5,6 +5,7 @@ import { buildNpcCreationSchema } from "@/domain/story/schemas/npc-creation"
 
 type NPCStateUpdateOutput = z.infer<typeof NPCStateUpdateBaseSchema> & {
   custom_fields?: Record<string, string | string[]>
+  inventory?: Array<{ name: string; description: string }>
 }
 
 const CustomFieldsAnySchema = z.record(
@@ -17,6 +18,7 @@ export type NPCUpdateFlags = {
   allowAppearance: boolean
   allowClothing: boolean
   allowActivity: boolean
+  allowInventory: boolean
 }
 
 export const buildNPCStateUpdateSchema = (
@@ -26,6 +28,7 @@ export const buildNPCStateUpdateSchema = (
     allowAppearance: true,
     allowClothing: true,
     allowActivity: true,
+    allowInventory: true,
   },
   customFieldsSchema?: z.ZodTypeAny,
 ): z.ZodType<NPCStateUpdateOutput> => {
@@ -61,6 +64,13 @@ export const buildNPCStateUpdateSchema = (
       }),
     )
   }
+  if (flags.allowInventory) {
+    variants.push(
+      base.extend({
+        inventory: z.array(InventoryItemSchema).describe("{state.character.inventory}"),
+      }),
+    )
+  }
   if (customFieldsSchema) {
     variants.push(
       base.extend({
@@ -86,6 +96,8 @@ export const SetCurrentAppearanceSection = z.string().min(1)
 
 export const CurrentClothingSection = z.string().min(1)
 
+export const CurrentActivitySection = z.string().min(1).describe("{state.character.current_activity}")
+
 export const SetCurrentInventorySection = z.array(InventoryItemSchema)
 
 export const BackgroundEventsSection = z
@@ -99,12 +111,12 @@ export const BackgroundEventsSection = z
 export const buildNPCChangesSection = (
   nameSchema: z.ZodType<string>,
   flags?: NPCUpdateFlags,
-  customFieldsSchema: z.ZodTypeAny = CustomFieldsAnySchema,
+  customFieldsSchema?: z.ZodTypeAny,
 ) => {
   const updateSchema = buildNPCStateUpdateSchema(nameSchema, flags, customFieldsSchema)
   return z.array(updateSchema)
 }
-export const NPCChangesSection = buildNPCChangesSection(z.string().min(1))
+export const NPCChangesSection = buildNPCChangesSection(z.string().min(1), undefined, CustomFieldsAnySchema)
 
 export const NPCIntroductionsSection = z.array(NPCCreationSchema)
 
@@ -114,6 +126,7 @@ export const TurnResponseSchema = z
     background_events: BackgroundEventsSection,
     current_clothing: CurrentClothingSection.optional(),
     current_appearance: SetCurrentAppearanceSection.optional(),
+    current_activity: CurrentActivitySection.optional(),
     current_inventory: SetCurrentInventorySection.optional(),
     character_custom_fields: CustomFieldsAnySchema.optional(),
     world_state_update: WorldStateUpdateSchema.optional().default({}),

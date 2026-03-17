@@ -4,6 +4,7 @@ import { replaceFieldShortcuts } from "@/domain/story/schemas/field-descriptions
 import * as db from "@/db/core"
 import type { ModularPrompt, PromptConfig, SectionFormat } from "@/llm/prompt-types"
 import { npcTraits } from "@/domain/story/schemas/npc-traits"
+import { isCustomFieldModuleEnabled } from "@/domain/story/custom-field-modules"
 
 // ─── Prompt config (stored in SQLite, seeded from shared/config/prompts/*.txt) ──────────
 
@@ -15,11 +16,13 @@ export function getConfig(): PromptConfig {
   return db.getMergedPromptConfig()
 }
 
-function buildCustomFieldsHintLines(): string[] {
+function buildCustomFieldsHintLines(modules?: StoryModules): string[] {
   const defs = db.listCustomFields().filter((d) => d.enabled)
   if (defs.length === 0) return []
 
   const charDefs = defs.filter((d) => d.scope === "character")
+  const playerCharDefs = charDefs.filter((d) => isCustomFieldModuleEnabled(modules, d.id, "character"))
+  const npcCharDefs = charDefs.filter((d) => isCustomFieldModuleEnabled(modules, d.id, "npc"))
   const worldDefs = defs.filter((d) => d.scope === "world")
 
   const fmt = (d: (typeof defs)[number]) => `${d.id} (${d.value_type}) — ${d.label}`
@@ -29,7 +32,8 @@ function buildCustomFieldsHintLines(): string[] {
   lines.push(
     "When something changes, use: character_custom_fields (player), npc_changes[].custom_fields (NPCs), world_state_update.custom_fields (world).",
   )
-  if (charDefs.length > 0) lines.push(`Enabled character fields: ${charDefs.map(fmt).join("; ")}`)
+  if (playerCharDefs.length > 0) lines.push(`Enabled player fields: ${playerCharDefs.map(fmt).join("; ")}`)
+  if ((modules?.track_npcs ?? true) && npcCharDefs.length > 0) lines.push(`Enabled NPC fields: ${npcCharDefs.map(fmt).join("; ")}`)
   if (worldDefs.length > 0) lines.push(`Enabled world fields: ${worldDefs.map(fmt).join("; ")}`)
   return lines
 }
@@ -72,6 +76,12 @@ function resolvePrompt(prompt: ModularPrompt | undefined, modules?: StoryModules
   if (blocks?.character_inventory) {
     pushLines(active.character_inventory ? blocks.character_inventory.on : blocks.character_inventory.off)
   }
+  if (blocks?.character_location) {
+    pushLines(active.character_location ? blocks.character_location.on : blocks.character_location.off)
+  }
+  if (blocks?.character_activity) {
+    pushLines(active.character_activity ? blocks.character_activity.on : blocks.character_activity.off)
+  }
   if (blocks?.npc_appearance_clothing) {
     pushLines(active.npc_appearance_clothing ? blocks.npc_appearance_clothing.on : blocks.npc_appearance_clothing.off)
   }
@@ -84,6 +94,9 @@ function resolvePrompt(prompt: ModularPrompt | undefined, modules?: StoryModules
   if (blocks?.npc_perks) {
     pushLines(active.npc_perks ? blocks.npc_perks.on : blocks.npc_perks.off)
   }
+  if (blocks?.npc_inventory) {
+    pushLines(active.npc_inventory ? blocks.npc_inventory.on : blocks.npc_inventory.off)
+  }
   if (blocks?.npc_location) {
     pushLines(active.npc_location ? blocks.npc_location.on : blocks.npc_location.off)
   }
@@ -95,7 +108,7 @@ function resolvePrompt(prompt: ModularPrompt | undefined, modules?: StoryModules
 
 export function getSystemPrompt(modules?: StoryModules): string {
   const lines = resolvePrompt(getConfig().systemPromptLines, modules)
-  const hint = buildCustomFieldsHintLines()
+  const hint = buildCustomFieldsHintLines(modules)
   const joined = [...lines, ...(hint.length > 0 ? ["", ...hint] : [])].join("\n")
   return joined.replace("{npcTraits}", npcTraits.join(", "))
 }
@@ -109,7 +122,7 @@ export function getChatPrompt(modules?: StoryModules): string {
 export function getNpcCreationPrompt(modules?: StoryModules): string {
   const config = getConfig()
   const lines = resolvePrompt(config.npcCreationPrompt ?? config.systemPromptLines, modules)
-  const hint = buildCustomFieldsHintLines()
+  const hint = buildCustomFieldsHintLines(modules)
   const joined = [...lines, ...(hint.length > 0 ? ["", ...hint] : [])].join("\n")
   return joined.replace("{npcTraits}", npcTraits.join(", "))
 }

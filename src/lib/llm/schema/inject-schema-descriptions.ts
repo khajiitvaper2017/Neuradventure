@@ -74,6 +74,7 @@ function childPrefixOverride(currentPrefix: string, propName: string, schemaName
   // NPC update nested contexts
   if (schemaName === "TurnResponse" && currentPrefix === "llm.npc_update") {
     if (propName === "custom_fields") return "state.character.custom_fields"
+    if (propName === "inventory") return "state.inventory_item"
   }
 
   // Character creation/update nested contexts

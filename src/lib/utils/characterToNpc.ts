@@ -8,6 +8,7 @@ export function characterToNpc(character: StoryCharacterGroup["character"]): NPC
     gender: character.gender,
     general_description: character.general_description,
     current_location: character.current_location,
+    current_activity: character.current_activity,
     baseline_appearance: character.baseline_appearance,
     current_appearance: character.current_appearance,
     current_clothing: character.current_clothing,
@@ -15,7 +16,6 @@ export function characterToNpc(character: StoryCharacterGroup["character"]): NPC
     major_flaws: [...character.major_flaws],
     perks: [...character.perks],
     inventory: [],
-    current_activity: "",
     custom_fields: { ...(character.custom_fields ?? {}) },
   }
 }

@@ -148,6 +148,7 @@ export function formatNPCCurrentStates(
           : `  ${formatTemplate(labels.currentAppearance, { value: npc.current_appearance })}\n` +
             `  ${formatTemplate(contextLabels.wearing, { value: npc.current_clothing })}\n`) +
         (flags.useNpcActivity ? `  ${formatTemplate(labels.currentActivity, { value: npc.current_activity })}\n` : "") +
+        (flags.useNpcInventory ? `  ${formatTemplate(contextLabels.inventory, { value: formatInventory(npc.inventory) })}\n` : "") +
         (flags.useNpcLocation ? `  ${formatTemplate(labels.location, { value: npc.current_location })}` : "") +
         (custom.length > 0 ? `\n${custom.join("\n")}` : "")
 

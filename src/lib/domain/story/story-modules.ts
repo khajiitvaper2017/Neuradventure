@@ -1,6 +1,8 @@
 import type { StoryModules } from "@/types/types"
 
-export type StoryModuleKey = keyof StoryModules
+export type StoryModuleKey = {
+  [K in keyof StoryModules]-?: StoryModules[K] extends boolean ? K : never
+}[keyof StoryModules]
 
 export type StoryModuleMeta = {
   title: string
@@ -25,6 +27,8 @@ export const STORY_MODULE_META: Record<StoryModuleKey, StoryModuleMeta> = {
   character_major_flaws: { title: "Player major flaws", sub: "Track and update major flaws" },
   character_perks: { title: "Player perks", sub: "Track and update perks" },
   character_inventory: { title: "Player inventory", sub: "Track and update the inventory list" },
+  character_location: { title: "Player location", sub: "Include location context for the player" },
+  character_activity: { title: "Player activity", sub: "Track and update current activity" },
   npc_appearance_clothing: {
     title: "NPC appearance + clothing",
     sub: "Track and update appearance/clothing fields",
@@ -37,6 +41,7 @@ export const STORY_MODULE_META: Record<StoryModuleKey, StoryModuleMeta> = {
   },
   npc_major_flaws: { title: "NPC major flaws", sub: "Track and update major flaws", requiresTrackNpcs: true },
   npc_perks: { title: "NPC perks", sub: "Track and update perks", requiresTrackNpcs: true },
+  npc_inventory: { title: "NPC inventory", sub: "Track and update the inventory list", requiresTrackNpcs: true },
   npc_location: { title: "NPC location", sub: "Track and update current location", requiresTrackNpcs: true },
   npc_activity: { title: "NPC activity", sub: "Track and update current activity", requiresTrackNpcs: true },
 }
@@ -62,6 +67,8 @@ export const STORY_MODULE_SECTIONS: readonly StoryModuleSection[] = [
       "character_major_flaws",
       "character_perks",
       "character_inventory",
+      "character_location",
+      "character_activity",
     ],
   },
   {
@@ -72,6 +79,7 @@ export const STORY_MODULE_SECTIONS: readonly StoryModuleSection[] = [
       "npc_personality_traits",
       "npc_major_flaws",
       "npc_perks",
+      "npc_inventory",
       "npc_location",
       "npc_activity",
     ],
@@ -84,6 +92,8 @@ export const PLAYER_MODULE_KEYS = [
   "character_major_flaws",
   "character_perks",
   "character_inventory",
+  "character_location",
+  "character_activity",
 ] as const satisfies readonly StoryModuleKey[]
 
 export const NPC_MODULE_KEYS = [
@@ -91,6 +101,7 @@ export const NPC_MODULE_KEYS = [
   "npc_personality_traits",
   "npc_major_flaws",
   "npc_perks",
+  "npc_inventory",
   "npc_location",
   "npc_activity",
 ] as const satisfies readonly StoryModuleKey[]
@@ -100,7 +111,7 @@ export function countEnabled(modules: StoryModules, keys: readonly StoryModuleKe
 }
 
 export function countAllEnabled(modules: StoryModules): number {
-  return Object.values(modules).reduce((acc, v) => acc + (v ? 1 : 0), 0)
+  return Object.values(modules).reduce((acc, v) => acc + (v === true ? 1 : 0), 0)
 }
 
 export function storyModulesPreviewCore(modules: StoryModules): string {

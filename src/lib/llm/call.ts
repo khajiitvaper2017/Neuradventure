@@ -25,6 +25,7 @@ import type {
 } from "@/llm/openai-types"
 import * as db from "@/db/core"
 import { buildCharacterCustomFieldsUpdateSchema } from "@/domain/story/schemas/custom-fields"
+import { isCustomFieldModuleEnabled } from "@/domain/story/custom-field-modules"
 
 export async function callLLM(
   messages: ChatCompletionMessageParam[],
@@ -50,8 +51,10 @@ export async function generateNpcCreation(
 ): Promise<NPCCreation> {
   const modules = storyModules ?? DEFAULT_STORY_MODULES
   const flags = resolveModuleFlags(modules)
-  const customDefs = db.listCustomFields()
-  const npcCustomFields = buildCharacterCustomFieldsUpdateSchema(customDefs)
+  const customDefs = db
+    .listCustomFields()
+    .filter((d) => d.enabled && d.scope === "character" && isCustomFieldModuleEnabled(modules, d.id, "npc"))
+  const npcCustomFields = customDefs.length > 0 ? buildCharacterCustomFieldsUpdateSchema(customDefs) : undefined
   const creationSchema = buildNpcCreationSchema(
     {
       useNpcAppearance: flags.useNpcAppearance,

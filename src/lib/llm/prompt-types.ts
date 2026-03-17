@@ -18,10 +18,13 @@ export const PromptModulesSchema = z
     character_major_flaws: PromptModuleBlockSchema.optional(),
     character_perks: PromptModuleBlockSchema.optional(),
     character_inventory: PromptModuleBlockSchema.optional(),
+    character_location: PromptModuleBlockSchema.optional(),
+    character_activity: PromptModuleBlockSchema.optional(),
     npc_appearance_clothing: PromptModuleBlockSchema.optional(),
     npc_personality_traits: PromptModuleBlockSchema.optional(),
     npc_major_flaws: PromptModuleBlockSchema.optional(),
     npc_perks: PromptModuleBlockSchema.optional(),
+    npc_inventory: PromptModuleBlockSchema.optional(),
     npc_location: PromptModuleBlockSchema.optional(),
     npc_activity: PromptModuleBlockSchema.optional(),
   })

@@ -47,6 +47,7 @@ const CharacterStateBaseSchema = z
     gender: z.string().min(1),
     general_description: z.string().optional().default(defaults.unknown.generalDescription),
     current_location: z.string().min(1).optional().default(defaults.unknown.location),
+    current_activity: z.string().min(1).optional().default(defaults.unknown.activity),
     baseline_appearance: z.string().min(1).optional().default(defaults.unknown.baselineAppearance),
     current_appearance: z.string().min(1).optional().default(defaults.unknown.appearance),
     current_clothing: z.string().min(1).optional().default(defaults.unknown.clothing),
@@ -62,9 +63,7 @@ export const CharacterStateSchema = CharacterStateBaseSchema
 
 export const MainCharacterStateSchema = CharacterStateBaseSchema
 
-export const NPCStateSchema = CharacterStateBaseSchema.extend({
-  current_activity: z.string().min(1).optional().default(defaults.unknown.activity),
-}).strict()
+export const NPCStateSchema = CharacterStateBaseSchema
 
 function normalizeInventoryItems(value: unknown): { name: string; description: string }[] {
   if (!Array.isArray(value)) return []
@@ -107,6 +106,7 @@ const normalizeCharacterStoredBase = (value: z.input<typeof CharacterStateStored
     getServerDefaults().unknown.generalDescription,
   ),
   current_location: normalizeNonEmptyString(value.current_location, getServerDefaults().unknown.location),
+  current_activity: normalizeNonEmptyString(value.current_activity, getServerDefaults().unknown.activity),
   baseline_appearance: normalizeNonEmptyString(
     value.baseline_appearance,
     getServerDefaults().unknown.baselineAppearance,
@@ -132,7 +132,6 @@ export const MainCharacterStateStoredSchema = CharacterStateStoredSchema
 
 export const NPCStateStoredSchema = CharacterStateStoredBaseSchema.transform((value) => ({
   ...normalizeCharacterStoredBase(value),
-  current_activity: normalizeNonEmptyString(value.current_activity, getServerDefaults().unknown.activity),
 })).transform((value) => NPCStateSchema.parse(value))
 
 export const WorldStateUpdateSchema = z

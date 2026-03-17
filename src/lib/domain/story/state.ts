@@ -40,6 +40,9 @@ export function applyPlayerUpdate(
   return {
     ...character,
     ...appearance,
+    current_activity: flags.useCharActivity
+      ? (turnResponse.current_activity ?? character.current_activity)
+      : character.current_activity,
     inventory: flags.useCharInventory ? (turnResponse.current_inventory ?? character.inventory) : character.inventory,
     custom_fields: mergeCustomFields(character.custom_fields, turnResponse.character_custom_fields),
   }
@@ -69,6 +72,7 @@ export function applyNPCUpdates(npcs: NPCState[], updates: NPCStateUpdate[], fla
         ? (patch.current_clothing ?? npc.current_clothing)
         : npc.current_clothing,
       current_activity: flags.useNpcActivity ? (patch.current_activity ?? npc.current_activity) : npc.current_activity,
+      inventory: flags.useNpcInventory ? (patch.inventory ?? npc.inventory) : npc.inventory,
       custom_fields: mergeCustomFields(npc.custom_fields, patch.custom_fields),
     }
   })

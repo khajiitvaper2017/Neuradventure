@@ -494,6 +494,7 @@
       gender,
       general_description: generalDescription.trim() || serverDefaults.unknown.generalDescription,
       current_location: existing?.current_location ?? serverDefaults.unknown.location,
+      current_activity: existing?.current_activity ?? serverDefaults.unknown.activity,
       baseline_appearance: baseline,
       current_appearance: baseline,
       current_clothing: clothing,

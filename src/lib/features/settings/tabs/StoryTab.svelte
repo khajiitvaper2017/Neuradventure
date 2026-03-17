@@ -1,7 +1,7 @@
 <script lang="ts">
   import promptFields from "@/config/prompt-fields.json"
   import type { StoryModules } from "@/types/types"
-  import { STORY_MODULE_META } from "@/domain/story/story-modules"
+  import { STORY_MODULE_META, type StoryModuleKey } from "@/domain/story/story-modules"
   import StoryModulesPanel from "@/components/panels/StoryModulesPanel.svelte"
   import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
   import CustomFieldsCard from "@/features/settings/components/CustomFieldsCard.svelte"
@@ -34,9 +34,7 @@
     .filter((k) => CHAT_FIELD_PREFIXES.some((p) => k.startsWith(p)))
     .sort((a, b) => a.localeCompare(b))
 
-  type ModuleKey = keyof StoryModules
-
-  const MODULE_PROMPT_KEYS: Record<ModuleKey, { sharedNote?: string; keys: string[] }> = {
+  const MODULE_PROMPT_KEYS: Record<StoryModuleKey, { sharedNote?: string; keys: string[] }> = {
     track_npcs: {
       keys: [
         "llm.turn_response.npc_changes",
@@ -72,6 +70,12 @@
         "state.inventory_item.description",
       ],
     },
+    character_activity: {
+      keys: ["state.character.current_activity"],
+    },
+    character_location: {
+      keys: ["state.character.current_location"],
+    },
     npc_appearance_clothing: {
       sharedNote: "Shared prompts (same descriptions used for player + NPC appearance/clothing guidance).",
       keys: [
@@ -92,8 +96,17 @@
       sharedNote: "Shared prompts (same trait guidance used for player + NPCs).",
       keys: ["traits.entry", "traits.perks"],
     },
+    npc_inventory: {
+      sharedNote: "Shared prompts (same inventory guidance used for player + NPCs).",
+      keys: [
+        "state.character.inventory",
+        "state.inventory_item.entry",
+        "state.inventory_item.name",
+        "state.inventory_item.description",
+      ],
+    },
     npc_location: {
-      keys: ["llm.npc_update.current_location"],
+      keys: ["llm.npc_update.current_location", "state.character.current_location"],
     },
     npc_activity: {
       keys: ["llm.npc_update.current_activity", "state.character.current_activity"],
@@ -111,10 +124,10 @@
     storyDefaults.set(next)
   }
 
-  let activeModule = $state<ModuleKey | null>(null)
+  let activeModule = $state<StoryModuleKey | null>(null)
   let moduleDialogOpen = $state(false)
 
-  function openModulePrompts(key: ModuleKey) {
+  function openModulePrompts(key: StoryModuleKey) {
     activeModule = key
     moduleDialogOpen = true
   }

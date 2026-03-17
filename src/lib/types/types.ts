@@ -9,6 +9,7 @@ export interface CharacterState {
   gender: string
   general_description: string
   current_location: string
+  current_activity: string
   baseline_appearance: string
   current_appearance: string
   current_clothing: string
@@ -21,9 +22,7 @@ export interface CharacterState {
 
 export type MainCharacterState = CharacterState
 
-export interface NPCState extends CharacterState {
-  current_activity: string
-}
+export type NPCState = CharacterState
 
 export interface StoryModules {
   track_npcs: boolean
@@ -33,12 +32,20 @@ export interface StoryModules {
   character_major_flaws: boolean
   character_perks: boolean
   character_inventory: boolean
+  character_location: boolean
+  character_activity: boolean
   npc_appearance_clothing: boolean
   npc_personality_traits: boolean
   npc_major_flaws: boolean
   npc_perks: boolean
+  npc_inventory: boolean
   npc_location: boolean
   npc_activity: boolean
+  /**
+   * Per-story enable/disable map for user-defined character custom fields.
+   * Missing entries default to enabled.
+   */
+  custom_field_modules?: Record<string, { character?: boolean; npc?: boolean }>
 }
 
 export interface WorldState {

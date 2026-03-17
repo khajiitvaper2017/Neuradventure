@@ -7,6 +7,7 @@ import type { GenerateCharacterResponse, GenerateStoryResponse } from "@/types/a
 import { buildNpcCreationSchema } from "@/domain/story/schemas/npc-creation"
 import * as db from "@/db/core"
 import { buildCharacterCustomFieldsUpdateSchema } from "@/domain/story/schemas/custom-fields"
+import { isCustomFieldModuleEnabled } from "@/domain/story/custom-field-modules"
 
 const MajorFlawSchema = z.string().min(1)
 const PerkSchema = z.string().min(1)
@@ -84,8 +85,10 @@ export const StoryResponseSchema = z
 
 export function buildStoryResponseSchema(modules: StoryModules): z.ZodType<GenerateStoryResponse> {
   const flags = resolveModuleFlags(modules)
-  const customDefs = db.listCustomFields()
-  const npcCustomFields = buildCharacterCustomFieldsUpdateSchema(customDefs)
+  const customDefs = db
+    .listCustomFields()
+    .filter((d) => d.enabled && d.scope === "character" && isCustomFieldModuleEnabled(modules, d.id, "npc"))
+  const npcCustomFields = customDefs.length > 0 ? buildCharacterCustomFieldsUpdateSchema(customDefs) : undefined
   const npcSchema = buildNpcCreationSchema(
     {
       useNpcActivity: flags.useNpcActivity,
