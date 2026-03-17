@@ -263,12 +263,12 @@
   {#if bootstrapped}
     {#if gameActive}
       {#if $isDesktop && !$collapseCharSheet && gameReady}
-        <div class="h-dvh overflow-hidden border-r bg-card">
+        <div class="col-start-1 h-dvh overflow-hidden border-r bg-card">
           <CharSheet inline />
         </div>
       {/if}
 
-      <div class={desktopGame ? "" : ""}>
+      <div class={cn(desktopGame && "col-start-2", "min-w-0")}>
         {#if gameReady}
           {@render children()}
         {:else}
@@ -277,13 +277,13 @@
       </div>
 
       {#if $isDesktop && !$collapseNPCTracker && trackNpcs && gameReady}
-        <div class="h-dvh overflow-hidden border-l bg-card">
+        <div class="col-start-3 h-dvh overflow-hidden border-l bg-card">
           <NPCTracker inline />
         </div>
       {/if}
 
       {#if $isDesktop && !$collapseLocationsPanel && trackLocations && gameReady}
-        <div class="h-dvh overflow-hidden border-l bg-card">
+        <div class="col-start-4 h-dvh overflow-hidden border-l bg-card">
           <LocationsPanel inline />
         </div>
       {/if}
