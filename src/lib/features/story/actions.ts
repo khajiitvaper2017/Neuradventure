@@ -1,5 +1,5 @@
 import { generate } from "@/services/generate"
-import type { MainCharacterState, StoryModules } from "@/shared/types"
+import type { MainCharacterState, StoryModules } from "@/types/types"
 
 export async function generateStoryFromDescription(
   prompt: string,

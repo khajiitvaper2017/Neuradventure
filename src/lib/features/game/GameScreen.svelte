@@ -2,13 +2,13 @@
   import { onDestroy, tick, untrack } from "svelte"
   import { SvelteSet } from "svelte/reactivity"
   import { AppError } from "@/errors"
-  import type { StoryModules, TurnSummary } from "@/shared/types"
+  import type { StoryModules, TurnSummary } from "@/types/types"
   import {
     INTERNAL_UI_FLASH_MS,
     INTERNAL_UI_KEYBOARD_SCROLL_DELAY_MS,
     INTERNAL_UI_RESUME_PENDING_TURN_DELAY_MS,
-  } from "@/shared/internal-timeouts"
-  import { DEFAULT_STORY_MODULES } from "@/engine/schemas/story-modules"
+  } from "@/config/internal-timeouts"
+  import { DEFAULT_STORY_MODULES } from "@/domain/story/schemas/story-modules"
   import { stories } from "@/services/stories"
   import { settings as settingsService } from "@/services/settings"
   import { turns as turnsService } from "@/services/turns"
@@ -16,10 +16,10 @@
   import { navigate } from "@/stores/router"
   import { showError, showConfirm, showQuietNotice } from "@/stores/ui"
   import { createRequestId } from "@/utils/ids"
-  import { normalizePlayerInput } from "@/utils/inputNormalize"
-  import { scheduleKeyboardScroll as scheduleKeyboardScrollUtil } from "@/utils/keyboardScroll"
-  import { scrollToBottom } from "@/utils/scroll"
-  import { isNearBottom } from "@/utils/scrollFollow"
+  import { normalizePlayerInput } from "@/utils/text/inputNormalize"
+  import { scheduleKeyboardScroll as scheduleKeyboardScrollUtil } from "@/utils/dom/keyboardScroll"
+  import { scrollToBottom } from "@/utils/dom/scroll"
+  import { isNearBottom } from "@/utils/dom/scrollFollow"
   import { createModal } from "@/utils/modalState.svelte.js"
   import AuthorsNoteModal from "@/components/overlays/AuthorsNoteModal.svelte"
   import { streamingEnabled } from "@/stores/settings"

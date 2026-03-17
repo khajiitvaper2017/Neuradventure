@@ -1,6 +1,6 @@
 import { writable } from "svelte/store"
 import { settings } from "@/services/settings"
-import type { SamplerPreset } from "@/shared/api-types"
+import type { SamplerPreset } from "@/types/api"
 
 export type { SamplerPreset }
 

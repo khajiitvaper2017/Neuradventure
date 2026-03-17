@@ -2,8 +2,8 @@
   import { untrack } from "svelte"
   import { stories as storiesService } from "@/services/stories"
   import { chats as chatsService } from "@/services/chats"
-  import type { StoryMeta, ChatSummary } from "@/shared/types"
-  import type { StoryCharacterGroup, CharacterImportResult } from "@/shared/api-types"
+  import type { StoryMeta, ChatSummary } from "@/types/types"
+  import type { StoryCharacterGroup, CharacterImportResult } from "@/types/api"
   import { navigate, openCharSheetForCharacter } from "@/stores/router"
   import { showError, showConfirm, showQuietNotice } from "@/stores/ui"
   import { Badge } from "@/components/ui/badge"
@@ -43,7 +43,7 @@
   import { relativeTimeAgo, utcDateMs } from "@/utils/date"
   import ThemeToggle from "@/components/controls/ThemeToggle.svelte"
   import CharacterCard from "@/features/home/CharacterCard.svelte"
-  import { pickFile, readFileAsDataUrl } from "@/utils/filePick"
+  import { pickFile, readFileAsDataUrl } from "@/utils/dom/filePick"
   import { Book, Cog, EllipsisVertical, User, Users } from "@lucide/svelte"
 
   let stories = $state<StoryMeta[]>([])
@@ -566,7 +566,9 @@
                       </Avatar.Root>
                     {/if}
                     <div class="min-w-0">
-                      <Card.Title class="truncate text-sm font-semibold">{chat.title || chat.player_name || "Chat"}</Card.Title>
+                      <Card.Title class="truncate text-sm font-semibold"
+                        >{chat.title || chat.player_name || "Chat"}</Card.Title
+                      >
                       <Card.Description class="mt-2 flex flex-wrap gap-1.5 text-xs" aria-label="Participants">
                         {#each chat.participants.slice(0, 5) as p (p)}
                           <Badge variant="secondary" class="px-2 py-0 text-[11px] font-medium">

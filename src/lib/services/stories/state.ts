@@ -1,7 +1,7 @@
-import type { MainCharacterState, NPCState, StoryModules } from "@/shared/types"
-import * as db from "@/engine/core/db"
-import { MainCharacterStateStoredSchema, NPCStateStoredSchema, WorldStateStoredSchema } from "@/engine/core/models"
-import { normalizeStoryModules } from "@/engine/schemas/story-modules"
+import type { MainCharacterState, NPCState, StoryModules } from "@/types/types"
+import * as db from "@/db/core"
+import { MainCharacterStateStoredSchema, NPCStateStoredSchema, WorldStateStoredSchema } from "@/types/models"
+import { normalizeStoryModules } from "@/domain/story/schemas/story-modules"
 
 export function parseStoryState(row: db.StoryRow): {
   character: MainCharacterState

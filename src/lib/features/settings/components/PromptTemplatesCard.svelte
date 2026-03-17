@@ -1,7 +1,7 @@
 <script lang="ts">
   import { untrack } from "svelte"
   import { settings as settingsService } from "@/services/settings"
-  import type { PromptTemplateFile } from "@/shared/api-types"
+  import type { PromptTemplateFile } from "@/types/api"
   import { Button } from "@/components/ui/button"
   import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
   import * as InputGroup from "@/components/ui/input-group"

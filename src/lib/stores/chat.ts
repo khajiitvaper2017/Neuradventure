@@ -1,5 +1,5 @@
 import { writable } from "svelte/store"
-import type { ChatDetail, ChatMessage, ChatMember } from "@/shared/types"
+import type { ChatDetail, ChatMessage, ChatMember } from "@/types/types"
 
 export const currentChatId = writable<number | null>(null)
 export const currentChatTitle = writable<string>("")

@@ -1,14 +1,14 @@
 <script lang="ts">
   import { tick } from "svelte"
   import { SvelteSet } from "svelte/reactivity"
-  import type { ChatMember, ChatMessage } from "@/shared/types"
+  import type { ChatMember, ChatMessage } from "@/types/types"
   import { chats } from "@/services/chats"
   import { stories } from "@/services/stories"
-  import * as db from "@/engine/core/db"
+  import * as db from "@/db/core"
   import { subscribeStreamPreview } from "@/services/streamPreview"
-  import { normalizeChatInput } from "@/utils/inputNormalize"
-  import { scrollToBottom } from "@/utils/scroll"
-  import { isNearBottom } from "@/utils/scrollFollow"
+  import { normalizeChatInput } from "@/utils/text/inputNormalize"
+  import { scrollToBottom } from "@/utils/dom/scroll"
+  import { isNearBottom } from "@/utils/dom/scrollFollow"
   import { goBack } from "@/stores/router"
   import { showConfirm, showError } from "@/stores/ui"
   import { createRequestId } from "@/utils/ids"
@@ -530,7 +530,7 @@
       <div class="flex shrink-0 items-center -space-x-2 pl-1">
         {#each headerAvatars as src, i (src)}
           <Avatar.Root class={cn("size-8 border bg-muted shadow-sm", i > 0 && "ring-2 ring-background")}>
-            <Avatar.Image src={src} alt="Participant avatar" />
+            <Avatar.Image {src} alt="Participant avatar" />
           </Avatar.Root>
         {/each}
       </div>

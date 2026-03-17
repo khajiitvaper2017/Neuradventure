@@ -1,5 +1,5 @@
 import { generate } from "@/services/generate"
-import type { ChatMessage } from "@/shared/types"
+import type { ChatMessage } from "@/types/types"
 import { chatMessages, nextSpeakerIndex, canUndoChatCancel } from "@/stores/chat"
 
 type SendResult = {

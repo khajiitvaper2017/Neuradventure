@@ -1,10 +1,10 @@
 import { AppError } from "@/errors"
-import type { MainCharacterState, NPCState, StoryMeta, StoryModules } from "@/shared/types"
-import type { StoryDetail, UpdateStoryStateResult } from "@/shared/api-types"
-import * as db from "@/engine/core/db"
-import { MainCharacterStateStoredSchema, NPCStateStoredSchema } from "@/engine/core/models"
-import { characterToTavernCard, TavernCardV2Schema } from "@/engine/utils/converters/tavern"
-import { createNewStory } from "@/engine/game"
+import type { MainCharacterState, NPCState, StoryMeta, StoryModules } from "@/types/types"
+import type { StoryDetail, UpdateStoryStateResult } from "@/types/api"
+import * as db from "@/db/core"
+import { MainCharacterStateStoredSchema, NPCStateStoredSchema } from "@/types/models"
+import { characterToTavernCard, TavernCardV2Schema } from "@/utils/converters/tavern"
+import { createNewStory } from "@/domain/story"
 import { parseStoryModules, parseStoryState } from "@/services/stories/state"
 
 export async function list(): Promise<StoryMeta[]> {

@@ -1,6 +1,6 @@
 <script lang="ts">
   import { settings as settingsService } from "@/services/settings"
-  import type { CustomFieldDef, CustomFieldScope, CustomFieldValueType } from "@/shared/api-types"
+  import type { CustomFieldDef, CustomFieldScope, CustomFieldValueType } from "@/types/api"
   import { cn } from "@/utils.js"
   import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
   import { Button } from "@/components/ui/button"

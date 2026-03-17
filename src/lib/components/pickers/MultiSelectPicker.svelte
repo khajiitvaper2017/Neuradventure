@@ -95,7 +95,9 @@
   const q = $derived(query.trim().toLowerCase())
   const filtered = $derived(items.filter((item) => match(item, q)))
   const selectedItems = $derived(
-    selectedIds.map((id) => items.find((item) => item.id === id) ?? null).filter((x): x is MultiSelectPickerItem => !!x),
+    selectedIds
+      .map((id) => items.find((item) => item.id === id) ?? null)
+      .filter((x): x is MultiSelectPickerItem => !!x),
   )
 </script>
 
@@ -137,11 +139,15 @@
 
   <ul class={cn("grid gap-2 overflow-auto pr-1", maxHeightClass)} aria-label="Options">
     {#if items.length === 0}
-      <li class="grid place-items-center rounded-md border bg-card p-4 text-center text-sm text-muted-foreground italic">
+      <li
+        class="grid place-items-center rounded-md border bg-card p-4 text-center text-sm text-muted-foreground italic"
+      >
         {emptyText}
       </li>
     {:else if filtered.length === 0}
-      <li class="grid place-items-center rounded-md border bg-card p-4 text-center text-sm text-muted-foreground italic">
+      <li
+        class="grid place-items-center rounded-md border bg-card p-4 text-center text-sm text-muted-foreground italic"
+      >
         {noMatchesText}
       </li>
     {:else}
@@ -223,4 +229,3 @@
     {/if}
   </ul>
 </div>
-

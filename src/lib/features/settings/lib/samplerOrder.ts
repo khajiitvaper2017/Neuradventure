@@ -1,4 +1,4 @@
-import type { GenerationParams } from "@/shared/api-types"
+import type { GenerationParams } from "@/types/api"
 
 export function formatSamplerOrder(order: GenerationParams["sampler_order"]): string {
   if (!Array.isArray(order)) return ""

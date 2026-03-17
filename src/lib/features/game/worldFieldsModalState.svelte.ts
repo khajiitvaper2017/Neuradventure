@@ -1,4 +1,4 @@
-import type { CustomFieldDef } from "@/shared/api-types"
+import type { CustomFieldDef } from "@/types/api"
 import { createModal } from "@/utils/modalState.svelte.js"
 
 export type WorldFieldsDraft = Record<string, string | string[]>

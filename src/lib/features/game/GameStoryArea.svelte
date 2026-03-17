@@ -1,5 +1,5 @@
 <script lang="ts">
-  import type { TurnSummary, TurnVariantSummary } from "@/shared/types"
+  import type { TurnSummary, TurnVariantSummary } from "@/types/types"
   import { cn } from "@/utils.js"
   import { SquarePen, Trash } from "@lucide/svelte"
   import BackgroundEventsReveal from "@/components/rich/BackgroundEventsReveal.svelte"

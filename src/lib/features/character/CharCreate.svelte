@@ -2,8 +2,12 @@
   import { untrack } from "svelte"
   import { get } from "svelte/store"
   import { SvelteMap, SvelteSet } from "svelte/reactivity"
-  import type { StoryModules } from "@/shared/types"
-  import { storyModulesPreviewCore, storyModulesPreviewNpc, storyModulesPreviewPlayer } from "@/shared/story-modules"
+  import type { StoryModules } from "@/types/types"
+  import {
+    storyModulesPreviewCore,
+    storyModulesPreviewNpc,
+    storyModulesPreviewPlayer,
+  } from "@/domain/story/story-modules"
   import { goBack, navigate } from "@/stores/router"
   import { showError, showQuietNotice } from "@/stores/ui"
   import { cn } from "@/utils.js"
@@ -17,15 +21,15 @@
   } from "@/stores/game"
   import { pendingCharacterGenerateDescription } from "@/stores/game"
   import { storyDefaults, streamingEnabled } from "@/stores/settings"
-  import personalityOptions from "@/shared/config/traits.json"
-  import serverDefaults from "@/shared/config/server-defaults.json"
+  import personalityOptions from "@/config/traits.json"
+  import serverDefaults from "@/config/server-defaults.json"
   import { loadPromptHistory, savePromptHistory, removePromptHistory } from "@/utils/promptHistory"
   import { normalizeGender } from "@/utils/text"
   import { createRequestId } from "@/utils/ids"
   import { clearPendingRequest, getPendingRequest, setPendingRequest } from "@/utils/pendingRequests"
   import PromptHistoryPanel from "@/components/panels/PromptHistoryPanel.svelte"
   import { subscribeStreamPreview } from "@/services/streamPreview"
-  import { pickFile, readFileAsDataUrl } from "@/utils/filePick"
+  import { pickFile, readFileAsDataUrl } from "@/utils/dom/filePick"
   import StoryModulesPanel from "@/components/panels/StoryModulesPanel.svelte"
   import { Button } from "@/components/ui/button"
   import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"

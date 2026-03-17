@@ -1,6 +1,6 @@
 import { AppError } from "@/errors"
-import * as db from "@/engine/core/db"
-import { storyToPlaintext, storyToTavernJSONL } from "@/engine/utils/converters/tavern"
+import * as db from "@/db/core"
+import { storyToPlaintext, storyToTavernJSONL } from "@/utils/converters/tavern"
 import { parseStoryModules, parseStoryState } from "@/services/stories/state"
 import { downloadText } from "@/services/stories/utils"
 

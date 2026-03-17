@@ -1,5 +1,5 @@
 <script lang="ts">
-  import type { StoryCharacterGroup } from "@/shared/api-types"
+  import type { StoryCharacterGroup } from "@/types/api"
   import { Button } from "@/components/ui/button"
   import MultiSelectPicker from "@/components/pickers/MultiSelectPicker.svelte"
 
@@ -60,7 +60,7 @@
     ariaLabel="NPCs from library"
     items={pickerItems}
     selectedIds={pickerSelectedIds}
-    locked={locked}
+    {locked}
     excludeIds={excludeKey ? [excludeKey] : []}
     excludeBadgeLabel="Player"
     searchPlaceholder="Search characters…"

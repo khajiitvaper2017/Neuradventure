@@ -1,6 +1,6 @@
-import { MainCharacterStateStoredSchema, NPCStateStoredSchema } from "@/engine/core/models"
-import * as db from "@/engine/core/db"
-import type { StoryNpcGroup } from "@/shared/api-types"
+import { MainCharacterStateStoredSchema, NPCStateStoredSchema } from "@/types/models"
+import * as db from "@/db/core"
+import type { StoryNpcGroup } from "@/types/api"
 import { hashString } from "@/services/stories/utils"
 
 export async function npcs(): Promise<StoryNpcGroup[]> {

@@ -1,7 +1,7 @@
 <script lang="ts">
   import RichText from "@/components/rich/RichText.svelte"
   import BackgroundEventsReveal from "@/components/rich/BackgroundEventsReveal.svelte"
-  import { looksLikeBlockHtml } from "@/utils/sanitizeHtml"
+  import { looksLikeBlockHtml } from "@/utils/text/sanitizeHtml"
 
   type Props = {
     narrativeText?: string | null

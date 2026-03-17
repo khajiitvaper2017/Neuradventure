@@ -1,7 +1,7 @@
 <script lang="ts">
   import { backup as backupService } from "@/services/backup"
   import { showConfirm, showError, showQuietNotice } from "@/stores/ui"
-  import { pickFile } from "@/utils/filePick"
+  import { pickFile } from "@/utils/dom/filePick"
   import { Button } from "@/components/ui/button"
   import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
   import { Database, Download, Upload } from "@lucide/svelte"

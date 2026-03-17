@@ -1,6 +1,6 @@
 <script lang="ts">
   import InlineTokens from "@/components/rich/InlineTokens.svelte"
-  import { looksLikeBlockHtml, looksLikeHtml, sanitizeBlockHtml, sanitizeInlineHtml } from "@/utils/sanitizeHtml"
+  import { looksLikeBlockHtml, looksLikeHtml, sanitizeBlockHtml, sanitizeInlineHtml } from "@/utils/text/sanitizeHtml"
 
   type Props = {
     text?: string

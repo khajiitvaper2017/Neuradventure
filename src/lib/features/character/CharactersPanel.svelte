@@ -13,7 +13,7 @@
     markLlmUpdate,
     npcs,
   } from "@/stores/game"
-  import type { NPCState } from "@/shared/types"
+  import type { NPCState } from "@/types/types"
   import { createRequestId } from "@/utils/ids"
   import { Badge } from "@/components/ui/badge"
   import { Button } from "@/components/ui/button"

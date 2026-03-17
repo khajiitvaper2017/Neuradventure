@@ -1,5 +1,5 @@
-import type { NPCState } from "@/shared/types"
-import type { StoryCharacterGroup } from "@/shared/api-types"
+import type { NPCState } from "@/types/types"
+import type { StoryCharacterGroup } from "@/types/api"
 
 export function characterToNpc(character: StoryCharacterGroup["character"]): NPCState {
   return {

@@ -1,5 +1,5 @@
 import { writable, derived } from "svelte/store"
-import type { MainCharacterState, NPCState, StoryModules, WorldState, TurnSummary } from "@/shared/types"
+import type { MainCharacterState, NPCState, StoryModules, WorldState, TurnSummary } from "@/types/types"
 
 export type StoryCharacterKey = "player" | `npc:${string}`
 

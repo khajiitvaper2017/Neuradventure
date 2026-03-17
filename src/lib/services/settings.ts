@@ -1,10 +1,10 @@
 import { z } from "zod"
 import { AppError } from "@/errors"
-import * as db from "@/engine/core/db"
-import { getCachedUpstreamModels } from "@/engine/llm/models"
-import { getCtxLimitCached, initCtxLimit } from "@/engine/llm"
-import type { AppSettings, CustomFieldDef, ModelInfo, PromptTemplateFile, SamplerPreset } from "@/shared/api-types"
-import { HIDDEN_SECRET_PLACEHOLDER } from "@/shared/secrets"
+import * as db from "@/db/core"
+import { getCachedUpstreamModels } from "@/llm/models"
+import { getCtxLimitCached, initCtxLimit } from "@/llm"
+import type { AppSettings, CustomFieldDef, ModelInfo, PromptTemplateFile, SamplerPreset } from "@/types/api"
+import { HIDDEN_SECRET_PLACEHOLDER } from "@/secrets"
 import {
   areConnectorSecretsReady,
   clearConnectorApiKey,
@@ -12,7 +12,7 @@ import {
   hasCachedConnectorApiKey,
   initConnectorApiKeySecrets,
   setConnectorApiKey,
-} from "@/engine/secrets/connector-api-keys"
+} from "@/secrets/connector-api-keys"
 
 const BuiltinPresetSchema = z.object({
   name: z.string().min(1),
@@ -22,7 +22,7 @@ const BuiltinPresetSchema = z.object({
 
 type BuiltinPreset = z.infer<typeof BuiltinPresetSchema>
 
-const builtinPresetModules = import.meta.glob("/src/lib/shared/config/presets/*.json", { eager: true }) as Record<
+const builtinPresetModules = import.meta.glob("/src/lib/config/presets/*.json", { eager: true }) as Record<
   string,
   { default?: unknown } | unknown
 >

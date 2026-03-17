@@ -1,4 +1,4 @@
-import type { GenerationParams, LLMConnector, ModelInfo } from "@/shared/api-types"
+import type { GenerationParams, LLMConnector, ModelInfo } from "@/types/api"
 import { getOpenRouterParamStatus, type OpenRouterParamStatus } from "@/features/settings/lib/openrouterParams"
 
 export type ParamBadge = { label: string; kind: "warning" | "neutral" }

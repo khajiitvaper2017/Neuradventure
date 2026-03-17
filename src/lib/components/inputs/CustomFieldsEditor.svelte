@@ -1,5 +1,5 @@
 <script lang="ts">
-  import type { CustomFieldDef } from "@/shared/api-types"
+  import type { CustomFieldDef } from "@/types/api"
   import { cn } from "@/utils.js"
   import { Button } from "@/components/ui/button"
   import { Input } from "@/components/ui/input"

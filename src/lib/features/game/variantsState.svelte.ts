@@ -1,4 +1,4 @@
-import type { TurnVariantSummary } from "@/shared/types"
+import type { TurnVariantSummary } from "@/types/types"
 import { turns as turnsService } from "@/services/turns"
 
 export interface TurnVariantsState {

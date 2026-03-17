@@ -1,4 +1,4 @@
-import type { GenerationParams } from "@/shared/api-types"
+import type { GenerationParams } from "@/types/api"
 
 export type ImportedPreset = {
   name: string

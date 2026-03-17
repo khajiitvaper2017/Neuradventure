@@ -1,5 +1,5 @@
 <script lang="ts">
-  import type { StoryCharacterGroup } from "@/shared/api-types"
+  import type { StoryCharacterGroup } from "@/types/api"
   import { relativeTimeAgo, utcDateMs } from "@/utils/date"
   import * as Avatar from "@/components/ui/avatar"
   import { Badge } from "@/components/ui/badge"

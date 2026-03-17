@@ -1,4 +1,4 @@
-import { exportDbBytes, flushDb, restoreDbBytes } from "@/engine/db/connection"
+import { exportDbBytes, flushDb, restoreDbBytes } from "@/db/connection"
 import { downloadText } from "@/utils/downloadText"
 
 type NeuradventureBackupV1 = {

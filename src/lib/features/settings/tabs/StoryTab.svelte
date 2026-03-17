@@ -1,7 +1,7 @@
 <script lang="ts">
-  import promptFields from "@/shared/config/prompt-fields.json"
-  import type { StoryModules } from "@/shared/types"
-  import { STORY_MODULE_META } from "@/shared/story-modules"
+  import promptFields from "@/config/prompt-fields.json"
+  import type { StoryModules } from "@/types/types"
+  import { STORY_MODULE_META } from "@/domain/story/story-modules"
   import StoryModulesPanel from "@/components/panels/StoryModulesPanel.svelte"
   import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
   import CustomFieldsCard from "@/features/settings/components/CustomFieldsCard.svelte"

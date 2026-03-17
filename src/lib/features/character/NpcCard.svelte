@@ -1,6 +1,6 @@
 <script lang="ts">
   import { cn } from "@/utils.js"
-  import type { NPCState } from "@/shared/types"
+  import type { NPCState } from "@/types/types"
   import { Button } from "@/components/ui/button"
   import * as Card from "@/components/ui/card"
   import { Trash } from "@lucide/svelte"

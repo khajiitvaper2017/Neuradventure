@@ -1,8 +1,8 @@
 import { writable } from "svelte/store"
-import { DEFAULT_SETTINGS } from "@/engine/db"
+import { DEFAULT_SETTINGS } from "@/db"
 import { settings as settingsService } from "@/services/settings"
-import type { AppSettings, LLMConnector, SectionFormat, TimeoutSettings } from "@/shared/api-types"
-import type { StoryModules } from "@/shared/types"
+import type { AppSettings, LLMConnector, SectionFormat, TimeoutSettings } from "@/types/api"
+import type { StoryModules } from "@/types/types"
 
 export type ColorMode = "light" | "dark" | "system"
 

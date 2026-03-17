@@ -1,6 +1,6 @@
 <script lang="ts">
-  import type { GenerationParams, LLMConnector, ModelInfo } from "@/shared/api-types"
-  import { HIDDEN_SECRET_PLACEHOLDER } from "@/shared/secrets"
+  import type { GenerationParams, LLMConnector, ModelInfo } from "@/types/api"
+  import { HIDDEN_SECRET_PLACEHOLDER } from "@/secrets"
   import { settings as settingsService } from "@/services/settings"
   import * as Select from "@/components/ui/select"
   import { Badge } from "@/components/ui/badge"

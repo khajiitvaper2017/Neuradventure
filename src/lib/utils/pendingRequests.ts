@@ -1,4 +1,4 @@
-import { INTERNAL_PENDING_REQUEST_TTL_MS } from "@/shared/internal-timeouts"
+import { INTERNAL_PENDING_REQUEST_TTL_MS } from "@/config/internal-timeouts"
 
 export type PendingRequestKind =
   | "chat.send"

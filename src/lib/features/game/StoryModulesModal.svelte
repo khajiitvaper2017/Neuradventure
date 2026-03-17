@@ -1,5 +1,5 @@
 <script lang="ts">
-  import type { StoryModules } from "@/shared/types"
+  import type { StoryModules } from "@/types/types"
   import StoryModulesPanel from "@/components/panels/StoryModulesPanel.svelte"
   import { Button } from "@/components/ui/button"
   import { Sheet, SheetContent } from "@/components/ui/sheet"

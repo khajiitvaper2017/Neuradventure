@@ -15,9 +15,9 @@
     npcs,
     type StoryCharacterKey,
   } from "@/stores/game"
-  import { INTERNAL_UI_FLASH_MS } from "@/shared/internal-timeouts"
-  import type { MainCharacterState, NPCState } from "@/shared/types"
-  import type { CustomFieldDef } from "@/shared/api-types"
+  import { INTERNAL_UI_FLASH_MS } from "@/config/internal-timeouts"
+  import type { MainCharacterState, NPCState } from "@/types/types"
+  import type { CustomFieldDef } from "@/types/api"
   import { cn } from "@/utils.js"
   import { genderIcon, normalizeGender, splitCsv } from "@/utils/text"
   import EditableFieldList from "@/components/inputs/EditableFieldList.svelte"
@@ -755,7 +755,9 @@
           <Card.Header class="px-4 pt-4 pb-0">
             <div class="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
               <MapPin size={14} strokeWidth={1.5} class="shrink-0 opacity-70" aria-hidden="true" />
-              <Card.Title class="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Status</Card.Title>
+              <Card.Title class="text-xs font-semibold uppercase tracking-wider text-muted-foreground"
+                >Status</Card.Title
+              >
             </div>
           </Card.Header>
           <Card.Content class="px-4 pb-4 pt-0">
@@ -782,7 +784,9 @@
           <Card.Header class="px-4 pt-4 pb-0">
             <div class="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
               <Smile size={14} strokeWidth={1.5} class="shrink-0 opacity-70" aria-hidden="true" />
-              <Card.Title class="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Description</Card.Title>
+              <Card.Title class="text-xs font-semibold uppercase tracking-wider text-muted-foreground"
+                >Description</Card.Title
+              >
             </div>
           </Card.Header>
           <Card.Content class="px-4 pb-4 pt-0">
@@ -815,7 +819,9 @@
             <Card.Header class="px-4 pt-4 pb-0">
               <div class="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                 <Smile size={14} strokeWidth={1.5} class="shrink-0 opacity-70" aria-hidden="true" />
-                <Card.Title class="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Appearance</Card.Title>
+                <Card.Title class="text-xs font-semibold uppercase tracking-wider text-muted-foreground"
+                  >Appearance</Card.Title
+                >
               </div>
             </Card.Header>
             <Card.Content class="px-4 pb-4 pt-0">
@@ -848,7 +854,9 @@
           <Card.Header class="px-4 pt-4 pb-0">
             <div class="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
               <Shirt size={14} strokeWidth={1.5} class="shrink-0 opacity-70" aria-hidden="true" />
-              <Card.Title class="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Wearing</Card.Title>
+              <Card.Title class="text-xs font-semibold uppercase tracking-wider text-muted-foreground"
+                >Wearing</Card.Title
+              >
             </div>
           </Card.Header>
           <Card.Content class="px-4 pb-4 pt-0">
@@ -947,12 +955,7 @@
               <ul class="mt-3 space-y-2">
                 {#each displayCharacter.inventory as item, index (index)}
                   <li class="flex items-start gap-2">
-                    <Dot
-                      size={12}
-                      strokeWidth={1.5}
-                      class="mt-1 shrink-0 text-muted-foreground"
-                      aria-hidden="true"
-                    />
+                    <Dot size={12} strokeWidth={1.5} class="mt-1 shrink-0 text-muted-foreground" aria-hidden="true" />
                     <div class="min-w-0">
                       <div class="text-sm font-medium text-foreground">{item.name}</div>
                       <div class="mt-0.5 text-xs text-muted-foreground">{item.description}</div>

@@ -1,5 +1,5 @@
 <script lang="ts">
-  import type { ModelInfo } from "@/shared/api-types"
+  import type { ModelInfo } from "@/types/api"
   import ConnectorSection from "@/features/settings/tabs/generation/ConnectorSection.svelte"
 
   type Props = {

@@ -1,6 +1,6 @@
 <script lang="ts">
-  import type { StoryModules } from "@/shared/types"
-  import { STORY_MODULE_META, STORY_MODULE_SECTIONS, type StoryModuleKey } from "@/shared/story-modules"
+  import type { StoryModules } from "@/types/types"
+  import { STORY_MODULE_META, STORY_MODULE_SECTIONS, type StoryModuleKey } from "@/domain/story/story-modules"
   import { cn } from "@/utils.js"
   import { Switch } from "@/components/ui/switch"
   import { Button } from "@/components/ui/button"

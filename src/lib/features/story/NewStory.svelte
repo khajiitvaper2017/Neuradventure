@@ -1,8 +1,8 @@
 <script lang="ts">
   import { untrack } from "svelte"
   import { SvelteSet } from "svelte/reactivity"
-  import type { MainCharacterState, NPCState, StoryModules } from "@/shared/types"
-  import type { StoryCharacterGroup, StoryNpcGroup } from "@/shared/api-types"
+  import type { MainCharacterState, NPCState, StoryModules } from "@/types/types"
+  import type { StoryCharacterGroup, StoryNpcGroup } from "@/types/api"
   import { stories as storiesService } from "@/services/stories"
   import { subscribeStreamPreview } from "@/services/streamPreview"
   import { navigate, openCharSheetForCharacter } from "@/stores/router"
@@ -48,7 +48,7 @@
     storyModulesPreviewCore,
     storyModulesPreviewNpc,
     storyModulesPreviewPlayer,
-  } from "@/shared/story-modules"
+  } from "@/domain/story/story-modules"
 
   let submitting = $state(false)
   let generating = $state(false)

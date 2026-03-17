@@ -1,12 +1,19 @@
 # Repository Guidelines
 
 ## Personality
+
 Concise and precise.
 
 ## Project Structure & Module Organization
 
 - `src/routes/`: SvelteKit pages/layouts (`+layout.ts`, `+page.svelte`). Keep these thin.
-- `src/lib/engine/`: core runtime (DB/LLM/connectors, game/chat logic).
+- `src/lib/domain/`: domain logic (currently `domain/story/` for story/game rules + schemas).
+- `src/lib/db/`: persistence layer (SQLite/sql.js access + migrations).
+- `src/lib/llm/`: LLM connectors + prompting + streaming (see `llm/io/` and `llm/schema/`).
+- `src/lib/secrets/`: secret storage/adapters (never log/commit API keys).
+- `src/lib/types/`: shared types/models/API payload shapes.
+- `src/lib/config/`: shipped config + prompt templates + presets.
+- `src/lib/utils/`: low-level helpers (keeps `src/lib/utils.ts` for vendored `@/utils.js` imports).
 - `src/lib/features/`: feature screens; `src/lib/components/`: shared UI (`components/ui/` is shadcn-svelte).
 - `src/lib/styles/app.css`: Tailwind v4 entry + CSS-variable theme.
 - `components.json`: shadcn-svelte CLI config (paths/aliases/theme base color).
@@ -26,7 +33,6 @@ Concise and precise.
 - UI: Tailwind v4 + shadcn-svelte/Bits UI; add via `npx shadcn-svelte@latest add <component>`; theme via CSS vars in `src/lib/styles/app.css`.
 - Secrets: `VITE_*` is client-exposed and stringly-typed; don’t put API keys there. OpenRouter keys must never be logged/committed.
 - Tooling/conventions: Prettier + ESLint, `@/...` imports, `PascalCase.svelte`, TS `camelCase`, constants `SCREAMING_SNAKE_CASE`.
-
 
 ## Testing Guidelines
 

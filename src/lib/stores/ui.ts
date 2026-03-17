@@ -1,5 +1,5 @@
 import { writable, readable, get } from "svelte/store"
-import { INTERNAL_UI_ERROR_TOAST_MS, INTERNAL_UI_QUIET_NOTICE_MS } from "@/shared/internal-timeouts"
+import { INTERNAL_UI_ERROR_TOAST_MS, INTERNAL_UI_QUIET_NOTICE_MS } from "@/config/internal-timeouts"
 export const errorMessage = writable<string | null>(null)
 export const quietNotice = writable<string | null>(null)
 

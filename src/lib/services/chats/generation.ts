@@ -1,8 +1,8 @@
 import { AppError } from "@/errors"
-import * as db from "@/engine/core/db"
-import { buildChatMessages, buildChatStopTokens, sanitizeChatReply } from "@/engine/llm/chat"
-import { generateChatReply } from "@/engine/llm"
-import { createOrGetSession, publishComplete, publishError, publishPreview } from "@/engine/streaming/hub"
+import * as db from "@/db/core"
+import { buildChatMessages, buildChatStopTokens, sanitizeChatReply } from "@/llm/chat"
+import { generateChatReply } from "@/llm"
+import { createOrGetSession, publishComplete, publishError, publishPreview } from "@/llm/io/streaming"
 import type {
   ChatCancelResult,
   ChatContinueResult,
@@ -10,7 +10,7 @@ import type {
   ChatSendResult,
   ChatSetNextSpeakerResult,
   ChatUndoCancelResult,
-} from "@/shared/api-types"
+} from "@/types/api"
 import {
   buildChatMembersForPrompt,
   listAiMembers,

@@ -1,4 +1,4 @@
-import type { ModelInfo } from "@/shared/api-types"
+import type { ModelInfo } from "@/types/api"
 
 export function isFreeModel(model: ModelInfo): boolean {
   const id = model.id.trim().toLowerCase()

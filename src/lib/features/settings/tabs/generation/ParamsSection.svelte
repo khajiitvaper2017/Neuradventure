@@ -1,5 +1,5 @@
 <script lang="ts">
-  import type { ModelInfo } from "@/shared/api-types"
+  import type { ModelInfo } from "@/types/api"
   import ParamsBasicSection from "@/features/settings/tabs/generation/ParamsBasicSection.svelte"
 
   type Props = {

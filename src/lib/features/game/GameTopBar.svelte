@@ -1,7 +1,7 @@
 <script lang="ts">
   import { stories } from "@/services/stories"
   import { cn } from "@/utils.js"
-  import { estimateTokens, formatTokenCount } from "@/utils/tokenEstimate"
+  import { estimateTokens, formatTokenCount } from "@/utils/text/tokenEstimate"
   import { EllipsisVertical, User, Users } from "@lucide/svelte"
   import { Badge } from "@/components/ui/badge"
   import { Button } from "@/components/ui/button"
