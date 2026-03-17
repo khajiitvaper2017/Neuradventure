@@ -24,7 +24,7 @@
     "contextHeader": "Character context:",
     "instruction": "Instruction: Use the context above to regenerate ONLY the requested section.",
     "avoid": {
-      "appearance": "Do not reuse or paraphrase the current appearance. Keep it consistent with the identity and traits.",
+      "appearance": "Do not reuse or paraphrase the baseline appearance. Keep it consistent with the identity and traits.",
       "traits": "Do not reuse the current personality traits, major flaws, or perks. Keep them consistent with the identity and appearance.",
       "clothing": "Do not reuse or paraphrase the current clothing. Keep it consistent with the identity, appearance, and traits."
     }

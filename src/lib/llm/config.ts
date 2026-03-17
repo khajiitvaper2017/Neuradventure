@@ -33,7 +33,8 @@ function buildCustomFieldsHintLines(modules?: StoryModules): string[] {
     "When something changes, use: character_custom_fields (player), npc_changes[].custom_fields (NPCs), world_state_update.custom_fields (world).",
   )
   if (playerCharDefs.length > 0) lines.push(`Enabled player fields: ${playerCharDefs.map(fmt).join("; ")}`)
-  if ((modules?.track_npcs ?? true) && npcCharDefs.length > 0) lines.push(`Enabled NPC fields: ${npcCharDefs.map(fmt).join("; ")}`)
+  if ((modules?.track_npcs ?? true) && npcCharDefs.length > 0)
+    lines.push(`Enabled NPC fields: ${npcCharDefs.map(fmt).join("; ")}`)
   if (worldDefs.length > 0) lines.push(`Enabled world fields: ${worldDefs.map(fmt).join("; ")}`)
   return lines
 }

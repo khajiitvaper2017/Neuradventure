@@ -6,7 +6,14 @@
   import { cn } from "@/utils.js"
   import { Switch } from "@/components/ui/switch"
   import { Button } from "@/components/ui/button"
-  import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+  import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+  } from "@/components/ui/dialog"
   import * as InputGroup from "@/components/ui/input-group"
   import { Label } from "@/components/ui/label"
   import { SlidersHorizontal } from "@lucide/svelte"
@@ -189,14 +196,16 @@
 </script>
 
 {#snippet SwitchCell(key, disabled, label)}
-  <div class={cn(
-    COL_SWITCH,
-    "flex items-center justify-center rounded-md border bg-card/60 py-1",
-    disabled && "opacity-50 pointer-events-none"
-  )}>
+  <div
+    class={cn(
+      COL_SWITCH,
+      "flex items-center justify-center rounded-md border bg-card/60 py-1",
+      disabled && "opacity-50 pointer-events-none",
+    )}
+  >
     <Switch
       checked={Boolean(modules[key])}
-      disabled={disabled}
+      {disabled}
       onCheckedChange={(v) => updateModule(key, v)}
       aria-label={`Toggle ${label}`}
     />
@@ -218,10 +227,22 @@
 {#snippet ColHeaders(labelA, labelB)}
   <div class={cn(ROW_GRID, "pb-1 select-none")}>
     <div></div>
-    <div class={cn(COL_SWITCH, "text-center text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/60")}>{labelA}</div>
-    <div class={cn(COL_SWITCH, "text-center text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/60")}>{labelB}</div>
+    <div
+      class={cn(COL_SWITCH, "text-center text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/60")}
+    >
+      {labelA}
+    </div>
+    <div
+      class={cn(COL_SWITCH, "text-center text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/60")}
+    >
+      {labelB}
+    </div>
     {#if onOpenPrompts}
-      <div class={cn(COL_BTN, "text-center text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/60")}>Prompts</div>
+      <div
+        class={cn(COL_BTN, "text-center text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/60")}
+      >
+        Prompts
+      </div>
     {/if}
   </div>
 {/snippet}
@@ -284,10 +305,12 @@
     </div>
 
     <div class="flex justify-center">
-      <div class={cn(
-        "w-14 flex items-center justify-center rounded-md border bg-card/60 py-1",
-        npcDisabled && "opacity-50 pointer-events-none"
-      )}>
+      <div
+        class={cn(
+          "w-14 flex items-center justify-center rounded-md border bg-card/60 py-1",
+          npcDisabled && "opacity-50 pointer-events-none",
+        )}
+      >
         <Switch
           checked={customModuleValue(def.id, "npc")}
           disabled={npcDisabled}
@@ -307,7 +330,6 @@
 
 <div class={cn(!bare && "rounded-lg border bg-card shadow-sm")}>
   <div class={cn(bare ? "space-y-5" : "divide-y divide-border")}>
-
     <!-- Core section -->
     <div>
       <div class={cn(bare ? "pb-0" : "px-4 pb-0 pt-3")}>
@@ -315,7 +337,7 @@
       </div>
       <div class={cn(bare ? "" : "px-4 pb-3")}>
         {@render ColHeaders("On", "")}
-        {#each (["track_npcs", "track_background_events"] as const) as key (key)}
+        {#each ["track_npcs", "track_background_events"] as const as key (key)}
           {@const meta = STORY_MODULE_META[key]}
           <div class={cn(ROW_GRID, "border-b py-2 last:border-b-0")}>
             <div class="min-w-0 pr-3">
@@ -367,7 +389,8 @@
     {:else if enabledCharacterCustomDefs.length > 0}
       <div>
         <div class={cn(bare ? "pb-0 pt-3" : "px-4 pb-0 pt-3")}>
-          <span class="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/60">Custom Fields</span>
+          <span class="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/60">Custom Fields</span
+          >
         </div>
         <div class={cn(bare ? "" : "px-4 pb-3")}>
           {@render ColHeaders("Player", "NPC")}
@@ -377,7 +400,6 @@
         </div>
       </div>
     {/if}
-
   </div>
 </div>
 
@@ -401,7 +423,9 @@
           <div class="space-y-1">
             <Label for={`custom-field-prompt-${activeCustomDef.id}`} class="text-foreground">Prompt</Label>
             <div class="text-xs text-muted-foreground">
-              <span class="font-mono font-medium text-foreground/80">{`state.character.custom_fields.${activeCustomDef.id}`}</span>
+              <span class="font-mono font-medium text-foreground/80"
+                >{`state.character.custom_fields.${activeCustomDef.id}`}</span
+              >
             </div>
           </div>
         </InputGroup.Addon>

@@ -4,15 +4,8 @@ export type PreviewExtractor = { push: (delta: string) => Record<string, unknown
 
 const DEFAULT_PREVIEW_KEYS: Record<string, string[]> = {
   TurnResponse: ["narrative_text", "background_events", "current_scene", "time_of_day"],
-  GenerateCharacterResponse: [
-    "name",
-    "race",
-    "gender",
-    "general_description",
-    "baseline_appearance",
-    "current_clothing",
-  ],
-  GenerateCharacterAppearanceResponse: ["baseline_appearance", "current_appearance"],
+  GenerateCharacterResponse: ["name", "race", "gender", "general_description", "baseline_appearance", "custom_fields"],
+  GenerateCharacterAppearanceResponse: ["baseline_appearance"],
   GenerateCharacterClothingResponse: ["current_clothing"],
   StoryResponse: [
     "title",
@@ -22,6 +15,9 @@ const DEFAULT_PREVIEW_KEYS: Record<string, string[]> = {
     "starting_time",
     "general_description",
     "current_appearance",
+    "current_clothing",
+    "current_activity",
+    "character_custom_fields",
   ],
   GenerateChatResponse: ["title", "greeting"],
 }

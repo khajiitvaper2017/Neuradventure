@@ -8,6 +8,7 @@ import { buildNpcCreationSchema } from "@/domain/story/schemas/npc-creation"
 import * as db from "@/db/core"
 import { buildCharacterCustomFieldsUpdateSchema } from "@/domain/story/schemas/custom-fields"
 import { isCustomFieldModuleEnabled } from "@/domain/story/custom-field-modules"
+import { buildNPCChangesSection } from "@/domain/story/schemas/llm-response"
 
 const MajorFlawSchema = z.string().min(1)
 const PerkSchema = z.string().min(1)
@@ -22,7 +23,6 @@ export const GenerateCharacterResponseSchema = z
     general_description: z.string().min(1),
     personality_traits: PersonalityTraitsSchema.optional(),
     baseline_appearance: z.string().min(1).optional(),
-    current_clothing: z.string().min(1).optional(),
     major_flaws: MajorFlawsStrictSchema.optional(),
     perks: PerksStrictSchema.optional(),
   })
@@ -30,6 +30,17 @@ export const GenerateCharacterResponseSchema = z
 
 export function buildGenerateCharacterResponseSchema(modules: StoryModules): z.ZodType<GenerateCharacterResponse> {
   const flags = resolveModuleFlags(modules)
+  const enabledBaseCustomDefs = db
+    .listCustomFields()
+    .filter(
+      (d) =>
+        d.enabled &&
+        d.scope === "character" &&
+        d.placement === "base" &&
+        isCustomFieldModuleEnabled(modules, d.id, "character"),
+    )
+  const characterCustomFields =
+    enabledBaseCustomDefs.length > 0 ? buildCharacterCustomFieldsUpdateSchema(enabledBaseCustomDefs) : undefined
   const shape = {
     name: z.string().min(1),
     race: z.string().min(1),
@@ -38,12 +49,14 @@ export function buildGenerateCharacterResponseSchema(modules: StoryModules): z.Z
     ...(flags.useCharAppearance
       ? {
           baseline_appearance: z.string().min(1),
-          current_clothing: z.string().min(1),
         }
       : {}),
     ...(flags.useCharPersonalityTraits ? { personality_traits: PersonalityTraitsSchema } : {}),
     ...(flags.useCharMajorFlaws ? { major_flaws: MajorFlawsStrictSchema } : {}),
     ...(flags.useCharPerks ? { perks: PerksStrictSchema } : {}),
+    ...(characterCustomFields
+      ? { custom_fields: characterCustomFields.optional().describe("{state.character.custom_fields}") }
+      : {}),
   }
 
   return z.object(shape).strict() as unknown as z.ZodType<GenerateCharacterResponse>
@@ -51,8 +64,7 @@ export function buildGenerateCharacterResponseSchema(modules: StoryModules): z.Z
 
 export const GenerateCharacterAppearanceResponseSchema = z
   .object({
-    baseline_appearance: z.string().min(1),
-    current_appearance: z.string().min(1),
+    baseline_appearance: z.string().min(1).describe("{state.character.baseline_appearance}"),
   })
   .strict()
 
@@ -78,13 +90,44 @@ export const StoryResponseSchema = z
     starting_date: z.string().regex(DATE_REGEX, "starting_date must be YYYY-MM-DD"),
     starting_time: z.string().regex(TIME_OF_DAY_REGEX, "starting_time must be 24h HH:MM"),
     current_appearance: z.string().min(1).optional(),
+    current_clothing: z.string().min(1).optional(),
+    current_activity: z.string().min(1).optional(),
+    character_custom_fields: z
+      .record(z.string().min(1), z.union([z.string().min(1), z.array(z.string().min(1)).min(1)]))
+      .optional(),
     general_description: z.string().trim().min(1),
     pregen_npcs: z.array(NPCStateStoredSchema).optional(),
+    selected_npc_updates: z
+      .array(
+        z
+          .object({
+            name: z.string().min(1),
+            race: z.string().min(1).optional(),
+            gender: z.string().min(1).optional(),
+            current_location: z.string().min(1).optional(),
+            current_activity: z.string().min(1).optional(),
+            current_clothing: z.string().min(1).optional(),
+            current_appearance: z.string().min(1).optional(),
+          })
+          .strict(),
+      )
+      .optional(),
   })
   .strict()
 
 export function buildStoryResponseSchema(modules: StoryModules): z.ZodType<GenerateStoryResponse> {
   const flags = resolveModuleFlags(modules)
+  const enabledCurrentCustomDefs = db
+    .listCustomFields()
+    .filter(
+      (d) =>
+        d.enabled &&
+        d.scope === "character" &&
+        d.placement === "current" &&
+        isCustomFieldModuleEnabled(modules, d.id, "character"),
+    )
+  const characterCustomFields =
+    enabledCurrentCustomDefs.length > 0 ? buildCharacterCustomFieldsUpdateSchema(enabledCurrentCustomDefs) : undefined
   const customDefs = db
     .listCustomFields()
     .filter((d) => d.enabled && d.scope === "character" && isCustomFieldModuleEnabled(modules, d.id, "npc"))
@@ -100,6 +143,13 @@ export function buildStoryResponseSchema(modules: StoryModules): z.ZodType<Gener
     },
     npcCustomFields,
   )
+  const selectedNpcUpdatesSchema = buildNPCChangesSection(z.string().min(1), {
+    allowLocation: flags.useNpcLocation,
+    allowAppearance: flags.useNpcAppearance,
+    allowClothing: flags.useNpcAppearance,
+    allowActivity: flags.useNpcActivity,
+    allowInventory: false,
+  })
 
   const baseShape = {
     title: z.string().min(1),
@@ -107,11 +157,30 @@ export function buildStoryResponseSchema(modules: StoryModules): z.ZodType<Gener
     starting_location: z.string().min(1),
     starting_date: z.string().regex(DATE_REGEX, "starting_date must be YYYY-MM-DD"),
     starting_time: z.string().regex(TIME_OF_DAY_REGEX, "starting_time must be 24h HH:MM"),
-    general_description: z.string().trim().min(1),
-    ...(flags.useCharAppearance ? { current_appearance: z.string().min(1) } : {}),
+    general_description: z.string().trim().min(1).describe("{state.character.general_description}"),
+    ...(flags.useCharAppearance
+      ? {
+          current_appearance: z.string().min(1).describe("{state.character.current_appearance}"),
+          current_clothing: z.string().min(1).describe("{state.character.current_clothing}"),
+        }
+      : {}),
+    ...(flags.useCharActivity
+      ? {
+          current_activity: z.string().min(1).describe("{state.character.current_activity}"),
+        }
+      : {}),
+    ...(characterCustomFields
+      ? { character_custom_fields: characterCustomFields.optional().describe("{state.character.custom_fields}") }
+      : {}),
   }
 
   let schema = z.object(baseShape).strict()
+
+  schema = schema.extend({
+    selected_npc_updates: modules.track_npcs
+      ? selectedNpcUpdatesSchema.optional()
+      : selectedNpcUpdatesSchema.max(0).optional(),
+  })
 
   if (modules.track_npcs) {
     schema = schema.extend({

@@ -14,7 +14,7 @@ import type {
   GenerateCharacterTraitsResponse,
   GenerateStoryResponse,
 } from "@/types/api"
-import type { MainCharacterState, StoryModules } from "@/types/types"
+import type { MainCharacterState, NPCState, StoryModules } from "@/types/types"
 
 function asGenerateError(err: unknown): AppError {
   const message = err instanceof Error ? err.message : String(err)
@@ -167,6 +167,7 @@ export const generate = {
     character: Omit<MainCharacterState, "inventory">,
     storyModules?: StoryModules,
     requestId?: string,
+    selectedNpcs?: NPCState[],
   ): Promise<GenerateStoryResponse> => {
     const defaults = db.getSettings().storyDefaults
     const trimmedRequestId = requestId?.trim() || undefined
@@ -185,6 +186,7 @@ export const generate = {
       const task = generateStory(description, character, storyModules ?? defaults, {
         onPreviewPatch:
           shouldStream && trimmedRequestId ? (patch) => publishPreview(trimmedRequestId, patch) : undefined,
+        selectedNpcs,
       })
       if (trimmedRequestId) setInFlight(trimmedRequestId, task)
       try {

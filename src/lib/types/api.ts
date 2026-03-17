@@ -97,7 +97,7 @@ export interface GenerateCharacterResponse {
   gender: string
   general_description: string
   baseline_appearance?: string
-  current_clothing?: string
+  custom_fields?: Record<string, string | string[]>
   personality_traits?: string[]
   major_flaws?: string[]
   perks?: string[]
@@ -105,7 +105,6 @@ export interface GenerateCharacterResponse {
 
 export interface GenerateCharacterAppearanceResponse {
   baseline_appearance: string
-  current_appearance: string
 }
 
 export interface GenerateCharacterClothingResponse {
@@ -125,8 +124,20 @@ export interface GenerateStoryResponse {
   starting_date: string
   starting_time: string
   current_appearance?: string
+  current_clothing?: string
+  current_activity?: string
+  character_custom_fields?: Record<string, string | string[]>
   general_description: string
   pregen_npcs?: NPCState[]
+  selected_npc_updates?: Array<{
+    name: string
+    race?: string
+    gender?: string
+    current_location?: string
+    current_activity?: string
+    current_clothing?: string
+    current_appearance?: string
+  }>
 }
 
 export interface GenerateChatResponse {

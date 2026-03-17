@@ -49,6 +49,7 @@ type CharacterGenerationContext = {
   name: string
   race: string
   gender: string
+  general_description?: string
   baseline_appearance: string
   current_appearance: string
   current_clothing: string
@@ -76,9 +77,19 @@ function formatCharacterContext(context: CharacterGenerationContext, part: "appe
       .join(" | ")
     lines.push(formatTemplate(labels.appearance, { value: appearance || unknown }))
   } else if (part === "appearance") {
+    lines.push(
+      formatTemplate(labels.generalDescription, {
+        value: context.general_description?.trim() || unknown,
+      }),
+    )
     lines.push(formatTemplate(labels.personalityTraits, { value: context.personality_traits.join(", ") || unknown }))
     lines.push(formatTemplate(labels.majorFlaws, { value: context.major_flaws.join(", ") || noneTitle }))
     lines.push(formatTemplate(labels.perks, { value: context.perks.join(", ") || noneTitle }))
+    lines.push(
+      formatTemplate(labels.baselineAppearance, {
+        value: context.baseline_appearance.trim() || unknown,
+      }),
+    )
   } else {
     lines.push(
       formatTemplate(labels.baselineAppearance, {

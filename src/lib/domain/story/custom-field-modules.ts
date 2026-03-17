@@ -16,4 +16,3 @@ export function isCustomFieldModuleEnabled(
   const raw = modules?.custom_field_modules?.[id]?.[target]
   return typeof raw === "boolean" ? raw : true
 }
-

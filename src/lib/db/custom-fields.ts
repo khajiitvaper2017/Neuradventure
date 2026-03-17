@@ -137,3 +137,8 @@ export function deleteCustomField(idRaw: string): boolean {
   const res = getDb().prepare("DELETE FROM custom_fields WHERE id = ?").run(id)
   return res.changes > 0
 }
+
+export function deleteAllCustomFields(): number {
+  const res = getDb().prepare("DELETE FROM custom_fields").run()
+  return res.changes
+}

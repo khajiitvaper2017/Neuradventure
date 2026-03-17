@@ -1,4 +1,4 @@
-import { buildStoryResponseSchema, type StoryModules, type StoryResponse } from "@/types/models"
+import { buildStoryResponseSchema, type NPCState, type StoryModules, type StoryResponse } from "@/types/models"
 import { callLLMRaw } from "@/llm/call"
 import { getGenerateStoryPrompt } from "@/llm/config"
 import { formatTemplate, getLlmStrings, getServerDefaults } from "@/utils/text/strings"
@@ -12,6 +12,7 @@ export async function generateStory(
     gender: string
     general_description?: string
     current_location?: string
+    current_activity?: string
     baseline_appearance?: string
     current_appearance?: string
     current_clothing?: string
@@ -20,7 +21,10 @@ export async function generateStory(
     perks?: string[]
   },
   storyModules?: StoryModules,
-  options: { onPreviewPatch?: (patch: Record<string, unknown>) => void } = {},
+  options: {
+    onPreviewPatch?: (patch: Record<string, unknown>) => void
+    selectedNpcs?: NPCState[]
+  } = {},
 ): Promise<StoryResponse> {
   const modules = storyModules ?? DEFAULT_STORY_MODULES
   const flags = resolveModuleFlags(modules)
@@ -38,6 +42,67 @@ export async function generateStory(
   const majorFlaws = flags.useCharMajorFlaws ? (character.major_flaws?.map((t) => t.trim()).filter(Boolean) ?? []) : []
   const generalDescription = character.general_description?.trim() || defaults.unknown.generalDescription
   const promptLines = getGenerateStoryPrompt(modules).split("\n")
+  const selectedNpcs = options.selectedNpcs ?? []
+
+  const missingTokens = new Set(
+    [
+      unknown,
+      defaults.unknown.location,
+      defaults.unknown.activity,
+      defaults.unknown.appearance,
+      defaults.unknown.clothing,
+      defaults.unknown.baselineAppearance,
+    ]
+      .map((v) => v.trim().toLowerCase())
+      .filter(Boolean),
+  )
+  const isMissingText = (value: string | undefined) => {
+    const trimmed = (value ?? "").trim()
+    if (!trimmed) return true
+    const key = trimmed.toLowerCase()
+    return missingTokens.has(key) || key.startsWith("unknown")
+  }
+
+  const selectedNpcContent =
+    selectedNpcs.length === 0
+      ? ""
+      : [
+          "",
+          "User-selected NPCs (from library; already exist in this story):",
+          "Do NOT include these NPCs in pregen_npcs. Only generate additional NPCs not listed here.",
+          "If any user-selected NPC is missing/unknown current fields, generate those missing values and return them in selected_npc_updates (match by name).",
+          ...selectedNpcs.map((npc) => {
+            const name = (npc.name ?? "").trim() || unknown
+            const race = (npc.race ?? "").trim() || unknown
+            const gender = (npc.gender ?? "").trim() || unknown
+            const desc = (npc.general_description ?? "").trim() || defaults.unknown.generalDescription
+            const parts: string[] = []
+            parts.push(`- ${name} (${race}, ${gender}) — ${desc}`)
+            if (flags.useNpcLocation) {
+              parts.push(
+                `  current_location: ${isMissingText(npc.current_location) ? "(missing)" : (npc.current_location ?? "").trim()}`,
+              )
+            }
+            if (flags.useNpcActivity) {
+              parts.push(
+                `  current_activity: ${isMissingText(npc.current_activity) ? "(missing)" : (npc.current_activity ?? "").trim()}`,
+              )
+            }
+            if (flags.useNpcAppearance) {
+              parts.push(
+                `  baseline_appearance: ${isMissingText(npc.baseline_appearance) ? "(missing)" : (npc.baseline_appearance ?? "").trim()}`,
+              )
+              parts.push(
+                `  current_appearance: ${isMissingText(npc.current_appearance) ? "(missing)" : (npc.current_appearance ?? "").trim()}`,
+              )
+              parts.push(
+                `  current_clothing: ${isMissingText(npc.current_clothing) ? "(missing)" : (npc.current_clothing ?? "").trim()}`,
+              )
+            }
+            return parts.join("\n")
+          }),
+          "",
+        ].join("\n")
   const result = await callLLMRaw(
     [
       { role: "system", content: promptLines.join("\n") },
@@ -62,6 +127,13 @@ export async function generateStory(
                 }),
               ]
             : []),
+          ...(flags.useCharActivity
+            ? [
+                formatTemplate(llmStrings.characterContextLabels.currentActivity, {
+                  value: character.current_activity || unknown,
+                }),
+              ]
+            : []),
           ...(flags.useCharMajorFlaws
             ? [
                 formatTemplate(llmStrings.characterContextLabels.majorFlaws, {
@@ -76,6 +148,7 @@ export async function generateStory(
                 }),
               ]
             : []),
+          selectedNpcContent,
           formatTemplate(llmStrings.generateStory.storyDescription, { description }),
         ].join("\n"),
       },

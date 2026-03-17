@@ -51,3 +51,8 @@ export function deleteSamplerPreset(id: number): boolean {
   const res = getDb().prepare("DELETE FROM sampler_presets WHERE id = ?").run(id)
   return res.changes > 0
 }
+
+export function deleteAllSamplerPresets(): number {
+  const res = getDb().prepare("DELETE FROM sampler_presets").run()
+  return res.changes
+}

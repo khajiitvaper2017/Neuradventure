@@ -47,7 +47,10 @@
   const avatarSrc = $derived((group.card?.avatar ?? "").trim())
 </script>
 
-<Card.Root class="group relative overflow-hidden gap-0 py-0 shadow-sm transition-colors hover:bg-muted/20" role="listitem">
+<Card.Root
+  class="group relative overflow-hidden gap-0 py-0 shadow-sm transition-colors hover:bg-muted/20"
+  role="listitem"
+>
   <div
     class="pointer-events-none absolute inset-y-0 left-0 w-1 bg-primary/60 opacity-70 transition-opacity group-hover:opacity-100"
   ></div>
@@ -70,7 +73,10 @@
         <Card.Title class="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm">
           <span class="truncate">{group.character.name}</span>
           {#if group.stories.length > 0}
-            <Badge variant="outline" class="border-primary/30 bg-primary/5 px-2 py-0 text-[11px] font-medium text-primary">
+            <Badge
+              variant="outline"
+              class="border-primary/30 bg-primary/5 px-2 py-0 text-[11px] font-medium text-primary"
+            >
               {group.stories.length}
               {group.stories.length === 1 ? "story" : "stories"}
             </Badge>

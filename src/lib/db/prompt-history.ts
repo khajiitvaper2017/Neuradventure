@@ -88,3 +88,8 @@ export function deletePromptHistory(kind: PromptHistoryKind, prompt: string, lim
   }
   return listPromptHistory(kind, limit)
 }
+
+export function clearAllPromptHistory(): number {
+  const res = getDb().prepare("DELETE FROM prompt_history").run()
+  return res.changes
+}

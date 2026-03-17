@@ -82,6 +82,7 @@ export { getRequestResult, setRequestResult } from "@/db/request-results"
 
 export type { PromptHistoryKind } from "@/db/prompt-history"
 export {
+  clearAllPromptHistory,
   deletePromptHistory,
   listPromptHistory,
   upsertPromptHistory,
@@ -100,7 +101,7 @@ export {
 } from "@/db/prompts"
 
 export type { SamplerPreset, SamplerPresetRow } from "@/db/presets"
-export { deleteSamplerPreset, listSamplerPresets, upsertSamplerPreset } from "@/db/presets"
+export { deleteAllSamplerPresets, deleteSamplerPreset, listSamplerPresets, upsertSamplerPreset } from "@/db/presets"
 
 export type {
   CustomFieldDef,
@@ -110,7 +111,13 @@ export type {
   CharacterCustomFieldPlacement,
   WorldCustomFieldPlacement,
 } from "@/types/api"
-export { deleteCustomField, getCustomFieldsMaxUpdatedAt, listCustomFields, upsertCustomField } from "@/db/custom-fields"
+export {
+  deleteAllCustomFields,
+  deleteCustomField,
+  getCustomFieldsMaxUpdatedAt,
+  listCustomFields,
+  upsertCustomField,
+} from "@/db/custom-fields"
 
 export {
   getFieldPromptOverridesMaxUpdatedAt,
