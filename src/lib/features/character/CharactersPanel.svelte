@@ -15,18 +15,19 @@
   } from "@/stores/game"
   import type { NPCState } from "@/shared/types"
   import { createRequestId } from "@/utils/ids"
-  import { cn } from "@/utils.js"
   import { Badge } from "@/components/ui/badge"
   import { Button } from "@/components/ui/button"
-  import { Card, CardContent } from "@/components/ui/card"
   import { Sheet, SheetContent } from "@/components/ui/sheet"
   import { ScrollArea } from "@/components/ui/scroll-area"
-  import { Trash, Users } from "@lucide/svelte"
+  import { Users } from "@lucide/svelte"
   import AddCharacterCard from "@/features/character/AddCharacterCard.svelte"
+  import NpcCard from "@/features/character/NpcCard.svelte"
 
   let { inline = false }: { inline?: boolean } = $props()
 
   const trackNpcs = $derived($currentStoryModules?.track_npcs ?? true)
+  const showNpcLocation = $derived($currentStoryModules?.npc_location ?? true)
+  const showNpcActivity = $derived($currentStoryModules?.npc_activity ?? true)
 
   let newName = $state("")
   let adding = $state(false)
@@ -140,40 +141,15 @@
         {:else}
           <div class="grid gap-2" role="list" aria-label="Characters">
             {#each $npcs as npc (npc.name)}
-              <Card
-                class={cn(
-                  "group cursor-pointer overflow-hidden shadow-sm transition-colors hover:bg-muted/20",
-                  deletingName === npc.name && "opacity-60",
-                )}
-                role="listitem"
-                onclick={() => openNpc(npc)}
-              >
-                <CardContent class="flex items-start justify-between gap-3 p-3">
-                  <div class="min-w-0">
-                    <div class="truncate text-sm font-semibold text-foreground">{npc.name}</div>
-                    <div class="mt-0.5 text-xs text-muted-foreground">{npc.gender} · {npc.race}</div>
-                    {#if npc.inventory?.length > 0}
-                      <div class="mt-2 text-[11px] text-muted-foreground">Inventory: {npc.inventory.length}</div>
-                    {/if}
-                  </div>
-
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    class="h-9 w-9 text-muted-foreground hover:text-destructive"
-                    onclick={(e) => {
-                      e.preventDefault()
-                      e.stopPropagation()
-                      void deleteNpc(npc)
-                    }}
-                    disabled={deletingName !== null || $isGenerating}
-                    aria-label={`Delete ${npc.name}`}
-                    title="Delete"
-                  >
-                    <Trash size={15} strokeWidth={1.8} aria-hidden="true" />
-                  </Button>
-                </CardContent>
-              </Card>
+              <NpcCard
+                {npc}
+                deleting={deletingName === npc.name}
+                deleteDisabled={deletingName !== null || $isGenerating}
+                showLocation={showNpcLocation}
+                showActivity={showNpcActivity}
+                onOpen={openNpc}
+                onDelete={(target) => void deleteNpc(target)}
+              />
             {/each}
           </div>
         {/if}

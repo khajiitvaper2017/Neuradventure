@@ -8,7 +8,7 @@
   import { showError, showConfirm, showQuietNotice } from "@/stores/ui"
   import { Badge } from "@/components/ui/badge"
   import { Button } from "@/components/ui/button"
-  import { Card } from "@/components/ui/card"
+  import { Card, CardContent } from "@/components/ui/card"
   import {
     DropdownMenu,
     DropdownMenuContent,
@@ -431,8 +431,8 @@
         {:else}
           <div class="grid gap-3" role="list" aria-label="Stories">
             {#each filteredStories as story (story.id)}
-              <Card class="group">
-                <div class="flex items-start gap-2 p-3">
+              <Card class="group p-0 gap-0">
+                <CardContent class="flex items-start gap-2 p-3">
                   <Button
                     type="button"
                     variant="ghost"
@@ -488,7 +488,7 @@
                       </DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>
-                </div>
+                </CardContent>
               </Card>
             {/each}
           </div>
@@ -526,8 +526,8 @@
         {:else}
           <div class="grid gap-3" role="list" aria-label="Chats">
             {#each filteredChats as chat (chat.id)}
-              <Card class="group">
-                <div class="flex items-start gap-2 p-3">
+              <Card class="group p-0 gap-0">
+                <CardContent class="flex items-start gap-2 p-3">
                   <Button
                     type="button"
                     variant="ghost"
@@ -593,7 +593,7 @@
                       </DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>
-                </div>
+                </CardContent>
               </Card>
             {/each}
           </div>
