@@ -3,7 +3,7 @@ import * as db from "@/engine/core/db"
 import { getServerDefaults } from "@/engine/core/strings"
 import { chatToPlaintext, chatToTavernJSONL } from "@/engine/utils/converters/tavern"
 import { memberNameFromState, resolveMemberState } from "@/services/chats/members"
-import { downloadText } from "@/services/chats/utils"
+import { downloadText } from "@/utils/downloadText"
 
 export async function exportAndDownload(
   id: number,

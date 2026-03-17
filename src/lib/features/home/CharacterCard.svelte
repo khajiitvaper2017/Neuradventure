@@ -188,7 +188,7 @@
           <div class="mt-3 grid gap-1">
             {#each group.stories
               .slice()
-              .sort((a, b) => updatedAtMs(b.updated_at) - updatedAtMs(a.updated_at)) as story (story.id)}
+              .sort((a, b) => utcDateMs(b.updated_at) - utcDateMs(a.updated_at)) as story (story.id)}
               <Button
                 type="button"
                 variant="link"

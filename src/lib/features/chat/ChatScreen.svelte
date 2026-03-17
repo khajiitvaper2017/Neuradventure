@@ -29,7 +29,7 @@
     applyCancelResult,
     applyUndoCancelResult,
   } from "@/features/chat/actions"
-  import { createStreamController } from "@/utils/streamController.svelte.ts"
+  import { createStreamController } from "@/utils/streamController.svelte.js"
   import ConversationInput from "@/components/inputs/ConversationInput.svelte"
   import RichText from "@/components/rich/RichText.svelte"
   import { SquarePen, Trash } from "@lucide/svelte"
@@ -76,7 +76,6 @@
   let showTitleEditor = $state(false)
   let titleDraft = $state("")
   let showSpeakerPicker = $state(false)
-  let greetingLoading = $state(false)
   let greetingApplying = $state(false)
   let greetingOptions = $state<string[]>([])
   let greetingFetchNonce = 0
@@ -263,7 +262,6 @@
     lastGreetingCharId = ai.character_id
 
     const nonce = ++greetingFetchNonce
-    greetingLoading = true
     try {
       const card = (await stories.getCharacterCard(ai.character_id)) as {
         spec?: unknown
@@ -288,7 +286,6 @@
       greetingOptions = []
       greetingIndex = -1
     } finally {
-      if (nonce === greetingFetchNonce) greetingLoading = false
     }
   }
 
@@ -325,7 +322,6 @@
     const target = seededGreetingMessage()
     if (!ai || !target) {
       greetingOptions = []
-      greetingLoading = false
       greetingApplying = false
       lastGreetingCharId = null
       return

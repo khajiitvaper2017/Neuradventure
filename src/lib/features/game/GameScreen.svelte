@@ -19,7 +19,7 @@
   import { scheduleKeyboardScroll as scheduleKeyboardScrollUtil } from "@/utils/keyboardScroll"
   import { scrollToBottom } from "@/utils/scroll"
   import { isNearBottom } from "@/utils/scrollFollow"
-  import { createModal } from "@/utils/modalState.svelte.ts"
+  import { createModal } from "@/utils/modalState.svelte.js"
   import AuthorsNoteModal from "@/components/overlays/AuthorsNoteModal.svelte"
   import { streamingEnabled } from "@/stores/settings"
   import {
@@ -37,9 +37,9 @@
     isGenerating,
   } from "@/stores/game"
   import { clearPendingTurn, getPendingTurn, setPendingTurn, type PendingTurn } from "@/features/game/pendingTurn"
-  import { createStreamController } from "@/utils/streamController.svelte.ts"
-  import { createTurnVariantsState } from "@/features/game/variantsState.svelte.ts"
-  import { createWorldFieldsModal } from "@/features/game/worldFieldsModalState.svelte.ts"
+  import { createStreamController } from "@/utils/streamController.svelte.js"
+  import { createTurnVariantsState } from "@/features/game/variantsState.svelte.js"
+  import { createWorldFieldsModal } from "@/features/game/worldFieldsModalState.svelte.js"
   import {
     cancelLastTurn as cancelLastTurnAction,
     formatLlmWarningsNotice,
@@ -505,7 +505,7 @@
     editingTurnId = turn.id
     editPlayerInput = turn.player_input
     editNarrative = turn.narrative_text
-    // autoresize uses rAF internally, so wait for tick + 2 rAFs to ensure textareas are sized
+    // Wait for tick + extra rAFs so layout settles before scrolling.
     tick().then(() =>
       requestAnimationFrame(() =>
         requestAnimationFrame(() => requestAnimationFrame(() => scrollStoryToBottom({ smooth: true }))),

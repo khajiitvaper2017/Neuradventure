@@ -19,8 +19,8 @@ import {
   resolveSpeakerCard,
 } from "@/services/chats/members"
 import { buildChatHistory, buildMessagePayload } from "@/services/chats/messages"
-import { clearInFlight, getCachedOrInFlight, setInFlight } from "@/services/chats/requests"
-import { isProbablyOfflineError } from "@/services/chats/utils"
+import { clearInFlight, getCachedOrInFlight, setInFlight } from "@/services/requests/cache"
+import { isProbablyOfflineError } from "@/services/requests/offline"
 
 export async function send(id: number, content: string, requestId?: string): Promise<ChatSendResult> {
   const chat = db.getChat(id)
