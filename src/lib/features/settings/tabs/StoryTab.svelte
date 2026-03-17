@@ -45,18 +45,6 @@
         "llm.npc_update.name",
       ],
     },
-    track_locations: {
-      keys: [
-        "llm.world_state_update.locations",
-        "state.location.entry",
-        "state.location.name",
-        "state.location.description",
-        "state.location.characters",
-        "state.location.character",
-        "state.location.available_items",
-        "state.location.available_item",
-      ],
-    },
     track_background_events: {
       keys: ["llm.turn_response.background_events"],
     },

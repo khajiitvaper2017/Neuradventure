@@ -12,7 +12,6 @@
   import { activeScreen, navigate, routeStoryId, routeChatId, syncRouteFromUrl } from "@/stores/router"
   import {
     collapseCharSheet,
-    collapseLocationsPanel,
     collapseNPCTracker,
     errorMessage,
     isDesktop,
@@ -25,7 +24,6 @@
   import { currentChatId } from "@/stores/chat"
   import CharSheet from "@/features/character/CharSheet.svelte"
   import NPCTracker from "@/features/npc/NPCTracker.svelte"
-  import LocationsPanel from "@/components/panels/LocationsPanel.svelte"
   import PwaPrompts from "@/components/overlays/PwaPrompts.svelte"
   import ConfirmDialog from "@/components/overlays/ConfirmDialog.svelte"
   import { loadStoryById } from "@/utils/storyLoader"
@@ -161,14 +159,12 @@
   let gameReady = $derived(gameActive && !restoringStory && $currentStoryId !== null)
   let desktopGame = $derived(gameReady && $isDesktop)
   let trackNpcs = $derived($currentStoryModules?.track_npcs ?? true)
-  let trackLocations = $derived($currentStoryModules?.track_locations ?? true)
 
   let gridStyle = $derived.by(() => {
     if (!desktopGame) return undefined
     const left = $collapseCharSheet ? 0 : SIDEBAR_WIDTH
     const right1 = $collapseNPCTracker || !trackNpcs ? 0 : SIDEBAR_WIDTH
-    const right2 = $collapseLocationsPanel || !trackLocations ? 0 : SIDEBAR_WIDTH
-    return `grid-template-columns:${left}px minmax(0, ${GAME_WIDTH}px) ${right1}px ${right2}px;grid-template-rows:100dvh;`
+    return `grid-template-columns:${left}px minmax(0, ${GAME_WIDTH}px) ${right1}px;grid-template-rows:100dvh;`
   })
 
   function bootstrapPwa() {
@@ -281,12 +277,6 @@
           <NPCTracker inline />
         </div>
       {/if}
-
-      {#if $isDesktop && !$collapseLocationsPanel && trackLocations && gameReady}
-        <div class="col-start-4 h-dvh overflow-hidden border-l bg-card">
-          <LocationsPanel inline />
-        </div>
-      {/if}
     {:else}
       {@render children()}
     {/if}
@@ -294,9 +284,6 @@
     <CharSheet />
     {#if trackNpcs}
       <NPCTracker />
-    {/if}
-    {#if trackLocations}
-      <LocationsPanel />
     {/if}
   {:else}
     <ScrollArea class="h-full w-full">

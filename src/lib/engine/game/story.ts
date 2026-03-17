@@ -29,25 +29,11 @@ export function createNewStory(
   } else {
     locationSyncedCharacter.current_appearance = ""
   }
-  const sceneCharacters = [
-    locationSyncedCharacter.name,
-    ...npcs
-      .filter((npc) => npc.current_location.trim().toLowerCase() === sceneName.trim().toLowerCase())
-      .map((npc) => npc.name),
-  ]
   const world: WorldState = {
     current_scene: sceneName,
     time_of_day: timeCandidate && TIME_OF_DAY_REGEX.test(timeCandidate) ? timeCandidate : fallbackTime,
     memory: opening_scenario.trim(),
     custom_fields: {},
-    locations: [
-      {
-        name: sceneName,
-        description: getServerDefaults().unknown.locationDetails,
-        characters: sceneCharacters,
-        available_items: [],
-      },
-    ],
   }
   return db.createStory(
     title,

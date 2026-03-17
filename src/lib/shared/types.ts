@@ -3,18 +3,6 @@ export interface InventoryItem {
   description: string
 }
 
-export interface LocationItem {
-  name: string
-  description: string
-}
-
-export interface Location {
-  name: string
-  description: string
-  characters: string[]
-  available_items: LocationItem[]
-}
-
 export interface CharacterState {
   name: string
   race: string
@@ -39,7 +27,6 @@ export interface NPCState extends CharacterState {
 
 export interface StoryModules {
   track_npcs: boolean
-  track_locations: boolean
   track_background_events: boolean
   character_appearance_clothing: boolean
   character_personality_traits: boolean
@@ -58,7 +45,6 @@ export interface WorldState {
   current_scene: string
   time_of_day: string
   memory: string
-  locations: Location[]
   custom_fields: Record<string, string | string[]>
 }
 

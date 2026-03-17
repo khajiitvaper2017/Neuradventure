@@ -19,9 +19,7 @@ import {
   applyNPCUpdates,
   applyPlayerUpdate,
   collectLlmWarnings,
-  mergeLocations,
   syncCharacterLocation,
-  syncLocationCharacters,
 } from "@/engine/game/state"
 import { parseInitialStorySnapshot, parseTurnSnapshot, parseTurnVariantSnapshot } from "@/engine/game/snapshots"
 import { getAuthorNote, getStoryCharacterBook, getStoryModules } from "@/engine/game/helpers"
@@ -40,13 +38,9 @@ type TurnSnapshot = {
 
 type NPCUpdateArray = NPCStateUpdate[]
 
-function buildWorldUpdate(baseWorld: WorldState, update: TurnResponse["world_state_update"], modules: StoryModules) {
+function buildWorldUpdate(baseWorld: WorldState, update: TurnResponse["world_state_update"]) {
   const nextCurrentScene = update.current_scene ?? baseWorld.current_scene
   const nextTimeOfDay = update.time_of_day ?? baseWorld.time_of_day
-  const nextLocations =
-    modules.track_locations && update.locations
-      ? mergeLocations(baseWorld.locations, update.locations)
-      : baseWorld.locations
   const nextCustomFields =
     update.custom_fields && typeof update.custom_fields === "object" && !Array.isArray(update.custom_fields)
       ? { ...baseWorld.custom_fields, ...(update.custom_fields as Record<string, string | string[]>) }
@@ -56,7 +50,6 @@ function buildWorldUpdate(baseWorld: WorldState, update: TurnResponse["world_sta
     current_scene: nextCurrentScene,
     time_of_day: nextTimeOfDay,
     memory: baseWorld.memory,
-    locations: nextLocations,
     custom_fields: nextCustomFields,
   }
 }
@@ -73,8 +66,7 @@ function applyTurnResponse(
   const updatedNpcs = modules.track_npcs ? applyNPCUpdates(snapshot.npcs, npcUpdates, flags) : snapshot.npcs
   const npcCreations: NPCCreation[] = modules.track_npcs ? (response.npc_introductions ?? []) : []
   const newNpcs = modules.track_npcs ? applyNPCCreations(updatedNpcs, npcCreations) : updatedNpcs
-  const nextWorld = buildWorldUpdate(snapshot.world, response.world_state_update, modules)
-  const newWorld = modules.track_locations ? syncLocationCharacters(nextWorld, newCharacter, newNpcs) : nextWorld
+  const newWorld = buildWorldUpdate(snapshot.world, response.world_state_update)
   const finalCharacter = options.syncCharacterLocation ? syncCharacterLocation(newCharacter, newWorld) : newCharacter
   return { character: finalCharacter, world: newWorld, npcs: newNpcs }
 }

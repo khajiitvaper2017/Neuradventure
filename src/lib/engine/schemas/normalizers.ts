@@ -3,14 +3,6 @@ import { npcTraitLookup } from "@/engine/schemas/npc-traits"
 import { getServerDefaults } from "@/engine/core/strings"
 export { normalizeGender } from "@/shared/utils/normalize"
 
-type NormalizedLocationItem = { name: string; description: string }
-type NormalizedLocation = {
-  name: string
-  description: string
-  characters: string[]
-  available_items: NormalizedLocationItem[]
-}
-
 export function normalizeCurrentDate(value: unknown): string {
   if (typeof value === "string") {
     const trimmed = value.trim()
@@ -138,63 +130,6 @@ function normalizeUniqueStringList(value: unknown): string[] {
     }
   }
   return items
-}
-
-function normalizeLocationItems(value: unknown): NormalizedLocationItem[] {
-  const items: NormalizedLocationItem[] = []
-  if (Array.isArray(value)) {
-    for (const entry of value) {
-      if (!entry || typeof entry !== "object") continue
-      const obj = entry as Record<string, unknown>
-      const name = normalizeNonEmptyString(obj.name, "")
-      if (!name) continue
-      const description = normalizeNonEmptyString(obj.description, getServerDefaults().unknown.item)
-      items.push({ name, description })
-    }
-  }
-  return items
-}
-
-export function normalizeLocations(value: unknown, fallbackScene: string): NormalizedLocation[] {
-  const locations: NormalizedLocation[] = []
-  if (Array.isArray(value)) {
-    for (const entry of value) {
-      if (!entry || typeof entry !== "object") continue
-      const obj = entry as Record<string, unknown>
-      const name = normalizeNonEmptyString(obj.name, "")
-      if (!name) continue
-      const description = normalizeNonEmptyString(obj.description, getServerDefaults().unknown.locationDetails)
-      const characters = normalizeUniqueStringList(obj.characters)
-      const available_items = normalizeLocationItems(obj.available_items)
-      locations.push({ name, description, characters, available_items })
-    }
-  }
-
-  if (locations.length === 0) {
-    const fallback = normalizeNonEmptyString(fallbackScene, getServerDefaults().unknown.location)
-    locations.push({
-      name: fallback,
-      description: getServerDefaults().unknown.locationDetails,
-      characters: [],
-      available_items: [],
-    })
-  }
-
-  const fallbackName = normalizeNonEmptyString(fallbackScene, "")
-  if (fallbackName) {
-    const fallbackKey = fallbackName.trim().toLowerCase()
-    const hasScene = locations.some((location) => location.name.trim().toLowerCase() === fallbackKey)
-    if (!hasScene) {
-      locations.push({
-        name: fallbackName,
-        description: getServerDefaults().unknown.locationDetails,
-        characters: [],
-        available_items: [],
-      })
-    }
-  }
-
-  return locations
 }
 
 export function normalizeCustomFields(value: unknown): Record<string, string | string[]> {

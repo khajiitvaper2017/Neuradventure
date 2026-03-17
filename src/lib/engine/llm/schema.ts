@@ -41,16 +41,12 @@ export function buildTurnResponseSchema(
 
   let schema: z.ZodObject = TurnResponseSchema
 
-  const worldUpdateSchema: z.ZodObject = modules.track_locations
-    ? WorldStateUpdateSchema
-    : WorldStateUpdateSchema.omit({ locations: true })
-
   schema = schema.extend({
     character_custom_fields: characterCustomFields.optional(),
   })
 
   schema = schema.extend({
-    world_state_update: worldUpdateSchema.extend({ custom_fields: worldCustomFields.optional() }),
+    world_state_update: WorldStateUpdateSchema.extend({ custom_fields: worldCustomFields.optional() }),
   })
 
   if (!modules.track_npcs) {

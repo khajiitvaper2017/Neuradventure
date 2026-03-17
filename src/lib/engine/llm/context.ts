@@ -5,7 +5,6 @@ import { getImpersonatePrompt, getNpcCreationPrompt, getSectionFormat, getSystem
 import {
   buildHistoryBlock,
   formatInventory,
-  formatLocations,
   formatNPCBaselines,
   formatNPCCurrentStates,
   injectEntryAtDepth,
@@ -185,11 +184,6 @@ function buildContextBlock(opts: ContextBlockOpts): string {
       ? wrapSection(sections.npcBaselines, formatNPCBaselines(npcs, flags, customFieldDefs))
       : null
 
-  const locationSection =
-    modules.track_locations && world.locations && world.locations.length > 0
-      ? wrapSection(sections.locations, formatLocations(world.locations))
-      : null
-
   // ── SEMI-STABLE ──
   const memorySection = (() => {
     if (!world.memory) return null
@@ -237,7 +231,6 @@ function buildContextBlock(opts: ContextBlockOpts): string {
     baseSection,
     afterCharacterBookSection,
     npcBaselineSection,
-    locationSection,
     memorySection,
   ])
 

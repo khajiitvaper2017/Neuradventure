@@ -1,8 +1,8 @@
 <script lang="ts">
   import { Button } from "@/components/ui/button"
-  import { BookOpenText, Hand, House, LoaderCircle, MapPin, MessageCircle, Smile, User, Users } from "@lucide/svelte"
+  import { BookOpenText, Hand, House, LoaderCircle, MessageCircle, Smile, User, Users } from "@lucide/svelte"
   import ConversationInput from "@/components/inputs/ConversationInput.svelte"
-  import { showCharSheet, showLocations, showNPCTracker } from "@/stores/router"
+  import { showCharSheet, showNPCTracker } from "@/stores/router"
   import { currentStoryModules, isGenerating, turns } from "@/stores/game"
   import { cn } from "@/utils.js"
 
@@ -50,7 +50,6 @@
   }: Props = $props()
 
   const trackNpcs = $derived($currentStoryModules?.track_npcs ?? true)
-  const trackLocations = $derived($currentStoryModules?.track_locations ?? true)
 </script>
 
 <ConversationInput
@@ -199,18 +198,6 @@
           aria-label="NPCs"
         >
           <Users size={14} strokeWidth={1.8} aria-hidden="true" />
-        </Button>
-      {/if}
-      {#if trackLocations}
-        <Button
-          variant="ghost"
-          size="icon"
-          class="h-9 w-9 text-muted-foreground"
-          onclick={() => showLocations.update((v) => !v)}
-          title="Locations"
-          aria-label="Locations"
-        >
-          <MapPin size={14} strokeWidth={1.8} aria-hidden="true" />
         </Button>
       {/if}
     </div>

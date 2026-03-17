@@ -63,13 +63,7 @@ function childPrefixOverride(currentPrefix: string, propName: string, schemaName
 
   // World state nested contexts
   if (schemaName === "TurnResponse" && currentPrefix === "llm.world_state_update") {
-    if (propName === "locations") return "state.location"
     if (propName === "custom_fields") return "llm.world_state_update.custom_fields"
-  }
-
-  // Location nested contexts
-  if (schemaName === "TurnResponse" && currentPrefix === "state.location") {
-    if (propName === "available_items") return "state.inventory_item"
   }
 
   // StoryResponse nested contexts
@@ -171,11 +165,6 @@ export function injectSchemaDescriptions(schemaName: string, derefSchema: object
         (typeof propSchema.items.description === "string" && !propSchema.items.description.trim())
       ) {
         const itemKeys: string[] = []
-        if (currentPrefix === "state.location" && propName === "characters") {
-          itemKeys.push("state.location.character")
-        } else if (currentPrefix === "state.location" && propName === "available_items") {
-          itemKeys.push("state.location.available_item")
-        }
         if (nextPrefix) itemKeys.push(`${nextPrefix}.entry`)
 
         const { value } = resolveFromKeys(itemKeys)

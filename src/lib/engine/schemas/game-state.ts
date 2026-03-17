@@ -3,7 +3,6 @@ import { PersonalityTraitSchema } from "@/engine/schemas/personality-traits"
 import { TIME_OF_DAY_REGEX } from "@/engine/schemas/constants"
 import {
   normalizeCurrentScene,
-  normalizeLocations,
   normalizeNonEmptyString,
   normalizeGender,
   normalizePersonalityTraits,
@@ -21,44 +20,6 @@ export const InventoryItemSchema = z
     description: z.string().min(1),
   })
   .strict()
-
-export const LocationItemSchema = z
-  .object({
-    name: z.string().min(1),
-    description: z.string().min(1),
-  })
-  .strict()
-
-const LocationCharacterSchema = z.string().min(1)
-
-export const LocationSchema = z
-  .object({
-    name: z.string().min(1),
-    description: z.string().min(1),
-    characters: z.array(LocationCharacterSchema),
-    available_items: z.array(LocationItemSchema),
-  })
-  .strict()
-
-const LocationsSchema = z
-  .array(LocationSchema)
-  .min(1)
-  .superRefine((locations, ctx) => {
-    const seen = new Set<string>()
-    locations.forEach((location, index) => {
-      const key = location.name.trim().toLowerCase()
-      if (!key) return
-      if (seen.has(key)) {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          message: "Location names must be unique",
-          path: [index, "name"],
-        })
-      } else {
-        seen.add(key)
-      }
-    })
-  })
 
 const defaults = getServerDefaults()
 
@@ -178,7 +139,6 @@ export const WorldStateUpdateSchema = z
   .object({
     current_scene: z.string().min(1).optional(),
     time_of_day: z.string().regex(TIME_OF_DAY_REGEX, "time_of_day must be 24h HH:MM").optional(),
-    locations: LocationsSchema.optional(),
     custom_fields: CustomFieldsUpdateSchema,
   })
   .strict()
@@ -188,7 +148,6 @@ export const WorldStateSchema: z.ZodType<SharedWorldState> = z
     current_scene: z.string().min(1),
     time_of_day: z.string().regex(TIME_OF_DAY_REGEX, "time_of_day must be 24h HH:MM"),
     memory: z.string().min(1),
-    locations: LocationsSchema,
     custom_fields: CustomFieldsSchema,
   })
   .strict()
@@ -198,7 +157,6 @@ export const WorldStateStoredSchema: z.ZodType<SharedWorldState> = z
     current_scene: z.string().optional(),
     time_of_day: z.string().optional(),
     memory: z.string().optional(),
-    locations: z.unknown().optional(),
     custom_fields: z.unknown().optional(),
   })
   .passthrough()
@@ -208,7 +166,6 @@ export const WorldStateStoredSchema: z.ZodType<SharedWorldState> = z
       current_scene: currentScene,
       time_of_day: normalizeTimeOfDay(value.time_of_day),
       memory: normalizeMemory(value.memory),
-      locations: normalizeLocations(value.locations, currentScene),
       custom_fields: normalizeCustomFields(value.custom_fields),
     }
     return WorldStateSchema.parse(normalized)

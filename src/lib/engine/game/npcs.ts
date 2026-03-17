@@ -2,12 +2,7 @@ import { MainCharacterStateStoredSchema, NPCStateStoredSchema, WorldStateStoredS
 import type { CreateNpcResult } from "@/shared/api-types"
 import * as db from "@/engine/core/db"
 import { buildNpcCreationMessages, generateNpcCreation, getCtxLimitCached } from "@/engine/llm"
-import {
-  applyNPCCreations,
-  buildNpcFromCreation,
-  syncCharacterLocation,
-  syncLocationCharacters,
-} from "@/engine/game/state"
+import { applyNPCCreations, buildNpcFromCreation, syncCharacterLocation } from "@/engine/game/state"
 import { getAuthorNote, getStoryCharacterBook, getStoryModules } from "@/engine/game/helpers"
 
 export async function createNpcFromTurnPrompt(storyId: number, npcName: string): Promise<CreateNpcResult> {
@@ -46,9 +41,8 @@ export async function createNpcFromTurnPrompt(storyId: number, npcName: string):
   const creation = await generateNpcCreation(messages, trimmedName, modules)
   const updatedNpcs = applyNPCCreations(npcs, [creation])
   const newNpc = buildNpcFromCreation(creation)
-  const syncedWorld = modules.track_locations ? syncLocationCharacters(world, character, updatedNpcs) : world
-  const locationSyncedCharacter = syncCharacterLocation(character, syncedWorld)
-  db.updateStory(storyId, locationSyncedCharacter, syncedWorld, updatedNpcs)
+  const locationSyncedCharacter = syncCharacterLocation(character, world)
+  db.updateStory(storyId, locationSyncedCharacter, world, updatedNpcs)
 
   return {
     npc: newNpc,

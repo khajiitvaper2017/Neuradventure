@@ -10,7 +10,6 @@ export type StoryModuleMeta = {
 
 export const STORY_MODULE_META: Record<StoryModuleKey, StoryModuleMeta> = {
   track_npcs: { title: "Track NPCs", sub: "New stories track NPC state and updates" },
-  track_locations: { title: "Track locations", sub: "New stories track location lists and presence" },
   track_background_events: {
     title: "Track background events",
     sub: "Generate hidden off-screen events per turn",
@@ -52,7 +51,7 @@ export const STORY_MODULE_SECTIONS: readonly StoryModuleSection[] = [
   {
     id: "core",
     title: "Core",
-    keys: ["track_npcs", "track_locations", "track_background_events"],
+    keys: ["track_npcs", "track_background_events"],
   },
   {
     id: "player",
@@ -105,8 +104,8 @@ export function countAllEnabled(modules: StoryModules): number {
 }
 
 export function storyModulesPreviewCore(modules: StoryModules): string {
-  return `Core: ${modules.track_npcs ? "NPCs on" : "NPCs off"} · ${
-    modules.track_locations ? "Locations on" : "Locations off"
+  return `Core: ${modules.track_npcs ? "NPCs on" : "NPCs off"} · Background events: ${
+    modules.track_background_events ? "on" : "off"
   } · Appearance: ${modules.character_appearance_clothing ? "on" : "off"}`
 }
 

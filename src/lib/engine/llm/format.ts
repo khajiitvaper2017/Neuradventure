@@ -156,27 +156,6 @@ export function formatNPCCurrentStates(
     .join("\n\n")
 }
 
-export function formatLocations(locations: WorldState["locations"]): string {
-  if (!locations || locations.length === 0) return ""
-  const labels = getLlmStrings().contextLabels
-  const none = getServerDefaults().format.noneLower
-  return locations
-    .map((location) => {
-      const characters = location.characters.length > 0 ? location.characters.join(", ") : none
-      const items =
-        location.available_items.length > 0
-          ? location.available_items.map((item) => `${item.name} (${item.description})`).join(", ")
-          : none
-      return (
-        `[${location.name}]\n` +
-        `  ${formatTemplate(labels.description, { value: location.description })}\n` +
-        `  ${formatTemplate(labels.characters, { value: characters })}\n` +
-        `  ${formatTemplate(labels.items, { value: items })}`
-      )
-    })
-    .join("\n\n")
-}
-
 export function formatHistoryEntries(turns: TurnRow[], options: { includeBackgroundEvents?: boolean } = {}): string[] {
   if (turns.length === 0) return []
   const includeBackgroundEvents = options.includeBackgroundEvents === true

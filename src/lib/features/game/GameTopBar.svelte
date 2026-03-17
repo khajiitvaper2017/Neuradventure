@@ -2,7 +2,7 @@
   import { stories } from "@/services/stories"
   import { cn } from "@/utils.js"
   import { estimateTokens, formatTokenCount } from "@/utils/tokenEstimate"
-  import { EllipsisVertical, MapPin, User, Users } from "@lucide/svelte"
+  import { EllipsisVertical, User, Users } from "@lucide/svelte"
   import { Badge } from "@/components/ui/badge"
   import { Button } from "@/components/ui/button"
   import {
@@ -13,7 +13,7 @@
     DropdownMenuTrigger,
   } from "@/components/ui/dropdown-menu"
   import { generation } from "@/stores/settings"
-  import { collapseCharSheet, collapseLocationsPanel, collapseNPCTracker } from "@/stores/ui"
+  import { collapseCharSheet, collapseNPCTracker } from "@/stores/ui"
   import { currentStoryId, currentStoryModules, currentStoryTitle, turns, worldState } from "@/stores/game"
 
   type Props = {
@@ -36,7 +36,6 @@
 
   let showMenu = $state(false)
   const trackNpcs = $derived($currentStoryModules?.track_npcs ?? true)
-  const trackLocations = $derived($currentStoryModules?.track_locations ?? true)
   const approxPromptTokens = $derived.by(() => {
     const parts: string[] = []
     const memory = $worldState?.memory?.trim()
@@ -128,20 +127,6 @@
         onclick={() => collapseNPCTracker.update((v) => !v)}
       >
         <Users size={15} strokeWidth={1.8} aria-hidden="true" />
-      </Button>
-    {/if}
-    {#if trackLocations}
-      <Button
-        variant="ghost"
-        size="icon"
-        class={cn(
-          "hidden h-9 w-9 text-muted-foreground min-[1200px]:inline-flex",
-          $collapseLocationsPanel && "opacity-50",
-        )}
-        title={$collapseLocationsPanel ? "Show locations" : "Hide locations"}
-        onclick={() => collapseLocationsPanel.update((v) => !v)}
-      >
-        <MapPin size={15} strokeWidth={1.8} aria-hidden="true" />
       </Button>
     {/if}
 

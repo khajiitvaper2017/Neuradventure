@@ -45,95 +45,6 @@ export function applyPlayerUpdate(
   }
 }
 
-export function mergeLocations(
-  previous: WorldState["locations"],
-  updated: WorldState["locations"],
-): WorldState["locations"] {
-  const merged = new Map<string, WorldState["locations"][number]>()
-  for (const location of previous) {
-    const key = location.name.trim().toLowerCase()
-    if (!key) continue
-    merged.set(key, location)
-  }
-  for (const location of updated) {
-    const key = location.name.trim().toLowerCase()
-    if (!key) continue
-    merged.set(key, location)
-  }
-  return Array.from(merged.values())
-}
-
-export function syncLocationCharacters(world: WorldState, character: MainCharacterState, npcs: NPCState[]): WorldState {
-  const locations = world.locations.map((location) => ({
-    ...location,
-    characters: [...location.characters],
-  }))
-  const locationLookup = new Map<string, (typeof locations)[number]>()
-  for (const location of locations) {
-    const key = location.name.trim().toLowerCase()
-    if (!key) continue
-    if (!locationLookup.has(key)) locationLookup.set(key, location)
-  }
-
-  const playerName = character.name.trim()
-
-  const removeCharacter = (name: string) => {
-    const key = name.trim().toLowerCase()
-    if (!key) return
-    for (const location of locations) {
-      location.characters = location.characters.filter((entry) => entry.trim().toLowerCase() !== key)
-    }
-  }
-
-  if (playerName) removeCharacter(playerName)
-  for (const npc of npcs) {
-    if (npc.name.trim()) removeCharacter(npc.name)
-  }
-
-  const ensureLocation = (locationName: string) => {
-    const key = locationName.trim().toLowerCase()
-    if (!key) return null
-    const existing = locationLookup.get(key)
-    if (existing) return existing
-    const created = {
-      name: locationName.trim(),
-      description: getServerDefaults().unknown.locationDetails,
-      characters: [],
-      available_items: [],
-    }
-    locations.push(created)
-    locationLookup.set(key, created)
-    return created
-  }
-
-  const currentLocation = ensureLocation(world.current_scene)
-  if (currentLocation && playerName) {
-    currentLocation.characters.push(playerName)
-  }
-
-  for (const npc of npcs) {
-    const locationName = npc.current_location.trim()
-    if (!locationName) continue
-    const location = ensureLocation(locationName)
-    if (!location) continue
-    location.characters.push(npc.name)
-  }
-
-  for (const location of locations) {
-    const seen = new Set<string>()
-    location.characters = location.characters.filter((entry) => {
-      const key = entry.trim()
-      if (!key) return false
-      const lower = key.toLowerCase()
-      if (seen.has(lower)) return false
-      seen.add(lower)
-      return true
-    })
-  }
-
-  return { ...world, locations }
-}
-
 export function buildNpcFromCreation(creation: NPCCreation): NPCState {
   return NPCStateStoredSchema.parse({
     ...creation,
@@ -197,10 +108,6 @@ export function collectLlmWarnings(world: WorldState, npcs: NPCState[], turnResp
   if (worldUpdate.time_of_day !== undefined) {
     provided += 1
     if (worldUpdate.time_of_day === world.time_of_day) unchanged += 1
-  }
-  if (worldUpdate.locations !== undefined) {
-    provided += 1
-    if (JSON.stringify(worldUpdate.locations) === JSON.stringify(world.locations)) unchanged += 1
   }
   if (provided > 0 && unchanged === provided) {
     warnings.push("world_state_update matches existing world state")
