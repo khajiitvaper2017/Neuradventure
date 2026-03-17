@@ -190,7 +190,6 @@
   }
 
   $effect(() => {
-    if (typeof window === "undefined") return
     if (!$currentChatId) return
     if ($isChatGenerating) return
     void resumePendingChat("chat.send")

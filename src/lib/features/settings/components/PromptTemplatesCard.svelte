@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { untrack } from "svelte"
   import { settings as settingsService } from "@/services/settings"
   import type { PromptTemplateFile } from "@/shared/api-types"
   import { Button } from "@/components/ui/button"

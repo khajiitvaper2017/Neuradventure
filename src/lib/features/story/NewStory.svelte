@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { untrack } from "svelte"
   import type { MainCharacterState, NPCState, StoryModules } from "@/shared/types"
   import type { StoryCharacterGroup, StoryNpcGroup } from "@/shared/api-types"
   import { stories as storiesService } from "@/services/stories"

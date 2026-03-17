@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { untrack } from "svelte"
   import { page } from "$app/state"
   import { registerSW } from "virtual:pwa-register"
   import { pwaInfo } from "virtual:pwa-info"
@@ -101,7 +102,6 @@
   })
 
   $effect(() => {
-    if (typeof window === "undefined") return
     const root = document.documentElement
     const mq = window.matchMedia("(prefers-color-scheme: dark)")
 

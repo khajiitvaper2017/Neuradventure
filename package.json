@@ -10,9 +10,8 @@
     "preview": "vite preview",
     "generate:pwa-assets": "pwa-assets-generator",
     "format": "prettier --ignore-path .gitignore --write . ",
-    "lint": "eslint src scripts",
-    "check:css": "tsx scripts/check-css-imports.ts",
-    "check": "svelte-kit sync && eslint src scripts && svelte-check && tsc -p tsconfig.node.json"
+    "lint": "eslint src",
+    "check": "svelte-kit sync && eslint src && svelte-check && tsc -p tsconfig.node.json"
   },
   "dependencies": {
     "@fontsource/geist-mono": "^5.2.7",

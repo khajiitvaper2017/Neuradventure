@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { untrack } from "svelte"
   import { stories as storiesService } from "@/services/stories"
   import { chats as chatsService } from "@/services/chats"
   import type { StoryMeta, ChatSummary } from "@/shared/types"
