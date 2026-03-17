@@ -45,6 +45,7 @@ Concise and precise.
 
 ## Agent-Specific Notes
 
+- If user specified specific files in their request, CHECK THEM IMMEDIATELY before thinking or making plans.
 - Treat `src/lib/components/ui/` as vendored code: prefer regenerating via shadcn-svelte over manual edits.
 - Prefer using existing `src/lib/components/ui/` building blocks before creating new UI components, especially the `*group*` ones for grouped controls.
 - Current `src/lib/components/ui/` inventory:
