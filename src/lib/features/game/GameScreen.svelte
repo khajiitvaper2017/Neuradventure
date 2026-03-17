@@ -1,5 +1,6 @@
 <script lang="ts">
   import { onDestroy, tick, untrack } from "svelte"
+  import { SvelteSet } from "svelte/reactivity"
   import { AppError } from "@/errors"
   import type { StoryModules, TurnSummary } from "@/shared/types"
   import {
@@ -103,7 +104,7 @@
 
   let initialScrollDone = $state(false)
   let userActed = $state(false)
-  const resumedRequestIds = new Set<string>()
+  const resumedRequestIds = new SvelteSet<string>()
 
   let sceneText = $derived($worldState ? `${$worldState.current_scene} · ${$worldState.time_of_day}` : "")
   let openingText = $derived($currentStoryOpeningScenario || $worldState?.memory || "")

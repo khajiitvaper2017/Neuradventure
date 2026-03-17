@@ -26,12 +26,15 @@
   import CustomFieldsView from "@/components/inputs/CustomFieldsView.svelte"
   import { Badge } from "@/components/ui/badge"
   import { Button } from "@/components/ui/button"
+  import * as Card from "@/components/ui/card"
   import { Input } from "@/components/ui/input"
   import { Sheet, SheetContent } from "@/components/ui/sheet"
   import { ScrollArea } from "@/components/ui/scroll-area"
   import {
     Box,
     Dot,
+    Eye,
+    EyeOff,
     FileText,
     MapPin,
     Mars,
@@ -641,38 +644,44 @@
       <div class="space-y-4">
         <EditableFieldList fields={characterFields()} />
         {#if hasBaseCustomDefs || hasCurrentCustomDefs}
-          <div class="space-y-3 rounded-lg border bg-card p-4">
-            <div class="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-              <FileText size={14} strokeWidth={1.5} class="shrink-0 opacity-70" aria-hidden="true" />
-              <span>Custom Fields</span>
-            </div>
-            {#if hasBaseCustomDefs}
-              <div class="space-y-2">
-                <div class="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Base</div>
-                <CustomFieldsEditor
-                  defs={customDefs}
-                  values={draft.customFields}
-                  setValues={(next) => (draft.customFields = next)}
-                  scope="character"
-                  placement="base"
-                  disabled={saving}
-                />
+          <Card.Root class="rounded-lg p-0 py-0 gap-0">
+            <Card.Header class="px-4 pt-4 pb-3">
+              <div class="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                <FileText size={14} strokeWidth={1.5} class="shrink-0 opacity-70" aria-hidden="true" />
+                <Card.Title class="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                  Custom Fields
+                </Card.Title>
               </div>
-            {/if}
-            {#if hasCurrentCustomDefs}
-              <div class="space-y-2">
-                <div class="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Current</div>
-                <CustomFieldsEditor
-                  defs={customDefs}
-                  values={draft.customFields}
-                  setValues={(next) => (draft.customFields = next)}
-                  scope="character"
-                  placement="current"
-                  disabled={saving}
-                />
-              </div>
-            {/if}
-          </div>
+            </Card.Header>
+            <Card.Content class="px-4 pb-4 pt-0 space-y-3">
+              {#if hasBaseCustomDefs}
+                <div class="space-y-2">
+                  <div class="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Base</div>
+                  <CustomFieldsEditor
+                    defs={customDefs}
+                    values={draft.customFields}
+                    setValues={(next) => (draft.customFields = next)}
+                    scope="character"
+                    placement="base"
+                    disabled={saving}
+                  />
+                </div>
+              {/if}
+              {#if hasCurrentCustomDefs}
+                <div class="space-y-2">
+                  <div class="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Current</div>
+                  <CustomFieldsEditor
+                    defs={customDefs}
+                    values={draft.customFields}
+                    setValues={(next) => (draft.customFields = next)}
+                    scope="character"
+                    placement="current"
+                    disabled={saving}
+                  />
+                </div>
+              {/if}
+            </Card.Content>
+          </Card.Root>
         {/if}
         {#if useInventory}
           <div class="space-y-2">
@@ -721,184 +730,239 @@
         </div>
       </div>
     {:else}
-      <div class={cn("rounded-lg border bg-card p-4", flashIdentity && "ring-2 ring-primary/30")}>
-        <div class="flex items-center gap-2 text-lg font-semibold text-foreground">
-          <span class="truncate">{displayCharacter.name}</span>
-          {#if genderIcon(displayCharacter.gender) === "male"}
-            <Mars size={14} strokeWidth={2} class="shrink-0 opacity-60" aria-hidden="true" />
-          {:else if genderIcon(displayCharacter.gender) === "female"}
-            <Venus size={14} strokeWidth={2} class="shrink-0 opacity-60" aria-hidden="true" />
-          {:else if genderIcon(displayCharacter.gender) === "intersex"}
-            <VenusAndMars size={14} strokeWidth={2} class="shrink-0 opacity-60" aria-hidden="true" />
-          {:else if genderIcon(displayCharacter.gender) === "transgender"}
-            <Transgender size={14} strokeWidth={2} class="shrink-0 opacity-60" aria-hidden="true" />
-          {/if}
-        </div>
-        <div class="mt-1 text-sm italic text-muted-foreground">
-          {displayCharacter.race}{displayCharacter.gender ? ` · ${displayCharacter.gender}` : ""}
-        </div>
-      </div>
+      <Card.Root class={cn("rounded-lg p-0 py-0 gap-0", flashIdentity && "ring-2 ring-primary/30")}>
+        <Card.Header class="px-4 py-4">
+          <Card.Title class="flex items-center gap-2 text-lg font-semibold text-foreground">
+            <span class="truncate">{displayCharacter.name}</span>
+            {#if genderIcon(displayCharacter.gender) === "male"}
+              <Mars size={14} strokeWidth={2} class="shrink-0 opacity-60" aria-hidden="true" />
+            {:else if genderIcon(displayCharacter.gender) === "female"}
+              <Venus size={14} strokeWidth={2} class="shrink-0 opacity-60" aria-hidden="true" />
+            {:else if genderIcon(displayCharacter.gender) === "intersex"}
+              <VenusAndMars size={14} strokeWidth={2} class="shrink-0 opacity-60" aria-hidden="true" />
+            {:else if genderIcon(displayCharacter.gender) === "transgender"}
+              <Transgender size={14} strokeWidth={2} class="shrink-0 opacity-60" aria-hidden="true" />
+            {/if}
+          </Card.Title>
+          <Card.Description class="mt-1 text-sm italic text-muted-foreground">
+            {displayCharacter.race}{displayCharacter.gender ? ` · ${displayCharacter.gender}` : ""}
+          </Card.Description>
+        </Card.Header>
+      </Card.Root>
 
       {#if isStoryContext && (useLocation || (useActivity && "current_activity" in displayCharacter))}
-        <div class="mt-3 rounded-lg border bg-card p-4">
-          <div class="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-            <MapPin size={14} strokeWidth={1.5} class="shrink-0 opacity-70" aria-hidden="true" />
-            <span>Status</span>
-          </div>
-          <div class="mt-2 space-y-1 text-sm text-foreground">
-            {#if useLocation}
-              <div class="flex flex-wrap items-baseline gap-x-2 gap-y-1">
-                <span class="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Location</span>
-                <span class="whitespace-pre-line">{displayCharacter.current_location}</span>
-              </div>
-            {/if}
-            {#if useActivity && "current_activity" in displayCharacter}
-              <div class="flex flex-wrap items-baseline gap-x-2 gap-y-1">
-                <span class="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Activity</span>
-                <span class="whitespace-pre-line">{displayCharacter.current_activity}</span>
-              </div>
-            {/if}
-          </div>
-        </div>
+        <Card.Root class="mt-3 rounded-lg p-0 py-0 gap-0">
+          <Card.Header class="px-4 pt-4 pb-0">
+            <div class="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+              <MapPin size={14} strokeWidth={1.5} class="shrink-0 opacity-70" aria-hidden="true" />
+              <Card.Title class="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Status</Card.Title>
+            </div>
+          </Card.Header>
+          <Card.Content class="px-4 pb-4 pt-0">
+            <div class="mt-2 space-y-1 text-sm text-foreground">
+              {#if useLocation}
+                <div class="flex flex-wrap items-baseline gap-x-2 gap-y-1">
+                  <span class="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Location</span>
+                  <span class="whitespace-pre-line">{displayCharacter.current_location}</span>
+                </div>
+              {/if}
+              {#if useActivity && "current_activity" in displayCharacter}
+                <div class="flex flex-wrap items-baseline gap-x-2 gap-y-1">
+                  <span class="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Activity</span>
+                  <span class="whitespace-pre-line">{displayCharacter.current_activity}</span>
+                </div>
+              {/if}
+            </div>
+          </Card.Content>
+        </Card.Root>
       {/if}
 
-      <div class={cn("mt-3 rounded-lg border bg-card p-4", flashAppearance && "ring-2 ring-primary/30")}>
-        <div class="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-          <Smile size={14} strokeWidth={1.5} class="shrink-0 opacity-70" aria-hidden="true" />
-          <span>Description</span>
-        </div>
-        <div class="mt-2 whitespace-pre-line text-sm leading-relaxed text-foreground">
-          {displayCharacter.general_description || "Unknown description"}
-        </div>
-      </div>
+      {#if showBaselineDetails}
+        <Card.Root class={cn("mt-3 rounded-lg p-0 py-0 gap-0", flashAppearance && "ring-2 ring-primary/30")}>
+          <Card.Header class="px-4 pt-4 pb-0">
+            <div class="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+              <Smile size={14} strokeWidth={1.5} class="shrink-0 opacity-70" aria-hidden="true" />
+              <Card.Title class="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Description</Card.Title>
+            </div>
+          </Card.Header>
+          <Card.Content class="px-4 pb-4 pt-0">
+            <div class="mt-2 whitespace-pre-line text-sm leading-relaxed text-foreground">
+              {displayCharacter.general_description || "Unknown description"}
+            </div>
+          </Card.Content>
+        </Card.Root>
+      {/if}
 
       {#if useAppearance}
         {#if showBaselineDetails}
-          <div class={cn("mt-3 rounded-lg border bg-card p-4", flashAppearance && "ring-2 ring-primary/30")}>
-            <div class="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-              <Smile size={14} strokeWidth={1.5} class="shrink-0 opacity-70" aria-hidden="true" />
-              <span>Baseline Appearance</span>
-            </div>
-            <div class="mt-2 whitespace-pre-line text-sm leading-relaxed text-foreground">
-              {displayCharacter.baseline_appearance}
-            </div>
-          </div>
+          <Card.Root class={cn("mt-3 rounded-lg p-0 py-0 gap-0", flashAppearance && "ring-2 ring-primary/30")}>
+            <Card.Header class="px-4 pt-4 pb-0">
+              <div class="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                <Smile size={14} strokeWidth={1.5} class="shrink-0 opacity-70" aria-hidden="true" />
+                <Card.Title class="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                  Baseline Appearance
+                </Card.Title>
+              </div>
+            </Card.Header>
+            <Card.Content class="px-4 pb-4 pt-0">
+              <div class="mt-2 whitespace-pre-line text-sm leading-relaxed text-foreground">
+                {displayCharacter.baseline_appearance}
+              </div>
+            </Card.Content>
+          </Card.Root>
         {:else if !isStoryContext}
-          <div class={cn("mt-3 rounded-lg border bg-card p-4", flashAppearance && "ring-2 ring-primary/30")}>
-            <div class="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-              <Smile size={14} strokeWidth={1.5} class="shrink-0 opacity-70" aria-hidden="true" />
-              <span>Appearance</span>
-            </div>
-            <div class="mt-2 whitespace-pre-line text-sm leading-relaxed text-foreground">
-              {displayCharacter.baseline_appearance}
-            </div>
-          </div>
+          <Card.Root class={cn("mt-3 rounded-lg p-0 py-0 gap-0", flashAppearance && "ring-2 ring-primary/30")}>
+            <Card.Header class="px-4 pt-4 pb-0">
+              <div class="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                <Smile size={14} strokeWidth={1.5} class="shrink-0 opacity-70" aria-hidden="true" />
+                <Card.Title class="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Appearance</Card.Title>
+              </div>
+            </Card.Header>
+            <Card.Content class="px-4 pb-4 pt-0">
+              <div class="mt-2 whitespace-pre-line text-sm leading-relaxed text-foreground">
+                {displayCharacter.baseline_appearance}
+              </div>
+            </Card.Content>
+          </Card.Root>
         {/if}
 
         {#if isStoryContext}
-          <div class={cn("mt-3 rounded-lg border bg-card p-4", flashAppearance && "ring-2 ring-primary/30")}>
-            <div class="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-              <Smile size={14} strokeWidth={1.5} class="shrink-0 opacity-70" aria-hidden="true" />
-              <span>Current Appearance</span>
-            </div>
-            <div class="mt-2 whitespace-pre-line text-sm leading-relaxed text-foreground">
-              {displayCharacter.current_appearance}
-            </div>
-          </div>
+          <Card.Root class={cn("mt-3 rounded-lg p-0 py-0 gap-0", flashAppearance && "ring-2 ring-primary/30")}>
+            <Card.Header class="px-4 pt-4 pb-0">
+              <div class="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                <Smile size={14} strokeWidth={1.5} class="shrink-0 opacity-70" aria-hidden="true" />
+                <Card.Title class="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                  Current Appearance
+                </Card.Title>
+              </div>
+            </Card.Header>
+            <Card.Content class="px-4 pb-4 pt-0">
+              <div class="mt-2 whitespace-pre-line text-sm leading-relaxed text-foreground">
+                {displayCharacter.current_appearance}
+              </div>
+            </Card.Content>
+          </Card.Root>
         {/if}
 
-        <div class={cn("mt-3 rounded-lg border bg-card p-4", flashClothing && "ring-2 ring-primary/30")}>
-          <div class="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-            <Shirt size={14} strokeWidth={1.5} class="shrink-0 opacity-70" aria-hidden="true" />
-            <span>Wearing</span>
-          </div>
-          <div class="mt-2 whitespace-pre-line text-sm leading-relaxed text-foreground">
-            {displayCharacter.current_clothing}
-          </div>
-        </div>
+        <Card.Root class={cn("mt-3 rounded-lg p-0 py-0 gap-0", flashClothing && "ring-2 ring-primary/30")}>
+          <Card.Header class="px-4 pt-4 pb-0">
+            <div class="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+              <Shirt size={14} strokeWidth={1.5} class="shrink-0 opacity-70" aria-hidden="true" />
+              <Card.Title class="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Wearing</Card.Title>
+            </div>
+          </Card.Header>
+          <Card.Content class="px-4 pb-4 pt-0">
+            <div class="mt-2 whitespace-pre-line text-sm leading-relaxed text-foreground">
+              {displayCharacter.current_clothing}
+            </div>
+          </Card.Content>
+        </Card.Root>
       {/if}
 
       {#if showTraitSection && ((usePersonalityTraits && displayCharacter.personality_traits.length > 0) || (useMajorFlaws && displayCharacter.major_flaws.length > 0) || (usePerks && displayCharacter.perks.length > 0))}
-        <div class="mt-3 rounded-lg border bg-card p-4">
-          <div class="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-            <Star size={14} strokeWidth={1.5} class="shrink-0 opacity-70" aria-hidden="true" />
-            <span>Traits · Flaws · Perks</span>
-          </div>
-          <div class="mt-3 flex flex-wrap gap-2">
-            {#if usePersonalityTraits}
-              {#each displayCharacter.personality_traits as t, index (t + ":" + index)}
-                <Badge variant="outline" class="rounded-full font-mono text-[11px]">{t}</Badge>
-              {/each}
-            {/if}
-            {#if useMajorFlaws}
-              {#each displayCharacter.major_flaws as t, index (t + ":" + index)}
-                <Badge variant="outline" class="rounded-full font-mono text-[11px]">{t}</Badge>
-              {/each}
-            {/if}
-            {#if usePerks}
-              {#each displayCharacter.perks as t, index (t + ":" + index)}
-                <Badge variant="outline" class="rounded-full font-mono text-[11px]">{t}</Badge>
-              {/each}
-            {/if}
-          </div>
-        </div>
+        <Card.Root class="mt-3 rounded-lg p-0 py-0 gap-0">
+          <Card.Header class="px-4 pt-4 pb-0">
+            <div class="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+              <Star size={14} strokeWidth={1.5} class="shrink-0 opacity-70" aria-hidden="true" />
+              <Card.Title class="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                Traits · Flaws · Perks
+              </Card.Title>
+            </div>
+          </Card.Header>
+          <Card.Content class="px-4 pb-4 pt-0">
+            <div class="mt-3 flex flex-wrap gap-2">
+              {#if usePersonalityTraits}
+                {#each displayCharacter.personality_traits as t, index (t + ":" + index)}
+                  <Badge variant="outline" class="rounded-full font-mono text-[11px]">{t}</Badge>
+                {/each}
+              {/if}
+              {#if useMajorFlaws}
+                {#each displayCharacter.major_flaws as t, index (t + ":" + index)}
+                  <Badge variant="outline" class="rounded-full font-mono text-[11px]">{t}</Badge>
+                {/each}
+              {/if}
+              {#if usePerks}
+                {#each displayCharacter.perks as t, index (t + ":" + index)}
+                  <Badge variant="outline" class="rounded-full font-mono text-[11px]">{t}</Badge>
+                {/each}
+              {/if}
+            </div>
+          </Card.Content>
+        </Card.Root>
       {/if}
 
       {#if customCharDefs.length > 0}
-        <div class={cn("mt-3 rounded-lg border bg-card p-4", flashCustom && "ring-2 ring-primary/30")}>
-          <div class="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-            <FileText size={14} strokeWidth={1.5} class="shrink-0 opacity-70" aria-hidden="true" />
-            <span>Custom Fields</span>
-          </div>
-          <div class="mt-3 space-y-4">
-            {#if hasBaseCustomDefs}
-              <div class="space-y-2">
-                <div class="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Base</div>
-                <CustomFieldsView
-                  defs={customDefs}
-                  values={displayCharacter.custom_fields}
-                  scope="character"
-                  placement="base"
-                />
-              </div>
-            {/if}
-            {#if hasCurrentCustomDefs}
-              <div class="space-y-2">
-                <div class="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Current</div>
-                <CustomFieldsView
-                  defs={customDefs}
-                  values={displayCharacter.custom_fields}
-                  scope="character"
-                  placement="current"
-                />
-              </div>
-            {/if}
-          </div>
-        </div>
+        <Card.Root class={cn("mt-3 rounded-lg p-0 py-0 gap-0", flashCustom && "ring-2 ring-primary/30")}>
+          <Card.Header class="px-4 pt-4 pb-0">
+            <div class="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+              <FileText size={14} strokeWidth={1.5} class="shrink-0 opacity-70" aria-hidden="true" />
+              <Card.Title class="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                Custom Fields
+              </Card.Title>
+            </div>
+          </Card.Header>
+          <Card.Content class="px-4 pb-4 pt-0">
+            <div class="mt-3 space-y-4">
+              {#if hasBaseCustomDefs}
+                <div class="space-y-2">
+                  <div class="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Base</div>
+                  <CustomFieldsView
+                    defs={customDefs}
+                    values={displayCharacter.custom_fields}
+                    scope="character"
+                    placement="base"
+                  />
+                </div>
+              {/if}
+              {#if hasCurrentCustomDefs}
+                <div class="space-y-2">
+                  <div class="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Current</div>
+                  <CustomFieldsView
+                    defs={customDefs}
+                    values={displayCharacter.custom_fields}
+                    scope="character"
+                    placement="current"
+                  />
+                </div>
+              {/if}
+            </div>
+          </Card.Content>
+        </Card.Root>
       {/if}
 
       {#if useInventory}
-        <div class={cn("mt-3 rounded-lg border bg-card p-4", flashInventory && "ring-2 ring-primary/30")}>
-          <div class="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-            <Box size={14} strokeWidth={1.5} class="shrink-0 opacity-70" aria-hidden="true" />
-            <span>Inventory ({displayCharacter.inventory.length})</span>
-          </div>
-          {#if displayCharacter.inventory.length === 0}
-            <div class="mt-2 text-sm italic text-muted-foreground">Nothing</div>
-          {:else}
-            <ul class="mt-3 space-y-2">
-              {#each displayCharacter.inventory as item, index (index)}
-                <li class="flex items-start gap-2">
-                  <Dot size={12} strokeWidth={1.5} class="mt-1 shrink-0 text-muted-foreground" aria-hidden="true" />
-                  <div class="min-w-0">
-                    <div class="text-sm font-medium text-foreground">{item.name}</div>
-                    <div class="mt-0.5 text-xs text-muted-foreground">{item.description}</div>
-                  </div>
-                </li>
-              {/each}
-            </ul>
-          {/if}
-        </div>
+        <Card.Root class={cn("mt-3 rounded-lg p-0 py-0 gap-0", flashInventory && "ring-2 ring-primary/30")}>
+          <Card.Header class="px-4 pt-4 pb-0">
+            <div class="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+              <Box size={14} strokeWidth={1.5} class="shrink-0 opacity-70" aria-hidden="true" />
+              <Card.Title class="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                Inventory ({displayCharacter.inventory.length})
+              </Card.Title>
+            </div>
+          </Card.Header>
+          <Card.Content class="px-4 pb-4 pt-0">
+            {#if displayCharacter.inventory.length === 0}
+              <div class="mt-2 text-sm italic text-muted-foreground">Nothing</div>
+            {:else}
+              <ul class="mt-3 space-y-2">
+                {#each displayCharacter.inventory as item, index (index)}
+                  <li class="flex items-start gap-2">
+                    <Dot
+                      size={12}
+                      strokeWidth={1.5}
+                      class="mt-1 shrink-0 text-muted-foreground"
+                      aria-hidden="true"
+                    />
+                    <div class="min-w-0">
+                      <div class="text-sm font-medium text-foreground">{item.name}</div>
+                      <div class="mt-0.5 text-xs text-muted-foreground">{item.description}</div>
+                    </div>
+                  </li>
+                {/each}
+              </ul>
+            {/if}
+          </Card.Content>
+        </Card.Root>
       {/if}
     {/if}
   {:else}
@@ -918,12 +982,18 @@
       <div class="flex items-center gap-2">
         <Button
           variant="outline"
-          size="sm"
-          class="h-8 rounded-full px-3"
+          size="icon"
+          class="h-8 w-8"
           onclick={() => (showBaselineDetails = !showBaselineDetails)}
           disabled={!displayCharacter}
+          title={showBaselineDetails ? "Hide details" : "Show details"}
+          aria-label={showBaselineDetails ? "Hide details" : "Show details"}
         >
-          {showBaselineDetails ? "Hide details" : "Show details"}
+          {#if showBaselineDetails}
+            <EyeOff size={12} strokeWidth={2} aria-hidden="true" />
+          {:else}
+            <Eye size={12} strokeWidth={2} aria-hidden="true" />
+          {/if}
         </Button>
         <Button
           variant="outline"
@@ -965,12 +1035,18 @@
         <div class="flex items-center gap-2">
           <Button
             variant="outline"
-            size="sm"
-            class="h-8 rounded-full px-3"
+            size="icon"
+            class="h-8 w-8"
             onclick={() => (showBaselineDetails = !showBaselineDetails)}
             disabled={!displayCharacter}
+            title={showBaselineDetails ? "Hide details" : "Show details"}
+            aria-label={showBaselineDetails ? "Hide details" : "Show details"}
           >
-            {showBaselineDetails ? "Hide details" : "Show details"}
+            {#if showBaselineDetails}
+              <EyeOff size={12} strokeWidth={2} aria-hidden="true" />
+            {:else}
+              <Eye size={12} strokeWidth={2} aria-hidden="true" />
+            {/if}
           </Button>
           <Button
             variant="outline"
@@ -990,12 +1066,16 @@
         <div class="p-4">
           {#if isInspectMode}
             {#if inspectLoading}
-              <div class="rounded-lg border bg-card p-4 text-sm text-muted-foreground">Loading character...</div>
+              <Card.Root class="rounded-lg p-0 py-0 gap-0">
+                <Card.Content class="p-4 text-sm text-muted-foreground">Loading character...</Card.Content>
+              </Card.Root>
             {:else if inspectError}
-              <div class="rounded-lg border bg-card p-4 text-sm text-muted-foreground">
-                <div>{inspectError}</div>
-                <Button variant="outline" size="sm" class="mt-3" onclick={retryInspect}>Retry</Button>
-              </div>
+              <Card.Root class="rounded-lg p-0 py-0 gap-0">
+                <Card.Content class="p-4 text-sm text-muted-foreground">
+                  <div>{inspectError}</div>
+                  <Button variant="outline" size="sm" class="mt-3" onclick={retryInspect}>Retry</Button>
+                </Card.Content>
+              </Card.Root>
             {:else}
               {@render charContent()}
             {/if}

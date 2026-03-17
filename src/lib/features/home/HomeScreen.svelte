@@ -8,7 +8,7 @@
   import { showError, showConfirm, showQuietNotice } from "@/stores/ui"
   import { Badge } from "@/components/ui/badge"
   import { Button } from "@/components/ui/button"
-  import { Card, CardContent } from "@/components/ui/card"
+  import * as Card from "@/components/ui/card"
   import {
     DropdownMenu,
     DropdownMenuContent,
@@ -431,65 +431,73 @@
         {:else}
           <div class="grid gap-3" role="list" aria-label="Stories">
             {#each filteredStories as story (story.id)}
-              <Card class="group p-0 gap-0">
-                <CardContent class="flex items-start gap-2 p-3">
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    class="h-auto min-w-0 flex-1 flex-col items-start justify-start gap-0 p-0 text-left hover:bg-transparent"
-                    onclick={() => openStory(story)}
-                    aria-label={`Open story ${story.title}`}
-                  >
-                    <div class="truncate text-sm font-semibold">{story.title}</div>
-                    <div class="mt-1 text-xs text-muted-foreground">
-                      {story.character_name} · {story.turn_count} turns
-                    </div>
-                    <div class="mt-2 text-xs text-muted-foreground">Updated {relativeTimeAgo(story.updated_at)}</div>
-                  </Button>
-
-                  <DropdownMenu>
-                    <DropdownMenuTrigger
-                      class="inline-flex h-9 w-9 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
-                    >
-                      <span class="sr-only">Story options</span>
-                      <EllipsisVertical size={15} strokeWidth={1.8} aria-hidden="true" />
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end" class="w-48">
-                      <DropdownMenuItem
-                        onSelect={() =>
-                          void storiesService
-                            .exportAndDownload(story.id, "neuradventure")
-                            .catch((err) => showError(err instanceof Error ? err.message : "Failed to export"))}
+              <Card.Root
+                class="group cursor-pointer p-0 py-0 gap-0"
+                role="listitem"
+                tabindex={0}
+                aria-label={`Open story ${story.title}`}
+                onclick={() => openStory(story)}
+                onkeydown={(e) => {
+                  if (e.key !== "Enter" && e.key !== " ") return
+                  e.preventDefault()
+                  openStory(story)
+                }}
+              >
+                <Card.Header class="px-3 py-3">
+                  <Card.Title class="truncate text-sm font-semibold">{story.title}</Card.Title>
+                  <Card.Description class="mt-1 text-xs text-muted-foreground">
+                    {story.character_name} · {story.turn_count} turns
+                  </Card.Description>
+                  <Card.Action>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger
+                        class="inline-flex h-9 w-9 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
+                        onclick={(e) => e.stopPropagation()}
+                        onkeydown={(e) => e.stopPropagation()}
                       >
-                        Export JSON
-                      </DropdownMenuItem>
-                      <DropdownMenuItem
-                        onSelect={() =>
-                          void storiesService
-                            .exportAndDownload(story.id, "tavern")
-                            .catch((err) => showError(err instanceof Error ? err.message : "Failed to export"))}
-                      >
-                        Export ST Chat
-                      </DropdownMenuItem>
-                      <DropdownMenuItem
-                        onSelect={() =>
-                          void storiesService
-                            .exportAndDownload(story.id, "plaintext")
-                            .catch((err) => showError(err instanceof Error ? err.message : "Failed to export"))}
-                      >
-                        Export Text
-                      </DropdownMenuItem>
-                      <DropdownMenuSeparator />
-                      <DropdownMenuItem
-                        class="text-destructive focus:text-destructive"
-                        onSelect={() => deleteStory(story.id)}
-                      >
-                        Delete
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                </CardContent>
-              </Card>
+                        <span class="sr-only">Story options</span>
+                        <EllipsisVertical size={15} strokeWidth={1.8} aria-hidden="true" />
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end" class="w-48">
+                        <DropdownMenuItem
+                          onSelect={() =>
+                            void storiesService
+                              .exportAndDownload(story.id, "neuradventure")
+                              .catch((err) => showError(err instanceof Error ? err.message : "Failed to export"))}
+                        >
+                          Export JSON
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          onSelect={() =>
+                            void storiesService
+                              .exportAndDownload(story.id, "tavern")
+                              .catch((err) => showError(err instanceof Error ? err.message : "Failed to export"))}
+                        >
+                          Export ST Chat
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          onSelect={() =>
+                            void storiesService
+                              .exportAndDownload(story.id, "plaintext")
+                              .catch((err) => showError(err instanceof Error ? err.message : "Failed to export"))}
+                        >
+                          Export Text
+                        </DropdownMenuItem>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem
+                          class="text-destructive focus:text-destructive"
+                          onSelect={() => deleteStory(story.id)}
+                        >
+                          Delete
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </Card.Action>
+                </Card.Header>
+                <Card.Content class="px-3 pb-3 pt-0">
+                  <div class="text-xs text-muted-foreground">Updated {relativeTimeAgo(story.updated_at)}</div>
+                </Card.Content>
+              </Card.Root>
             {/each}
           </div>
         {/if}
@@ -526,75 +534,84 @@
         {:else}
           <div class="grid gap-3" role="list" aria-label="Chats">
             {#each filteredChats as chat (chat.id)}
-              <Card class="group p-0 gap-0">
-                <CardContent class="flex items-start gap-2 p-3">
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    class="h-auto min-w-0 flex-1 flex-col items-start justify-start gap-0 p-0 text-left hover:bg-transparent"
-                    onclick={() => openChat(chat)}
-                  >
-                    <div class="truncate text-sm font-semibold">{chat.title || chat.player_name || "Chat"}</div>
-                    <div class="mt-2 flex flex-wrap gap-1.5" aria-label="Participants">
-                      {#each chat.participants.slice(0, 5) as p (p)}
-                        <Badge variant="secondary" class="px-2 py-0 text-[11px] font-medium">
-                          {p}
-                        </Badge>
-                      {/each}
-                      {#if chat.participants.length > 5}
-                        <Badge variant="outline" class="px-2 py-0 text-[11px] font-medium text-muted-foreground">
-                          +{chat.participants.length - 5}
-                        </Badge>
-                      {/if}
-                    </div>
-                    <div class="mt-2 text-xs text-muted-foreground">
-                      {chat.message_count} messages · Updated {relativeTimeAgo(chat.updated_at)}
-                    </div>
-                  </Button>
-
-                  <DropdownMenu>
-                    <DropdownMenuTrigger
-                      class="inline-flex h-9 w-9 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
-                    >
-                      <span class="sr-only">Chat options</span>
-                      <EllipsisVertical size={15} strokeWidth={1.8} aria-hidden="true" />
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end" class="w-48">
-                      <DropdownMenuItem
-                        onSelect={() =>
-                          void chatsService
-                            .exportAndDownload(chat.id, "neuradventure")
-                            .catch((err) => showError(err instanceof Error ? err.message : "Failed to export"))}
+              <Card.Root
+                class="group cursor-pointer p-0 py-0 gap-0"
+                role="listitem"
+                tabindex={0}
+                aria-label={`Open chat ${chat.title || chat.player_name || "Chat"}`}
+                onclick={() => openChat(chat)}
+                onkeydown={(e) => {
+                  if (e.key !== "Enter" && e.key !== " ") return
+                  e.preventDefault()
+                  openChat(chat)
+                }}
+              >
+                <Card.Header class="px-3 py-3">
+                  <Card.Title class="truncate text-sm font-semibold">{chat.title || chat.player_name || "Chat"}</Card.Title>
+                  <Card.Description class="mt-2 flex flex-wrap gap-1.5" aria-label="Participants">
+                    {#each chat.participants.slice(0, 5) as p (p)}
+                      <Badge variant="secondary" class="px-2 py-0 text-[11px] font-medium">
+                        {p}
+                      </Badge>
+                    {/each}
+                    {#if chat.participants.length > 5}
+                      <Badge variant="outline" class="px-2 py-0 text-[11px] font-medium text-muted-foreground">
+                        +{chat.participants.length - 5}
+                      </Badge>
+                    {/if}
+                  </Card.Description>
+                  <Card.Action>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger
+                        class="inline-flex h-9 w-9 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
+                        onclick={(e) => e.stopPropagation()}
+                        onkeydown={(e) => e.stopPropagation()}
                       >
-                        Export JSON
-                      </DropdownMenuItem>
-                      <DropdownMenuItem
-                        onSelect={() =>
-                          void chatsService
-                            .exportAndDownload(chat.id, "tavern")
-                            .catch((err) => showError(err instanceof Error ? err.message : "Failed to export"))}
-                      >
-                        Export ST Chat
-                      </DropdownMenuItem>
-                      <DropdownMenuItem
-                        onSelect={() =>
-                          void chatsService
-                            .exportAndDownload(chat.id, "plaintext")
-                            .catch((err) => showError(err instanceof Error ? err.message : "Failed to export"))}
-                      >
-                        Export Text
-                      </DropdownMenuItem>
-                      <DropdownMenuSeparator />
-                      <DropdownMenuItem
-                        class="text-destructive focus:text-destructive"
-                        onSelect={() => deleteChat(chat.id)}
-                      >
-                        Delete
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                </CardContent>
-              </Card>
+                        <span class="sr-only">Chat options</span>
+                        <EllipsisVertical size={15} strokeWidth={1.8} aria-hidden="true" />
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end" class="w-48">
+                        <DropdownMenuItem
+                          onSelect={() =>
+                            void chatsService
+                              .exportAndDownload(chat.id, "neuradventure")
+                              .catch((err) => showError(err instanceof Error ? err.message : "Failed to export"))}
+                        >
+                          Export JSON
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          onSelect={() =>
+                            void chatsService
+                              .exportAndDownload(chat.id, "tavern")
+                              .catch((err) => showError(err instanceof Error ? err.message : "Failed to export"))}
+                        >
+                          Export ST Chat
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          onSelect={() =>
+                            void chatsService
+                              .exportAndDownload(chat.id, "plaintext")
+                              .catch((err) => showError(err instanceof Error ? err.message : "Failed to export"))}
+                        >
+                          Export Text
+                        </DropdownMenuItem>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem
+                          class="text-destructive focus:text-destructive"
+                          onSelect={() => deleteChat(chat.id)}
+                        >
+                          Delete
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </Card.Action>
+                </Card.Header>
+                <Card.Content class="px-3 pb-3 pt-0">
+                  <div class="text-xs text-muted-foreground">
+                    {chat.message_count} messages · Updated {relativeTimeAgo(chat.updated_at)}
+                  </div>
+                </Card.Content>
+              </Card.Root>
             {/each}
           </div>
         {/if}

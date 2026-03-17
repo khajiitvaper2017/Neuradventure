@@ -1,5 +1,6 @@
 <script lang="ts">
   import { tick } from "svelte"
+  import { SvelteSet } from "svelte/reactivity"
   import type { ChatMember, ChatMessage } from "@/shared/types"
   import { chats } from "@/services/chats"
   import { stories } from "@/services/stories"
@@ -82,7 +83,7 @@
   let greetingApplyNonce = 0
   let greetingIndex = $state<number>(-1)
   let lastGreetingCharId: number | null = null
-  const resumeAttempted = new Set<string>()
+  const resumeAttempted = new SvelteSet<string>()
   let streamPreviewMode = $state<"append" | "replace">("append")
   let regeneratingMessageId = $state<number | null>(null)
 

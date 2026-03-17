@@ -1,5 +1,6 @@
 <script lang="ts">
   import { untrack } from "svelte"
+  import { SvelteSet } from "svelte/reactivity"
   import type { MainCharacterState, NPCState, StoryModules } from "@/shared/types"
   import type { StoryCharacterGroup, StoryNpcGroup } from "@/shared/api-types"
   import { stories as storiesService } from "@/services/stories"
@@ -314,7 +315,7 @@
         : []
       const npcCandidates = activeModules.track_npcs ? [...$pendingStoryNPCs, ...npcFromLibrary] : []
       const dedupedNpcs = (() => {
-        const seen = new Set<string>()
+        const seen = new SvelteSet<string>()
         const out: NPCState[] = []
         for (const npc of npcCandidates) {
           const key = (npc.name || "").trim().toLowerCase()

@@ -1,7 +1,7 @@
 <script lang="ts">
   import { cn } from "@/utils.js"
   import { Button } from "@/components/ui/button"
-  import { Card, CardContent } from "@/components/ui/card"
+  import * as Card from "@/components/ui/card"
   import { Input } from "@/components/ui/input"
   import { Plus } from "@lucide/svelte"
 
@@ -17,8 +17,8 @@
   let { value = "", disabled = false, busy = false, placeholder = "Add character...", onInput, onAdd }: Props = $props()
 </script>
 
-<Card class="shadow-sm">
-  <CardContent class="p-3">
+<Card.Root class="shadow-sm p-0 py-0 gap-0">
+  <Card.Content class="p-3">
     <div class="flex items-center gap-2">
       <div
         class={cn(
@@ -45,5 +45,5 @@
         {busy ? "Adding..." : "Add"}
       </Button>
     </div>
-  </CardContent>
-</Card>
+  </Card.Content>
+</Card.Root>
