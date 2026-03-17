@@ -50,9 +50,11 @@ export interface WorldState {
 
 export interface StoryMeta {
   id: number
+  character_id: number | null
   title: string
   turn_count: number
   character_name: string
+  avatar?: string
   created_at: string
   updated_at: string
 }
@@ -64,6 +66,7 @@ export interface ChatSummary {
   updated_at: string
   participants: string[]
   player_name: string
+  avatar?: string
 }
 
 export interface ChatMember {

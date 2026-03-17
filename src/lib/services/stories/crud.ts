@@ -11,9 +11,11 @@ export async function list(): Promise<StoryMeta[]> {
   const rows = db.listStories()
   return rows.map((r) => ({
     id: r.id,
+    character_id: r.character_id,
     title: r.title,
     turn_count: r.turn_count,
     character_name: MainCharacterStateStoredSchema.parse(JSON.parse(r.character_state_json)).name,
+    avatar: r.character_id != null ? db.getCharacterCardSummary(r.character_id)?.avatar : undefined,
     created_at: r.created_at,
     updated_at: r.updated_at,
   }))

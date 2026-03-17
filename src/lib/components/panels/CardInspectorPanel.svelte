@@ -1,6 +1,7 @@
 <script lang="ts">
   import { showError, showQuietNotice } from "@/stores/ui"
   import { cn } from "@/utils.js"
+  import * as Avatar from "@/components/ui/avatar"
   import { Badge } from "@/components/ui/badge"
   import { Button } from "@/components/ui/button"
   import { Checkbox } from "@/components/ui/checkbox"
@@ -126,6 +127,7 @@
   )
   const characterBookEntries = $derived(characterBookEntryList.length)
   const rawJson = $derived(prettyJson(card))
+  const avatarSrc = $derived((avatarDataUrl ?? "").trim())
 
   function close() {
     onClose?.()
@@ -185,11 +187,11 @@
         {:else if cardData}
           <div class="space-y-4">
             <div class="flex items-center gap-3 rounded-lg border bg-card p-3">
-              <div class="h-12 w-12 shrink-0 overflow-hidden rounded-full border bg-muted">
-                {#if avatarDataUrl}
-                  <img class="h-full w-full object-cover" src={avatarDataUrl} alt="Character avatar" />
-                {/if}
-              </div>
+              {#if avatarSrc}
+                <Avatar.Root class="size-12 shrink-0 border bg-muted shadow-sm">
+                  <Avatar.Image src={avatarSrc} alt="Character avatar" class="object-cover" />
+                </Avatar.Root>
+              {/if}
               <div class="min-w-0">
                 <div class="truncate text-base font-semibold text-foreground">{name || "Unknown Character"}</div>
                 <div class="mt-0.5 text-xs text-muted-foreground">

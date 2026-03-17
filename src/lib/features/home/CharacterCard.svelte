@@ -1,6 +1,7 @@
 <script lang="ts">
   import type { StoryCharacterGroup } from "@/shared/api-types"
   import { relativeTimeAgo, utcDateMs } from "@/utils/date"
+  import * as Avatar from "@/components/ui/avatar"
   import { Badge } from "@/components/ui/badge"
   import { Button } from "@/components/ui/button"
   import { Card, CardContent, CardHeader } from "@/components/ui/card"
@@ -43,6 +44,7 @@
   )
 
   const lastPlayedIso = $derived(lastPlayedAtIso())
+  const avatarSrc = $derived((group.card?.avatar ?? "").trim())
 </script>
 
 <Card class="group relative overflow-hidden gap-0 py-0 shadow-sm transition-colors hover:bg-muted/20" role="listitem">
@@ -59,18 +61,11 @@
         onclick={() => onOpenDetails?.(group.id)}
         aria-label={`Open character ${group.character.name}`}
       >
-        <div class="relative mt-0.5">
-          {#if group.card?.avatar}
-            <img
-              class="h-12 w-12 rounded-xl border bg-muted object-cover shadow-sm ring-2 ring-primary/15"
-              src={group.card.avatar}
-              alt={`${group.character.name} avatar`}
-              loading="lazy"
-            />
-          {:else}
-            <div class="h-12 w-12 rounded-xl border bg-muted shadow-sm ring-2 ring-primary/10" aria-hidden="true"></div>
-          {/if}
-        </div>
+        {#if avatarSrc}
+          <Avatar.Root class="mt-0.5 size-12 rounded-xl border bg-muted shadow-sm ring-2 ring-primary/15">
+            <Avatar.Image src={avatarSrc} alt={`${group.character.name} avatar`} class="object-cover" />
+          </Avatar.Root>
+        {/if}
 
         <div class="min-w-0">
           <div class="flex flex-wrap items-center gap-x-2 gap-y-1">

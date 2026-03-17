@@ -8,6 +8,7 @@
   import { showError, showConfirm, showQuietNotice } from "@/stores/ui"
   import { Badge } from "@/components/ui/badge"
   import { Button } from "@/components/ui/button"
+  import * as Avatar from "@/components/ui/avatar"
   import * as Card from "@/components/ui/card"
   import {
     DropdownMenu,
@@ -431,6 +432,7 @@
         {:else}
           <div class="grid gap-3" role="list" aria-label="Stories">
             {#each filteredStories as story (story.id)}
+              {@const avatarSrc = (story.avatar ?? "").trim()}
               <Card.Root
                 class="group cursor-pointer p-0 py-0 gap-0"
                 role="listitem"
@@ -444,10 +446,19 @@
                 }}
               >
                 <Card.Header class="px-3 py-3">
-                  <Card.Title class="truncate text-sm font-semibold">{story.title}</Card.Title>
-                  <Card.Description class="mt-1 text-xs text-muted-foreground">
-                    {story.character_name} · {story.turn_count} turns
-                  </Card.Description>
+                  <div class="row-span-2 flex min-w-0 items-start gap-3">
+                    {#if avatarSrc}
+                      <Avatar.Root class="mt-0.5 size-10 rounded-xl border bg-muted shadow-sm">
+                        <Avatar.Image src={avatarSrc} alt={`${story.character_name} avatar`} />
+                      </Avatar.Root>
+                    {/if}
+                    <div class="min-w-0">
+                      <Card.Title class="truncate text-sm font-semibold">{story.title}</Card.Title>
+                      <Card.Description class="mt-1 text-xs text-muted-foreground">
+                        {story.character_name} · {story.turn_count} turns
+                      </Card.Description>
+                    </div>
+                  </div>
                   <Card.Action>
                     <DropdownMenu>
                       <DropdownMenuTrigger
@@ -534,6 +545,7 @@
         {:else}
           <div class="grid gap-3" role="list" aria-label="Chats">
             {#each filteredChats as chat (chat.id)}
+              {@const avatarSrc = (chat.avatar ?? "").trim()}
               <Card.Root
                 class="group cursor-pointer p-0 py-0 gap-0"
                 role="listitem"
@@ -547,19 +559,28 @@
                 }}
               >
                 <Card.Header class="px-3 py-3">
-                  <Card.Title class="truncate text-sm font-semibold">{chat.title || chat.player_name || "Chat"}</Card.Title>
-                  <Card.Description class="mt-2 flex flex-wrap gap-1.5" aria-label="Participants">
-                    {#each chat.participants.slice(0, 5) as p (p)}
-                      <Badge variant="secondary" class="px-2 py-0 text-[11px] font-medium">
-                        {p}
-                      </Badge>
-                    {/each}
-                    {#if chat.participants.length > 5}
-                      <Badge variant="outline" class="px-2 py-0 text-[11px] font-medium text-muted-foreground">
-                        +{chat.participants.length - 5}
-                      </Badge>
+                  <div class="row-span-2 flex min-w-0 items-start gap-3">
+                    {#if avatarSrc}
+                      <Avatar.Root class="mt-0.5 size-10 rounded-xl border bg-muted shadow-sm">
+                        <Avatar.Image src={avatarSrc} alt="Chat avatar" />
+                      </Avatar.Root>
                     {/if}
-                  </Card.Description>
+                    <div class="min-w-0">
+                      <Card.Title class="truncate text-sm font-semibold">{chat.title || chat.player_name || "Chat"}</Card.Title>
+                      <Card.Description class="mt-2 flex flex-wrap gap-1.5 text-xs" aria-label="Participants">
+                        {#each chat.participants.slice(0, 5) as p (p)}
+                          <Badge variant="secondary" class="px-2 py-0 text-[11px] font-medium">
+                            {p}
+                          </Badge>
+                        {/each}
+                        {#if chat.participants.length > 5}
+                          <Badge variant="outline" class="px-2 py-0 text-[11px] font-medium text-muted-foreground">
+                            +{chat.participants.length - 5}
+                          </Badge>
+                        {/if}
+                      </Card.Description>
+                    </div>
+                  </div>
                   <Card.Action>
                     <DropdownMenu>
                       <DropdownMenuTrigger

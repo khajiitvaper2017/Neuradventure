@@ -4,6 +4,7 @@
   import type { ChatMember, ChatMessage } from "@/shared/types"
   import { chats } from "@/services/chats"
   import { stories } from "@/services/stories"
+  import * as db from "@/engine/core/db"
   import { subscribeStreamPreview } from "@/services/streamPreview"
   import { normalizeChatInput } from "@/utils/inputNormalize"
   import { scrollToBottom } from "@/utils/scroll"
@@ -36,6 +37,7 @@
   import { SquarePen, Trash } from "@lucide/svelte"
   import { Badge } from "@/components/ui/badge"
   import { Button } from "@/components/ui/button"
+  import * as Avatar from "@/components/ui/avatar"
   import { ScrollArea } from "@/components/ui/scroll-area"
   import { Textarea } from "@/components/ui/textarea"
   import ChatTitleModal from "@/features/chat/ChatTitleModal.svelte"
@@ -88,6 +90,25 @@
   let regeneratingMessageId = $state<number | null>(null)
 
   let visibleMessages = $derived($chatMessages.filter((m) => m.role !== "system"))
+
+  const avatarByMemberId = $derived.by(() => {
+    const map: Record<number, string> = {}
+    for (const member of $chatMembers) {
+      if (member.member_kind !== "character" || member.character_id == null) continue
+      const avatar = db.getCharacterCardSummary(member.character_id)?.avatar
+      if (typeof avatar === "string" && avatar.trim()) map[member.id] = avatar.trim()
+    }
+    return map
+  })
+
+  const headerAvatars = $derived.by(() => {
+    const urls: string[] = []
+    for (const member of aiMembers()) {
+      const src = avatarByMemberId[member.id]
+      if (src) urls.push(src)
+    }
+    return urls.slice(0, 2)
+  })
 
   const stream = createStreamController({
     enabled: () => $streamingEnabled,
@@ -505,6 +526,16 @@
       </svg>
     </Button>
 
+    {#if headerAvatars.length > 0}
+      <div class="flex shrink-0 items-center -space-x-2 pl-1">
+        {#each headerAvatars as src, i (src)}
+          <Avatar.Root class={cn("size-8 border bg-muted shadow-sm", i > 0 && "ring-2 ring-background")}>
+            <Avatar.Image src={src} alt="Participant avatar" />
+          </Avatar.Root>
+        {/each}
+      </div>
+    {/if}
+
     <div class="flex min-w-0 flex-1 flex-col gap-0.5 py-2">
       <span class="break-words text-sm font-medium leading-snug text-foreground">{$currentChatTitle || "Chat"}</span>
       <span class="break-words text-[11px] uppercase tracking-wider text-muted-foreground/80">
@@ -571,10 +602,18 @@
         <div class="space-y-3">
           {#each visibleMessages as message (message.id)}
             {@const fromUser = message.role === "user"}
+            {@const avatarSrc = avatarByMemberId[message.speaker_member_id] ?? ""}
             <div class={cn("rounded-lg border bg-card p-4", fromUser && "border-primary/20 bg-primary/5")}>
               <div class="flex items-start justify-between gap-3">
-                <div class="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                  {message.speaker_name}
+                <div class="flex min-w-0 items-center gap-2">
+                  {#if avatarSrc}
+                    <Avatar.Root class="size-6 border bg-muted shadow-sm">
+                      <Avatar.Image src={avatarSrc} alt={`${message.speaker_name} avatar`} />
+                    </Avatar.Root>
+                  {/if}
+                  <div class="truncate text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                    {message.speaker_name}
+                  </div>
                 </div>
                 <div class="flex items-center gap-1">
                   <Button
