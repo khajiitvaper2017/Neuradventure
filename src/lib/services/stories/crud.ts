@@ -3,7 +3,7 @@ import type { MainCharacterState, NPCState, StoryMeta, StoryModules } from "@/sh
 import type { StoryDetail, UpdateStoryStateResult } from "@/shared/api-types"
 import * as db from "@/engine/core/db"
 import { MainCharacterStateStoredSchema, NPCStateStoredSchema } from "@/engine/core/models"
-import { TavernCardV2Schema } from "@/engine/utils/converters/tavern"
+import { characterToTavernCard, TavernCardV2Schema } from "@/engine/utils/converters/tavern"
 import { createNewStory } from "@/engine/game"
 import { parseStoryModules, parseStoryState } from "@/services/stories/state"
 
@@ -85,6 +85,9 @@ export async function create(data: {
         JSON.stringify(data.tavern_card),
         data.tavern_avatar_data_url ?? undefined,
       )
+    } else if (typeof data.tavern_avatar_data_url === "string" && data.tavern_avatar_data_url.trim()) {
+      const card = characterToTavernCard(base)
+      db.upsertCharacterCard(characterId, "tavern-card-v2", JSON.stringify(card), data.tavern_avatar_data_url.trim())
     }
     character = parsed
   } else {

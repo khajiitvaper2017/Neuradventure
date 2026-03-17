@@ -36,7 +36,15 @@ export async function importCharacter(
   tavernCard?: object | null,
   tavernAvatarDataUrl?: string | null,
 ) {
-  if (!tavernCard) return stories.importCharacter(character)
+  if (!tavernCard) {
+    if (tavernAvatarDataUrl?.trim()) {
+      return stories.importCharacter({
+        character,
+        tavern_avatar_data_url: tavernAvatarDataUrl.trim(),
+      })
+    }
+    return stories.importCharacter(character)
+  }
   return stories.importCharacter({
     character,
     tavern_card: tavernCard,

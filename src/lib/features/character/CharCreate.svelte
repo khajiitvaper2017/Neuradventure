@@ -25,6 +25,7 @@
   import { clearPendingRequest, getPendingRequest, setPendingRequest } from "@/utils/pendingRequests"
   import PromptHistoryPanel from "@/components/panels/PromptHistoryPanel.svelte"
   import { subscribeStreamPreview } from "@/services/streamPreview"
+  import { pickFile, readFileAsDataUrl } from "@/utils/filePick"
   import StoryModulesPanel from "@/components/panels/StoryModulesPanel.svelte"
   import { Button } from "@/components/ui/button"
   import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -32,6 +33,7 @@
   import { Input } from "@/components/ui/input"
   import * as InputGroup from "@/components/ui/input-group"
   import { Label } from "@/components/ui/label"
+  import * as Avatar from "@/components/ui/avatar"
   import { Textarea } from "@/components/ui/textarea"
   import { ScrollArea } from "@/components/ui/scroll-area"
   import * as ToggleGroup from "@/components/ui/toggle-group"
@@ -233,6 +235,24 @@
     if (!prompt) return
     const requestId = createRequestId()
     await runGenerate(prompt, activeModules, requestId)
+  }
+
+  const avatarSrc = $derived(($pendingCharacterImportAvatarDataUrl ?? "").trim())
+
+  async function loadAvatar() {
+    if (generating || savingCharacter || autofilling) return
+    try {
+      const file = await pickFile({ accept: "image/*" })
+      if (!file) return
+      const dataUrl = (await readFileAsDataUrl(file)).trim()
+      pendingCharacterImportAvatarDataUrl.set(dataUrl || null)
+    } catch (err) {
+      showError(err instanceof Error ? err.message : "Failed to load avatar")
+    }
+  }
+
+  function clearAvatar() {
+    pendingCharacterImportAvatarDataUrl.set(null)
   }
 
   const isMissingText = (value: string) => {
@@ -646,6 +666,24 @@
             <CardDescription>These fields are required.</CardDescription>
           </CardHeader>
           <CardContent class="space-y-4">
+            <div class="flex flex-wrap items-center gap-3">
+              {#if avatarSrc}
+                <Avatar.Root class="size-16 rounded-xl border bg-muted shadow-sm">
+                  <Avatar.Image src={avatarSrc} alt="Character avatar" class="object-cover" />
+                </Avatar.Root>
+              {/if}
+              <div class="flex flex-wrap items-center gap-2">
+                <Button variant="outline" onclick={loadAvatar} disabled={generating || savingCharacter || autofilling}>
+                  {avatarSrc ? "Replace avatar" : "Load avatar"}
+                </Button>
+                {#if avatarSrc}
+                  <Button variant="ghost" onclick={clearAvatar} disabled={generating || savingCharacter || autofilling}>
+                    Clear
+                  </Button>
+                {/if}
+              </div>
+            </div>
+
             <div class="grid gap-2">
               <Label for="char-name">Name</Label>
               <Input id="char-name" type="text" bind:value={name} placeholder="Full legal name" />

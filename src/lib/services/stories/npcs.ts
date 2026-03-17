@@ -1,9 +1,30 @@
-import { NPCStateStoredSchema } from "@/engine/core/models"
+import { MainCharacterStateStoredSchema, NPCStateStoredSchema } from "@/engine/core/models"
 import * as db from "@/engine/core/db"
 import type { StoryNpcGroup } from "@/shared/api-types"
 import { hashString } from "@/services/stories/utils"
 
 export async function npcs(): Promise<StoryNpcGroup[]> {
+  const normalizeName = (value: string) => value.trim().toLowerCase()
+  const reservedNames = new Set<string>()
+
+  for (const row of db.listCharacters()) {
+    const parsed = MainCharacterStateStoredSchema.safeParse(JSON.parse(row.state_json))
+    if (!parsed.success) continue
+    const { inventory: _inventory, ...base } = parsed.data
+    void _inventory
+    const key = normalizeName(base.name || "")
+    if (key) reservedNames.add(key)
+  }
+
+  for (const row of db.listStoriesWithCharacters()) {
+    const parsed = MainCharacterStateStoredSchema.safeParse(JSON.parse(row.character_state_json))
+    if (!parsed.success) continue
+    const { inventory: _inventory, ...base } = parsed.data
+    void _inventory
+    const key = normalizeName(base.name || "")
+    if (key) reservedNames.add(key)
+  }
+
   const rows = db.listStoriesWithNpcs()
   const groups = new Map<string, StoryNpcGroup>()
 
@@ -20,6 +41,8 @@ export async function npcs(): Promise<StoryNpcGroup[]> {
       if (!parsed.success) continue
       const { inventory: _inventory, ...base } = parsed.data
       void _inventory
+      const nameKey = normalizeName(base.name || "")
+      if (nameKey && reservedNames.has(nameKey)) continue
       const keySource = JSON.stringify(base)
       let group = groups.get(keySource)
       if (!group) {

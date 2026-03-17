@@ -174,6 +174,9 @@ export async function importCharacter(body: object): Promise<CharacterImportResu
         JSON.stringify(wrapper.tavern_card),
         wrapper.tavern_avatar_data_url ?? undefined,
       )
+    } else if (wrapper.tavern_avatar_data_url) {
+      const card = characterToTavernCard(base)
+      db.upsertCharacterCard(characterId, "tavern-card-v2", JSON.stringify(card), wrapper.tavern_avatar_data_url)
     }
     return { id: characterId, character: base, needs_review: false }
   }
