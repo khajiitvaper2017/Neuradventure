@@ -33,6 +33,7 @@ Concise and precise.
 - UI: Tailwind v4 + shadcn-svelte/Bits UI; add via `npx shadcn-svelte@latest add <component>`; theme via CSS vars in `src/lib/styles/app.css`.
 - Secrets: `VITE_*` is client-exposed and stringly-typed; don’t put API keys there. OpenRouter keys must never be logged/committed.
 - Tooling/conventions: Prettier + ESLint, `@/...` imports, `PascalCase.svelte`, TS `camelCase`, constants `SCREAMING_SNAKE_CASE`.
+- Ignore all problems with formating, just run `npm run format` at the end of work.
 
 ## Testing Guidelines
 
