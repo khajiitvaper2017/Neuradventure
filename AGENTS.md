@@ -1,5 +1,8 @@
 # Repository Guidelines
 
+## Personality
+Concise and precise.
+
 ## Project Structure & Module Organization
 
 - `src/routes/`: SvelteKit pages/layouts (`+layout.ts`, `+page.svelte`). Keep these thin.
@@ -35,6 +38,32 @@
 ## Agent-Specific Notes
 
 - Treat `src/lib/components/ui/` as vendored code: prefer regenerating via shadcn-svelte over manual edits.
+- Prefer using existing `src/lib/components/ui/` building blocks before creating new UI components, especially the `*group*` ones for grouped controls.
+- Current `src/lib/components/ui/` inventory:
+  - `alert-dialog`
+  - `avatar`
+  - `badge`
+  - `button`
+  - `card`
+  - `checkbox`
+  - `dialog`
+  - `dropdown-menu`
+  - `empty`
+  - `field`
+  - `input`
+  - `input-group` (group)
+  - `label`
+  - `resizable`
+  - `scroll-area`
+  - `select`
+  - `separator`
+  - `sheet`
+  - `sonner`
+  - `switch`
+  - `tabs`
+  - `textarea`
+  - `toggle`
+  - `toggle-group` (group)
 - Don’t “helpfully” restore deleted files/folders (e.g. `scripts/`) unless explicitly asked.
 - When some files “unexpectedly” dissapeared or got commited, assume it's user and don't undo his edits, adapt to them.
 - DON'T UNDO CHANGES THAT OTHER agent OR ME MADE. ADAPT OR IGNORE.
