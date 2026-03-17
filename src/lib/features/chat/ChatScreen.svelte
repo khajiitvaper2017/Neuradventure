@@ -29,6 +29,7 @@
     applyCancelResult,
     applyUndoCancelResult,
   } from "@/features/chat/actions"
+  import { createStreamController } from "@/utils/streamController.svelte.ts"
   import ConversationInput from "@/components/inputs/ConversationInput.svelte"
   import RichText from "@/components/rich/RichText.svelte"
   import { SquarePen, Trash } from "@lucide/svelte"
@@ -46,6 +47,27 @@
     say: "What do you say?",
   }
 
+  function handleError(err: unknown, fallback: string) {
+    showError(err instanceof Error ? err.message : fallback)
+  }
+
+  async function scrollLogToBottom(el: HTMLElement | null, opts?: { smooth?: boolean }) {
+    await tick()
+    scrollToBottom(el, opts)
+  }
+
+  async function withGeneration<T>(fn: () => Promise<T>, requestId?: string): Promise<T | undefined> {
+    if ($isChatGenerating) return undefined
+    isChatGenerating.set(true)
+    if (requestId) stream.start(requestId)
+    try {
+      return await fn()
+    } finally {
+      isChatGenerating.set(false)
+      if (requestId) stream.stop()
+    }
+  }
+
   let input = $state("")
   let actionMode = $state<ActionMode>("say")
   let logEl = $state<HTMLDivElement | null>(null)
@@ -61,15 +83,28 @@
   let greetingApplyNonce = 0
   let greetingIndex = $state<number>(0)
   let lastGreetingCharId: number | null = null
-  let streamUnsub = $state<null | (() => void)>(null)
-  let streamReply = $state("")
-  let resumeAttemptedFor = ""
+  const resumeAttempted = new Set<string>()
   let streamPreviewMode = $state<"append" | "replace">("append")
   let regeneratingMessageId = $state<number | null>(null)
-  let followStream = $state(true)
-  let followScrollPending = false
 
   let visibleMessages = $derived($chatMessages.filter((m) => m.role !== "system"))
+
+  const stream = createStreamController({
+    enabled: () => $streamingEnabled,
+    subscribe: subscribeStreamPreview,
+    seed: () => ({ content: "" }),
+    reset: (state) => {
+      state.content = ""
+    },
+    applyPatch: (state, patch) => {
+      if (!patch || typeof patch !== "object") return
+      const p = patch as Record<string, unknown>
+      if (typeof p.content === "string") state.content = p.content
+    },
+    isNearBottom: () => isNearBottom(logEl),
+    scrollToBottom: (opts) => scrollToBottom(logEl, opts),
+    tick,
+  })
 
   function lastAssistantMessageId(): number | null {
     for (let i = visibleMessages.length - 1; i >= 0; i--) {
@@ -98,33 +133,9 @@
     return list[safeIndex]?.name ?? "Unknown"
   }
 
-  function stopChatStream() {
-    streamUnsub?.()
-    streamUnsub = null
-    streamReply = ""
-  }
-
-  function startChatStream(requestId: string) {
-    stopChatStream()
-    followStream = true
-    if (!$streamingEnabled) return
-    streamUnsub = subscribeStreamPreview(requestId, (patch) => {
-      if (typeof patch.content === "string") streamReply = patch.content
-    })
-  }
-
-  function scheduleFollowScroll() {
-    if (!followStream) return
-    if (followScrollPending) return
-    followScrollPending = true
-    tick().then(() => {
-      followScrollPending = false
-      scrollToBottom(logEl)
-    })
-  }
-
   function handleLogScroll() {
-    followStream = isNearBottom(logEl)
+    if (!$isChatGenerating || !$streamingEnabled) return
+    stream.handleScroll()
   }
 
   $effect(() => {
@@ -136,23 +147,11 @@
   })
 
   function jumpToLatest() {
-    followStream = true
-    tick().then(() => scrollToBottom(logEl, { smooth: true }))
+    stream.jumpToLatest()
   }
 
-  $effect(() => {
-    if (!$isChatGenerating || !$streamingEnabled) return
-    const _r = streamReply
-    scheduleFollowScroll()
-  })
-
-  $effect(() => {
-    if (visibleMessages.length === 0) return
-    scheduleFollowScroll()
-  })
-
   onMount(() => {
-    scheduleFollowScroll()
+    void scrollLogToBottom(logEl)
   })
 
   type PendingChatPayload = { chatId: number; content?: string }
@@ -162,33 +161,30 @@
     const pending = getPendingRequest<PendingChatPayload>(kind)
     if (!pending) return
     if (pending.payload.chatId !== $currentChatId) return
-    if (pending.requestId === resumeAttemptedFor) return
-    resumeAttemptedFor = pending.requestId
+    if (resumeAttempted.has(pending.requestId)) return
+    resumeAttempted.add(pending.requestId)
 
     streamPreviewMode = kind === "chat.regenerate" ? "replace" : "append"
     regeneratingMessageId = kind === "chat.regenerate" ? lastAssistantMessageId() : null
-    isChatGenerating.set(true)
-    startChatStream(pending.requestId)
     try {
-      if (kind === "chat.send") {
-        const content = pending.payload.content ?? ""
-        const result = await chats.send($currentChatId, content, pending.requestId)
-        appendChatExchange(result)
-      } else if (kind === "chat.continue") {
-        const result = await chats.continue($currentChatId, pending.requestId)
-        appendChatMessage(result)
-      } else {
-        const result = await chats.regenerateLast($currentChatId, pending.requestId)
-        applyRegenerateResult(result)
-      }
-      await tick()
-      scrollToBottom(logEl)
+      await withGeneration(async () => {
+        if (kind === "chat.send") {
+          const content = pending.payload.content ?? ""
+          const result = await chats.send($currentChatId, content, pending.requestId)
+          appendChatExchange(result)
+        } else if (kind === "chat.continue") {
+          const result = await chats.continue($currentChatId, pending.requestId)
+          appendChatMessage(result)
+        } else {
+          const result = await chats.regenerateLast($currentChatId, pending.requestId)
+          applyRegenerateResult(result)
+        }
+        await scrollLogToBottom(logEl)
+      }, pending.requestId)
     } catch (err) {
-      showError(err instanceof Error ? err.message : "Failed to resume generation")
+      handleError(err, "Failed to resume generation")
     } finally {
       clearPendingRequest(kind, pending.requestId)
-      isChatGenerating.set(false)
-      stopChatStream()
       streamPreviewMode = "append"
       regeneratingMessageId = null
     }
@@ -221,7 +217,7 @@
       currentChatTitle.set(titleDraft.trim())
       showTitleEditor = false
     } catch (err) {
-      showError(err instanceof Error ? err.message : "Failed to update chat")
+      handleError(err, "Failed to update chat")
     }
   }
 
@@ -313,7 +309,7 @@
       greetingIndex = nextIndex
       canUndoChatCancel.set(false)
     } catch (err) {
-      showError(err instanceof Error ? err.message : "Failed to update greeting")
+      handleError(err, "Failed to update greeting")
     } finally {
       if (nonce === greetingApplyNonce) greetingApplying = false
     }
@@ -344,7 +340,7 @@
       nextSpeakerIndex.set(result.next_speaker_index)
       showSpeakerPicker = false
     } catch (err) {
-      showError(err instanceof Error ? err.message : "Failed to set next speaker")
+      handleError(err, "Failed to set next speaker")
     }
   }
 
@@ -354,41 +350,38 @@
     const trimmed = raw.trim()
     streamPreviewMode = "append"
     regeneratingMessageId = null
-    isChatGenerating.set(true)
     input = ""
     const requestId = createRequestId()
-    startChatStream(requestId)
     try {
-      if (trimmed) {
-        const content = normalizeChatInput(trimmed, actionMode)
-        if (!content) return
-        setPendingRequest({
-          kind: "chat.send",
-          requestId,
-          createdAt: Date.now(),
-          payload: { chatId: $currentChatId, content },
-        })
-        const result = await chats.send($currentChatId, content, requestId)
-        appendChatExchange(result)
-      } else {
-        setPendingRequest({
-          kind: "chat.continue",
-          requestId,
-          createdAt: Date.now(),
-          payload: { chatId: $currentChatId },
-        })
-        const result = await chats.continue($currentChatId, requestId)
-        appendChatMessage(result)
-      }
-      await tick()
-      scrollToBottom(logEl)
+      await withGeneration(async () => {
+        if (trimmed) {
+          const content = normalizeChatInput(trimmed, actionMode)
+          if (!content) return
+          setPendingRequest({
+            kind: "chat.send",
+            requestId,
+            createdAt: Date.now(),
+            payload: { chatId: $currentChatId, content },
+          })
+          const result = await chats.send($currentChatId, content, requestId)
+          appendChatExchange(result)
+        } else {
+          setPendingRequest({
+            kind: "chat.continue",
+            requestId,
+            createdAt: Date.now(),
+            payload: { chatId: $currentChatId },
+          })
+          const result = await chats.continue($currentChatId, requestId)
+          appendChatMessage(result)
+        }
+        await scrollLogToBottom(logEl)
+      }, requestId)
     } catch (err) {
-      showError(err instanceof Error ? err.message : "Failed to send message")
+      handleError(err, "Failed to send message")
     } finally {
       clearPendingRequest("chat.send", requestId)
       clearPendingRequest("chat.continue", requestId)
-      isChatGenerating.set(false)
-      stopChatStream()
       streamPreviewMode = "append"
       regeneratingMessageId = null
     }
@@ -398,26 +391,23 @@
     if (!$currentChatId || $isChatGenerating || visibleMessages.length === 0) return
     streamPreviewMode = "replace"
     regeneratingMessageId = lastAssistantMessageId()
-    isChatGenerating.set(true)
     const requestId = createRequestId()
-    startChatStream(requestId)
     try {
-      setPendingRequest({
-        kind: "chat.regenerate",
-        requestId,
-        createdAt: Date.now(),
-        payload: { chatId: $currentChatId },
-      })
-      const result = await chats.regenerateLast($currentChatId, requestId)
-      applyRegenerateResult(result)
-      await tick()
-      scrollToBottom(logEl)
+      await withGeneration(async () => {
+        setPendingRequest({
+          kind: "chat.regenerate",
+          requestId,
+          createdAt: Date.now(),
+          payload: { chatId: $currentChatId },
+        })
+        const result = await chats.regenerateLast($currentChatId, requestId)
+        applyRegenerateResult(result)
+        await scrollLogToBottom(logEl)
+      }, requestId)
     } catch (err) {
-      showError(err instanceof Error ? err.message : "Failed to regenerate reply")
+      handleError(err, "Failed to regenerate reply")
     } finally {
       clearPendingRequest("chat.regenerate", requestId)
-      isChatGenerating.set(false)
-      stopChatStream()
       streamPreviewMode = "append"
       regeneratingMessageId = null
     }
@@ -430,7 +420,7 @@
       const result = await chats.cancelLast($currentChatId)
       applyCancelResult(result)
     } catch (err) {
-      showError(err instanceof Error ? err.message : "Failed to cancel last exchange")
+      handleError(err, "Failed to cancel last exchange")
     } finally {
       isChatGenerating.set(false)
     }
@@ -442,10 +432,9 @@
     try {
       const result = await chats.undoCancel($currentChatId)
       applyUndoCancelResult(result)
-      await tick()
-      scrollToBottom(logEl)
+      await scrollLogToBottom(logEl)
     } catch (err) {
-      showError(err instanceof Error ? err.message : "Failed to undo cancel")
+      handleError(err, "Failed to undo cancel")
     } finally {
       isChatGenerating.set(false)
     }
@@ -454,7 +443,7 @@
   function startEditMessage(message: ChatMessage) {
     editingMessageId = message.id
     editMessageContent = message.content
-    tick().then(() => scrollToBottom(logEl))
+    void scrollLogToBottom(logEl)
   }
 
   function cancelEditMessage() {
@@ -474,7 +463,7 @@
       editingMessageId = null
       canUndoChatCancel.set(false)
     } catch (err) {
-      showError(err instanceof Error ? err.message : "Failed to update message")
+      handleError(err, "Failed to update message")
     }
   }
 
@@ -492,7 +481,7 @@
       chatMessages.update((list) => list.filter((m) => m.id !== messageId))
       canUndoChatCancel.set(false)
     } catch (err) {
-      showError(err instanceof Error ? err.message : "Failed to delete message")
+      handleError(err, "Failed to delete message")
     }
   }
 </script>
@@ -628,8 +617,8 @@
               {:else}
                 <div class="mt-3 font-story text-sm leading-relaxed text-foreground">
                   {#if $isChatGenerating && streamPreviewMode === "replace" && regeneratingMessageId === message.id}
-                    {#if $streamingEnabled && streamReply.trim().length > 0}
-                      <RichText text={streamReply} mode="block" />
+                    {#if $streamingEnabled && stream.state.content.trim().length > 0}
+                      <RichText text={stream.state.content} mode="block" />
                     {:else}
                       <div class="italic text-muted-foreground">Regenerating…</div>
                     {/if}
@@ -679,11 +668,11 @@
         </div>
       {/if}
 
-      {#if $isChatGenerating && $streamingEnabled && streamPreviewMode === "append" && streamReply.trim().length > 0}
+      {#if $isChatGenerating && $streamingEnabled && streamPreviewMode === "append" && stream.state.content.trim().length > 0}
         <div class="mt-3 rounded-lg border border-dashed bg-card p-4">
           <div class="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{nextSpeakerName()}</div>
           <div class="mt-3 font-story text-sm leading-relaxed text-foreground">
-            <RichText text={streamReply} mode="block" />
+            <RichText text={stream.state.content} mode="block" />
           </div>
         </div>
       {/if}
@@ -749,7 +738,7 @@
         </Button>
       {/if}
 
-      {#if $isChatGenerating && $streamingEnabled && !followStream}
+      {#if $isChatGenerating && $streamingEnabled && !stream.follow}
         <Button
           variant="outline"
           size="sm"

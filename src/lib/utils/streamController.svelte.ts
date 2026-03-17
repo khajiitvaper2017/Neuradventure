@@ -1,7 +1,5 @@
-export type StreamState = { narrative: string; background: string; scene: string; time: string }
-
-export type StreamController = {
-  state: StreamState
+export type StreamController<TState> = {
+  state: TState
   follow: boolean
   start(requestId: string): void
   stop(): void
@@ -9,19 +7,21 @@ export type StreamController = {
   jumpToLatest(): void
 }
 
-export function createStreamController(config: {
+export function createStreamController<TState>(config: {
   enabled: () => boolean
   subscribe: (requestId: string, cb: (patch: unknown) => void) => () => void
-  applyPatch: (state: StreamState, patch: unknown) => void
+  applyPatch: (state: TState, patch: unknown) => void
+  seed: () => TState
+  reset: (state: TState) => void
   isNearBottom: () => boolean
-  scrollToBottom: (opts?: unknown) => void
+  scrollToBottom: (opts?: { smooth?: boolean }) => void
   tick: () => Promise<void>
-}): StreamController {
+}): StreamController<TState> {
   let unsub: null | (() => void) = null
   let followScrollPending = false
 
-  const stream = $state<StreamController>({
-    state: { narrative: "", background: "", scene: "", time: "" },
+  const stream = $state<StreamController<TState>>({
+    state: config.seed(),
     follow: true,
     start: () => {},
     stop: () => {},
@@ -42,10 +42,7 @@ export function createStreamController(config: {
   stream.stop = () => {
     unsub?.()
     unsub = null
-    stream.state.narrative = ""
-    stream.state.background = ""
-    stream.state.scene = ""
-    stream.state.time = ""
+    config.reset(stream.state)
   }
 
   stream.start = (requestId: string) => {

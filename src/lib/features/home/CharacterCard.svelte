@@ -1,5 +1,6 @@
 <script lang="ts">
   import type { StoryCharacterGroup } from "@/shared/api-types"
+  import { relativeTimeAgo, utcDateMs } from "@/utils/date"
   import { Badge } from "@/components/ui/badge"
   import { Button } from "@/components/ui/button"
   import { Card, CardContent, CardHeader } from "@/components/ui/card"
@@ -23,24 +24,10 @@
 
   let { group, onOpenDetails, onStartNewStory, onOpenStory, onExport, onDelete }: Props = $props()
 
-  function updatedAtMs(dateStr: string): number {
-    return new Date(dateStr.endsWith("Z") ? dateStr : dateStr + "Z").getTime()
-  }
-
-  function relativeTime(dateStr: string): string {
-    const diff = Date.now() - updatedAtMs(dateStr)
-    const m = Math.floor(diff / 60000)
-    if (m < 1) return "just now"
-    if (m < 60) return `${m}m ago`
-    const h = Math.floor(m / 60)
-    if (h < 24) return `${h}h ago`
-    return `${Math.floor(h / 24)}d ago`
-  }
-
   function lastPlayedAtIso(): string | null {
     if (group.stories.length === 0) return null
     let max = 0
-    for (const story of group.stories) max = Math.max(max, updatedAtMs(story.updated_at))
+    for (const story of group.stories) max = Math.max(max, utcDateMs(story.updated_at))
     return new Date(max).toISOString()
   }
 
@@ -51,7 +38,7 @@
   const recentStories = $derived(
     group.stories
       .slice()
-      .sort((a, b) => updatedAtMs(b.updated_at) - updatedAtMs(a.updated_at))
+      .sort((a, b) => utcDateMs(b.updated_at) - utcDateMs(a.updated_at))
       .slice(0, 4),
   )
 
@@ -102,7 +89,7 @@
             {group.character.gender} · {group.character.race}
             {#if lastPlayedIso}
               <span class="mx-1">·</span>
-              Last played {relativeTime(lastPlayedIso)}
+              Last played {relativeTimeAgo(lastPlayedIso)}
             {/if}
           </div>
         </div>

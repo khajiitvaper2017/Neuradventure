@@ -24,6 +24,7 @@
   import { ScrollArea } from "@/components/ui/scroll-area"
   import NpcLibraryPicker from "@/features/story/NpcLibraryPicker.svelte"
   import { generateStoryFromDescription } from "@/features/story/actions"
+  import { formatStoryLabel } from "@/features/story/formatStoryLabel"
   import { characterToNpc } from "@/utils/characterToNpc"
   import {
     pendingCharacter,
@@ -134,7 +135,6 @@
     pendingStoryNpcCharacterIds.set(unique)
   }
 
-  type StoryRef = { id: number; title: string; updated_at: string }
   type PlayableOption = {
     key: string
     kind: "character" | "npc"
@@ -147,16 +147,6 @@
   const modulesPreviewCore = $derived.by(() => storyModulesPreviewCore(activeModules))
   const modulesPreviewPlayer = $derived.by(() => storyModulesPreviewPlayer(activeModules))
   const modulesPreviewNpc = $derived.by(() => storyModulesPreviewNpc(activeModules))
-
-  function formatStoryLabel(stories: StoryRef[]): string {
-    if (!stories || stories.length === 0) return "No story yet"
-    const sorted = [...stories].sort((a, b) => b.updated_at.localeCompare(a.updated_at))
-    const titles = sorted.map((s) => s.title).filter(Boolean)
-    const shown = titles.slice(0, 2)
-    const extra = titles.length - shown.length
-    if (shown.length === 0) return "No story yet"
-    return extra > 0 ? `${shown.join(", ")} +${extra} more` : shown.join(", ")
-  }
 
   const playableOptions: PlayableOption[] = $derived([
     ...savedCharacters.map((c) => ({

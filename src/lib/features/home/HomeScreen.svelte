@@ -39,6 +39,7 @@
   } from "@/stores/game"
   import { resetChat } from "@/stores/chat"
   import { loadStoryById } from "@/utils/storyLoader"
+  import { relativeTimeAgo, utcDateMs } from "@/utils/date"
   import ThemeToggle from "@/components/controls/ThemeToggle.svelte"
   import CharacterCard from "@/features/home/CharacterCard.svelte"
   import { pickFile, readFileAsDataUrl } from "@/utils/filePick"
@@ -255,28 +256,14 @@
     query = ""
   }
 
-  function updatedAtMs(dateStr: string): number {
-    return new Date(dateStr.endsWith("Z") ? dateStr : dateStr + "Z").getTime()
-  }
-
   function matchesQuery(value: string, q: string): boolean {
     return value.toLowerCase().includes(q)
   }
 
   function characterLastPlayedMs(group: StoryCharacterGroup): number {
     let max = 0
-    for (const s of group.stories) max = Math.max(max, updatedAtMs(s.updated_at))
+    for (const s of group.stories) max = Math.max(max, utcDateMs(s.updated_at))
     return max
-  }
-
-  function relativeTime(dateStr: string): string {
-    const diff = Date.now() - updatedAtMs(dateStr)
-    const m = Math.floor(diff / 60000)
-    if (m < 1) return "just now"
-    if (m < 60) return `${m}m ago`
-    const h = Math.floor(m / 60)
-    if (h < 24) return `${h}h ago`
-    return `${Math.floor(h / 24)}d ago`
   }
 
   const q = $derived(query.trim().toLowerCase())
@@ -290,7 +277,7 @@
       .slice()
       .sort((a, b) => {
         if (sort === "az") return a.title.localeCompare(b.title)
-        return updatedAtMs(b.updated_at) - updatedAtMs(a.updated_at)
+        return utcDateMs(b.updated_at) - utcDateMs(a.updated_at)
       }),
   )
 
@@ -303,7 +290,7 @@
       .slice()
       .sort((a, b) => {
         if (sort === "az") return (a.title || a.player_name || "").localeCompare(b.title || b.player_name || "")
-        return updatedAtMs(b.updated_at) - updatedAtMs(a.updated_at)
+        return utcDateMs(b.updated_at) - utcDateMs(a.updated_at)
       }),
   )
 
@@ -455,7 +442,7 @@
                     <div class="mt-1 text-xs text-muted-foreground">
                       {story.character_name} · {story.turn_count} turns
                     </div>
-                    <div class="mt-2 text-xs text-muted-foreground">Updated {relativeTime(story.updated_at)}</div>
+                    <div class="mt-2 text-xs text-muted-foreground">Updated {relativeTimeAgo(story.updated_at)}</div>
                   </Button>
 
                   <DropdownMenu>
@@ -559,7 +546,7 @@
                       {/if}
                     </div>
                     <div class="mt-2 text-xs text-muted-foreground">
-                      {chat.message_count} messages · Updated {relativeTime(chat.updated_at)}
+                      {chat.message_count} messages · Updated {relativeTimeAgo(chat.updated_at)}
                     </div>
                   </Button>
 

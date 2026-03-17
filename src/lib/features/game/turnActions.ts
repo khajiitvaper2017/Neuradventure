@@ -2,7 +2,6 @@ import type { TurnVariantSummary } from "@/shared/types"
 import { turns as turnsService } from "@/services/turns"
 import { applyTurnState, appendTurnSummary } from "@/features/game/actions"
 import { turns } from "@/stores/game"
-import { showQuietNotice } from "@/stores/ui"
 import { get } from "svelte/store"
 
 export type ActionMode = "do" | "say" | "story"
@@ -19,16 +18,20 @@ export type TakeTurnResult = {
   llmWarnings?: string[]
 }
 
-function handleLlmWarnings(warnings?: string[]) {
+export function formatLlmWarningsNotice(warnings?: string[]): string | null {
+  if (!warnings || warnings.length === 0) return null
+  const count = warnings.length
+  return `LLM repeated ${count} unchanged ${count === 1 ? "value" : "values"}.`
+}
+
+function logLlmWarnings(warnings?: string[]) {
   if (!warnings || warnings.length === 0) return
   console.warn("[llm] Repeated values from previous state:", warnings)
-  const count = warnings.length
-  showQuietNotice(`LLM repeated ${count} unchanged ${count === 1 ? "value" : "values"}.`)
 }
 
 export async function takeTurn(input: TakeTurnInput): Promise<TakeTurnResult> {
   const result = await turnsService.take(input.storyId, input.playerInput, input.actionMode, input.requestId)
-  handleLlmWarnings(result.llm_warnings)
+  logLlmWarnings(result.llm_warnings)
   applyTurnState(result)
   appendTurnSummary({ result, actionMode: input.actionMode, playerInput: input.playerInput })
   return { turnId: result.turn_id, llmWarnings: result.llm_warnings }
@@ -41,9 +44,11 @@ export type ResumePendingTurnInput = {
   requestId: string
 }
 
-export async function resumePendingTurn(input: ResumePendingTurnInput): Promise<{ turnId: number; llmWarnings?: string[] }> {
+export async function resumePendingTurn(
+  input: ResumePendingTurnInput,
+): Promise<{ turnId: number; llmWarnings?: string[] }> {
   const result = await turnsService.take(input.storyId, input.playerInput, input.actionMode, input.requestId)
-  handleLlmWarnings(result.llm_warnings)
+  logLlmWarnings(result.llm_warnings)
   applyTurnState(result)
   const exists = get(turns).some((t) => t.id === result.turn_id)
   if (!exists) {
@@ -63,7 +68,7 @@ export async function regenerateLastTurn(input: {
   requestId: string
 }): Promise<{ turnId: number; llmWarnings?: string[] }> {
   const result = await turnsService.regenerateLast(input.storyId, input.mode, input.requestId)
-  handleLlmWarnings(result.llm_warnings)
+  logLlmWarnings(result.llm_warnings)
   applyTurnState(result)
   turns.update((list) =>
     list.map((turn) =>
@@ -135,7 +140,9 @@ export async function selectVariant(input: {
   return { activeVariantId: result.active_variant_id }
 }
 
-export async function fetchVariants(turnId: number): Promise<{ variants: TurnVariantSummary[]; activeVariantId: number | null }> {
+export async function fetchVariants(
+  turnId: number,
+): Promise<{ variants: TurnVariantSummary[]; activeVariantId: number | null }> {
   const res = await turnsService.variants(turnId)
   return { variants: res.variants, activeVariantId: res.active_variant_id }
 }

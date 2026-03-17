@@ -37,11 +37,12 @@
     isGenerating,
   } from "@/stores/game"
   import { clearPendingTurn, getPendingTurn, setPendingTurn, type PendingTurn } from "@/features/game/pendingTurn"
-  import { createStreamController } from "@/features/game/streamController.svelte.ts"
+  import { createStreamController } from "@/utils/streamController.svelte.ts"
   import { createTurnVariantsState } from "@/features/game/variantsState.svelte.ts"
   import { createWorldFieldsModal } from "@/features/game/worldFieldsModalState.svelte.ts"
   import {
     cancelLastTurn as cancelLastTurnAction,
+    formatLlmWarningsNotice,
     regenerateLastTurn as regenerateLastTurnAction,
     resumePendingTurn as resumePendingTurnAction,
     selectVariant as selectVariantAction,
@@ -110,6 +111,13 @@
   const stream = createStreamController({
     enabled: () => $streamingEnabled,
     subscribe: subscribeStreamPreview,
+    seed: () => ({ narrative: "", background: "", scene: "", time: "" }),
+    reset: (state) => {
+      state.narrative = ""
+      state.background = ""
+      state.scene = ""
+      state.time = ""
+    },
     applyPatch: (state, patch) => {
       if (!patch || typeof patch !== "object") return
       const p = patch as Record<string, unknown>
@@ -235,6 +243,8 @@
         },
         async () => {
           const res = await takeTurn({ storyId: $currentStoryId, playerInput: text, actionMode: sendMode, requestId })
+          const notice = formatLlmWarningsNotice(res.llmWarnings)
+          if (notice) showQuietNotice(notice)
           await finishTurn(res.turnId, prevWorld, { afterFlash: () => (canUndoCancel = false) })
           clearPendingTurn()
         },
@@ -279,6 +289,8 @@
           actionMode: pending.actionMode,
           requestId: pending.requestId,
         })
+        const notice = formatLlmWarningsNotice(res.llmWarnings)
+        if (notice) showQuietNotice(notice)
         await finishTurn(res.turnId, prevWorld, { afterFlash: () => clearPendingTurn() })
       })
     } catch (err) {
@@ -313,6 +325,8 @@
       await withGenerationAndStream(requestId, async () => {
         const lastMode = $turns[$turns.length - 1]?.action_mode ?? actionMode
         const res = await regenerateLastTurnAction({ storyId: $currentStoryId, mode: lastMode, requestId })
+        const notice = formatLlmWarningsNotice(res.llmWarnings)
+        if (notice) showQuietNotice(notice)
         await finishTurn(res.turnId, prevWorld, { afterLoad: () => (editingTurnId = null) })
       })
     } catch (err) {

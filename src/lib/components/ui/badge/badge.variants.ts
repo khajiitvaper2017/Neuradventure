@@ -17,4 +17,3 @@ export const badgeVariants = tv({
 })
 
 export type BadgeVariant = VariantProps<typeof badgeVariants>["variant"]
-

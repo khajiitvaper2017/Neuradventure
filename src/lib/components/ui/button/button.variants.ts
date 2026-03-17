@@ -38,4 +38,3 @@ export type ButtonProps = WithElementRef<HTMLButtonAttributes> &
     variant?: ButtonVariant
     size?: ButtonSize
   }
-
