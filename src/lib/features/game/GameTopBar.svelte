@@ -1,9 +1,7 @@
 <script lang="ts">
-  import type { StoryModules } from "@/shared/types"
   import { stories } from "@/services/stories"
   import { cn } from "@/utils.js"
-  import { EllipsisVertical, MapPin, Puzzle, User, Users } from "@lucide/svelte"
-  import { DEFAULT_STORY_MODULES } from "@/engine/schemas/story-modules"
+  import { EllipsisVertical, MapPin, User, Users } from "@lucide/svelte"
   import { Badge } from "@/components/ui/badge"
   import { Button } from "@/components/ui/button"
   import {
@@ -13,7 +11,6 @@
     DropdownMenuSeparator,
     DropdownMenuTrigger,
   } from "@/components/ui/dropdown-menu"
-  import { showCharSheet, showLocations, showNPCTracker } from "@/stores/router"
   import { collapseCharSheet, collapseLocationsPanel, collapseNPCTracker } from "@/stores/ui"
   import { currentStoryId, currentStoryModules, currentStoryTitle, turns, worldState } from "@/stores/game"
 
@@ -38,11 +35,6 @@
   let showMenu = $state(false)
   const trackNpcs = $derived($currentStoryModules?.track_npcs ?? true)
   const trackLocations = $derived($currentStoryModules?.track_locations ?? true)
-  const MODULE_KEYS = Object.keys(DEFAULT_STORY_MODULES) as (keyof StoryModules)[]
-  function countEnabled(modules: StoryModules): number {
-    return MODULE_KEYS.reduce((acc, k) => acc + (modules[k] ? 1 : 0), 0)
-  }
-  const modulesEnabledCount = $derived(countEnabled($currentStoryModules ?? DEFAULT_STORY_MODULES))
 
   async function exportStory(format: "neuradventure" | "tavern" | "plaintext") {
     showMenu = false
@@ -125,51 +117,6 @@
         onclick={() => collapseLocationsPanel.update((v) => !v)}
       >
         <MapPin size={15} strokeWidth={1.8} aria-hidden="true" />
-      </Button>
-    {/if}
-    <Button
-      variant="ghost"
-      size="icon"
-      class="h-9 w-9 text-muted-foreground min-[1200px]:hidden"
-      title="Character Sheet"
-      onclick={() => showCharSheet.update((v) => !v)}
-    >
-      <User size={15} strokeWidth={1.8} aria-hidden="true" />
-    </Button>
-    {#if trackNpcs}
-      <Button
-        variant="ghost"
-        size="icon"
-        class="h-9 w-9 text-muted-foreground min-[1200px]:hidden"
-        title="NPC Tracker"
-        onclick={() => showNPCTracker.update((v) => !v)}
-      >
-        <Users size={15} strokeWidth={1.8} aria-hidden="true" />
-      </Button>
-    {/if}
-    {#if trackLocations}
-      <Button
-        variant="ghost"
-        size="icon"
-        class="h-9 w-9 text-muted-foreground min-[1200px]:hidden"
-        title="Locations"
-        onclick={() => showLocations.update((v) => !v)}
-      >
-        <MapPin size={15} strokeWidth={1.8} aria-hidden="true" />
-      </Button>
-    {/if}
-
-    {#if onOpenModulesEditor}
-      <Button
-        variant="outline"
-        size="sm"
-        class="h-8 gap-2 px-2 text-xs"
-        title="Story Modules"
-        onclick={() => onOpenModulesEditor?.()}
-      >
-        <Puzzle size={14} strokeWidth={1.8} class="shrink-0 text-muted-foreground" aria-hidden="true" />
-        <span class="hidden min-[420px]:inline">Modules</span>
-        <Badge variant="secondary" class="h-5 px-1.5 font-mono text-[10px] tabular-nums">{modulesEnabledCount}</Badge>
       </Button>
     {/if}
 

@@ -136,6 +136,16 @@
     scrollToBottom(storyDiv, opts)
   }
 
+  function scrollToTurnStart(turnId: number, opts?: { smooth?: boolean }) {
+    if (!storyDiv) return
+    const anchor = storyDiv.querySelector<HTMLElement>(`[data-turn-anchor="${turnId}"]`)
+    if (!anchor) {
+      scrollStoryToBottom(opts)
+      return
+    }
+    anchor.scrollIntoView({ block: "start", behavior: opts?.smooth ? "smooth" : "auto" })
+  }
+
   function lastTurnId(): number | null {
     return $turns.length > 0 ? $turns[$turns.length - 1].id : null
   }
@@ -143,10 +153,6 @@
   function handleStoryScroll() {
     if (!$isGenerating || !$streamingEnabled) return
     stream.handleScroll()
-  }
-
-  function jumpToLatest() {
-    stream.jumpToLatest()
   }
 
   function triggerFlash(setter: (v: boolean) => void, ref: { id: number | null }) {
@@ -215,7 +221,7 @@
     await variantsState.load(turnId, true)
     opts?.afterLoad?.()
     await tick()
-    scrollStoryToBottom({ smooth: true })
+    scrollToTurnStart(turnId, { smooth: true })
   }
 
   async function sendTurn() {
@@ -357,7 +363,8 @@
           actionMode = canceledMode
         }
         await tick()
-        scrollStoryToBottom({ smooth: true })
+        if (res.nextLastId) scrollToTurnStart(res.nextLastId, { smooth: true })
+        else scrollStoryToBottom({ smooth: true })
         inputEl?.focus()
       })
     } catch (err) {
@@ -508,7 +515,7 @@
     // Wait for tick + extra rAFs so layout settles before scrolling.
     tick().then(() =>
       requestAnimationFrame(() =>
-        requestAnimationFrame(() => requestAnimationFrame(() => scrollStoryToBottom({ smooth: true }))),
+        requestAnimationFrame(() => requestAnimationFrame(() => scrollToTurnStart(turn.id, { smooth: true }))),
       ),
     )
   }
@@ -581,7 +588,7 @@
         flashWorldDiff(prevWorld)
         variantsState.activeVariantId = res.activeVariantId
         await tick()
-        scrollStoryToBottom({ smooth: true })
+        scrollToTurnStart(turnId, { smooth: true })
       })
     } catch (err) {
       handleError(err, "Failed to switch version")
@@ -736,13 +743,11 @@
     bind:input
     bind:actionMode
     {canUndoCancel}
-    followStream={stream.follow}
     {isImpersonating}
     onSend={sendTurn}
     onFocus={scheduleKeyboardScroll}
     onCancelLastTurn={cancelLastTurn}
     onUndoCancelLastTurn={undoCancelLastTurn}
-    onJumpToLatest={jumpToLatest}
     onRegenerateLastTurn={regenerateLastTurn}
     onImpersonatePlayer={impersonatePlayer}
     onGoHome={goHome}

@@ -3,8 +3,7 @@
   import { House, LoaderCircle, MapPin, Smile, User, Users } from "@lucide/svelte"
   import ConversationInput from "@/components/inputs/ConversationInput.svelte"
   import { showCharSheet, showLocations, showNPCTracker } from "@/stores/router"
-  import { isGenerating, turns } from "@/stores/game"
-  import { streamingEnabled } from "@/stores/settings"
+  import { currentStoryModules, isGenerating, turns } from "@/stores/game"
   import { cn } from "@/utils.js"
 
   type ActionMode = "do" | "say" | "story"
@@ -20,13 +19,11 @@
     actionMode?: ActionMode
     textareaEl?: HTMLTextAreaElement | null
     canUndoCancel?: boolean
-    followStream?: boolean
     isImpersonating?: boolean
     onSend?: () => void
     onFocus?: () => void
     onCancelLastTurn?: () => void
     onUndoCancelLastTurn?: () => void
-    onJumpToLatest?: () => void
     onRegenerateLastTurn?: () => void
     onImpersonatePlayer?: () => void
     onGoHome?: () => void
@@ -37,17 +34,18 @@
     actionMode = $bindable("do" as ActionMode),
     textareaEl = $bindable(null),
     canUndoCancel = false,
-    followStream = true,
     isImpersonating = false,
     onSend,
     onFocus,
     onCancelLastTurn,
     onUndoCancelLastTurn,
-    onJumpToLatest,
     onRegenerateLastTurn,
     onImpersonatePlayer,
     onGoHome,
   }: Props = $props()
+
+  const trackNpcs = $derived($currentStoryModules?.track_npcs ?? true)
+  const trackLocations = $derived($currentStoryModules?.track_locations ?? true)
 </script>
 
 <ConversationInput
@@ -125,19 +123,6 @@
           </Button>
         {/if}
 
-        {#if $isGenerating && $streamingEnabled && !followStream}
-          <Button
-            variant="outline"
-            size="sm"
-            class="h-8"
-            onclick={onJumpToLatest}
-            title="Jump to the latest streamed output"
-            aria-label="Jump to the latest streamed output"
-          >
-            Jump to latest
-          </Button>
-        {/if}
-
         <Button
           variant="outline"
           size="icon"
@@ -190,25 +175,29 @@
     >
       <User size={14} strokeWidth={1.8} aria-hidden="true" />
     </Button>
-    <Button
-      variant="ghost"
-      size="icon"
-      class="h-9 w-9 text-muted-foreground"
-      onclick={() => showNPCTracker.update((v) => !v)}
-      title="NPCs"
-      aria-label="NPCs"
-    >
-      <Users size={14} strokeWidth={1.8} aria-hidden="true" />
-    </Button>
-    <Button
-      variant="ghost"
-      size="icon"
-      class="h-9 w-9 text-muted-foreground"
-      onclick={() => showLocations.update((v) => !v)}
-      title="Locations"
-      aria-label="Locations"
-    >
-      <MapPin size={14} strokeWidth={1.8} aria-hidden="true" />
-    </Button>
+    {#if trackNpcs}
+      <Button
+        variant="ghost"
+        size="icon"
+        class="h-9 w-9 text-muted-foreground"
+        onclick={() => showNPCTracker.update((v) => !v)}
+        title="NPCs"
+        aria-label="NPCs"
+      >
+        <Users size={14} strokeWidth={1.8} aria-hidden="true" />
+      </Button>
+    {/if}
+    {#if trackLocations}
+      <Button
+        variant="ghost"
+        size="icon"
+        class="h-9 w-9 text-muted-foreground"
+        onclick={() => showLocations.update((v) => !v)}
+        title="Locations"
+        aria-label="Locations"
+      >
+        <MapPin size={14} strokeWidth={1.8} aria-hidden="true" />
+      </Button>
+    {/if}
   {/snippet}
 </ConversationInput>

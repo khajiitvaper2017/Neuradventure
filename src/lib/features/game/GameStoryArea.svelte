@@ -153,7 +153,7 @@
 
     {#each $turns as turn, i (turn.id)}
       {#if editingTurnId === turn.id}
-        <div class="mb-5 rounded-lg border bg-card p-4">
+        <div data-turn-anchor={turn.id} class="mb-5 scroll-mt-6 rounded-lg border bg-card p-4">
           <div class="space-y-3">
             <div class="space-y-2">
               <div class="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Player Input</div>
@@ -172,8 +172,9 @@
       {:else}
         {@const isFresh = userActed && i === $turns.length - 1 && !$isGenerating}
         <div
+          data-turn-anchor={turn.id}
           class={cn(
-            "my-4 -mx-5 flex items-baseline gap-2 bg-accent/60 px-5 py-3 font-story text-sm italic leading-relaxed text-accent-foreground/90 min-[1200px]:-mx-10 min-[1200px]:px-10",
+            "my-4 -mx-5 flex scroll-mt-6 items-baseline gap-2 bg-accent/60 px-5 py-3 font-story text-sm italic leading-relaxed text-accent-foreground/90 min-[1200px]:-mx-10 min-[1200px]:px-10",
             isFresh && "animate-in fade-in slide-in-from-bottom-1 duration-200",
           )}
         >

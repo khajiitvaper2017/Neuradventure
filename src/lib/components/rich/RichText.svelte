@@ -2,13 +2,17 @@
   import InlineTokens from "@/components/rich/InlineTokens.svelte"
   import { looksLikeBlockHtml, looksLikeHtml, sanitizeBlockHtml, sanitizeInlineHtml } from "@/utils/sanitizeHtml"
 
-  export let text = ""
-  export let mode: "inline" | "block" = "inline"
+  type Props = {
+    text?: string
+    mode?: "inline" | "block"
+  }
 
-  $: raw = typeof text === "string" ? text : ""
-  $: hasHtml = mode === "block" ? looksLikeHtml(raw) || looksLikeBlockHtml(raw) : looksLikeHtml(raw)
-  $: sanitized = hasHtml ? (mode === "block" ? sanitizeBlockHtml(raw) : sanitizeInlineHtml(raw)) : ""
-  $: tag = mode === "block" ? "div" : "span"
+  let { text = "", mode = "inline" }: Props = $props()
+
+  const raw = $derived(typeof text === "string" ? text : "")
+  const hasHtml = $derived(mode === "block" ? looksLikeHtml(raw) || looksLikeBlockHtml(raw) : looksLikeHtml(raw))
+  const sanitized = $derived(hasHtml ? (mode === "block" ? sanitizeBlockHtml(raw) : sanitizeInlineHtml(raw)) : "")
+  const tag = $derived(mode === "block" ? "div" : "span")
 </script>
 
 {#if hasHtml}

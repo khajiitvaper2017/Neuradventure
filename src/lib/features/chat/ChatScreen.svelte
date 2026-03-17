@@ -80,7 +80,7 @@
   let greetingOptions = $state<string[]>([])
   let greetingFetchNonce = 0
   let greetingApplyNonce = 0
-  let greetingIndex = $state<number>(0)
+  let greetingIndex = $state<number>(-1)
   let lastGreetingCharId: number | null = null
   const resumeAttempted = new Set<string>()
   let streamPreviewMode = $state<"append" | "replace">("append")
@@ -144,10 +144,6 @@
     el.addEventListener("scroll", onScroll, { passive: true })
     return () => el.removeEventListener("scroll", onScroll)
   })
-
-  function jumpToLatest() {
-    stream.jumpToLatest()
-  }
 
   onMount(() => {
     void scrollLogToBottom(logEl)
@@ -285,7 +281,6 @@
       if (nonce !== greetingFetchNonce) return
       greetingOptions = []
       greetingIndex = -1
-    } finally {
     }
   }
 
@@ -731,20 +726,6 @@
           aria-label="Undo cancel"
         >
           ↷
-        </Button>
-      {/if}
-
-      {#if $isChatGenerating && $streamingEnabled && !stream.follow}
-        <Button
-          variant="outline"
-          size="sm"
-          class="h-8 rounded-full px-3"
-          type="button"
-          onclick={jumpToLatest}
-          title="Jump to the latest streamed output"
-          aria-label="Jump to the latest streamed output"
-        >
-          Jump to latest
         </Button>
       {/if}
 
