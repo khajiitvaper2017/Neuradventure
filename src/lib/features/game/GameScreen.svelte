@@ -155,6 +155,14 @@
     stream.handleScroll()
   }
 
+  const pendingPlayerInput = $derived.by(() => {
+    if (typeof window === "undefined") return ""
+    if (!$isGenerating || !$currentStoryId) return ""
+    const pending = getPendingTurn()
+    if (!pending || pending.storyId !== $currentStoryId) return ""
+    return pending.playerInput
+  })
+
   function triggerFlash(setter: (v: boolean) => void, ref: { id: number | null }) {
     setter(true)
     if (ref.id) window.clearTimeout(ref.id)
@@ -736,6 +744,7 @@
     streamBackground={stream.state.background}
     streamScene={stream.state.scene}
     streamTime={stream.state.time}
+    {pendingPlayerInput}
   />
 
   <GameInputZone

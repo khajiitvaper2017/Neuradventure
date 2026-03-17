@@ -1,6 +1,7 @@
 <script lang="ts">
   import { stories } from "@/services/stories"
   import { cn } from "@/utils.js"
+  import { estimateTokens, formatTokenCount } from "@/utils/tokenEstimate"
   import { EllipsisVertical, MapPin, User, Users } from "@lucide/svelte"
   import { Badge } from "@/components/ui/badge"
   import { Button } from "@/components/ui/button"
@@ -11,6 +12,7 @@
     DropdownMenuSeparator,
     DropdownMenuTrigger,
   } from "@/components/ui/dropdown-menu"
+  import { generation } from "@/stores/settings"
   import { collapseCharSheet, collapseLocationsPanel, collapseNPCTracker } from "@/stores/ui"
   import { currentStoryId, currentStoryModules, currentStoryTitle, turns, worldState } from "@/stores/game"
 
@@ -35,6 +37,23 @@
   let showMenu = $state(false)
   const trackNpcs = $derived($currentStoryModules?.track_npcs ?? true)
   const trackLocations = $derived($currentStoryModules?.track_locations ?? true)
+  const approxPromptTokens = $derived.by(() => {
+    const parts: string[] = []
+    const memory = $worldState?.memory?.trim()
+    if (memory) parts.push(memory)
+
+    const recentTurns = $turns.slice(-12)
+    for (const turn of recentTurns) {
+      const player = turn.player_input?.trim()
+      if (player) parts.push(player)
+      const bg = turn.background_events?.trim()
+      if (bg) parts.push(bg)
+      const narrative = turn.narrative_text?.trim()
+      if (narrative) parts.push(narrative)
+    }
+
+    return estimateTokens(parts.join("\n\n"))
+  })
 
   async function exportStory(format: "neuradventure" | "tavern" | "plaintext") {
     showMenu = false
@@ -83,7 +102,13 @@
   </div>
 
   <div class="flex shrink-0 items-center gap-1">
-    <Badge variant="secondary" class="mr-1 font-mono text-xs tabular-nums">{$turns.length}</Badge>
+    <Badge
+      variant="secondary"
+      class="mr-1 font-mono text-xs tabular-nums"
+      title={`Approx prompt tokens (heuristic): ~${approxPromptTokens} · Max completion: ≤${$generation.max_tokens}`}
+    >
+      ~{formatTokenCount(approxPromptTokens)}
+    </Badge>
 
     <Button
       variant="ghost"

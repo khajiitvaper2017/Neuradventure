@@ -1,6 +1,6 @@
 <script lang="ts">
   import { Button } from "@/components/ui/button"
-  import { House, LoaderCircle, MapPin, Smile, User, Users } from "@lucide/svelte"
+  import { BookOpenText, Hand, House, LoaderCircle, MapPin, MessageCircle, Smile, User, Users } from "@lucide/svelte"
   import ConversationInput from "@/components/inputs/ConversationInput.svelte"
   import { showCharSheet, showLocations, showNPCTracker } from "@/stores/router"
   import { currentStoryModules, isGenerating, turns } from "@/stores/game"
@@ -12,6 +12,11 @@
     do: "What do you do?",
     say: "What do you say?",
     story: "Write story text directly...",
+  }
+  const MODE_LABELS: Record<ActionMode, string> = {
+    do: "Do",
+    say: "Say",
+    story: "Story",
   }
 
   type Props = {
@@ -80,18 +85,26 @@
         {#each ACTION_MODES as mode (mode)}
           <Button
             variant="ghost"
-            size="sm"
+            size="icon-sm"
             class={cn(
-              "h-8 rounded-sm px-3 text-xs font-medium uppercase tracking-wider",
+              "rounded-sm",
               actionMode === mode
                 ? "bg-background text-foreground shadow-sm hover:bg-background"
-                : "hover:bg-background/50 hover:text-foreground",
+                : "text-muted-foreground hover:bg-background/50 hover:text-foreground",
             )}
             onclick={() => (actionMode = mode)}
             disabled={$isGenerating}
             aria-pressed={actionMode === mode}
+            aria-label={MODE_LABELS[mode]}
+            title={MODE_LABELS[mode]}
           >
-            {mode}
+            {#if mode === "do"}
+              <Hand size={14} strokeWidth={2} aria-hidden="true" />
+            {:else if mode === "say"}
+              <MessageCircle size={14} strokeWidth={2} aria-hidden="true" />
+            {:else}
+              <BookOpenText size={14} strokeWidth={2} aria-hidden="true" />
+            {/if}
           </Button>
         {/each}
       </div>
@@ -155,49 +168,51 @@
   {/snippet}
 
   {#snippet bottomControls()}
-    <Button
-      variant="ghost"
-      size="icon"
-      class="h-9 w-9 text-muted-foreground"
-      onclick={onGoHome}
-      title="Stories"
-      aria-label="Stories"
-    >
-      <House size={14} strokeWidth={1.8} aria-hidden="true" />
-    </Button>
-    <Button
-      variant="ghost"
-      size="icon"
-      class="h-9 w-9 text-muted-foreground"
-      onclick={() => showCharSheet.update((v) => !v)}
-      title="Character"
-      aria-label="Character"
-    >
-      <User size={14} strokeWidth={1.8} aria-hidden="true" />
-    </Button>
-    {#if trackNpcs}
+    <div class="flex w-full items-center justify-around gap-2">
       <Button
         variant="ghost"
         size="icon"
         class="h-9 w-9 text-muted-foreground"
-        onclick={() => showNPCTracker.update((v) => !v)}
-        title="NPCs"
-        aria-label="NPCs"
+        onclick={onGoHome}
+        title="Stories"
+        aria-label="Stories"
       >
-        <Users size={14} strokeWidth={1.8} aria-hidden="true" />
+        <House size={14} strokeWidth={1.8} aria-hidden="true" />
       </Button>
-    {/if}
-    {#if trackLocations}
       <Button
         variant="ghost"
         size="icon"
         class="h-9 w-9 text-muted-foreground"
-        onclick={() => showLocations.update((v) => !v)}
-        title="Locations"
-        aria-label="Locations"
+        onclick={() => showCharSheet.update((v) => !v)}
+        title="Character"
+        aria-label="Character"
       >
-        <MapPin size={14} strokeWidth={1.8} aria-hidden="true" />
+        <User size={14} strokeWidth={1.8} aria-hidden="true" />
       </Button>
-    {/if}
+      {#if trackNpcs}
+        <Button
+          variant="ghost"
+          size="icon"
+          class="h-9 w-9 text-muted-foreground"
+          onclick={() => showNPCTracker.update((v) => !v)}
+          title="NPCs"
+          aria-label="NPCs"
+        >
+          <Users size={14} strokeWidth={1.8} aria-hidden="true" />
+        </Button>
+      {/if}
+      {#if trackLocations}
+        <Button
+          variant="ghost"
+          size="icon"
+          class="h-9 w-9 text-muted-foreground"
+          onclick={() => showLocations.update((v) => !v)}
+          title="Locations"
+          aria-label="Locations"
+        >
+          <MapPin size={14} strokeWidth={1.8} aria-hidden="true" />
+        </Button>
+      {/if}
+    </div>
   {/snippet}
 </ConversationInput>
