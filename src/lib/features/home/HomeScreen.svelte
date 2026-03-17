@@ -1,5 +1,4 @@
 <script lang="ts">
-  import { onMount } from "svelte"
   import { stories as storiesService } from "@/services/stories"
   import { chats as chatsService } from "@/services/chats"
   import type { StoryMeta, ChatSummary } from "@/shared/types"
@@ -63,10 +62,12 @@
 
   const sortLabel = $derived(sortOptions.find((o) => o.value === sort)?.label ?? "Sort")
 
-  onMount(() => {
-    loadStories()
-    loadCharacters()
-    loadChats()
+  $effect(() => {
+    untrack(() => {
+      loadStories()
+      loadCharacters()
+      loadChats()
+    })
   })
 
   async function loadStories() {

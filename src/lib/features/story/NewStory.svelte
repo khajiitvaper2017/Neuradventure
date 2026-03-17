@@ -1,5 +1,4 @@
 <script lang="ts">
-  import { onMount } from "svelte"
   import type { MainCharacterState, NPCState, StoryModules } from "@/shared/types"
   import type { StoryCharacterGroup, StoryNpcGroup } from "@/shared/api-types"
   import { stories as storiesService } from "@/services/stories"
@@ -61,31 +60,33 @@
 
   const STORY_PROMPT_HISTORY_KEY = "na:prompt_history:story"
 
-  onMount(() => {
-    loadPlayableLibrary()
-    void loadPromptHistory(STORY_PROMPT_HISTORY_KEY).then((items) => {
-      storyPromptHistory = items
+  $effect(() => {
+    untrack(() => {
+      loadPlayableLibrary()
+      void loadPromptHistory(STORY_PROMPT_HISTORY_KEY).then((items) => {
+        storyPromptHistory = items
+      })
+      if (!$pendingStoryModules) pendingStoryModules.set($storyDefaults)
+      if ($pendingCharacterId && $pendingStoryNpcCharacterIds.includes($pendingCharacterId)) {
+        pendingStoryNpcCharacterIds.set($pendingStoryNpcCharacterIds.filter((id) => id !== $pendingCharacterId))
+      }
+      const pending = getPendingRequest<{
+        prompt: string
+        character: Omit<MainCharacterState, "inventory">
+        modules: StoryModules
+      }>("generate.story")
+      if (pending) {
+        pendingStoryGenerateDescription.set(pending.payload.prompt)
+        pendingCharacter.set(pending.payload.character)
+        pendingStoryModules.set(pending.payload.modules)
+        void runGenerateStory(
+          pending.payload.prompt,
+          pending.payload.character,
+          pending.payload.modules,
+          pending.requestId,
+        )
+      }
     })
-    if (!$pendingStoryModules) pendingStoryModules.set($storyDefaults)
-    if ($pendingCharacterId && $pendingStoryNpcCharacterIds.includes($pendingCharacterId)) {
-      pendingStoryNpcCharacterIds.set($pendingStoryNpcCharacterIds.filter((id) => id !== $pendingCharacterId))
-    }
-    const pending = getPendingRequest<{
-      prompt: string
-      character: Omit<MainCharacterState, "inventory">
-      modules: StoryModules
-    }>("generate.story")
-    if (pending) {
-      pendingStoryGenerateDescription.set(pending.payload.prompt)
-      pendingCharacter.set(pending.payload.character)
-      pendingStoryModules.set(pending.payload.modules)
-      void runGenerateStory(
-        pending.payload.prompt,
-        pending.payload.character,
-        pending.payload.modules,
-        pending.requestId,
-      )
-    }
   })
 
   async function loadPlayableLibrary() {

@@ -22,11 +22,13 @@
 
 ## Coding Style, Tooling & Best Practices
 
-- Svelte 5: prefer runes (`$state`, `$derived`, `$effect`); use effects for browser-only side effects.
-- Avoid legacy/compat patterns: don’t introduce Svelte 4-era APIs or “legacy mode” components; when touching a file, delete/migrate legacy code when it’s safe and scoped.
+- Svelte 5: prefer runes (`$state`, `$derived`, `$effect`). Prefer `$derived` over effects; keep side effects in handlers/services.
+- Avoid legacy/compat patterns: don’t introduce Svelte 4-era APIs/“legacy mode”. When touching a file, delete/migrate legacy code if it’s safe and scoped.
+- Effects: don’t wrap in `if (browser)`/`typeof window` checks; use `untrack(() => ...)` for one-time init that reads reactive values; use `<svelte:window>`/`<svelte:document>` for global listeners when possible.
 - UI: Tailwind v4 + shadcn-svelte/Bits UI; add/update via `npx shadcn-svelte@latest add <component>`; theme via CSS vars in `src/lib/styles/app.css`.
 - Vite env: use `import.meta.env`; `VITE_*` is public (client-exposed) and always stringly-typed — never put secrets there.
 - Tooling: Prettier (no semicolons, `printWidth: 120`) + ESLint; keep changes `npm run check` clean.
+- Code quality: prefer small, typed modules; avoid `any` and double-casts except at boundaries; don’t swallow errors silently.
 - Conventions: `@/...` imports; components `PascalCase.svelte`; TS `camelCase`; constants `SCREAMING_SNAKE_CASE`.
 
 ## Testing Guidelines

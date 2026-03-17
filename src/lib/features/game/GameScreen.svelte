@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { onDestroy, onMount, tick, untrack } from "svelte"
+  import { onDestroy, tick, untrack } from "svelte"
   import { AppError } from "@/errors"
   import type { StoryModules, TurnSummary } from "@/shared/types"
   import {
@@ -639,8 +639,7 @@
     })
   })
 
-  onMount(() => {
-    if (typeof window === "undefined") return
+  $effect(() => {
     const viewport = window.visualViewport
     lastViewportHeight = viewport?.height ?? 0
     if (!viewport) return

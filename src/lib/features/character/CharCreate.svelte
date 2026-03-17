@@ -1,6 +1,5 @@
 <script lang="ts">
   import { get } from "svelte/store"
-  import { onMount } from "svelte"
   import { SvelteMap, SvelteSet } from "svelte/reactivity"
   import type { StoryModules } from "@/shared/types"
   import { storyModulesPreviewCore, storyModulesPreviewNpc, storyModulesPreviewPlayer } from "@/shared/story-modules"
@@ -157,17 +156,19 @@
   let showModulesPanel = $state(false)
   let promptHistory = $state<string[]>([])
 
-  onMount(() => {
-    void loadPromptHistory(CHARACTER_PROMPT_HISTORY_KEY).then((items) => {
-      promptHistory = items
+  $effect(() => {
+    untrack(() => {
+      void loadPromptHistory(CHARACTER_PROMPT_HISTORY_KEY).then((items) => {
+        promptHistory = items
+      })
+      if (!$pendingStoryModules) pendingStoryModules.set($storyDefaults)
+      const pending = getPendingRequest<{ prompt: string; modules: StoryModules }>("generate.character")
+      if (pending) {
+        pendingCharacterGenerateDescription.set(pending.payload.prompt)
+        pendingStoryModules.set(pending.payload.modules)
+        void runGenerate(pending.payload.prompt, pending.payload.modules, pending.requestId)
+      }
     })
-    if (!$pendingStoryModules) pendingStoryModules.set($storyDefaults)
-    const pending = getPendingRequest<{ prompt: string; modules: StoryModules }>("generate.character")
-    if (pending) {
-      pendingCharacterGenerateDescription.set(pending.payload.prompt)
-      pendingStoryModules.set(pending.payload.modules)
-      void runGenerate(pending.payload.prompt, pending.payload.modules, pending.requestId)
-    }
   })
 
   async function runGenerate(prompt: string, modules: StoryModules, requestId: string) {

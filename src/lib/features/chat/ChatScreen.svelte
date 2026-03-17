@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { onMount, tick } from "svelte"
+  import { tick } from "svelte"
   import type { ChatMember, ChatMessage } from "@/shared/types"
   import { chats } from "@/services/chats"
   import { stories } from "@/services/stories"
@@ -145,8 +145,12 @@
     return () => el.removeEventListener("scroll", onScroll)
   })
 
-  onMount(() => {
-    void scrollLogToBottom(logEl)
+  let didInitialScroll = false
+  $effect(() => {
+    const el = logEl
+    if (!el || didInitialScroll) return
+    didInitialScroll = true
+    void scrollLogToBottom(el)
   })
 
   type PendingChatPayload = { chatId: number; content?: string }

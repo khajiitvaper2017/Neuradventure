@@ -1,5 +1,4 @@
 <script lang="ts">
-  import { onMount } from "svelte"
   import { settings as settingsService } from "@/services/settings"
   import type { PromptTemplateFile } from "@/shared/api-types"
   import { Button } from "@/components/ui/button"
@@ -158,8 +157,10 @@
     }
   }
 
-  onMount(() => {
-    void loadPromptFiles()
+  $effect(() => {
+    untrack(() => {
+      void loadPromptFiles()
+    })
   })
 </script>
 

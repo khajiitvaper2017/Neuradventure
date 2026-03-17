@@ -1,5 +1,4 @@
 <script lang="ts">
-  import { onMount } from "svelte"
   import type { StoryCharacterGroup, StoryNpcGroup } from "@/shared/api-types"
   import { stories as storiesService } from "@/services/stories"
   import { chats } from "@/services/chats"
@@ -64,17 +63,19 @@
     description: string
   }
 
-  onMount(() => {
-    resetChat()
-    void loadOptions()
-    void loadPromptHistory(CHAT_PROMPT_HISTORY_KEY).then((items) => {
-      chatPromptHistory = items
+  $effect(() => {
+    untrack(() => {
+      resetChat()
+      void loadOptions()
+      void loadPromptHistory(CHAT_PROMPT_HISTORY_KEY).then((items) => {
+        chatPromptHistory = items
+      })
+      const pending = getPendingRequest<{ prompt: string }>("generate.chat")
+      if (pending && pending.payload.prompt?.trim()) {
+        if (!description.trim()) description = pending.payload.prompt
+        void runGenerateFromDescription(pending.payload.prompt, pending.requestId)
+      }
     })
-    const pending = getPendingRequest<{ prompt: string }>("generate.chat")
-    if (pending && pending.payload.prompt?.trim()) {
-      if (!description.trim()) description = pending.payload.prompt
-      void runGenerateFromDescription(pending.payload.prompt, pending.requestId)
-    }
   })
 
   async function loadOptions() {
