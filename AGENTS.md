@@ -21,10 +21,12 @@ Concise and precise.
 ## Coding Style, Tooling & Best Practices
 
 - Svelte 5: prefer runes (`$state`, `$derived`, `$effect`) and avoid “legacy mode”; delete/migrate legacy code when touching a file (if safe/scoped).
+- Prefer Svelte's native class: directive for purely additive conditions; use cn when utilities conflict.
 - Prefer `$derived` over effects; don’t guard effects with `if (browser)`/`typeof window`; use `untrack(() => ...)` for one-time init and `<svelte:window>`/`<svelte:document>` for global listeners when possible.
 - UI: Tailwind v4 + shadcn-svelte/Bits UI; add via `npx shadcn-svelte@latest add <component>`; theme via CSS vars in `src/lib/styles/app.css`.
 - Secrets: `VITE_*` is client-exposed and stringly-typed; don’t put API keys there. OpenRouter keys must never be logged/committed.
 - Tooling/conventions: Prettier + ESLint, `@/...` imports, `PascalCase.svelte`, TS `camelCase`, constants `SCREAMING_SNAKE_CASE`.
+
 
 ## Testing Guidelines
 
