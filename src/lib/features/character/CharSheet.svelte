@@ -4,11 +4,12 @@
   import { AppError } from "@/errors"
   import { stories } from "@/services/stories"
   import { settings as settingsService } from "@/services/settings"
+  import { turns as turnsService } from "@/services/turns"
   import { activeScreen, charSheetCharacterId, closeCharSheet, showCharSheet } from "@/stores/router"
-  import { showError, showQuietNotice } from "@/stores/ui"
-  import { character, currentStoryId, currentStoryModules, llmUpdateId } from "@/stores/game"
+  import { showConfirm, showError, showQuietNotice } from "@/stores/ui"
+  import { character, currentStoryId, currentStoryModules, isGenerating, llmUpdateId, markLlmUpdate, npcs } from "@/stores/game"
   import { INTERNAL_UI_FLASH_MS } from "@/shared/internal-timeouts"
-  import type { MainCharacterState } from "@/shared/types"
+  import type { MainCharacterState, NPCState } from "@/shared/types"
   import type { CustomFieldDef } from "@/shared/api-types"
   import { cn } from "@/utils.js"
   import { genderIcon, normalizeGender, splitCsv } from "@/utils/text"
@@ -25,12 +26,14 @@
     Box,
     Dot,
     FileText,
+    MapPin,
     Mars,
     Shirt,
     Smile,
     SquarePen,
     Star,
     Transgender,
+    Trash,
     Venus,
     VenusAndMars,
   } from "@lucide/svelte"
@@ -40,6 +43,7 @@
   const isGameScreen = $derived($activeScreen === "game")
   const canEdit = $derived((inline || isGameScreen) && $currentStoryId !== null)
   const isStoryContext = $derived($currentStoryId !== null)
+  const isStoryPanel = $derived(isStoryContext && (inline || isGameScreen))
 
   let inspectCharacter = $state<MainCharacterState | null>(null)
   let inspectLoading = $state(false)
@@ -48,9 +52,55 @@
   let inspectFetchNonce = 0
 
   const isInspectMode = $derived(!inline && !isGameScreen && $showCharSheet && $charSheetCharacterId !== null)
-  const displayCharacter = $derived(
-    inline || isGameScreen ? $character : inspectCharacter ? { ...inspectCharacter, current_appearance: "" } : null,
-  )
+
+  type StoryCharacterKey = "player" | `npc:${string}`
+  let selectedKey = $state<StoryCharacterKey>("player")
+  let newCharacterName = $state("")
+  let addingCharacter = $state(false)
+  let deletingCharacterKey = $state<StoryCharacterKey | null>(null)
+  let editingKey = $state<StoryCharacterKey | null>(null)
+
+  const selectedStoryCharacter = $derived.by(() => {
+    if (!isStoryPanel) return null
+    if (!$character) return null
+    if (selectedKey === "player") return { kind: "player" as const, character: $character }
+    const name = selectedKey.slice("npc:".length)
+    const npc = $npcs.find((n) => n.name === name)
+    return npc ? { kind: "npc" as const, character: npc } : { kind: "player" as const, character: $character }
+  })
+
+  const displayCharacter = $derived.by(() => {
+    if (isInspectMode) return inspectCharacter ? { ...inspectCharacter, current_appearance: "" } : null
+    if (!isStoryPanel) return null
+    return selectedStoryCharacter?.character ?? null
+  })
+
+  function selectStoryCharacter(next: StoryCharacterKey) {
+    selectedKey = next
+    if (!isStoryPanel) return
+    const nextCharacter =
+      next === "player" ? $character : $npcs.find((npc) => npc.name === next.slice("npc:".length))
+    if (nextCharacter) {
+      lastSigs = buildCharacterSigs(nextCharacter)
+    } else {
+      lastSigs = null
+    }
+  }
+
+  $effect(() => {
+    if (!isStoryPanel) return
+    if (selectedKey === "player") return
+    const name = selectedKey.slice("npc:".length)
+    if ($npcs.some((npc) => npc.name === name)) return
+    selectStoryCharacter("player")
+  })
+
+  $effect(() => {
+    if (!editing || !editingKey) return
+    if (selectedKey === editingKey) return
+    editing = false
+    editingKey = null
+  })
 
   function retryInspect() {
     inspectRefresh += 1
@@ -62,6 +112,8 @@
     baselineAppearance: string
     currentAppearance: string
     clothing: string
+    location: string
+    activity: string
     inventory: string
     customFields: string
   }
@@ -81,11 +133,20 @@
   let editing = $state(false)
   let saving = $state(false)
   let showBaselineDetails = $state(false)
-  const useAppearance = $derived($currentStoryModules?.character_appearance_clothing ?? true)
-  const usePersonalityTraits = $derived($currentStoryModules?.character_personality_traits ?? true)
-  const useMajorFlaws = $derived($currentStoryModules?.character_major_flaws ?? true)
-  const usePerks = $derived($currentStoryModules?.character_perks ?? true)
+  const trackNpcs = $derived($currentStoryModules?.track_npcs ?? true)
+  const useAppearance = $derived(
+    ($currentStoryModules?.character_appearance_clothing ?? true) || ($currentStoryModules?.npc_appearance_clothing ?? true),
+  )
+  const usePersonalityTraits = $derived(
+    ($currentStoryModules?.character_personality_traits ?? true) || ($currentStoryModules?.npc_personality_traits ?? true),
+  )
+  const useMajorFlaws = $derived(
+    ($currentStoryModules?.character_major_flaws ?? true) || ($currentStoryModules?.npc_major_flaws ?? true),
+  )
+  const usePerks = $derived(($currentStoryModules?.character_perks ?? true) || ($currentStoryModules?.npc_perks ?? true))
   const useInventory = $derived($currentStoryModules?.character_inventory ?? true)
+  const useLocation = $derived($currentStoryModules?.npc_location ?? true)
+  const useActivity = $derived($currentStoryModules?.npc_activity ?? true)
   const showTraitSection = $derived(usePersonalityTraits || useMajorFlaws || usePerks)
 
   type InventoryDraft = { name: string; description: string }
@@ -97,6 +158,8 @@
     baselineAppearance: string
     currentAppearance: string
     clothing: string
+    location: string
+    activity: string
     personalityTraits: string
     majorFlaws: string
     perks: string
@@ -111,6 +174,8 @@
     baselineAppearance: "",
     currentAppearance: "",
     clothing: "",
+    location: "",
+    activity: "",
     personalityTraits: "",
     majorFlaws: "",
     perks: "",
@@ -142,13 +207,15 @@
     void loadCustomDefsOnce()
   })
 
-  function buildCharacterSigs(c: MainCharacterState): CharacterSigs {
+  function buildCharacterSigs(c: MainCharacterState | NPCState): CharacterSigs {
     return {
       identity: `${c.name}|${c.race}|${c.gender}`,
       generalDescription: c.general_description.trim(),
       baselineAppearance: c.baseline_appearance,
       currentAppearance: c.current_appearance,
       clothing: c.current_clothing,
+      location: c.current_location,
+      activity: "current_activity" in c ? c.current_activity : "",
       inventory: c.inventory.map((item) => `${item.name}:${item.description}`).join("|"),
       customFields: JSON.stringify(c.custom_fields ?? {}),
     }
@@ -192,6 +259,27 @@
       { id: "cs-race", label: "Race", kind: "input", value: draft.race, onInput: (v) => (draft.race = v) },
       { id: "cs-gender", label: "Gender", kind: "input", value: draft.gender, onInput: (v) => (draft.gender = v) },
     ]
+
+    if (isStoryContext && useLocation) {
+      fields.push({
+        id: "cs-location",
+        label: "Current Location",
+        kind: "input",
+        value: draft.location,
+        onInput: (v) => (draft.location = v),
+      })
+    }
+
+    if (isStoryContext && useActivity && selectedStoryCharacter?.kind === "npc") {
+      fields.push({
+        id: "cs-activity",
+        label: "Current Activity",
+        kind: "input",
+        value: draft.activity,
+        onInput: (v) => (draft.activity = v),
+      })
+    }
+
     fields.push({
       id: "cs-description",
       label: "Description",
@@ -257,27 +345,32 @@
 
   function startEdit() {
     if (!canEdit) return
-    if (!$character) return
+    const current = selectedStoryCharacter?.character
+    if (!current) return
     void loadCustomDefsOnce()
     draft = {
-      name: $character.name,
-      race: $character.race,
-      gender: $character.gender,
-      generalDescription: $character.general_description ?? "",
-      baselineAppearance: $character.baseline_appearance,
-      currentAppearance: $character.current_appearance,
-      clothing: $character.current_clothing,
-      personalityTraits: $character.personality_traits.join(", "),
-      majorFlaws: $character.major_flaws.join(", "),
-      perks: $character.perks.join(", "),
-      inventory: $character.inventory.map((item) => ({ name: item.name, description: item.description })),
-      customFields: { ...($character.custom_fields ?? {}) },
+      name: current.name,
+      race: current.race,
+      gender: current.gender,
+      generalDescription: current.general_description ?? "",
+      baselineAppearance: current.baseline_appearance,
+      currentAppearance: current.current_appearance,
+      clothing: current.current_clothing,
+      location: current.current_location ?? "",
+      activity: "current_activity" in current ? current.current_activity : "",
+      personalityTraits: current.personality_traits.join(", "),
+      majorFlaws: current.major_flaws.join(", "),
+      perks: current.perks.join(", "),
+      inventory: current.inventory.map((item) => ({ name: item.name, description: item.description })),
+      customFields: { ...(current.custom_fields ?? {}) },
     }
     editing = true
+    editingKey = selectedKey
   }
 
   function cancelEdit() {
     editing = false
+    editingKey = null
   }
 
   function addInventoryItem() {
@@ -292,9 +385,87 @@
     draft.inventory = draft.inventory.filter((_, i) => i !== index)
   }
 
+  async function addCharacter() {
+    if ($isGenerating || addingCharacter) return
+    if (!$currentStoryId) {
+      showError("No active story to update.")
+      return
+    }
+    const name = newCharacterName.trim()
+    if (!name) {
+      showError("Name is required.")
+      return
+    }
+    if ($npcs.some((npc) => npc.name.toLowerCase() === name.toLowerCase()) || $character?.name.toLowerCase() === name.toLowerCase()) {
+      showError(`Character "${name}" already exists.`)
+      return
+    }
+
+    addingCharacter = true
+    isGenerating.set(true)
+    try {
+      const result = await turnsService.createNpc($currentStoryId, name)
+      npcs.set(result.npcs)
+      markLlmUpdate()
+      newCharacterName = ""
+      selectStoryCharacter(`npc:${result.npc.name}`)
+      showQuietNotice(`Added character: ${result.npc.name}.`)
+    } catch (err) {
+      if (err instanceof AppError) {
+        showError(err.message)
+      } else {
+        showError("Failed to add character. Is KoboldCpp running?")
+      }
+    } finally {
+      addingCharacter = false
+      isGenerating.set(false)
+    }
+  }
+
+  async function deleteSelectedCharacter() {
+    if (!selectedStoryCharacter || selectedStoryCharacter.kind !== "npc") return
+    if (!$currentStoryId) {
+      showError("No active story to update.")
+      return
+    }
+    if ($isGenerating || saving || deletingCharacterKey) return
+
+    const npc = selectedStoryCharacter.character
+    const confirmed = await showConfirm({
+      title: "Delete character",
+      message: `Delete ${npc.name}? This cannot be undone.`,
+      confirmLabel: "Delete",
+      danger: true,
+    })
+    if (!confirmed) return
+
+    deletingCharacterKey = `npc:${npc.name}`
+    try {
+      const updated = $npcs.filter((entry) => entry.name !== npc.name)
+      const result = await stories.updateState($currentStoryId, { npcs: updated })
+      npcs.set(result.npcs)
+      showQuietNotice("Character deleted.")
+      selectStoryCharacter("player")
+      editing = false
+      editingKey = null
+    } catch (err) {
+      if (err instanceof AppError) {
+        showError(err.message)
+      } else {
+        showError("Failed to delete character.")
+      }
+    } finally {
+      deletingCharacterKey = null
+    }
+  }
+
   async function saveCharacter() {
     if (!$currentStoryId) {
       showError("No active story to update.")
+      return
+    }
+    if (!selectedStoryCharacter) {
+      showError("No active character to update.")
       return
     }
     const name = draft.name.trim()
@@ -304,6 +475,8 @@
     const baselineAppearance = draft.baselineAppearance.trim()
     const currentAppearance = draft.currentAppearance.trim()
     const clothing = draft.clothing.trim()
+    const location = draft.location.trim()
+    const activity = draft.activity.trim()
     if (!name || !race || !gender) {
       showError("Name, race, and gender are required.")
       return
@@ -312,17 +485,17 @@
       showError("Description is required.")
       return
     }
-    const existing = $character
+    const existing = selectedStoryCharacter.character
     const personalityTraits = usePersonalityTraits
       ? splitCsv(draft.personalityTraits)
-      : (existing?.personality_traits ?? [])
-    const majorFlaws = useMajorFlaws ? splitCsv(draft.majorFlaws) : (existing?.major_flaws ?? [])
-    const perks = usePerks ? splitCsv(draft.perks) : (existing?.perks ?? [])
+      : (existing.personality_traits ?? [])
+    const majorFlaws = useMajorFlaws ? splitCsv(draft.majorFlaws) : (existing.major_flaws ?? [])
+    const perks = usePerks ? splitCsv(draft.perks) : (existing.perks ?? [])
     const inventory = useInventory
       ? draft.inventory
           .map((item) => ({ name: item.name.trim(), description: item.description.trim() }))
           .filter((item) => item.name.length > 0 || item.description.length > 0)
-      : (existing?.inventory ?? [])
+      : (existing.inventory ?? [])
     if (useInventory) {
       for (const item of inventory) {
         if (!item.name || !item.description) {
@@ -331,42 +504,102 @@
         }
       }
     }
-    const nextCharacter: MainCharacterState = {
+
+    if (selectedStoryCharacter.kind === "player") {
+      const existing = selectedStoryCharacter.character
+      const nextCharacter: MainCharacterState = {
+        name,
+        race,
+        gender,
+        general_description: generalDescription,
+        current_location: useLocation ? location || existing.current_location || "" : existing.current_location ?? "",
+        baseline_appearance: !useAppearance
+          ? (existing.baseline_appearance ?? "")
+          : baselineAppearance || existing.baseline_appearance || "",
+        current_appearance: !useAppearance
+          ? (existing.current_appearance ?? "")
+          : currentAppearance || existing.current_appearance || baselineAppearance || existing.baseline_appearance || "",
+        current_clothing: !useAppearance ? (existing.current_clothing ?? "") : clothing || existing.current_clothing || "",
+        personality_traits: personalityTraits.length > 0 ? personalityTraits : (existing.personality_traits ?? []),
+        major_flaws: majorFlaws.length > 0 ? majorFlaws : (existing.major_flaws ?? []),
+        perks: perks.length > 0 ? perks : (existing.perks ?? []),
+        inventory,
+        custom_fields: draft.customFields ?? existing.custom_fields ?? {},
+      }
+      saving = true
+      try {
+        const result = await stories.updateState($currentStoryId, { character: nextCharacter })
+        character.set(result.character)
+        selectStoryCharacter("player")
+        showQuietNotice("Character updated.")
+        editing = false
+        editingKey = null
+      } catch (err) {
+        if (err instanceof AppError) {
+          showError(err.message)
+        } else {
+          showError("Failed to update character.")
+        }
+      } finally {
+        saving = false
+      }
+      return
+    }
+
+    const existingNpc = selectedStoryCharacter.character
+    const previousName = existingNpc.name
+    if (previousName.toLowerCase() !== name.toLowerCase()) {
+      if ($npcs.some((npc) => npc.name.toLowerCase() === name.toLowerCase() && npc.name !== previousName)) {
+        showError(`Character "${name}" already exists.`)
+        return
+      }
+      if ($character?.name.toLowerCase() === name.toLowerCase()) {
+        showError(`Character "${name}" already exists.`)
+        return
+      }
+    }
+
+    const updatedNpc: NPCState = {
       name,
       race,
       gender,
       general_description: generalDescription,
-      current_location: existing?.current_location ?? "",
+      current_location: useLocation ? location || existingNpc.current_location || "" : existingNpc.current_location ?? "",
       baseline_appearance: !useAppearance
-        ? (existing?.baseline_appearance ?? "")
-        : baselineAppearance || existing?.baseline_appearance || "",
+        ? (existingNpc.baseline_appearance ?? "")
+        : baselineAppearance || existingNpc.baseline_appearance || "",
       current_appearance: !useAppearance
-        ? (existing?.current_appearance ?? "")
+        ? (existingNpc.current_appearance ?? "")
         : currentAppearance ||
-          existing?.current_appearance ||
+          existingNpc.current_appearance ||
           baselineAppearance ||
-          existing?.baseline_appearance ||
+          existingNpc.baseline_appearance ||
           "",
       current_clothing: !useAppearance
-        ? (existing?.current_clothing ?? "")
-        : clothing || existing?.current_clothing || "",
-      personality_traits: personalityTraits.length > 0 ? personalityTraits : (existing?.personality_traits ?? []),
-      major_flaws: majorFlaws.length > 0 ? majorFlaws : (existing?.major_flaws ?? []),
-      perks: perks.length > 0 ? perks : (existing?.perks ?? []),
+        ? (existingNpc.current_clothing ?? "")
+        : clothing || existingNpc.current_clothing || "",
+      current_activity: useActivity ? activity || existingNpc.current_activity || "" : existingNpc.current_activity ?? "",
+      personality_traits: personalityTraits.length > 0 ? personalityTraits : (existingNpc.personality_traits ?? []),
+      major_flaws: majorFlaws.length > 0 ? majorFlaws : (existingNpc.major_flaws ?? []),
+      perks: perks.length > 0 ? perks : (existingNpc.perks ?? []),
       inventory,
-      custom_fields: draft.customFields ?? existing?.custom_fields ?? {},
+      custom_fields: draft.customFields ?? existingNpc.custom_fields ?? {},
     }
+
     saving = true
     try {
-      const result = await stories.updateState($currentStoryId, { character: nextCharacter })
-      character.set(result.character)
-      showQuietNotice("Character sheet updated.")
+      const updatedList = $npcs.map((npc) => (npc.name === previousName ? updatedNpc : npc))
+      const result = await stories.updateState($currentStoryId, { npcs: updatedList })
+      npcs.set(result.npcs)
+      selectStoryCharacter(`npc:${updatedNpc.name}`)
+      showQuietNotice("Character updated.")
       editing = false
+      editingKey = null
     } catch (err) {
       if (err instanceof AppError) {
         showError(err.message)
       } else {
-        showError("Failed to update character sheet.")
+        showError("Failed to update character.")
       }
     } finally {
       saving = false
@@ -374,9 +607,16 @@
   }
 
   $effect(() => {
-    if (!lastSigs && $character) {
-      lastSigs = buildCharacterSigs($character)
-    }
+    void $currentStoryId
+    lastSigs = null
+    lastLlmUpdateId = get(llmUpdateId)
+  })
+
+  $effect(() => {
+    if (!isStoryPanel) return
+    if (lastSigs) return
+    if (!selectedStoryCharacter?.character) return
+    lastSigs = buildCharacterSigs(selectedStoryCharacter.character)
   })
 
   $effect(() => {
@@ -414,11 +654,14 @@
 
   $effect(() => {
     if ($llmUpdateId !== lastLlmUpdateId) {
-      if ($character) {
-        const nextSigs = buildCharacterSigs($character)
+      const current = selectedStoryCharacter?.character
+      if (current) {
+        const nextSigs = buildCharacterSigs(current)
         if (lastSigs) {
           if (nextSigs.identity !== lastSigs.identity) triggerFlash("identity")
           if (nextSigs.generalDescription !== lastSigs.generalDescription) triggerFlash("appearance")
+          if (useLocation && nextSigs.location !== lastSigs.location) triggerFlash("identity")
+          if (useActivity && nextSigs.activity !== lastSigs.activity) triggerFlash("identity")
           if (
             useAppearance &&
             (nextSigs.baselineAppearance !== lastSigs.baselineAppearance ||
@@ -556,6 +799,29 @@
           {displayCharacter.race}{displayCharacter.gender ? ` · ${displayCharacter.gender}` : ""}
         </div>
       </div>
+
+      {#if isStoryContext && (useLocation || (useActivity && "current_activity" in displayCharacter))}
+        <div class="mt-3 rounded-lg border bg-card p-4">
+          <div class="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+            <MapPin size={14} strokeWidth={1.5} class="shrink-0 opacity-70" aria-hidden="true" />
+            <span>Status</span>
+          </div>
+          <div class="mt-2 space-y-1 text-sm text-foreground">
+            {#if useLocation}
+              <div class="flex flex-wrap items-baseline gap-x-2 gap-y-1">
+                <span class="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Location</span>
+                <span class="whitespace-pre-line">{displayCharacter.current_location}</span>
+              </div>
+            {/if}
+            {#if useActivity && "current_activity" in displayCharacter}
+              <div class="flex flex-wrap items-baseline gap-x-2 gap-y-1">
+                <span class="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Activity</span>
+                <span class="whitespace-pre-line">{displayCharacter.current_activity}</span>
+              </div>
+            {/if}
+          </div>
+        </div>
+      {/if}
 
       <div class={cn("mt-3 rounded-lg border bg-card p-4", flashAppearance && "ring-2 ring-primary/30")}>
         <div class="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
@@ -708,7 +974,22 @@
     <div class="flex items-center justify-between gap-3 border-b px-4 py-3">
       <div class="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
         <FileText size={16} strokeWidth={1.5} class="shrink-0 opacity-70" aria-hidden="true" />
-        <span>Character Sheet</span>
+        <span>Characters</span>
+        {#if isStoryPanel && $character}
+          <select
+            class="ml-2 h-8 max-w-[14rem] rounded-md border bg-background px-2 text-xs font-normal normal-case text-foreground"
+            value={selectedKey}
+            onchange={(e) => selectStoryCharacter((e.target as HTMLSelectElement).value as StoryCharacterKey)}
+            disabled={editing || saving || addingCharacter || $isGenerating}
+            aria-label="Active character"
+            title="Active character"
+          >
+            <option value="player">{$character.name}</option>
+            {#each $npcs as npc (npc.name)}
+              <option value={`npc:${npc.name}`}>{npc.name}</option>
+            {/each}
+          </select>
+        {/if}
       </div>
       <div class="flex items-center gap-2">
         <Button
@@ -720,6 +1001,19 @@
         >
           {showBaselineDetails ? "Hide details" : "Show details"}
         </Button>
+        {#if selectedStoryCharacter?.kind === "npc"}
+          <Button
+            variant="outline"
+            size="icon"
+            class="h-8 w-8 border-destructive/40 text-destructive hover:bg-destructive/10 hover:text-destructive"
+            onclick={deleteSelectedCharacter}
+            disabled={editing || saving || deletingCharacterKey !== null || $isGenerating}
+            title="Delete character"
+            aria-label="Delete character"
+          >
+            <Trash size={12} strokeWidth={2} aria-hidden="true" />
+          </Button>
+        {/if}
         <Button
           variant="outline"
           size="icon"
@@ -735,6 +1029,23 @@
     </div>
     <ScrollArea class="min-h-0 flex-1">
       <div class="p-4">
+        {#if isStoryPanel && trackNpcs}
+          <div class="mb-4 flex items-center gap-2">
+            <Input
+              type="text"
+              value={newCharacterName}
+              placeholder="Add character..."
+              disabled={addingCharacter || saving || editing || $isGenerating}
+              oninput={(e) => (newCharacterName = (e.target as HTMLInputElement).value)}
+              onkeydown={(e) => {
+                if (e.key === "Enter") void addCharacter()
+              }}
+            />
+            <Button onclick={addCharacter} disabled={addingCharacter || saving || editing || $isGenerating}>
+              {addingCharacter ? "Adding..." : "Add"}
+            </Button>
+          </div>
+        {/if}
         {@render charContent()}
       </div>
     </ScrollArea>
@@ -750,7 +1061,22 @@
       <div class="flex items-center justify-between gap-3 border-b px-4 py-3">
         <div class="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
           <FileText size={16} strokeWidth={1.5} class="shrink-0 opacity-70" aria-hidden="true" />
-          <span>Character Sheet</span>
+          <span>Characters</span>
+          {#if isStoryPanel && $character}
+            <select
+              class="ml-2 h-8 max-w-[14rem] rounded-md border bg-background px-2 text-xs font-normal normal-case text-foreground"
+              value={selectedKey}
+              onchange={(e) => selectStoryCharacter((e.target as HTMLSelectElement).value as StoryCharacterKey)}
+              disabled={editing || saving || addingCharacter || $isGenerating}
+              aria-label="Active character"
+              title="Active character"
+            >
+              <option value="player">{$character.name}</option>
+              {#each $npcs as npc (npc.name)}
+                <option value={`npc:${npc.name}`}>{npc.name}</option>
+              {/each}
+            </select>
+          {/if}
         </div>
         <div class="flex items-center gap-2">
           <Button
@@ -762,6 +1088,19 @@
           >
             {showBaselineDetails ? "Hide details" : "Show details"}
           </Button>
+          {#if selectedStoryCharacter?.kind === "npc"}
+            <Button
+              variant="outline"
+              size="icon"
+              class="h-8 w-8 border-destructive/40 text-destructive hover:bg-destructive/10 hover:text-destructive"
+              onclick={deleteSelectedCharacter}
+              disabled={editing || saving || deletingCharacterKey !== null || $isGenerating}
+              title="Delete character"
+              aria-label="Delete character"
+            >
+              <Trash size={12} strokeWidth={2} aria-hidden="true" />
+            </Button>
+          {/if}
           <Button
             variant="outline"
             size="icon"
@@ -778,6 +1117,23 @@
       </div>
       <ScrollArea class="max-h-[calc(100dvh-3.25rem)]">
         <div class="p-4">
+          {#if isStoryPanel && trackNpcs}
+            <div class="mb-4 flex items-center gap-2">
+              <Input
+                type="text"
+                value={newCharacterName}
+                placeholder="Add character..."
+                disabled={addingCharacter || saving || editing || $isGenerating}
+                oninput={(e) => (newCharacterName = (e.target as HTMLInputElement).value)}
+                onkeydown={(e) => {
+                  if (e.key === "Enter") void addCharacter()
+                }}
+              />
+              <Button onclick={addCharacter} disabled={addingCharacter || saving || editing || $isGenerating}>
+                {addingCharacter ? "Adding..." : "Add"}
+              </Button>
+            </div>
+          {/if}
           {#if isInspectMode}
             {#if inspectLoading}
               <div class="rounded-lg border bg-card p-4 text-sm text-muted-foreground">Loading character...</div>

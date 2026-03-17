@@ -2,7 +2,7 @@
   import { stories } from "@/services/stories"
   import { cn } from "@/utils.js"
   import { estimateTokens, formatTokenCount } from "@/utils/tokenEstimate"
-  import { EllipsisVertical, User, Users } from "@lucide/svelte"
+  import { EllipsisVertical, Users } from "@lucide/svelte"
   import { Badge } from "@/components/ui/badge"
   import { Button } from "@/components/ui/button"
   import {
@@ -13,8 +13,8 @@
     DropdownMenuTrigger,
   } from "@/components/ui/dropdown-menu"
   import { generation } from "@/stores/settings"
-  import { collapseCharSheet, collapseNPCTracker } from "@/stores/ui"
-  import { currentStoryId, currentStoryModules, currentStoryTitle, turns, worldState } from "@/stores/game"
+  import { collapseCharSheet } from "@/stores/ui"
+  import { currentStoryId, currentStoryTitle, turns, worldState } from "@/stores/game"
 
   type Props = {
     flashScene?: boolean
@@ -35,7 +35,6 @@
   }: Props = $props()
 
   let showMenu = $state(false)
-  const trackNpcs = $derived($currentStoryModules?.track_npcs ?? true)
   const approxPromptTokens = $derived.by(() => {
     const parts: string[] = []
     const memory = $worldState?.memory?.trim()
@@ -113,22 +112,11 @@
       variant="ghost"
       size="icon"
       class={cn("hidden h-9 w-9 text-muted-foreground min-[1200px]:inline-flex", $collapseCharSheet && "opacity-50")}
-      title={$collapseCharSheet ? "Show character sheet" : "Hide character sheet"}
+      title={$collapseCharSheet ? "Show characters" : "Hide characters"}
       onclick={() => collapseCharSheet.update((v) => !v)}
     >
-      <User size={15} strokeWidth={1.8} aria-hidden="true" />
+      <Users size={15} strokeWidth={1.8} aria-hidden="true" />
     </Button>
-    {#if trackNpcs}
-      <Button
-        variant="ghost"
-        size="icon"
-        class={cn("hidden h-9 w-9 text-muted-foreground min-[1200px]:inline-flex", $collapseNPCTracker && "opacity-50")}
-        title={$collapseNPCTracker ? "Show NPC tracker" : "Hide NPC tracker"}
-        onclick={() => collapseNPCTracker.update((v) => !v)}
-      >
-        <Users size={15} strokeWidth={1.8} aria-hidden="true" />
-      </Button>
-    {/if}
 
     <DropdownMenu open={showMenu} onOpenChange={(next) => (showMenu = next)}>
       <DropdownMenuTrigger

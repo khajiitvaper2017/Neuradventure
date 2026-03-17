@@ -12,7 +12,6 @@
   import { activeScreen, navigate, routeStoryId, routeChatId, syncRouteFromUrl } from "@/stores/router"
   import {
     collapseCharSheet,
-    collapseNPCTracker,
     errorMessage,
     isDesktop,
     quietNotice,
@@ -20,10 +19,9 @@
     showQuietNotice,
   } from "@/stores/ui"
   import { colorMode } from "@/stores/settings"
-  import { currentStoryId, currentStoryModules } from "@/stores/game"
+  import { currentStoryId } from "@/stores/game"
   import { currentChatId } from "@/stores/chat"
   import CharSheet from "@/features/character/CharSheet.svelte"
-  import NPCTracker from "@/features/npc/NPCTracker.svelte"
   import PwaPrompts from "@/components/overlays/PwaPrompts.svelte"
   import ConfirmDialog from "@/components/overlays/ConfirmDialog.svelte"
   import { loadStoryById } from "@/utils/storyLoader"
@@ -157,13 +155,11 @@
   let gameActive = $derived($activeScreen === "game")
   let gameReady = $derived(gameActive && !restoringStory && $currentStoryId !== null)
   let desktopGame = $derived(gameReady && $isDesktop)
-  let trackNpcs = $derived($currentStoryModules?.track_npcs ?? true)
 
   let gridStyle = $derived.by(() => {
     if (!desktopGame) return undefined
     const left = $collapseCharSheet ? 0 : SIDEBAR_WIDTH
-    const right1 = $collapseNPCTracker || !trackNpcs ? 0 : SIDEBAR_WIDTH
-    return `grid-template-columns:${left}px minmax(0, ${GAME_WIDTH}px) ${right1}px;grid-template-rows:100dvh;`
+    return `grid-template-columns:${left}px minmax(0, ${GAME_WIDTH}px);grid-template-rows:100dvh;`
   })
 
   function bootstrapPwa() {
@@ -272,20 +268,11 @@
           <div class="p-4 text-sm text-muted-foreground">Loading story…</div>
         {/if}
       </div>
-
-      {#if $isDesktop && !$collapseNPCTracker && trackNpcs && gameReady}
-        <div class="col-start-3 h-dvh overflow-hidden border-l bg-card">
-          <NPCTracker inline />
-        </div>
-      {/if}
     {:else}
       {@render children()}
     {/if}
 
     <CharSheet />
-    {#if trackNpcs}
-      <NPCTracker />
-    {/if}
   {:else}
     <ScrollArea class="h-full w-full">
       <div class="grid gap-3 p-6 text-muted-foreground">
