@@ -39,6 +39,7 @@ type ConfirmResolve = (confirmed: boolean) => void
 
 export const confirmDialog = writable<(ConfirmOptions & { resolve: ConfirmResolve }) | null>(null)
 export const collapseCharSheet = writable(false)
+export const collapseCharactersPanel = writable(false)
 
 export function showConfirm(options: ConfirmOptions): Promise<boolean> {
   return new Promise((resolve) => {

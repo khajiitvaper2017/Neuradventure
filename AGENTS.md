@@ -37,6 +37,7 @@
 - Treat `src/lib/components/ui/` as vendored code: prefer regenerating via shadcn-svelte over manual edits.
 - Don’t “helpfully” restore deleted files/folders (e.g. `scripts/`) unless explicitly asked.
 - When some files “unexpectedly” dissapeared or got commited, assume it's user and don't undo his edits, adapt to them.
+- DON'T UNDO CHANGES THAT OTHER agent OR ME MADE. ADAPT OR IGNORE.
 
 ## MCP & Skills (When Relevant)
 

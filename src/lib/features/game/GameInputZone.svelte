@@ -1,9 +1,9 @@
 <script lang="ts">
   import { Button } from "@/components/ui/button"
-  import { BookOpenText, Hand, House, LoaderCircle, MessageCircle, Smile, Users } from "@lucide/svelte"
+  import { BookOpenText, Hand, House, LoaderCircle, MessageCircle, Smile, User, Users } from "@lucide/svelte"
   import ConversationInput from "@/components/inputs/ConversationInput.svelte"
-  import { showCharSheet } from "@/stores/router"
-  import { isGenerating, turns } from "@/stores/game"
+  import { showCharactersPanel, showCharSheet } from "@/stores/router"
+  import { activeStoryCharacterKey, currentStoryModules, isGenerating, turns } from "@/stores/game"
   import { cn } from "@/utils.js"
 
   type ActionMode = "do" | "say" | "story"
@@ -49,6 +49,7 @@
     onGoHome,
   }: Props = $props()
 
+  const trackNpcs = $derived($currentStoryModules?.track_npcs ?? true)
 </script>
 
 <ConversationInput
@@ -181,12 +182,27 @@
         variant="ghost"
         size="icon"
         class="h-9 w-9 text-muted-foreground"
-        onclick={() => showCharSheet.update((v) => !v)}
-        title="Characters"
-        aria-label="Characters"
+        onclick={() => {
+          activeStoryCharacterKey.set("player")
+          showCharSheet.update((v) => !v)
+        }}
+        title="Player"
+        aria-label="Player"
       >
-        <Users size={14} strokeWidth={1.8} aria-hidden="true" />
+        <User size={14} strokeWidth={1.8} aria-hidden="true" />
       </Button>
+      {#if trackNpcs}
+        <Button
+          variant="ghost"
+          size="icon"
+          class="h-9 w-9 text-muted-foreground"
+          onclick={() => showCharactersPanel.update((v) => !v)}
+          title="Characters"
+          aria-label="Characters"
+        >
+          <Users size={14} strokeWidth={1.8} aria-hidden="true" />
+        </Button>
+      {/if}
     </div>
   {/snippet}
 </ConversationInput>

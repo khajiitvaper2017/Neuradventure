@@ -1,6 +1,8 @@
 import { writable, derived } from "svelte/store"
 import type { MainCharacterState, NPCState, StoryModules, WorldState, TurnSummary } from "@/shared/types"
 
+export type StoryCharacterKey = "player" | `npc:${string}`
+
 export const currentStoryId = writable<number | null>(null)
 export const currentStoryTitle = writable<string>("")
 export const currentStoryOpeningScenario = writable<string>("")
@@ -15,6 +17,7 @@ export const currentStoryInitialWorld = writable<WorldState | null>(null)
 export const character = writable<MainCharacterState | null>(null)
 export const worldState = writable<WorldState | null>(null)
 export const npcs = writable<NPCState[]>([])
+export const activeStoryCharacterKey = writable<StoryCharacterKey>("player")
 export const turns = writable<TurnSummary[]>([])
 export const isGenerating = writable(false)
 export const llmUpdateId = writable(0)
@@ -55,6 +58,7 @@ export function resetActiveStory() {
   character.set(null)
   worldState.set(null)
   npcs.set([])
+  activeStoryCharacterKey.set("player")
   turns.set([])
   isGenerating.set(false)
   llmUpdateId.set(0)

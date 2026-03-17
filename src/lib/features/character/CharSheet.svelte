@@ -4,10 +4,17 @@
   import { AppError } from "@/errors"
   import { stories } from "@/services/stories"
   import { settings as settingsService } from "@/services/settings"
-  import { turns as turnsService } from "@/services/turns"
   import { activeScreen, charSheetCharacterId, closeCharSheet, showCharSheet } from "@/stores/router"
-  import { showConfirm, showError, showQuietNotice } from "@/stores/ui"
-  import { character, currentStoryId, currentStoryModules, isGenerating, llmUpdateId, markLlmUpdate, npcs } from "@/stores/game"
+  import { showError, showQuietNotice } from "@/stores/ui"
+  import {
+    activeStoryCharacterKey,
+    character,
+    currentStoryId,
+    currentStoryModules,
+    llmUpdateId,
+    npcs,
+    type StoryCharacterKey,
+  } from "@/stores/game"
   import { INTERNAL_UI_FLASH_MS } from "@/shared/internal-timeouts"
   import type { MainCharacterState, NPCState } from "@/shared/types"
   import type { CustomFieldDef } from "@/shared/api-types"
@@ -33,12 +40,11 @@
     SquarePen,
     Star,
     Transgender,
-    Trash,
     Venus,
     VenusAndMars,
   } from "@lucide/svelte"
 
-  let { inline = false }: { inline?: boolean } = $props()
+  let { inline = false, lockKey = null }: { inline?: boolean; lockKey?: StoryCharacterKey | null } = $props()
 
   const isGameScreen = $derived($activeScreen === "game")
   const canEdit = $derived((inline || isGameScreen) && $currentStoryId !== null)
@@ -52,19 +58,16 @@
   let inspectFetchNonce = 0
 
   const isInspectMode = $derived(!inline && !isGameScreen && $showCharSheet && $charSheetCharacterId !== null)
+  const effectiveKey = $derived.by(() => lockKey ?? (isStoryPanel ? $activeStoryCharacterKey : "player"))
 
-  type StoryCharacterKey = "player" | `npc:${string}`
-  let selectedKey = $state<StoryCharacterKey>("player")
-  let newCharacterName = $state("")
-  let addingCharacter = $state(false)
-  let deletingCharacterKey = $state<StoryCharacterKey | null>(null)
   let editingKey = $state<StoryCharacterKey | null>(null)
 
   const selectedStoryCharacter = $derived.by(() => {
     if (!isStoryPanel) return null
     if (!$character) return null
-    if (selectedKey === "player") return { kind: "player" as const, character: $character }
-    const name = selectedKey.slice("npc:".length)
+    const key = effectiveKey
+    if (key === "player") return { kind: "player" as const, character: $character }
+    const name = key.slice("npc:".length)
     const npc = $npcs.find((n) => n.name === name)
     return npc ? { kind: "npc" as const, character: npc } : { kind: "player" as const, character: $character }
   })
@@ -75,29 +78,19 @@
     return selectedStoryCharacter?.character ?? null
   })
 
-  function selectStoryCharacter(next: StoryCharacterKey) {
-    selectedKey = next
-    if (!isStoryPanel) return
-    const nextCharacter =
-      next === "player" ? $character : $npcs.find((npc) => npc.name === next.slice("npc:".length))
-    if (nextCharacter) {
-      lastSigs = buildCharacterSigs(nextCharacter)
-    } else {
-      lastSigs = null
-    }
-  }
-
   $effect(() => {
     if (!isStoryPanel) return
-    if (selectedKey === "player") return
-    const name = selectedKey.slice("npc:".length)
+    if (lockKey) return
+    const key = effectiveKey
+    if (key === "player") return
+    const name = key.slice("npc:".length)
     if ($npcs.some((npc) => npc.name === name)) return
-    selectStoryCharacter("player")
+    activeStoryCharacterKey.set("player")
   })
 
   $effect(() => {
     if (!editing || !editingKey) return
-    if (selectedKey === editingKey) return
+    if (effectiveKey === editingKey) return
     editing = false
     editingKey = null
   })
@@ -133,17 +126,20 @@
   let editing = $state(false)
   let saving = $state(false)
   let showBaselineDetails = $state(false)
-  const trackNpcs = $derived($currentStoryModules?.track_npcs ?? true)
   const useAppearance = $derived(
-    ($currentStoryModules?.character_appearance_clothing ?? true) || ($currentStoryModules?.npc_appearance_clothing ?? true),
+    ($currentStoryModules?.character_appearance_clothing ?? true) ||
+      ($currentStoryModules?.npc_appearance_clothing ?? true),
   )
   const usePersonalityTraits = $derived(
-    ($currentStoryModules?.character_personality_traits ?? true) || ($currentStoryModules?.npc_personality_traits ?? true),
+    ($currentStoryModules?.character_personality_traits ?? true) ||
+      ($currentStoryModules?.npc_personality_traits ?? true),
   )
   const useMajorFlaws = $derived(
     ($currentStoryModules?.character_major_flaws ?? true) || ($currentStoryModules?.npc_major_flaws ?? true),
   )
-  const usePerks = $derived(($currentStoryModules?.character_perks ?? true) || ($currentStoryModules?.npc_perks ?? true))
+  const usePerks = $derived(
+    ($currentStoryModules?.character_perks ?? true) || ($currentStoryModules?.npc_perks ?? true),
+  )
   const useInventory = $derived($currentStoryModules?.character_inventory ?? true)
   const useLocation = $derived($currentStoryModules?.npc_location ?? true)
   const useActivity = $derived($currentStoryModules?.npc_activity ?? true)
@@ -365,7 +361,7 @@
       customFields: { ...(current.custom_fields ?? {}) },
     }
     editing = true
-    editingKey = selectedKey
+    editingKey = effectiveKey
   }
 
   function cancelEdit() {
@@ -383,80 +379,6 @@
 
   function removeInventoryItem(index: number) {
     draft.inventory = draft.inventory.filter((_, i) => i !== index)
-  }
-
-  async function addCharacter() {
-    if ($isGenerating || addingCharacter) return
-    if (!$currentStoryId) {
-      showError("No active story to update.")
-      return
-    }
-    const name = newCharacterName.trim()
-    if (!name) {
-      showError("Name is required.")
-      return
-    }
-    if ($npcs.some((npc) => npc.name.toLowerCase() === name.toLowerCase()) || $character?.name.toLowerCase() === name.toLowerCase()) {
-      showError(`Character "${name}" already exists.`)
-      return
-    }
-
-    addingCharacter = true
-    isGenerating.set(true)
-    try {
-      const result = await turnsService.createNpc($currentStoryId, name)
-      npcs.set(result.npcs)
-      markLlmUpdate()
-      newCharacterName = ""
-      selectStoryCharacter(`npc:${result.npc.name}`)
-      showQuietNotice(`Added character: ${result.npc.name}.`)
-    } catch (err) {
-      if (err instanceof AppError) {
-        showError(err.message)
-      } else {
-        showError("Failed to add character. Is KoboldCpp running?")
-      }
-    } finally {
-      addingCharacter = false
-      isGenerating.set(false)
-    }
-  }
-
-  async function deleteSelectedCharacter() {
-    if (!selectedStoryCharacter || selectedStoryCharacter.kind !== "npc") return
-    if (!$currentStoryId) {
-      showError("No active story to update.")
-      return
-    }
-    if ($isGenerating || saving || deletingCharacterKey) return
-
-    const npc = selectedStoryCharacter.character
-    const confirmed = await showConfirm({
-      title: "Delete character",
-      message: `Delete ${npc.name}? This cannot be undone.`,
-      confirmLabel: "Delete",
-      danger: true,
-    })
-    if (!confirmed) return
-
-    deletingCharacterKey = `npc:${npc.name}`
-    try {
-      const updated = $npcs.filter((entry) => entry.name !== npc.name)
-      const result = await stories.updateState($currentStoryId, { npcs: updated })
-      npcs.set(result.npcs)
-      showQuietNotice("Character deleted.")
-      selectStoryCharacter("player")
-      editing = false
-      editingKey = null
-    } catch (err) {
-      if (err instanceof AppError) {
-        showError(err.message)
-      } else {
-        showError("Failed to delete character.")
-      }
-    } finally {
-      deletingCharacterKey = null
-    }
   }
 
   async function saveCharacter() {
@@ -512,14 +434,20 @@
         race,
         gender,
         general_description: generalDescription,
-        current_location: useLocation ? location || existing.current_location || "" : existing.current_location ?? "",
+        current_location: useLocation ? location || existing.current_location || "" : (existing.current_location ?? ""),
         baseline_appearance: !useAppearance
           ? (existing.baseline_appearance ?? "")
           : baselineAppearance || existing.baseline_appearance || "",
         current_appearance: !useAppearance
           ? (existing.current_appearance ?? "")
-          : currentAppearance || existing.current_appearance || baselineAppearance || existing.baseline_appearance || "",
-        current_clothing: !useAppearance ? (existing.current_clothing ?? "") : clothing || existing.current_clothing || "",
+          : currentAppearance ||
+            existing.current_appearance ||
+            baselineAppearance ||
+            existing.baseline_appearance ||
+            "",
+        current_clothing: !useAppearance
+          ? (existing.current_clothing ?? "")
+          : clothing || existing.current_clothing || "",
         personality_traits: personalityTraits.length > 0 ? personalityTraits : (existing.personality_traits ?? []),
         major_flaws: majorFlaws.length > 0 ? majorFlaws : (existing.major_flaws ?? []),
         perks: perks.length > 0 ? perks : (existing.perks ?? []),
@@ -530,7 +458,7 @@
       try {
         const result = await stories.updateState($currentStoryId, { character: nextCharacter })
         character.set(result.character)
-        selectStoryCharacter("player")
+        if (!lockKey) activeStoryCharacterKey.set("player")
         showQuietNotice("Character updated.")
         editing = false
         editingKey = null
@@ -564,7 +492,9 @@
       race,
       gender,
       general_description: generalDescription,
-      current_location: useLocation ? location || existingNpc.current_location || "" : existingNpc.current_location ?? "",
+      current_location: useLocation
+        ? location || existingNpc.current_location || ""
+        : (existingNpc.current_location ?? ""),
       baseline_appearance: !useAppearance
         ? (existingNpc.baseline_appearance ?? "")
         : baselineAppearance || existingNpc.baseline_appearance || "",
@@ -578,7 +508,9 @@
       current_clothing: !useAppearance
         ? (existingNpc.current_clothing ?? "")
         : clothing || existingNpc.current_clothing || "",
-      current_activity: useActivity ? activity || existingNpc.current_activity || "" : existingNpc.current_activity ?? "",
+      current_activity: useActivity
+        ? activity || existingNpc.current_activity || ""
+        : (existingNpc.current_activity ?? ""),
       personality_traits: personalityTraits.length > 0 ? personalityTraits : (existingNpc.personality_traits ?? []),
       major_flaws: majorFlaws.length > 0 ? majorFlaws : (existingNpc.major_flaws ?? []),
       perks: perks.length > 0 ? perks : (existingNpc.perks ?? []),
@@ -591,7 +523,7 @@
       const updatedList = $npcs.map((npc) => (npc.name === previousName ? updatedNpc : npc))
       const result = await stories.updateState($currentStoryId, { npcs: updatedList })
       npcs.set(result.npcs)
-      selectStoryCharacter(`npc:${updatedNpc.name}`)
+      if (!lockKey) activeStoryCharacterKey.set(`npc:${updatedNpc.name}`)
       showQuietNotice("Character updated.")
       editing = false
       editingKey = null
@@ -608,6 +540,13 @@
 
   $effect(() => {
     void $currentStoryId
+    lastSigs = null
+    lastLlmUpdateId = get(llmUpdateId)
+  })
+
+  $effect(() => {
+    if (!isStoryPanel) return
+    void effectiveKey
     lastSigs = null
     lastLlmUpdateId = get(llmUpdateId)
   })
@@ -974,22 +913,7 @@
     <div class="flex items-center justify-between gap-3 border-b px-4 py-3">
       <div class="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
         <FileText size={16} strokeWidth={1.5} class="shrink-0 opacity-70" aria-hidden="true" />
-        <span>Characters</span>
-        {#if isStoryPanel && $character}
-          <select
-            class="ml-2 h-8 max-w-[14rem] rounded-md border bg-background px-2 text-xs font-normal normal-case text-foreground"
-            value={selectedKey}
-            onchange={(e) => selectStoryCharacter((e.target as HTMLSelectElement).value as StoryCharacterKey)}
-            disabled={editing || saving || addingCharacter || $isGenerating}
-            aria-label="Active character"
-            title="Active character"
-          >
-            <option value="player">{$character.name}</option>
-            {#each $npcs as npc (npc.name)}
-              <option value={`npc:${npc.name}`}>{npc.name}</option>
-            {/each}
-          </select>
-        {/if}
+        <span>Player</span>
       </div>
       <div class="flex items-center gap-2">
         <Button
@@ -1001,19 +925,6 @@
         >
           {showBaselineDetails ? "Hide details" : "Show details"}
         </Button>
-        {#if selectedStoryCharacter?.kind === "npc"}
-          <Button
-            variant="outline"
-            size="icon"
-            class="h-8 w-8 border-destructive/40 text-destructive hover:bg-destructive/10 hover:text-destructive"
-            onclick={deleteSelectedCharacter}
-            disabled={editing || saving || deletingCharacterKey !== null || $isGenerating}
-            title="Delete character"
-            aria-label="Delete character"
-          >
-            <Trash size={12} strokeWidth={2} aria-hidden="true" />
-          </Button>
-        {/if}
         <Button
           variant="outline"
           size="icon"
@@ -1029,23 +940,6 @@
     </div>
     <ScrollArea class="min-h-0 flex-1">
       <div class="p-4">
-        {#if isStoryPanel && trackNpcs}
-          <div class="mb-4 flex items-center gap-2">
-            <Input
-              type="text"
-              value={newCharacterName}
-              placeholder="Add character..."
-              disabled={addingCharacter || saving || editing || $isGenerating}
-              oninput={(e) => (newCharacterName = (e.target as HTMLInputElement).value)}
-              onkeydown={(e) => {
-                if (e.key === "Enter") void addCharacter()
-              }}
-            />
-            <Button onclick={addCharacter} disabled={addingCharacter || saving || editing || $isGenerating}>
-              {addingCharacter ? "Adding..." : "Add"}
-            </Button>
-          </div>
-        {/if}
         {@render charContent()}
       </div>
     </ScrollArea>
@@ -1061,21 +955,11 @@
       <div class="flex items-center justify-between gap-3 border-b px-4 py-3">
         <div class="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
           <FileText size={16} strokeWidth={1.5} class="shrink-0 opacity-70" aria-hidden="true" />
-          <span>Characters</span>
-          {#if isStoryPanel && $character}
-            <select
-              class="ml-2 h-8 max-w-[14rem] rounded-md border bg-background px-2 text-xs font-normal normal-case text-foreground"
-              value={selectedKey}
-              onchange={(e) => selectStoryCharacter((e.target as HTMLSelectElement).value as StoryCharacterKey)}
-              disabled={editing || saving || addingCharacter || $isGenerating}
-              aria-label="Active character"
-              title="Active character"
+          <span>Character Sheet</span>
+          {#if displayCharacter}
+            <Badge variant="outline" class="rounded-full font-mono text-[11px] normal-case"
+              >{displayCharacter.name}</Badge
             >
-              <option value="player">{$character.name}</option>
-              {#each $npcs as npc (npc.name)}
-                <option value={`npc:${npc.name}`}>{npc.name}</option>
-              {/each}
-            </select>
           {/if}
         </div>
         <div class="flex items-center gap-2">
@@ -1088,19 +972,6 @@
           >
             {showBaselineDetails ? "Hide details" : "Show details"}
           </Button>
-          {#if selectedStoryCharacter?.kind === "npc"}
-            <Button
-              variant="outline"
-              size="icon"
-              class="h-8 w-8 border-destructive/40 text-destructive hover:bg-destructive/10 hover:text-destructive"
-              onclick={deleteSelectedCharacter}
-              disabled={editing || saving || deletingCharacterKey !== null || $isGenerating}
-              title="Delete character"
-              aria-label="Delete character"
-            >
-              <Trash size={12} strokeWidth={2} aria-hidden="true" />
-            </Button>
-          {/if}
           <Button
             variant="outline"
             size="icon"
@@ -1117,23 +988,6 @@
       </div>
       <ScrollArea class="max-h-[calc(100dvh-3.25rem)]">
         <div class="p-4">
-          {#if isStoryPanel && trackNpcs}
-            <div class="mb-4 flex items-center gap-2">
-              <Input
-                type="text"
-                value={newCharacterName}
-                placeholder="Add character..."
-                disabled={addingCharacter || saving || editing || $isGenerating}
-                oninput={(e) => (newCharacterName = (e.target as HTMLInputElement).value)}
-                onkeydown={(e) => {
-                  if (e.key === "Enter") void addCharacter()
-                }}
-              />
-              <Button onclick={addCharacter} disabled={addingCharacter || saving || editing || $isGenerating}>
-                {addingCharacter ? "Adding..." : "Add"}
-              </Button>
-            </div>
-          {/if}
           {#if isInspectMode}
             {#if inspectLoading}
               <div class="rounded-lg border bg-card p-4 text-sm text-muted-foreground">Loading character...</div>

@@ -5,7 +5,7 @@ import { resetChat } from "@/stores/chat"
 
 export type Screen = "home" | "char-create" | "new-story" | "new-chat" | "game" | "chat" | "settings"
 
-type Panel = "charsheet"
+type Panel = "charsheet" | "characters"
 
 type RouteState = {
   screen: Screen
@@ -48,7 +48,7 @@ function asPositiveInt(raw: string | null): number | null {
 }
 
 function parsePanel(raw: string | null): Panel | null {
-  if (raw === "charsheet") return raw
+  if (raw === "charsheet" || raw === "characters") return raw
   return null
 }
 
@@ -249,6 +249,7 @@ function makePanelToggle(target: Panel, options: { requireGame?: boolean } = {})
 }
 
 export const showCharSheet = makePanelToggle("charsheet")
+export const showCharactersPanel = makePanelToggle("characters", { requireGame: true })
 
 export function openCharSheetForCharacter(id: number) {
   const safe = asPositiveInt(String(id))

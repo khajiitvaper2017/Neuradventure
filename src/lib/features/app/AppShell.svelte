@@ -12,6 +12,7 @@
   import { activeScreen, navigate, routeStoryId, routeChatId, syncRouteFromUrl } from "@/stores/router"
   import {
     collapseCharSheet,
+    collapseCharactersPanel,
     errorMessage,
     isDesktop,
     quietNotice,
@@ -19,9 +20,10 @@
     showQuietNotice,
   } from "@/stores/ui"
   import { colorMode } from "@/stores/settings"
-  import { currentStoryId } from "@/stores/game"
+  import { currentStoryId, currentStoryModules } from "@/stores/game"
   import { currentChatId } from "@/stores/chat"
   import CharSheet from "@/features/character/CharSheet.svelte"
+  import CharactersPanel from "@/features/character/CharactersPanel.svelte"
   import PwaPrompts from "@/components/overlays/PwaPrompts.svelte"
   import ConfirmDialog from "@/components/overlays/ConfirmDialog.svelte"
   import { loadStoryById } from "@/utils/storyLoader"
@@ -155,11 +157,13 @@
   let gameActive = $derived($activeScreen === "game")
   let gameReady = $derived(gameActive && !restoringStory && $currentStoryId !== null)
   let desktopGame = $derived(gameReady && $isDesktop)
+  let trackNpcs = $derived($currentStoryModules?.track_npcs ?? true)
 
   let gridStyle = $derived.by(() => {
     if (!desktopGame) return undefined
     const left = $collapseCharSheet ? 0 : SIDEBAR_WIDTH
-    return `grid-template-columns:${left}px minmax(0, ${GAME_WIDTH}px);grid-template-rows:100dvh;`
+    const right = $collapseCharactersPanel || !trackNpcs ? 0 : SIDEBAR_WIDTH
+    return `grid-template-columns:${left}px minmax(0, ${GAME_WIDTH}px) ${right}px;grid-template-rows:100dvh;`
   })
 
   function bootstrapPwa() {
@@ -257,7 +261,7 @@
     {#if gameActive}
       {#if $isDesktop && !$collapseCharSheet && gameReady}
         <div class="col-start-1 h-dvh overflow-hidden border-r bg-card">
-          <CharSheet inline />
+          <CharSheet inline lockKey="player" />
         </div>
       {/if}
 
@@ -268,11 +272,20 @@
           <div class="p-4 text-sm text-muted-foreground">Loading story…</div>
         {/if}
       </div>
+
+      {#if $isDesktop && !$collapseCharactersPanel && trackNpcs && gameReady}
+        <div class="col-start-3 h-dvh overflow-hidden border-l bg-card">
+          <CharactersPanel inline />
+        </div>
+      {/if}
     {:else}
       {@render children()}
     {/if}
 
     <CharSheet />
+    {#if trackNpcs}
+      <CharactersPanel />
+    {/if}
   {:else}
     <ScrollArea class="h-full w-full">
       <div class="grid gap-3 p-6 text-muted-foreground">
