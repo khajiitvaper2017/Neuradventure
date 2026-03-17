@@ -1,19 +1,21 @@
 import { AppError } from "@/errors"
-import type { MainCharacterState, NPCState, StoryMeta, StoryModules } from "@/shared/types"
-import type { StoryDetail, UpdateStoryStateResult } from "@/shared/api-types"
-import * as db from "@/engine/core/db"
-import { MainCharacterStateStoredSchema, NPCStateStoredSchema } from "@/engine/core/models"
-import { TavernCardV2Schema } from "@/engine/utils/converters/tavern"
-import { createNewStory } from "@/engine/game"
+import type { MainCharacterState, NPCState, StoryMeta, StoryModules } from "@/types/types"
+import type { StoryDetail, UpdateStoryStateResult } from "@/types/api"
+import * as db from "@/db/core"
+import { MainCharacterStateStoredSchema, NPCStateStoredSchema } from "@/types/models"
+import { characterToTavernCard, TavernCardV2Schema } from "@/utils/converters/tavern"
+import { createNewStory } from "@/domain/story"
 import { parseStoryModules, parseStoryState } from "@/services/stories/state"
 
 export async function list(): Promise<StoryMeta[]> {
   const rows = db.listStories()
   return rows.map((r) => ({
     id: r.id,
+    character_id: r.character_id,
     title: r.title,
     turn_count: r.turn_count,
     character_name: MainCharacterStateStoredSchema.parse(JSON.parse(r.character_state_json)).name,
+    avatar: r.character_id != null ? db.getCharacterCardSummary(r.character_id)?.avatar : undefined,
     created_at: r.created_at,
     updated_at: r.updated_at,
   }))
@@ -83,6 +85,9 @@ export async function create(data: {
         JSON.stringify(data.tavern_card),
         data.tavern_avatar_data_url ?? undefined,
       )
+    } else if (typeof data.tavern_avatar_data_url === "string" && data.tavern_avatar_data_url.trim()) {
+      const card = characterToTavernCard(base)
+      db.upsertCharacterCard(characterId, "tavern-card-v2", JSON.stringify(card), data.tavern_avatar_data_url.trim())
     }
     character = parsed
   } else {

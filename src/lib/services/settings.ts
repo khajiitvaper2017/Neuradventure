@@ -1,10 +1,10 @@
 import { z } from "zod"
 import { AppError } from "@/errors"
-import * as db from "@/engine/core/db"
-import { getCachedUpstreamModels } from "@/engine/llm/models"
-import { getCtxLimitCached, initCtxLimit } from "@/engine/llm"
-import type { AppSettings, CustomFieldDef, ModelInfo, PromptTemplateFile, SamplerPreset } from "@/shared/api-types"
-import { HIDDEN_SECRET_PLACEHOLDER } from "@/shared/secrets"
+import * as db from "@/db/core"
+import { getCachedUpstreamModels } from "@/llm/models"
+import { getCtxLimitCached, initCtxLimit } from "@/llm"
+import type { AppSettings, CustomFieldDef, ModelInfo, PromptTemplateFile, SamplerPreset } from "@/types/api"
+import { HIDDEN_SECRET_PLACEHOLDER } from "@/secrets"
 import {
   areConnectorSecretsReady,
   clearConnectorApiKey,
@@ -12,7 +12,7 @@ import {
   hasCachedConnectorApiKey,
   initConnectorApiKeySecrets,
   setConnectorApiKey,
-} from "@/engine/secrets/connector-api-keys"
+} from "@/secrets/connector-api-keys"
 
 const BuiltinPresetSchema = z.object({
   name: z.string().min(1),
@@ -22,7 +22,7 @@ const BuiltinPresetSchema = z.object({
 
 type BuiltinPreset = z.infer<typeof BuiltinPresetSchema>
 
-const builtinPresetModules = import.meta.glob("/src/lib/shared/config/presets/*.json", { eager: true }) as Record<
+const builtinPresetModules = import.meta.glob("/src/lib/config/presets/*.json", { eager: true }) as Record<
   string,
   { default?: unknown } | unknown
 >
@@ -308,6 +308,107 @@ export const settings = {
     const ok = db.deleteSamplerPreset(parsed)
     if (!ok) throw new AppError(404, "Preset not found")
     return { ok: true }
+  },
+
+  deleteAllCustomFields: async (): Promise<{ ok: boolean; deleted: number }> => {
+    try {
+      const deleted = db.deleteAllCustomFields()
+      return { ok: true, deleted }
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Failed to delete custom fields"
+      throw new AppError(400, message)
+    }
+  },
+
+  deleteAllSamplerPresets: async (): Promise<{ ok: boolean; deleted: number }> => {
+    try {
+      const deleted = db.deleteAllSamplerPresets()
+      return { ok: true, deleted }
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Failed to delete sampler presets"
+      throw new AppError(400, message)
+    }
+  },
+
+  clearAllPromptHistory: async (): Promise<{ ok: boolean; deleted: number }> => {
+    try {
+      const deleted = db.clearAllPromptHistory()
+      return { ok: true, deleted }
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Failed to clear prompt history"
+      throw new AppError(400, message)
+    }
+  },
+
+  resetSettingsToDefaults: async (): Promise<{ ok: boolean }> => {
+    try {
+      db.updateSettings(db.DEFAULT_SETTINGS)
+      initCtxLimit().catch((err) => {
+        console.warn("[ctx_limit] Failed to refresh context limit", err)
+      })
+      return { ok: true }
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Failed to reset settings"
+      throw new AppError(400, message)
+    }
+  },
+
+  resetConnectorApiKeys: async (): Promise<{ ok: boolean; cleared_openrouter_key: boolean }> => {
+    let cleared_openrouter_key = false
+    try {
+      await initConnectorApiKeySecrets()
+      if (!areConnectorSecretsReady()) throw new Error("Secret storage unavailable")
+      await Promise.allSettled([setConnectorApiKey("koboldcpp", "kobold"), clearConnectorApiKey("openrouter")])
+      cleared_openrouter_key = true
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Failed to reset connector API keys"
+      throw new AppError(400, message)
+    }
+    return { ok: true, cleared_openrouter_key }
+  },
+
+  resetAllConfig: async (): Promise<{
+    ok: boolean
+    reset_prompt_templates: number
+    cleared_field_prompt_overrides: boolean
+    deleted_custom_fields: number
+    deleted_sampler_presets: number
+    deleted_prompt_history: number
+    reset_settings: boolean
+    cleared_openrouter_key: boolean
+  }> => {
+    const reset_prompt_templates = db.resetAllPromptTemplateFiles()
+    db.resetAllFieldPromptOverrides()
+    const deleted_custom_fields = db.deleteAllCustomFields()
+    const deleted_sampler_presets = db.deleteAllSamplerPresets()
+    const deleted_prompt_history = db.clearAllPromptHistory()
+    db.updateSettings(db.DEFAULT_SETTINGS)
+
+    let cleared_openrouter_key = false
+    try {
+      await initConnectorApiKeySecrets()
+      if (areConnectorSecretsReady()) {
+        await Promise.allSettled([setConnectorApiKey("koboldcpp", "kobold"), clearConnectorApiKey("openrouter")])
+        cleared_openrouter_key = true
+      }
+    } catch {
+      // Ignore secret-store failures.
+    }
+
+    initCtxLimit().catch((err) => {
+      console.warn("[ctx_limit] Failed to refresh context limit", err)
+    })
+
+    return {
+      ok: true,
+      reset_prompt_templates,
+      cleared_field_prompt_overrides: true,
+      deleted_custom_fields,
+      deleted_sampler_presets,
+      deleted_prompt_history,
+      reset_settings: true,
+      cleared_openrouter_key,
+    }
   },
 }
 

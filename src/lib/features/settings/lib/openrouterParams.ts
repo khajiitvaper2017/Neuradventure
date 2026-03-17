@@ -1,4 +1,4 @@
-import type { GenerationParams, ModelInfo } from "@/shared/api-types"
+import type { GenerationParams, ModelInfo } from "@/types/api"
 
 export type OpenRouterParamStatus = "supported" | "unsupported" | "unknown" | "not_sent"
 type OpenRouterSupportedParam = string | string[]

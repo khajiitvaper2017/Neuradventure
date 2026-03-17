@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { onMount } from "svelte"
+  import { untrack } from "svelte"
   import { page } from "$app/state"
   import { registerSW } from "virtual:pwa-register"
   import { pwaInfo } from "virtual:pwa-info"
@@ -12,8 +12,7 @@
   import { activeScreen, navigate, routeStoryId, routeChatId, syncRouteFromUrl } from "@/stores/router"
   import {
     collapseCharSheet,
-    collapseLocationsPanel,
-    collapseNPCTracker,
+    collapseCharactersPanel,
     errorMessage,
     isDesktop,
     quietNotice,
@@ -24,15 +23,14 @@
   import { currentStoryId, currentStoryModules } from "@/stores/game"
   import { currentChatId } from "@/stores/chat"
   import CharSheet from "@/features/character/CharSheet.svelte"
-  import NPCTracker from "@/features/npc/NPCTracker.svelte"
-  import LocationsPanel from "@/components/panels/LocationsPanel.svelte"
+  import CharactersPanel from "@/features/character/CharactersPanel.svelte"
   import PwaPrompts from "@/components/overlays/PwaPrompts.svelte"
   import ConfirmDialog from "@/components/overlays/ConfirmDialog.svelte"
   import { loadStoryById } from "@/utils/storyLoader"
   import { loadChatById } from "@/utils/chatLoader"
-  import { initEngine } from "@/engine"
+  import { initEngine } from "@/services/initEngine"
   import { ctxLimitDetected, initSettings } from "@/stores/settings"
-  import { getCtxLimitCached, initCtxLimit } from "@/engine/llm"
+  import { getCtxLimitCached, initCtxLimit } from "@/llm"
   import { setPwaNeedRefresh, setPwaOfflineReady } from "@/stores/pwa"
   import { ensurePersistentStorage } from "@/utils/storagePersistence"
   import { cn } from "@/utils.js"
@@ -104,7 +102,6 @@
   })
 
   $effect(() => {
-    if (typeof window === "undefined") return
     const root = document.documentElement
     const mq = window.matchMedia("(prefers-color-scheme: dark)")
 
@@ -161,14 +158,12 @@
   let gameReady = $derived(gameActive && !restoringStory && $currentStoryId !== null)
   let desktopGame = $derived(gameReady && $isDesktop)
   let trackNpcs = $derived($currentStoryModules?.track_npcs ?? true)
-  let trackLocations = $derived($currentStoryModules?.track_locations ?? true)
 
   let gridStyle = $derived.by(() => {
     if (!desktopGame) return undefined
     const left = $collapseCharSheet ? 0 : SIDEBAR_WIDTH
-    const right1 = $collapseNPCTracker || !trackNpcs ? 0 : SIDEBAR_WIDTH
-    const right2 = $collapseLocationsPanel || !trackLocations ? 0 : SIDEBAR_WIDTH
-    return `grid-template-columns:${left}px minmax(0, ${GAME_WIDTH}px) ${right1}px ${right2}px;grid-template-rows:100dvh;`
+    const right = $collapseCharactersPanel || !trackNpcs ? 0 : SIDEBAR_WIDTH
+    return `grid-template-columns:${left}px minmax(0, ${GAME_WIDTH}px) ${right}px;grid-template-rows:100dvh;`
   })
 
   function bootstrapPwa() {
@@ -219,9 +214,11 @@
       })
   }
 
-  onMount(() => {
-    bootstrapPwa()
-    void bootstrap()
+  $effect(() => {
+    untrack(() => {
+      bootstrapPwa()
+      void bootstrap()
+    })
   })
 </script>
 
@@ -263,12 +260,12 @@
   {#if bootstrapped}
     {#if gameActive}
       {#if $isDesktop && !$collapseCharSheet && gameReady}
-        <div class="h-dvh overflow-hidden border-r bg-card">
-          <CharSheet inline />
+        <div class="col-start-1 h-dvh overflow-hidden border-r bg-card">
+          <CharSheet inline lockKey="player" />
         </div>
       {/if}
 
-      <div class={desktopGame ? "" : ""}>
+      <div class={cn(desktopGame && "col-start-2", "min-w-0")}>
         {#if gameReady}
           {@render children()}
         {:else}
@@ -276,15 +273,9 @@
         {/if}
       </div>
 
-      {#if $isDesktop && !$collapseNPCTracker && trackNpcs && gameReady}
-        <div class="h-dvh overflow-hidden border-l bg-card">
-          <NPCTracker inline />
-        </div>
-      {/if}
-
-      {#if $isDesktop && !$collapseLocationsPanel && trackLocations && gameReady}
-        <div class="h-dvh overflow-hidden border-l bg-card">
-          <LocationsPanel inline />
+      {#if $isDesktop && !$collapseCharactersPanel && trackNpcs && gameReady}
+        <div class="col-start-3 h-dvh overflow-hidden border-l bg-card">
+          <CharactersPanel inline />
         </div>
       {/if}
     {:else}
@@ -293,10 +284,7 @@
 
     <CharSheet />
     {#if trackNpcs}
-      <NPCTracker />
-    {/if}
-    {#if trackLocations}
-      <LocationsPanel />
+      <CharactersPanel />
     {/if}
   {:else}
     <ScrollArea class="h-full w-full">

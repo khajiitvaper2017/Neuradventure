@@ -1,5 +1,5 @@
 <script lang="ts">
-  import type { ModelInfo } from "@/shared/api-types"
+  import type { ModelInfo } from "@/types/api"
   import ConnectionSection from "@/features/settings/tabs/generation/ConnectionSection.svelte"
   import StoryDefaultsSection from "@/features/settings/tabs/generation/StoryDefaultsSection.svelte"
   import SamplerPresetsSection from "@/features/settings/tabs/generation/SamplerPresetsSection.svelte"

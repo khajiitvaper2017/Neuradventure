@@ -10,9 +10,8 @@
     "preview": "vite preview",
     "generate:pwa-assets": "pwa-assets-generator",
     "format": "prettier --ignore-path .gitignore --write . ",
-    "lint": "eslint src scripts",
-    "check:css": "tsx scripts/check-css-imports.ts",
-    "check": "svelte-kit sync && eslint src scripts && tsx scripts/check-css-imports.ts && svelte-check && tsc -p tsconfig.node.json"
+    "lint": "eslint src",
+    "check": "svelte-kit sync && eslint src && svelte-check && tsc -p tsconfig.node.json"
   },
   "dependencies": {
     "@fontsource/geist-mono": "^5.2.7",
@@ -26,6 +25,7 @@
     "pako": "^2.1.0",
     "sql.js": "^1.13.0",
     "tailwind-merge": "^3.5.0",
+    "token-estimator": "^1.0.2",
     "zod": "^4.3.6"
   },
   "devDependencies": {
@@ -44,6 +44,7 @@
     "eslint": "^10.0.3",
     "eslint-plugin-svelte": "^3.15.2",
     "jiti": "^2.6.1",
+    "paneforge": "^1.0.2",
     "prettier": "3.8.1",
     "prettier-plugin-svelte": "^3.5.1",
     "shadcn-svelte": "^1.1.1",

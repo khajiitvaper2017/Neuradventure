@@ -1,7 +1,7 @@
 <script lang="ts">
-  import { onMount } from "svelte"
+  import { untrack } from "svelte"
   import { settings as settingsService } from "@/services/settings"
-  import type { PromptTemplateFile } from "@/shared/api-types"
+  import type { PromptTemplateFile } from "@/types/api"
   import { Button } from "@/components/ui/button"
   import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
   import * as InputGroup from "@/components/ui/input-group"
@@ -158,8 +158,10 @@
     }
   }
 
-  onMount(() => {
-    void loadPromptFiles()
+  $effect(() => {
+    untrack(() => {
+      void loadPromptFiles()
+    })
   })
 </script>
 

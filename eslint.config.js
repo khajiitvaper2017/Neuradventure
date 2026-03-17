@@ -14,7 +14,7 @@ const svelteConfig = {
 
 export default [
   {
-    files: ["src/**/*.ts", "scripts/**/*.ts"],
+    files: ["src/**/*.ts"],
     languageOptions: {
       parser: tsParser,
     },

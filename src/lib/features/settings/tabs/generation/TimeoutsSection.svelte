@@ -1,5 +1,5 @@
 <script lang="ts">
-  import type { TimeoutSettings } from "@/shared/api-types"
+  import type { TimeoutSettings } from "@/types/api"
   import { DEFAULT_TIMEOUTS, timeouts } from "@/stores/settings"
   import { Button } from "@/components/ui/button"
   import { Card, CardAction, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"

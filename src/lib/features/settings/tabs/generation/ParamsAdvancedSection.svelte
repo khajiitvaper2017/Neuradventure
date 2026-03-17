@@ -1,5 +1,5 @@
 <script lang="ts">
-  import type { GenerationParams, ModelInfo } from "@/shared/api-types"
+  import type { GenerationParams, ModelInfo } from "@/types/api"
   import { connector, generation } from "@/stores/settings"
   import { cn } from "@/utils.js"
   import { formatSamplerOrder, parseSamplerOrder } from "@/features/settings/lib/samplerOrder"

@@ -1,11 +1,9 @@
 <script lang="ts">
-  import type { TurnSummary, TurnVariantSummary } from "@/shared/types"
+  import type { TurnSummary, TurnVariantSummary } from "@/types/types"
   import { cn } from "@/utils.js"
   import { SquarePen, Trash } from "@lucide/svelte"
   import BackgroundEventsReveal from "@/components/rich/BackgroundEventsReveal.svelte"
   import RichText from "@/components/rich/RichText.svelte"
-  import StreamingTurnPreview from "@/components/rich/StreamingTurnPreview.svelte"
-  import { looksLikeBlockHtml } from "@/utils/sanitizeHtml"
   import { currentStoryInitialWorld, currentStoryOpeningScenario, turns, worldState, isGenerating } from "@/stores/game"
   import { streamingEnabled } from "@/stores/settings"
   import { Button } from "@/components/ui/button"
@@ -39,6 +37,7 @@
     streamBackground?: string
     streamScene?: string
     streamTime?: string
+    pendingPlayerInput?: string
   }
 
   let {
@@ -68,6 +67,7 @@
     streamBackground = "",
     streamScene = "",
     streamTime = "",
+    pendingPlayerInput = "",
   }: Props = $props()
 
   $effect(() => {
@@ -77,18 +77,6 @@
     el.addEventListener("scroll", listener, { passive: true })
     return () => el.removeEventListener("scroll", listener)
   })
-
-  function paragraphs(text: string): string[] {
-    let normalized = text.replace(/\r\n/g, "\n")
-    if (!normalized.includes("\n") && normalized.includes("\\n")) {
-      normalized = normalized.replace(/\\n/g, "\n")
-    }
-    const hasBlankLines = /\n\s*\n/.test(normalized)
-    return normalized
-      .split(hasBlankLines ? /\n\s*\n+/ : /\n+/)
-      .map((p) => p.trim())
-      .filter(Boolean)
-  }
 </script>
 
 <ScrollArea
@@ -151,9 +139,77 @@
       {/if}
     </div>
 
+    {#snippet turnPlayerBar(playerInput, opts)}
+      <div
+        class={cn(
+          "my-4 -mx-5 flex scroll-mt-6 items-baseline gap-2 bg-accent/60 px-5 py-3 font-story text-sm italic leading-relaxed text-accent-foreground/90 min-[1200px]:-mx-10 min-[1200px]:px-10",
+          opts.isFresh && "animate-in fade-in slide-in-from-bottom-1 duration-200",
+        )}
+        aria-live={opts.ariaLive ? "polite" : undefined}
+      >
+        {#if playerInput.trim().length > 0}
+          <SquarePen class="mt-[1px] shrink-0 opacity-60" size={12} strokeWidth={2} aria-hidden="true" />
+        {/if}
+        <span class="min-w-0 flex-1">
+          <RichText text={playerInput} mode="inline" />
+        </span>
+
+        <Button
+          variant="outline"
+          size="icon"
+          class="h-8 w-8"
+          onclick={opts.onEdit}
+          disabled={$isGenerating || !opts.onEdit}
+          title="Edit turn"
+          aria-label="Edit turn"
+        >
+          <SquarePen size={12} strokeWidth={2} aria-hidden="true" />
+        </Button>
+        <Button
+          variant="outline"
+          size="icon"
+          class="h-8 w-8 border-destructive/40 text-destructive hover:bg-destructive/10 hover:text-destructive"
+          onclick={opts.onDelete}
+          disabled={$isGenerating || !opts.onDelete}
+          title="Delete turn"
+          aria-label="Delete turn"
+        >
+          <Trash size={12} strokeWidth={2} aria-hidden="true" />
+        </Button>
+      </div>
+    {/snippet}
+
+    {#snippet turnBody(opts)}
+      <div data-turn-anchor={opts.anchorId ?? undefined} class="mb-4 scroll-mt-6">
+        {#if opts.statusText}
+          <p class="text-sm italic text-muted-foreground">{opts.statusText}</p>
+        {:else}
+          {#if opts.worldLine}
+            <p class="mb-2 text-[11px] uppercase tracking-wider text-muted-foreground/80">
+              {opts.worldLine}
+            </p>
+          {/if}
+
+          <BackgroundEventsReveal text={opts.backgroundEvents} />
+
+          {@const narrative = opts.narrativeText ?? ""}
+          {#if narrative.trim().length > 0}
+            <div
+              class={cn(
+                "whitespace-pre-line font-story text-[length:var(--story-size)] leading-[var(--story-line)] text-foreground",
+                opts.isFresh && "animate-in fade-in slide-in-from-bottom-1 duration-300",
+              )}
+            >
+              <RichText text={narrative} mode="block" />
+            </div>
+          {/if}
+        {/if}
+      </div>
+    {/snippet}
+
     {#each $turns as turn, i (turn.id)}
       {#if editingTurnId === turn.id}
-        <div class="mb-5 rounded-lg border bg-card p-4">
+        <div data-turn-anchor={turn.id} class="mb-5 scroll-mt-6 rounded-lg border bg-card p-4">
           <div class="space-y-3">
             <div class="space-y-2">
               <div class="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Player Input</div>
@@ -171,103 +227,56 @@
         </div>
       {:else}
         {@const isFresh = userActed && i === $turns.length - 1 && !$isGenerating}
-        <div
-          class={cn(
-            "my-4 -mx-5 flex items-baseline gap-2 bg-accent/60 px-5 py-3 font-story text-sm italic leading-relaxed text-accent-foreground/90 min-[1200px]:-mx-10 min-[1200px]:px-10",
-            isFresh && "animate-in fade-in slide-in-from-bottom-1 duration-200",
-          )}
-        >
-          {#if turn.player_input.trim().length > 0}
-            <SquarePen class="mt-[1px] shrink-0 opacity-60" size={12} strokeWidth={2} aria-hidden="true" />
-          {/if}
-          <span class="min-w-0 flex-1">
-            <RichText text={turn.player_input} mode="inline" />
-          </span>
-          <Button
-            variant="outline"
-            size="icon"
-            class="h-8 w-8"
-            onclick={() => startEditTurn?.(turn)}
-            disabled={$isGenerating}
-            title="Edit turn"
-            aria-label="Edit turn"
-          >
-            <SquarePen size={12} strokeWidth={2} aria-hidden="true" />
-          </Button>
-          <Button
-            variant="outline"
-            size="icon"
-            class="h-8 w-8 border-destructive/40 text-destructive hover:bg-destructive/10 hover:text-destructive"
-            onclick={() => deleteTurn?.(turn.id)}
-            disabled={$isGenerating}
-            title="Delete turn"
-          >
-            <Trash size={12} strokeWidth={2} aria-hidden="true" />
-          </Button>
-        </div>
+        {@render turnPlayerBar(turn.player_input, {
+          isFresh,
+          onEdit: () => startEditTurn?.(turn),
+          onDelete: () => deleteTurn?.(turn.id),
+        })}
 
-        <div class="mb-4">
-          {#if $isGenerating && regeneratingTurnId === turn.id}
-            <p class="text-sm italic text-muted-foreground">Regenerating…</p>
-          {:else}
-            {#if turn.world}
-              <p class="mb-2 text-[11px] uppercase tracking-wider text-muted-foreground/80">
-                {turn.world.current_scene} · {turn.world.time_of_day}
-              </p>
-            {/if}
+        {@render turnBody({
+          anchorId: turn.id,
+          statusText: $isGenerating && regeneratingTurnId === turn.id ? "Regenerating…" : "",
+          worldLine: turn.world ? `${turn.world.current_scene} · ${turn.world.time_of_day}` : "",
+          backgroundEvents: turn.background_events,
+          narrativeText: turn.narrative_text,
+          isFresh,
+        })}
 
-            <BackgroundEventsReveal text={turn.background_events} />
-
-            {#if looksLikeBlockHtml(turn.narrative_text)}
-              <div
-                class={cn("font-story", isFresh && "animate-in fade-in slide-in-from-bottom-1 duration-300")}
-                style="animation-delay: 0s"
+        {#if !($isGenerating && regeneratingTurnId === turn.id) && i === $turns.length - 1 && lastTurnVariants.length > 1}
+          <div class="mt-4 flex flex-wrap items-center gap-2">
+            <span class="mr-1 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Versions</span>
+            {#each lastTurnVariants as variant (variant.id)}
+              <Button
+                variant={activeVariantId === variant.id ? "secondary" : "outline"}
+                size="sm"
+                class="h-8 w-10 px-0 font-mono"
+                onclick={() => selectVariant?.(variant.id)}
+                disabled={$isGenerating}
+                title={`Version ${variant.variant_index}`}
               >
-                <RichText text={turn.narrative_text} mode="block" />
-              </div>
-            {:else}
-              {#each paragraphs(turn.narrative_text) as para, j (j)}
-                <p
-                  class={cn(
-                    "mb-4 whitespace-pre-line font-story text-[length:var(--story-size)] leading-[var(--story-line)] text-foreground",
-                    isFresh && "animate-in fade-in slide-in-from-bottom-1 duration-300",
-                  )}
-                  style="animation-delay: {j * 0.06}s"
-                >
-                  <RichText text={para} mode="inline" />
-                </p>
-              {/each}
-            {/if}
-
-            {#if i === $turns.length - 1 && lastTurnVariants.length > 1}
-              <div class="mt-4 flex flex-wrap items-center gap-2">
-                <span class="mr-1 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Versions</span>
-                {#each lastTurnVariants as variant (variant.id)}
-                  <Button
-                    variant={activeVariantId === variant.id ? "secondary" : "outline"}
-                    size="sm"
-                    class="h-8 w-10 px-0 font-mono"
-                    onclick={() => selectVariant?.(variant.id)}
-                    disabled={$isGenerating}
-                    title={`Version ${variant.variant_index}`}
-                  >
-                    {variant.variant_index}
-                  </Button>
-                {/each}
-              </div>
-            {/if}
-          {/if}
-        </div>
+                {variant.variant_index}
+              </Button>
+            {/each}
+          </div>
+        {/if}
       {/if}
     {/each}
 
     {#if $isGenerating && $streamingEnabled}
-      <StreamingTurnPreview
-        narrativeText={streamNarrative}
-        backgroundEvents={streamBackground}
-        currentScene={streamScene}
-        timeOfDay={streamTime}
-      />
+      {@const pendingInput = pendingPlayerInput}
+      {@const streamWorldLine =
+        streamScene && streamTime ? `${streamScene} · ${streamTime}` : streamScene || streamTime || ""}
+
+      {@render turnPlayerBar(pendingInput, { isFresh: false, ariaLive: true })}
+
+      {@render turnBody({
+        statusText:
+          streamNarrative.trim().length === 0 && (streamBackground?.trim() ?? "").length === 0 ? "Generating…" : "",
+        worldLine: streamWorldLine,
+        backgroundEvents: streamBackground,
+        narrativeText: streamNarrative,
+        isFresh: false,
+      })}
     {/if}
 
     <div class="h-4"></div>

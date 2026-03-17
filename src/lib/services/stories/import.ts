@@ -1,10 +1,10 @@
 import { z } from "zod"
 import { AppError } from "@/errors"
-import * as db from "@/engine/core/db"
-import { MainCharacterStateStoredSchema, NPCStateStoredSchema, WorldStateStoredSchema } from "@/engine/core/models"
-import { createNewStory } from "@/engine/game"
-import { detectImportFormat, parseTavernJSONL } from "@/engine/utils/converters/tavern"
-import { StoryModulesSchema } from "@/engine/schemas/story-modules"
+import * as db from "@/db/core"
+import { MainCharacterStateStoredSchema, NPCStateStoredSchema, WorldStateStoredSchema } from "@/types/models"
+import { createNewStory } from "@/domain/story"
+import { detectImportFormat, parseTavernJSONL } from "@/utils/converters/tavern"
+import { StoryModulesSchema } from "@/domain/story/schemas/story-modules"
 import { parseStoryState } from "@/services/stories/state"
 
 const ImportTurnSchema = z.object({

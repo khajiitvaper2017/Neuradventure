@@ -197,7 +197,7 @@
             <Select.Trigger class="w-full" aria-label="Field prompt key">
               <span class="truncate font-mono text-xs">{selectedKey || "Select…"}</span>
             </Select.Trigger>
-            <Select.Content class="max-h-[320px]">
+            <Select.Content>
               <div class="sticky top-0 z-10 border-b bg-popover p-2">
                 <Input
                   bind:ref={keySearchRef}
@@ -282,7 +282,7 @@
             <Select.Trigger class="w-full" aria-label="Field prompt key">
               <span class="truncate font-mono text-xs">{selectedKey || "Select…"}</span>
             </Select.Trigger>
-            <Select.Content class="max-h-[320px]">
+            <Select.Content>
               <div class="sticky top-0 z-10 border-b bg-popover p-2">
                 <Input
                   bind:ref={keySearchRef}

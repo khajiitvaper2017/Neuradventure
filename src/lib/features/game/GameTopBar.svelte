@@ -1,9 +1,8 @@
 <script lang="ts">
-  import type { StoryModules } from "@/shared/types"
   import { stories } from "@/services/stories"
   import { cn } from "@/utils.js"
-  import { EllipsisVertical, MapPin, Puzzle, User, Users } from "@lucide/svelte"
-  import { DEFAULT_STORY_MODULES } from "@/engine/schemas/story-modules"
+  import { estimateTokens, formatTokenCount } from "@/utils/text/tokenEstimate"
+  import { EllipsisVertical, User, Users } from "@lucide/svelte"
   import { Badge } from "@/components/ui/badge"
   import { Button } from "@/components/ui/button"
   import {
@@ -13,8 +12,8 @@
     DropdownMenuSeparator,
     DropdownMenuTrigger,
   } from "@/components/ui/dropdown-menu"
-  import { showCharSheet, showLocations, showNPCTracker } from "@/stores/router"
-  import { collapseCharSheet, collapseLocationsPanel, collapseNPCTracker } from "@/stores/ui"
+  import { generation } from "@/stores/settings"
+  import { collapseCharSheet, collapseCharactersPanel } from "@/stores/ui"
   import { currentStoryId, currentStoryModules, currentStoryTitle, turns, worldState } from "@/stores/game"
 
   type Props = {
@@ -37,12 +36,23 @@
 
   let showMenu = $state(false)
   const trackNpcs = $derived($currentStoryModules?.track_npcs ?? true)
-  const trackLocations = $derived($currentStoryModules?.track_locations ?? true)
-  const MODULE_KEYS = Object.keys(DEFAULT_STORY_MODULES) as (keyof StoryModules)[]
-  function countEnabled(modules: StoryModules): number {
-    return MODULE_KEYS.reduce((acc, k) => acc + (modules[k] ? 1 : 0), 0)
-  }
-  const modulesEnabledCount = $derived(countEnabled($currentStoryModules ?? DEFAULT_STORY_MODULES))
+  const approxPromptTokens = $derived.by(() => {
+    const parts: string[] = []
+    const memory = $worldState?.memory?.trim()
+    if (memory) parts.push(memory)
+
+    const recentTurns = $turns.slice(-12)
+    for (const turn of recentTurns) {
+      const player = turn.player_input?.trim()
+      if (player) parts.push(player)
+      const bg = turn.background_events?.trim()
+      if (bg) parts.push(bg)
+      const narrative = turn.narrative_text?.trim()
+      if (narrative) parts.push(narrative)
+    }
+
+    return estimateTokens(parts.join("\n\n"))
+  })
 
   async function exportStory(format: "neuradventure" | "tavern" | "plaintext") {
     showMenu = false
@@ -91,85 +101,36 @@
   </div>
 
   <div class="flex shrink-0 items-center gap-1">
-    <Badge variant="secondary" class="mr-1 font-mono text-xs tabular-nums">{$turns.length}</Badge>
+    <Badge
+      variant="secondary"
+      class="mr-1 font-mono text-xs tabular-nums"
+      title={`Approx prompt tokens (heuristic): ~${approxPromptTokens} · Max completion: ≤${$generation.max_tokens}`}
+    >
+      ~{formatTokenCount(approxPromptTokens)}
+    </Badge>
 
     <Button
       variant="ghost"
       size="icon"
       class={cn("hidden h-9 w-9 text-muted-foreground min-[1200px]:inline-flex", $collapseCharSheet && "opacity-50")}
-      title={$collapseCharSheet ? "Show character sheet" : "Hide character sheet"}
+      title={$collapseCharSheet ? "Show player" : "Hide player"}
       onclick={() => collapseCharSheet.update((v) => !v)}
     >
       <User size={15} strokeWidth={1.8} aria-hidden="true" />
     </Button>
+
     {#if trackNpcs}
-      <Button
-        variant="ghost"
-        size="icon"
-        class={cn("hidden h-9 w-9 text-muted-foreground min-[1200px]:inline-flex", $collapseNPCTracker && "opacity-50")}
-        title={$collapseNPCTracker ? "Show NPC tracker" : "Hide NPC tracker"}
-        onclick={() => collapseNPCTracker.update((v) => !v)}
-      >
-        <Users size={15} strokeWidth={1.8} aria-hidden="true" />
-      </Button>
-    {/if}
-    {#if trackLocations}
       <Button
         variant="ghost"
         size="icon"
         class={cn(
           "hidden h-9 w-9 text-muted-foreground min-[1200px]:inline-flex",
-          $collapseLocationsPanel && "opacity-50",
+          $collapseCharactersPanel && "opacity-50",
         )}
-        title={$collapseLocationsPanel ? "Show locations" : "Hide locations"}
-        onclick={() => collapseLocationsPanel.update((v) => !v)}
-      >
-        <MapPin size={15} strokeWidth={1.8} aria-hidden="true" />
-      </Button>
-    {/if}
-    <Button
-      variant="ghost"
-      size="icon"
-      class="h-9 w-9 text-muted-foreground min-[1200px]:hidden"
-      title="Character Sheet"
-      onclick={() => showCharSheet.update((v) => !v)}
-    >
-      <User size={15} strokeWidth={1.8} aria-hidden="true" />
-    </Button>
-    {#if trackNpcs}
-      <Button
-        variant="ghost"
-        size="icon"
-        class="h-9 w-9 text-muted-foreground min-[1200px]:hidden"
-        title="NPC Tracker"
-        onclick={() => showNPCTracker.update((v) => !v)}
+        title={$collapseCharactersPanel ? "Show characters" : "Hide characters"}
+        onclick={() => collapseCharactersPanel.update((v) => !v)}
       >
         <Users size={15} strokeWidth={1.8} aria-hidden="true" />
-      </Button>
-    {/if}
-    {#if trackLocations}
-      <Button
-        variant="ghost"
-        size="icon"
-        class="h-9 w-9 text-muted-foreground min-[1200px]:hidden"
-        title="Locations"
-        onclick={() => showLocations.update((v) => !v)}
-      >
-        <MapPin size={15} strokeWidth={1.8} aria-hidden="true" />
-      </Button>
-    {/if}
-
-    {#if onOpenModulesEditor}
-      <Button
-        variant="outline"
-        size="sm"
-        class="h-8 gap-2 px-2 text-xs"
-        title="Story Modules"
-        onclick={() => onOpenModulesEditor?.()}
-      >
-        <Puzzle size={14} strokeWidth={1.8} class="shrink-0 text-muted-foreground" aria-hidden="true" />
-        <span class="hidden min-[420px]:inline">Modules</span>
-        <Badge variant="secondary" class="h-5 px-1.5 font-mono text-[10px] tabular-nums">{modulesEnabledCount}</Badge>
       </Button>
     {/if}
 

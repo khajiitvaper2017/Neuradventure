@@ -1,7 +1,7 @@
-import * as db from "@/engine/core/db"
-import { getServerDefaults } from "@/engine/core/strings"
-import type { ChatMember } from "@/engine/llm/chat"
-import { TavernCardV2Schema, type TavernCardV2 } from "@/engine/utils/converters/tavern"
+import * as db from "@/db/core"
+import { getServerDefaults } from "@/utils/text/strings"
+import type { ChatMember } from "@/llm/chat"
+import { TavernCardV2Schema, type TavernCardV2 } from "@/utils/converters/tavern"
 
 export function parseMemberState(raw: string): db.ChatMemberState | null {
   try {
@@ -17,7 +17,7 @@ export function memberNameFromState(state: db.ChatMemberState | null): string {
   return state.name?.trim() || defaults.unknown.value
 }
 
-function defaultMemberState(memberKind: db.ChatMemberRow["member_kind"]): db.ChatMemberState {
+function defaultMemberState(): db.ChatMemberState {
   const defaults = getServerDefaults()
   const base = {
     name: defaults.unknown.value,
@@ -25,6 +25,7 @@ function defaultMemberState(memberKind: db.ChatMemberRow["member_kind"]): db.Cha
     gender: "",
     general_description: defaults.unknown.generalDescription,
     current_location: "",
+    current_activity: "",
     baseline_appearance: "",
     current_appearance: "",
     current_clothing: "",
@@ -33,13 +34,13 @@ function defaultMemberState(memberKind: db.ChatMemberRow["member_kind"]): db.Cha
     perks: [],
     custom_fields: {},
   }
-  return memberKind === "npc" ? { ...base, current_activity: "" } : base
+  return base
 }
 
 export function resolveMemberState(member: db.ChatMemberRow): db.ChatMemberState {
   const parsed = parseMemberState(member.state_json)
   if (parsed) return parsed
-  return defaultMemberState(member.member_kind)
+  return defaultMemberState()
 }
 
 export function buildChatMembersForPrompt(members: db.ChatMemberRow[]): ChatMember[] {
@@ -47,7 +48,7 @@ export function buildChatMembersForPrompt(members: db.ChatMemberRow[]): ChatMemb
     id: member.id,
     role: member.role,
     sort_order: member.sort_order,
-    state: parseMemberState(member.state_json) ?? defaultMemberState(member.member_kind),
+    state: parseMemberState(member.state_json) ?? defaultMemberState(),
   }))
 }
 

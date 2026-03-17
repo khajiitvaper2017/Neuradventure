@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { tokenizeInline } from "@/utils/inlineTokens"
+  import { tokenizeInline } from "@/utils/text/inlineTokens"
 
   type Props = {
     text?: string

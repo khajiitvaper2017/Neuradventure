@@ -1,5 +1,5 @@
 <script lang="ts">
-  import type { ChatMember } from "@/shared/types"
+  import type { ChatMember } from "@/types/types"
   import {
     Dialog,
     DialogContent,

@@ -1,97 +1,86 @@
-# AGENTS.md
+# Repository Guidelines
 
-## Project Overview
+## Personality
 
-A **static, installable SvelteKit PWA** with no custom backend. Navigation is query-param routed (e.g. `/game?story=<id>`, `/chat?chat=<id>`).
+Concise and precise.
 
----
+## Project Structure & Module Organization
 
-## Architecture
+- `src/routes/`: SvelteKit pages/layouts (`+layout.ts`, `+page.svelte`). Keep these thin.
+- `src/lib/domain/`: domain logic (currently `domain/story/` for story/game rules + schemas).
+- `src/lib/db/`: persistence layer (SQLite/sql.js access + migrations).
+- `src/lib/llm/`: LLM connectors + prompting + streaming (see `llm/io/` and `llm/schema/`).
+- `src/lib/secrets/`: secret storage/adapters (never log/commit API keys).
+- `src/lib/types/`: shared types/models/API payload shapes.
+- `src/lib/config/`: shipped config + prompt templates + presets.
+- `src/lib/utils/`: low-level helpers (keeps `src/lib/utils.ts` for vendored `@/utils.js` imports).
+- `src/lib/features/`: feature screens; `src/lib/components/`: shared UI (`components/ui/` is shadcn-svelte).
+- `src/lib/styles/app.css`: Tailwind v4 entry + CSS-variable theme.
+- `components.json`: shadcn-svelte CLI config (paths/aliases/theme base color).
 
-| Layer         | Technology                                                                                |
-| ------------- | ----------------------------------------------------------------------------------------- |
-| Frontend      | Svelte 5 + SvelteKit (SSR disabled, `adapter-static`)                                     |
-| Persistence   | `sql.js` (WASM SQLite) → IndexedDB via `navigator.storage.persist()`                      |
-| LLM           | Browser `fetch` → OpenAI-compatible APIs (OpenRouter, LAN KoboldCpp)                      |
-| Streaming     | In-process streaming hub — no WebSocket server                                            |
-| PWA / Offline | `@vite-pwa/sveltekit` (Workbox) — precaches assets + WASM; network-only for LLM endpoints |
+## Build, Test, and Development Commands
 
----
+- `npm install`
+- `npm run dev` / `npm run build` / `npm run preview`
+- `npm run check` (sync + lint + `svelte-check` + TypeScript)
+- `npm run format`, `npm run lint`, `npm run generate:pwa-assets`
 
-## Project Structure
+## Coding Style, Tooling & Best Practices
 
-```
-src/
-├── routes/             # Thin SvelteKit route shells — logic lives in src/lib
-├── app.html            # HTML template
-├── app.d.ts            # App-wide TypeScript declarations
-└── lib/
-    ├── engine/         # Browser-only: sql.js, IndexedDB, game logic, LLM connectors
-    ├── services/       # Domain modules: stories, turns, chats, settings, generate, stream
-    ├── stores/         # Svelte stores: UI state, settings, game/chat state, PWA state
-    ├── features/       # Feature screens: Home, Game, Chat, Settings
-    ├── components/     # Shared UI: controls/, inputs/, overlays/, panels/, rich/, icons/
-    ├── styles/         # Global CSS and tokens (app.css) — avoid component-scoped <style>
-    └── shared/         # Types and configurations
+- Svelte 5: prefer runes (`$state`, `$derived`, `$effect`) and avoid “legacy mode”; delete/migrate legacy code when touching a file (if safe/scoped).
+- Prefer Svelte's native class: directive for purely additive conditions; use cn when utilities conflict.
+- Prefer `$derived` over effects; don’t guard effects with `if (browser)`/`typeof window`; use `untrack(() => ...)` for one-time init and `<svelte:window>`/`<svelte:document>` for global listeners when possible.
+- UI: Tailwind v4 + shadcn-svelte/Bits UI; add via `npx shadcn-svelte@latest add <component>`; theme via CSS vars in `src/lib/styles/app.css`.
+- Secrets: `VITE_*` is client-exposed and stringly-typed; don’t put API keys there. OpenRouter keys must never be logged/committed.
+- Tooling/conventions: Prettier + ESLint, `@/...` imports, `PascalCase.svelte`, TS `camelCase`, constants `SCREAMING_SNAKE_CASE`.
+- Ignore all problems with formating, just run `npm run format` at the end of work.
 
-static/                 # PWA icons and static assets
-scripts/                # Local tooling (lint/check helpers)
-vite.config.ts
-svelte.config.js        # adapter-static, aliases, Service Worker settings
-```
+## Testing Guidelines
 
-**Import alias:** Always use `@/` for internal imports (aliases to `src/lib`).
+- No unit/integration test runner yet; use `npm run check` plus manual smoke-testing (`npm run dev`/`npm run preview`).
 
----
+## Commit & Pull Request Guidelines
 
-## Development Workflow
+- Commits are short/imperative (often lowercase). PRs include a description + screenshots for UI changes + `npm run check` results.
+- Don’t commit generated output or local config: `build/`, `.svelte-kit/`, `node_modules/`, `.env`, or lockfiles (see `.gitignore`).
 
-- **Batch edits** — group related changes; use scripts for bulk refactoring.
-- **Plan revisions** — base revised plans on prior ones unless fundamentally incompatible.
-- **Dependencies** — propose new libraries when they meaningfully simplify code; remove any unused packages.
-- **After major edits:** run `npm run lint` and `npm run check`.
-- **End of workflow:** always run `npm run format`. Don't restore or checkout any affected by format files that you didn't change. Just ignore.
-- **Linting gaps** — if an error bypasses current checks, update linting config to catch it going forward.
+## Agent-Specific Notes
 
----
+- If user specified specific files in their request, CHECK THEM IMMEDIATELY before thinking or making plans.
+- Treat `src/lib/components/ui/` as vendored code: prefer regenerating via shadcn-svelte over manual edits.
+- Prefer using existing `src/lib/components/ui/` building blocks before creating new UI components, especially the `*group*` ones for grouped controls.
+- Current `src/lib/components/ui/` inventory:
+  - `alert-dialog`
+  - `avatar`
+  - `badge`
+  - `button`
+  - `card`
+  - `checkbox`
+  - `dialog`
+  - `dropdown-menu`
+  - `empty`
+  - `field`
+  - `input`
+  - `input-group` (group)
+  - `label`
+  - `resizable`
+  - `scroll-area`
+  - `select`
+  - `separator`
+  - `sheet`
+  - `sonner`
+  - `switch`
+  - `tabs`
+  - `textarea`
+  - `toggle`
+  - `toggle-group` (group)
+- Don’t “helpfully” restore deleted files/folders (e.g. `scripts/`) unless explicitly asked.
+- When some files “unexpectedly” dissapeared or got commited, assume it's user and don't undo his edits, adapt to them.
+- DON'T UNDO CHANGES THAT OTHER agent OR ME MADE. ADAPT OR IGNORE.
 
-## Code Standards
+## MCP & Skills (When Relevant)
 
-- Use the newest stable APIs and patterns. Rewrite modules from scratch when it materially improves simplicity.
-- **Never write legacy or deprecated code.** Never leave it in place. No exceptions — not for compatibility, not for "shims", not for convenience.
-- If asked to remove something, remove it completely in the simplest way.
-
----
-
-## UI & Styling
-
-- **Primitives** — use shadcn-style components (`src/lib/components/ui/**`, Tailwind + Bits UI). Never write or reintroduce legacy widgets under any circumstances.
-- **Raw HTML elements** — never use `<button>`, `<label>`, `<select>`, `<textarea>` etc. outside `ui/**`. Use their capitalized equivalents (`Button`, `Label`, etc.).
-- **Design tokens** — accent color defaults to `#c85c5c` (user-configurable), drives `--primary` and `--ring`. Use `font-story` (Cinzel) for story logs and narrative text. See `DESIGN.md` for full rules.
-- **Component files** — extract new UI components into separate files; keep files under ~1000 lines.
-
----
-
-## Svelte 5 Best Practices
-
-- **CSR-only** — SSR is disabled. Guard browser APIs (`window`, `document`, `navigator`) where needed.
-- **Routing** — keep `src/routes/**` thin; offload logic to `src/lib/**`.
-- **Head** — use `<svelte:head>` for per-route `<title>` and metadata. Do not hardcode `<link rel="manifest">` — it is injected by `virtual:pwa-info`.
-- **Slots** — use snippets (`{#snippet …}` / `{@render …}`) instead of legacy `<slot>` / `$$slots`.
-- **Lists** — use keyed `{#each}` blocks for dynamic lists: `(item.id)`.
-- **Global listeners** — prefer `<svelte:window>` or `<svelte:document>`. If using `addEventListener` manually in actions or `onMount`, always provide cleanup.
-- **Accessibility** — every interactive control needs a clear label (`aria-label`, visible text, or `<label for="…">`). Use semantic roles; preserve focus and navigation during route changes and modal triggers.
-
----
-
-## File & Agent Management
-
-- **Scope** — only modify files explicitly in your plan. Ignore unrelated `git status` changes.
-- **Multi-agent** — other agents may be working simultaneously. Do not delete unassigned files. If your edits revert unexpectedly and you are certain it was caused by another agent (not the user), merge your changes with the current file state rather than overwriting. When in doubt, stop and ask before making any changes.
-- **Cleanup** — delete empty directories when they are no longer needed.
-
----
-
-## Constraints
-
-**GBNF patterns** — all regex patterns in JSON-to-GBNF conversions must explicitly begin with `^` and end with `$`.
+- Svelte edits: use `svelte-code-writer` + `svelte-core-bestpractices` and run `npx -y @sveltejs/mcp svelte-autofixer <path>`.
+- Svelte docs: `npx @sveltejs/mcp list-sections` + `npx @sveltejs/mcp get-documentation "<sections>"`.
+- shadcn-svelte: use `mcp__shadcn_svelte__shadcnSvelteGetTool`/`...SearchTool`/`...ListTool` (and the icons tool) before rolling your own.
+- OpenAI API: use `openai-docs` + `mcp__openaiDeveloperDocs__search_openai_docs`/`...fetch_openai_doc` for official, up-to-date guidance.

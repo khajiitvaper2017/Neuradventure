@@ -6,10 +6,18 @@
   import { settings as settingsService } from "@/services/settings"
   import { activeScreen, charSheetCharacterId, closeCharSheet, showCharSheet } from "@/stores/router"
   import { showError, showQuietNotice } from "@/stores/ui"
-  import { character, currentStoryId, currentStoryModules, llmUpdateId } from "@/stores/game"
-  import { INTERNAL_UI_FLASH_MS } from "@/shared/internal-timeouts"
-  import type { MainCharacterState } from "@/shared/types"
-  import type { CustomFieldDef } from "@/shared/api-types"
+  import {
+    activeStoryCharacterKey,
+    character,
+    currentStoryId,
+    currentStoryModules,
+    llmUpdateId,
+    npcs,
+    type StoryCharacterKey,
+  } from "@/stores/game"
+  import { INTERNAL_UI_FLASH_MS } from "@/config/internal-timeouts"
+  import type { MainCharacterState, NPCState } from "@/types/types"
+  import type { CustomFieldDef } from "@/types/api"
   import { cn } from "@/utils.js"
   import { genderIcon, normalizeGender, splitCsv } from "@/utils/text"
   import EditableFieldList from "@/components/inputs/EditableFieldList.svelte"
@@ -18,13 +26,17 @@
   import CustomFieldsView from "@/components/inputs/CustomFieldsView.svelte"
   import { Badge } from "@/components/ui/badge"
   import { Button } from "@/components/ui/button"
+  import * as Card from "@/components/ui/card"
   import { Input } from "@/components/ui/input"
   import { Sheet, SheetContent } from "@/components/ui/sheet"
   import { ScrollArea } from "@/components/ui/scroll-area"
   import {
     Box,
     Dot,
+    Eye,
+    EyeOff,
     FileText,
+    MapPin,
     Mars,
     Shirt,
     Smile,
@@ -35,11 +47,12 @@
     VenusAndMars,
   } from "@lucide/svelte"
 
-  let { inline = false }: { inline?: boolean } = $props()
+  let { inline = false, lockKey = null }: { inline?: boolean; lockKey?: StoryCharacterKey | null } = $props()
 
   const isGameScreen = $derived($activeScreen === "game")
   const canEdit = $derived((inline || isGameScreen) && $currentStoryId !== null)
   const isStoryContext = $derived($currentStoryId !== null)
+  const isStoryPanel = $derived(isStoryContext && (inline || isGameScreen))
 
   let inspectCharacter = $state<MainCharacterState | null>(null)
   let inspectLoading = $state(false)
@@ -48,9 +61,42 @@
   let inspectFetchNonce = 0
 
   const isInspectMode = $derived(!inline && !isGameScreen && $showCharSheet && $charSheetCharacterId !== null)
-  const displayCharacter = $derived(
-    inline || isGameScreen ? $character : inspectCharacter ? { ...inspectCharacter, current_appearance: "" } : null,
-  )
+  const effectiveKey = $derived.by(() => lockKey ?? (isStoryPanel ? $activeStoryCharacterKey : "player"))
+
+  let editingKey = $state<StoryCharacterKey | null>(null)
+
+  const selectedStoryCharacter = $derived.by(() => {
+    if (!isStoryPanel) return null
+    if (!$character) return null
+    const key = effectiveKey
+    if (key === "player") return { kind: "player" as const, character: $character }
+    const name = key.slice("npc:".length)
+    const npc = $npcs.find((n) => n.name === name)
+    return npc ? { kind: "npc" as const, character: npc } : { kind: "player" as const, character: $character }
+  })
+
+  const displayCharacter = $derived.by(() => {
+    if (isInspectMode) return inspectCharacter ? { ...inspectCharacter, current_appearance: "" } : null
+    if (!isStoryPanel) return null
+    return selectedStoryCharacter?.character ?? null
+  })
+
+  $effect(() => {
+    if (!isStoryPanel) return
+    if (lockKey) return
+    const key = effectiveKey
+    if (key === "player") return
+    const name = key.slice("npc:".length)
+    if ($npcs.some((npc) => npc.name === name)) return
+    activeStoryCharacterKey.set("player")
+  })
+
+  $effect(() => {
+    if (!editing || !editingKey) return
+    if (effectiveKey === editingKey) return
+    editing = false
+    editingKey = null
+  })
 
   function retryInspect() {
     inspectRefresh += 1
@@ -62,6 +108,8 @@
     baselineAppearance: string
     currentAppearance: string
     clothing: string
+    location: string
+    activity: string
     inventory: string
     customFields: string
   }
@@ -81,11 +129,23 @@
   let editing = $state(false)
   let saving = $state(false)
   let showBaselineDetails = $state(false)
-  const useAppearance = $derived($currentStoryModules?.character_appearance_clothing ?? true)
-  const usePersonalityTraits = $derived($currentStoryModules?.character_personality_traits ?? true)
-  const useMajorFlaws = $derived($currentStoryModules?.character_major_flaws ?? true)
-  const usePerks = $derived($currentStoryModules?.character_perks ?? true)
+  const useAppearance = $derived(
+    ($currentStoryModules?.character_appearance_clothing ?? true) ||
+      ($currentStoryModules?.npc_appearance_clothing ?? true),
+  )
+  const usePersonalityTraits = $derived(
+    ($currentStoryModules?.character_personality_traits ?? true) ||
+      ($currentStoryModules?.npc_personality_traits ?? true),
+  )
+  const useMajorFlaws = $derived(
+    ($currentStoryModules?.character_major_flaws ?? true) || ($currentStoryModules?.npc_major_flaws ?? true),
+  )
+  const usePerks = $derived(
+    ($currentStoryModules?.character_perks ?? true) || ($currentStoryModules?.npc_perks ?? true),
+  )
   const useInventory = $derived($currentStoryModules?.character_inventory ?? true)
+  const useLocation = $derived($currentStoryModules?.npc_location ?? true)
+  const useActivity = $derived($currentStoryModules?.npc_activity ?? true)
   const showTraitSection = $derived(usePersonalityTraits || useMajorFlaws || usePerks)
 
   type InventoryDraft = { name: string; description: string }
@@ -97,6 +157,8 @@
     baselineAppearance: string
     currentAppearance: string
     clothing: string
+    location: string
+    activity: string
     personalityTraits: string
     majorFlaws: string
     perks: string
@@ -111,6 +173,8 @@
     baselineAppearance: "",
     currentAppearance: "",
     clothing: "",
+    location: "",
+    activity: "",
     personalityTraits: "",
     majorFlaws: "",
     perks: "",
@@ -142,13 +206,15 @@
     void loadCustomDefsOnce()
   })
 
-  function buildCharacterSigs(c: MainCharacterState): CharacterSigs {
+  function buildCharacterSigs(c: MainCharacterState | NPCState): CharacterSigs {
     return {
       identity: `${c.name}|${c.race}|${c.gender}`,
       generalDescription: c.general_description.trim(),
       baselineAppearance: c.baseline_appearance,
       currentAppearance: c.current_appearance,
       clothing: c.current_clothing,
+      location: c.current_location,
+      activity: "current_activity" in c ? c.current_activity : "",
       inventory: c.inventory.map((item) => `${item.name}:${item.description}`).join("|"),
       customFields: JSON.stringify(c.custom_fields ?? {}),
     }
@@ -192,6 +258,27 @@
       { id: "cs-race", label: "Race", kind: "input", value: draft.race, onInput: (v) => (draft.race = v) },
       { id: "cs-gender", label: "Gender", kind: "input", value: draft.gender, onInput: (v) => (draft.gender = v) },
     ]
+
+    if (isStoryContext && useLocation) {
+      fields.push({
+        id: "cs-location",
+        label: "Current Location",
+        kind: "input",
+        value: draft.location,
+        onInput: (v) => (draft.location = v),
+      })
+    }
+
+    if (isStoryContext && useActivity && selectedStoryCharacter?.kind === "npc") {
+      fields.push({
+        id: "cs-activity",
+        label: "Current Activity",
+        kind: "input",
+        value: draft.activity,
+        onInput: (v) => (draft.activity = v),
+      })
+    }
+
     fields.push({
       id: "cs-description",
       label: "Description",
@@ -257,27 +344,32 @@
 
   function startEdit() {
     if (!canEdit) return
-    if (!$character) return
+    const current = selectedStoryCharacter?.character
+    if (!current) return
     void loadCustomDefsOnce()
     draft = {
-      name: $character.name,
-      race: $character.race,
-      gender: $character.gender,
-      generalDescription: $character.general_description ?? "",
-      baselineAppearance: $character.baseline_appearance,
-      currentAppearance: $character.current_appearance,
-      clothing: $character.current_clothing,
-      personalityTraits: $character.personality_traits.join(", "),
-      majorFlaws: $character.major_flaws.join(", "),
-      perks: $character.perks.join(", "),
-      inventory: $character.inventory.map((item) => ({ name: item.name, description: item.description })),
-      customFields: { ...($character.custom_fields ?? {}) },
+      name: current.name,
+      race: current.race,
+      gender: current.gender,
+      generalDescription: current.general_description ?? "",
+      baselineAppearance: current.baseline_appearance,
+      currentAppearance: current.current_appearance,
+      clothing: current.current_clothing,
+      location: current.current_location ?? "",
+      activity: "current_activity" in current ? current.current_activity : "",
+      personalityTraits: current.personality_traits.join(", "),
+      majorFlaws: current.major_flaws.join(", "),
+      perks: current.perks.join(", "),
+      inventory: current.inventory.map((item) => ({ name: item.name, description: item.description })),
+      customFields: { ...(current.custom_fields ?? {}) },
     }
     editing = true
+    editingKey = effectiveKey
   }
 
   function cancelEdit() {
     editing = false
+    editingKey = null
   }
 
   function addInventoryItem() {
@@ -297,6 +389,10 @@
       showError("No active story to update.")
       return
     }
+    if (!selectedStoryCharacter) {
+      showError("No active character to update.")
+      return
+    }
     const name = draft.name.trim()
     const race = draft.race.trim()
     const gender = normalizeGender(draft.gender, "")
@@ -304,6 +400,8 @@
     const baselineAppearance = draft.baselineAppearance.trim()
     const currentAppearance = draft.currentAppearance.trim()
     const clothing = draft.clothing.trim()
+    const location = draft.location.trim()
+    const activity = draft.activity.trim()
     if (!name || !race || !gender) {
       showError("Name, race, and gender are required.")
       return
@@ -312,17 +410,17 @@
       showError("Description is required.")
       return
     }
-    const existing = $character
+    const existing = selectedStoryCharacter.character
     const personalityTraits = usePersonalityTraits
       ? splitCsv(draft.personalityTraits)
-      : (existing?.personality_traits ?? [])
-    const majorFlaws = useMajorFlaws ? splitCsv(draft.majorFlaws) : (existing?.major_flaws ?? [])
-    const perks = usePerks ? splitCsv(draft.perks) : (existing?.perks ?? [])
+      : (existing.personality_traits ?? [])
+    const majorFlaws = useMajorFlaws ? splitCsv(draft.majorFlaws) : (existing.major_flaws ?? [])
+    const perks = usePerks ? splitCsv(draft.perks) : (existing.perks ?? [])
     const inventory = useInventory
       ? draft.inventory
           .map((item) => ({ name: item.name.trim(), description: item.description.trim() }))
           .filter((item) => item.name.length > 0 || item.description.length > 0)
-      : (existing?.inventory ?? [])
+      : (existing.inventory ?? [])
     if (useInventory) {
       for (const item of inventory) {
         if (!item.name || !item.description) {
@@ -331,42 +429,113 @@
         }
       }
     }
-    const nextCharacter: MainCharacterState = {
+
+    if (selectedStoryCharacter.kind === "player") {
+      const existing = selectedStoryCharacter.character
+      const nextCharacter: MainCharacterState = {
+        name,
+        race,
+        gender,
+        general_description: generalDescription,
+        current_location: useLocation ? location || existing.current_location || "" : (existing.current_location ?? ""),
+        current_activity: existing.current_activity ?? "",
+        baseline_appearance: !useAppearance
+          ? (existing.baseline_appearance ?? "")
+          : baselineAppearance || existing.baseline_appearance || "",
+        current_appearance: !useAppearance
+          ? (existing.current_appearance ?? "")
+          : currentAppearance ||
+            existing.current_appearance ||
+            baselineAppearance ||
+            existing.baseline_appearance ||
+            "",
+        current_clothing: !useAppearance
+          ? (existing.current_clothing ?? "")
+          : clothing || existing.current_clothing || "",
+        personality_traits: personalityTraits.length > 0 ? personalityTraits : (existing.personality_traits ?? []),
+        major_flaws: majorFlaws.length > 0 ? majorFlaws : (existing.major_flaws ?? []),
+        perks: perks.length > 0 ? perks : (existing.perks ?? []),
+        inventory,
+        custom_fields: draft.customFields ?? existing.custom_fields ?? {},
+      }
+      saving = true
+      try {
+        const result = await stories.updateState($currentStoryId, { character: nextCharacter })
+        character.set(result.character)
+        if (!lockKey) activeStoryCharacterKey.set("player")
+        showQuietNotice("Character updated.")
+        editing = false
+        editingKey = null
+      } catch (err) {
+        if (err instanceof AppError) {
+          showError(err.message)
+        } else {
+          showError("Failed to update character.")
+        }
+      } finally {
+        saving = false
+      }
+      return
+    }
+
+    const existingNpc = selectedStoryCharacter.character
+    const previousName = existingNpc.name
+    if (previousName.toLowerCase() !== name.toLowerCase()) {
+      if ($npcs.some((npc) => npc.name.toLowerCase() === name.toLowerCase() && npc.name !== previousName)) {
+        showError(`Character "${name}" already exists.`)
+        return
+      }
+      if ($character?.name.toLowerCase() === name.toLowerCase()) {
+        showError(`Character "${name}" already exists.`)
+        return
+      }
+    }
+
+    const updatedNpc: NPCState = {
       name,
       race,
       gender,
       general_description: generalDescription,
-      current_location: existing?.current_location ?? "",
+      current_location: useLocation
+        ? location || existingNpc.current_location || ""
+        : (existingNpc.current_location ?? ""),
       baseline_appearance: !useAppearance
-        ? (existing?.baseline_appearance ?? "")
-        : baselineAppearance || existing?.baseline_appearance || "",
+        ? (existingNpc.baseline_appearance ?? "")
+        : baselineAppearance || existingNpc.baseline_appearance || "",
       current_appearance: !useAppearance
-        ? (existing?.current_appearance ?? "")
+        ? (existingNpc.current_appearance ?? "")
         : currentAppearance ||
-          existing?.current_appearance ||
+          existingNpc.current_appearance ||
           baselineAppearance ||
-          existing?.baseline_appearance ||
+          existingNpc.baseline_appearance ||
           "",
       current_clothing: !useAppearance
-        ? (existing?.current_clothing ?? "")
-        : clothing || existing?.current_clothing || "",
-      personality_traits: personalityTraits.length > 0 ? personalityTraits : (existing?.personality_traits ?? []),
-      major_flaws: majorFlaws.length > 0 ? majorFlaws : (existing?.major_flaws ?? []),
-      perks: perks.length > 0 ? perks : (existing?.perks ?? []),
+        ? (existingNpc.current_clothing ?? "")
+        : clothing || existingNpc.current_clothing || "",
+      current_activity: useActivity
+        ? activity || existingNpc.current_activity || ""
+        : (existingNpc.current_activity ?? ""),
+      personality_traits: personalityTraits.length > 0 ? personalityTraits : (existingNpc.personality_traits ?? []),
+      major_flaws: majorFlaws.length > 0 ? majorFlaws : (existingNpc.major_flaws ?? []),
+      perks: perks.length > 0 ? perks : (existingNpc.perks ?? []),
       inventory,
-      custom_fields: draft.customFields ?? existing?.custom_fields ?? {},
+      custom_fields: draft.customFields ?? existingNpc.custom_fields ?? {},
     }
+
     saving = true
     try {
-      const result = await stories.updateState($currentStoryId, { character: nextCharacter })
-      character.set(result.character)
-      showQuietNotice("Character sheet updated.")
+      const updatedList = $npcs.map((npc) => (npc.name === previousName ? updatedNpc : npc))
+      const result = await stories.updateState($currentStoryId, { npcs: updatedList })
+      npcs.set(result.npcs)
+      if (!lockKey) activeStoryCharacterKey.set(`npc:${updatedNpc.name}`)
+      showQuietNotice("Character updated.")
       editing = false
+      editingKey = null
     } catch (err) {
       if (err instanceof AppError) {
         showError(err.message)
       } else {
-        showError("Failed to update character sheet.")
+        showError("Failed to update character.")
       }
     } finally {
       saving = false
@@ -374,9 +543,23 @@
   }
 
   $effect(() => {
-    if (!lastSigs && $character) {
-      lastSigs = buildCharacterSigs($character)
-    }
+    void $currentStoryId
+    lastSigs = null
+    lastLlmUpdateId = get(llmUpdateId)
+  })
+
+  $effect(() => {
+    if (!isStoryPanel) return
+    void effectiveKey
+    lastSigs = null
+    lastLlmUpdateId = get(llmUpdateId)
+  })
+
+  $effect(() => {
+    if (!isStoryPanel) return
+    if (lastSigs) return
+    if (!selectedStoryCharacter?.character) return
+    lastSigs = buildCharacterSigs(selectedStoryCharacter.character)
   })
 
   $effect(() => {
@@ -414,11 +597,14 @@
 
   $effect(() => {
     if ($llmUpdateId !== lastLlmUpdateId) {
-      if ($character) {
-        const nextSigs = buildCharacterSigs($character)
+      const current = selectedStoryCharacter?.character
+      if (current) {
+        const nextSigs = buildCharacterSigs(current)
         if (lastSigs) {
           if (nextSigs.identity !== lastSigs.identity) triggerFlash("identity")
           if (nextSigs.generalDescription !== lastSigs.generalDescription) triggerFlash("appearance")
+          if (useLocation && nextSigs.location !== lastSigs.location) triggerFlash("identity")
+          if (useActivity && nextSigs.activity !== lastSigs.activity) triggerFlash("identity")
           if (
             useAppearance &&
             (nextSigs.baselineAppearance !== lastSigs.baselineAppearance ||
@@ -459,38 +645,44 @@
       <div class="space-y-4">
         <EditableFieldList fields={characterFields()} />
         {#if hasBaseCustomDefs || hasCurrentCustomDefs}
-          <div class="space-y-3 rounded-lg border bg-card p-4">
-            <div class="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-              <FileText size={14} strokeWidth={1.5} class="shrink-0 opacity-70" aria-hidden="true" />
-              <span>Custom Fields</span>
-            </div>
-            {#if hasBaseCustomDefs}
-              <div class="space-y-2">
-                <div class="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Base</div>
-                <CustomFieldsEditor
-                  defs={customDefs}
-                  values={draft.customFields}
-                  setValues={(next) => (draft.customFields = next)}
-                  scope="character"
-                  placement="base"
-                  disabled={saving}
-                />
+          <Card.Root class="rounded-lg p-0 py-0 gap-0">
+            <Card.Header class="px-4 pt-4 pb-3">
+              <div class="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                <FileText size={14} strokeWidth={1.5} class="shrink-0 opacity-70" aria-hidden="true" />
+                <Card.Title class="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                  Custom Fields
+                </Card.Title>
               </div>
-            {/if}
-            {#if hasCurrentCustomDefs}
-              <div class="space-y-2">
-                <div class="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Current</div>
-                <CustomFieldsEditor
-                  defs={customDefs}
-                  values={draft.customFields}
-                  setValues={(next) => (draft.customFields = next)}
-                  scope="character"
-                  placement="current"
-                  disabled={saving}
-                />
-              </div>
-            {/if}
-          </div>
+            </Card.Header>
+            <Card.Content class="px-4 pb-4 pt-0 space-y-3">
+              {#if hasBaseCustomDefs}
+                <div class="space-y-2">
+                  <div class="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Base</div>
+                  <CustomFieldsEditor
+                    defs={customDefs}
+                    values={draft.customFields}
+                    setValues={(next) => (draft.customFields = next)}
+                    scope="character"
+                    placement="base"
+                    disabled={saving}
+                  />
+                </div>
+              {/if}
+              {#if hasCurrentCustomDefs}
+                <div class="space-y-2">
+                  <div class="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Current</div>
+                  <CustomFieldsEditor
+                    defs={customDefs}
+                    values={draft.customFields}
+                    setValues={(next) => (draft.customFields = next)}
+                    scope="character"
+                    placement="current"
+                    disabled={saving}
+                  />
+                </div>
+              {/if}
+            </Card.Content>
+          </Card.Root>
         {/if}
         {#if useInventory}
           <div class="space-y-2">
@@ -539,161 +731,242 @@
         </div>
       </div>
     {:else}
-      <div class={cn("rounded-lg border bg-card p-4", flashIdentity && "ring-2 ring-primary/30")}>
-        <div class="flex items-center gap-2 text-lg font-semibold text-foreground">
-          <span class="truncate">{displayCharacter.name}</span>
-          {#if genderIcon(displayCharacter.gender) === "male"}
-            <Mars size={14} strokeWidth={2} class="shrink-0 opacity-60" aria-hidden="true" />
-          {:else if genderIcon(displayCharacter.gender) === "female"}
-            <Venus size={14} strokeWidth={2} class="shrink-0 opacity-60" aria-hidden="true" />
-          {:else if genderIcon(displayCharacter.gender) === "intersex"}
-            <VenusAndMars size={14} strokeWidth={2} class="shrink-0 opacity-60" aria-hidden="true" />
-          {:else if genderIcon(displayCharacter.gender) === "transgender"}
-            <Transgender size={14} strokeWidth={2} class="shrink-0 opacity-60" aria-hidden="true" />
-          {/if}
-        </div>
-        <div class="mt-1 text-sm italic text-muted-foreground">
-          {displayCharacter.race}{displayCharacter.gender ? ` · ${displayCharacter.gender}` : ""}
-        </div>
-      </div>
+      <Card.Root class={cn("rounded-lg p-0 py-0 gap-0", flashIdentity && "ring-2 ring-primary/30")}>
+        <Card.Header class="px-4 py-4">
+          <Card.Title class="flex items-center gap-2 text-lg font-semibold text-foreground">
+            <span class="truncate">{displayCharacter.name}</span>
+            {#if genderIcon(displayCharacter.gender) === "male"}
+              <Mars size={14} strokeWidth={2} class="shrink-0 opacity-60" aria-hidden="true" />
+            {:else if genderIcon(displayCharacter.gender) === "female"}
+              <Venus size={14} strokeWidth={2} class="shrink-0 opacity-60" aria-hidden="true" />
+            {:else if genderIcon(displayCharacter.gender) === "intersex"}
+              <VenusAndMars size={14} strokeWidth={2} class="shrink-0 opacity-60" aria-hidden="true" />
+            {:else if genderIcon(displayCharacter.gender) === "transgender"}
+              <Transgender size={14} strokeWidth={2} class="shrink-0 opacity-60" aria-hidden="true" />
+            {/if}
+          </Card.Title>
+          <Card.Description class="mt-1 text-sm italic text-muted-foreground">
+            {displayCharacter.race}{displayCharacter.gender ? ` · ${displayCharacter.gender}` : ""}
+          </Card.Description>
+        </Card.Header>
+      </Card.Root>
 
-      <div class={cn("mt-3 rounded-lg border bg-card p-4", flashAppearance && "ring-2 ring-primary/30")}>
-        <div class="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-          <Smile size={14} strokeWidth={1.5} class="shrink-0 opacity-70" aria-hidden="true" />
-          <span>Description</span>
-        </div>
-        <div class="mt-2 whitespace-pre-line text-sm leading-relaxed text-foreground">
-          {displayCharacter.general_description || "Unknown description"}
-        </div>
-      </div>
+      {#if isStoryContext && (useLocation || (useActivity && "current_activity" in displayCharacter))}
+        <Card.Root class="mt-3 rounded-lg p-0 py-0 gap-0">
+          <Card.Header class="px-4 pt-4 pb-0">
+            <div class="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+              <MapPin size={14} strokeWidth={1.5} class="shrink-0 opacity-70" aria-hidden="true" />
+              <Card.Title class="text-xs font-semibold uppercase tracking-wider text-muted-foreground"
+                >Status</Card.Title
+              >
+            </div>
+          </Card.Header>
+          <Card.Content class="px-4 pb-4 pt-0">
+            <div class="mt-2 space-y-1 text-sm text-foreground">
+              {#if useLocation}
+                <div class="flex flex-wrap items-baseline gap-x-2 gap-y-1">
+                  <span class="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Location</span>
+                  <span class="whitespace-pre-line">{displayCharacter.current_location}</span>
+                </div>
+              {/if}
+              {#if useActivity && "current_activity" in displayCharacter}
+                <div class="flex flex-wrap items-baseline gap-x-2 gap-y-1">
+                  <span class="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Activity</span>
+                  <span class="whitespace-pre-line">{displayCharacter.current_activity}</span>
+                </div>
+              {/if}
+            </div>
+          </Card.Content>
+        </Card.Root>
+      {/if}
+
+      {#if showBaselineDetails}
+        <Card.Root class={cn("mt-3 rounded-lg p-0 py-0 gap-0", flashAppearance && "ring-2 ring-primary/30")}>
+          <Card.Header class="px-4 pt-4 pb-0">
+            <div class="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+              <Smile size={14} strokeWidth={1.5} class="shrink-0 opacity-70" aria-hidden="true" />
+              <Card.Title class="text-xs font-semibold uppercase tracking-wider text-muted-foreground"
+                >Description</Card.Title
+              >
+            </div>
+          </Card.Header>
+          <Card.Content class="px-4 pb-4 pt-0">
+            <div class="mt-2 whitespace-pre-line text-sm leading-relaxed text-foreground">
+              {displayCharacter.general_description || "Unknown description"}
+            </div>
+          </Card.Content>
+        </Card.Root>
+      {/if}
 
       {#if useAppearance}
         {#if showBaselineDetails}
-          <div class={cn("mt-3 rounded-lg border bg-card p-4", flashAppearance && "ring-2 ring-primary/30")}>
-            <div class="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-              <Smile size={14} strokeWidth={1.5} class="shrink-0 opacity-70" aria-hidden="true" />
-              <span>Baseline Appearance</span>
-            </div>
-            <div class="mt-2 whitespace-pre-line text-sm leading-relaxed text-foreground">
-              {displayCharacter.baseline_appearance}
-            </div>
-          </div>
+          <Card.Root class={cn("mt-3 rounded-lg p-0 py-0 gap-0", flashAppearance && "ring-2 ring-primary/30")}>
+            <Card.Header class="px-4 pt-4 pb-0">
+              <div class="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                <Smile size={14} strokeWidth={1.5} class="shrink-0 opacity-70" aria-hidden="true" />
+                <Card.Title class="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                  Baseline Appearance
+                </Card.Title>
+              </div>
+            </Card.Header>
+            <Card.Content class="px-4 pb-4 pt-0">
+              <div class="mt-2 whitespace-pre-line text-sm leading-relaxed text-foreground">
+                {displayCharacter.baseline_appearance}
+              </div>
+            </Card.Content>
+          </Card.Root>
         {:else if !isStoryContext}
-          <div class={cn("mt-3 rounded-lg border bg-card p-4", flashAppearance && "ring-2 ring-primary/30")}>
-            <div class="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-              <Smile size={14} strokeWidth={1.5} class="shrink-0 opacity-70" aria-hidden="true" />
-              <span>Appearance</span>
-            </div>
-            <div class="mt-2 whitespace-pre-line text-sm leading-relaxed text-foreground">
-              {displayCharacter.baseline_appearance}
-            </div>
-          </div>
+          <Card.Root class={cn("mt-3 rounded-lg p-0 py-0 gap-0", flashAppearance && "ring-2 ring-primary/30")}>
+            <Card.Header class="px-4 pt-4 pb-0">
+              <div class="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                <Smile size={14} strokeWidth={1.5} class="shrink-0 opacity-70" aria-hidden="true" />
+                <Card.Title class="text-xs font-semibold uppercase tracking-wider text-muted-foreground"
+                  >Appearance</Card.Title
+                >
+              </div>
+            </Card.Header>
+            <Card.Content class="px-4 pb-4 pt-0">
+              <div class="mt-2 whitespace-pre-line text-sm leading-relaxed text-foreground">
+                {displayCharacter.baseline_appearance}
+              </div>
+            </Card.Content>
+          </Card.Root>
         {/if}
 
         {#if isStoryContext}
-          <div class={cn("mt-3 rounded-lg border bg-card p-4", flashAppearance && "ring-2 ring-primary/30")}>
-            <div class="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-              <Smile size={14} strokeWidth={1.5} class="shrink-0 opacity-70" aria-hidden="true" />
-              <span>Current Appearance</span>
-            </div>
-            <div class="mt-2 whitespace-pre-line text-sm leading-relaxed text-foreground">
-              {displayCharacter.current_appearance}
-            </div>
-          </div>
+          <Card.Root class={cn("mt-3 rounded-lg p-0 py-0 gap-0", flashAppearance && "ring-2 ring-primary/30")}>
+            <Card.Header class="px-4 pt-4 pb-0">
+              <div class="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                <Smile size={14} strokeWidth={1.5} class="shrink-0 opacity-70" aria-hidden="true" />
+                <Card.Title class="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                  Current Appearance
+                </Card.Title>
+              </div>
+            </Card.Header>
+            <Card.Content class="px-4 pb-4 pt-0">
+              <div class="mt-2 whitespace-pre-line text-sm leading-relaxed text-foreground">
+                {displayCharacter.current_appearance}
+              </div>
+            </Card.Content>
+          </Card.Root>
         {/if}
 
-        <div class={cn("mt-3 rounded-lg border bg-card p-4", flashClothing && "ring-2 ring-primary/30")}>
-          <div class="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-            <Shirt size={14} strokeWidth={1.5} class="shrink-0 opacity-70" aria-hidden="true" />
-            <span>Wearing</span>
-          </div>
-          <div class="mt-2 whitespace-pre-line text-sm leading-relaxed text-foreground">
-            {displayCharacter.current_clothing}
-          </div>
-        </div>
+        <Card.Root class={cn("mt-3 rounded-lg p-0 py-0 gap-0", flashClothing && "ring-2 ring-primary/30")}>
+          <Card.Header class="px-4 pt-4 pb-0">
+            <div class="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+              <Shirt size={14} strokeWidth={1.5} class="shrink-0 opacity-70" aria-hidden="true" />
+              <Card.Title class="text-xs font-semibold uppercase tracking-wider text-muted-foreground"
+                >Wearing</Card.Title
+              >
+            </div>
+          </Card.Header>
+          <Card.Content class="px-4 pb-4 pt-0">
+            <div class="mt-2 whitespace-pre-line text-sm leading-relaxed text-foreground">
+              {displayCharacter.current_clothing}
+            </div>
+          </Card.Content>
+        </Card.Root>
       {/if}
 
       {#if showTraitSection && ((usePersonalityTraits && displayCharacter.personality_traits.length > 0) || (useMajorFlaws && displayCharacter.major_flaws.length > 0) || (usePerks && displayCharacter.perks.length > 0))}
-        <div class="mt-3 rounded-lg border bg-card p-4">
-          <div class="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-            <Star size={14} strokeWidth={1.5} class="shrink-0 opacity-70" aria-hidden="true" />
-            <span>Traits · Flaws · Perks</span>
-          </div>
-          <div class="mt-3 flex flex-wrap gap-2">
-            {#if usePersonalityTraits}
-              {#each displayCharacter.personality_traits as t, index (t + ":" + index)}
-                <Badge variant="outline" class="rounded-full font-mono text-[11px]">{t}</Badge>
-              {/each}
-            {/if}
-            {#if useMajorFlaws}
-              {#each displayCharacter.major_flaws as t, index (t + ":" + index)}
-                <Badge variant="outline" class="rounded-full font-mono text-[11px]">{t}</Badge>
-              {/each}
-            {/if}
-            {#if usePerks}
-              {#each displayCharacter.perks as t, index (t + ":" + index)}
-                <Badge variant="outline" class="rounded-full font-mono text-[11px]">{t}</Badge>
-              {/each}
-            {/if}
-          </div>
-        </div>
+        <Card.Root class="mt-3 rounded-lg p-0 py-0 gap-0">
+          <Card.Header class="px-4 pt-4 pb-0">
+            <div class="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+              <Star size={14} strokeWidth={1.5} class="shrink-0 opacity-70" aria-hidden="true" />
+              <Card.Title class="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                Traits · Flaws · Perks
+              </Card.Title>
+            </div>
+          </Card.Header>
+          <Card.Content class="px-4 pb-4 pt-0">
+            <div class="mt-3 flex flex-wrap gap-2">
+              {#if usePersonalityTraits}
+                {#each displayCharacter.personality_traits as t, index (t + ":" + index)}
+                  <Badge variant="outline" class="rounded-full font-mono text-[11px]">{t}</Badge>
+                {/each}
+              {/if}
+              {#if useMajorFlaws}
+                {#each displayCharacter.major_flaws as t, index (t + ":" + index)}
+                  <Badge variant="outline" class="rounded-full font-mono text-[11px]">{t}</Badge>
+                {/each}
+              {/if}
+              {#if usePerks}
+                {#each displayCharacter.perks as t, index (t + ":" + index)}
+                  <Badge variant="outline" class="rounded-full font-mono text-[11px]">{t}</Badge>
+                {/each}
+              {/if}
+            </div>
+          </Card.Content>
+        </Card.Root>
       {/if}
 
       {#if customCharDefs.length > 0}
-        <div class={cn("mt-3 rounded-lg border bg-card p-4", flashCustom && "ring-2 ring-primary/30")}>
-          <div class="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-            <FileText size={14} strokeWidth={1.5} class="shrink-0 opacity-70" aria-hidden="true" />
-            <span>Custom Fields</span>
-          </div>
-          <div class="mt-3 space-y-4">
-            {#if hasBaseCustomDefs}
-              <div class="space-y-2">
-                <div class="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Base</div>
-                <CustomFieldsView
-                  defs={customDefs}
-                  values={displayCharacter.custom_fields}
-                  scope="character"
-                  placement="base"
-                />
-              </div>
-            {/if}
-            {#if hasCurrentCustomDefs}
-              <div class="space-y-2">
-                <div class="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Current</div>
-                <CustomFieldsView
-                  defs={customDefs}
-                  values={displayCharacter.custom_fields}
-                  scope="character"
-                  placement="current"
-                />
-              </div>
-            {/if}
-          </div>
-        </div>
+        <Card.Root class={cn("mt-3 rounded-lg p-0 py-0 gap-0", flashCustom && "ring-2 ring-primary/30")}>
+          <Card.Header class="px-4 pt-4 pb-0">
+            <div class="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+              <FileText size={14} strokeWidth={1.5} class="shrink-0 opacity-70" aria-hidden="true" />
+              <Card.Title class="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                Custom Fields
+              </Card.Title>
+            </div>
+          </Card.Header>
+          <Card.Content class="px-4 pb-4 pt-0">
+            <div class="mt-3 space-y-4">
+              {#if hasBaseCustomDefs}
+                <div class="space-y-2">
+                  <div class="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Base</div>
+                  <CustomFieldsView
+                    defs={customDefs}
+                    values={displayCharacter.custom_fields}
+                    scope="character"
+                    placement="base"
+                  />
+                </div>
+              {/if}
+              {#if hasCurrentCustomDefs}
+                <div class="space-y-2">
+                  <div class="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Current</div>
+                  <CustomFieldsView
+                    defs={customDefs}
+                    values={displayCharacter.custom_fields}
+                    scope="character"
+                    placement="current"
+                  />
+                </div>
+              {/if}
+            </div>
+          </Card.Content>
+        </Card.Root>
       {/if}
 
       {#if useInventory}
-        <div class={cn("mt-3 rounded-lg border bg-card p-4", flashInventory && "ring-2 ring-primary/30")}>
-          <div class="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-            <Box size={14} strokeWidth={1.5} class="shrink-0 opacity-70" aria-hidden="true" />
-            <span>Inventory ({displayCharacter.inventory.length})</span>
-          </div>
-          {#if displayCharacter.inventory.length === 0}
-            <div class="mt-2 text-sm italic text-muted-foreground">Nothing</div>
-          {:else}
-            <ul class="mt-3 space-y-2">
-              {#each displayCharacter.inventory as item, index (index)}
-                <li class="flex items-start gap-2">
-                  <Dot size={12} strokeWidth={1.5} class="mt-1 shrink-0 text-muted-foreground" aria-hidden="true" />
-                  <div class="min-w-0">
-                    <div class="text-sm font-medium text-foreground">{item.name}</div>
-                    <div class="mt-0.5 text-xs text-muted-foreground">{item.description}</div>
-                  </div>
-                </li>
-              {/each}
-            </ul>
-          {/if}
-        </div>
+        <Card.Root class={cn("mt-3 rounded-lg p-0 py-0 gap-0", flashInventory && "ring-2 ring-primary/30")}>
+          <Card.Header class="px-4 pt-4 pb-0">
+            <div class="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+              <Box size={14} strokeWidth={1.5} class="shrink-0 opacity-70" aria-hidden="true" />
+              <Card.Title class="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                Inventory ({displayCharacter.inventory.length})
+              </Card.Title>
+            </div>
+          </Card.Header>
+          <Card.Content class="px-4 pb-4 pt-0">
+            {#if displayCharacter.inventory.length === 0}
+              <div class="mt-2 text-sm italic text-muted-foreground">Nothing</div>
+            {:else}
+              <ul class="mt-3 space-y-2">
+                {#each displayCharacter.inventory as item, index (index)}
+                  <li class="flex items-start gap-2">
+                    <Dot size={12} strokeWidth={1.5} class="mt-1 shrink-0 text-muted-foreground" aria-hidden="true" />
+                    <div class="min-w-0">
+                      <div class="text-sm font-medium text-foreground">{item.name}</div>
+                      <div class="mt-0.5 text-xs text-muted-foreground">{item.description}</div>
+                    </div>
+                  </li>
+                {/each}
+              </ul>
+            {/if}
+          </Card.Content>
+        </Card.Root>
       {/if}
     {/if}
   {:else}
@@ -708,17 +981,23 @@
     <div class="flex items-center justify-between gap-3 border-b px-4 py-3">
       <div class="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
         <FileText size={16} strokeWidth={1.5} class="shrink-0 opacity-70" aria-hidden="true" />
-        <span>Character Sheet</span>
+        <span>Player</span>
       </div>
       <div class="flex items-center gap-2">
         <Button
           variant="outline"
-          size="sm"
-          class="h-8 rounded-full px-3"
+          size="icon"
+          class="h-8 w-8"
           onclick={() => (showBaselineDetails = !showBaselineDetails)}
           disabled={!displayCharacter}
+          title={showBaselineDetails ? "Hide details" : "Show details"}
+          aria-label={showBaselineDetails ? "Hide details" : "Show details"}
         >
-          {showBaselineDetails ? "Hide details" : "Show details"}
+          {#if showBaselineDetails}
+            <EyeOff size={12} strokeWidth={2} aria-hidden="true" />
+          {:else}
+            <Eye size={12} strokeWidth={2} aria-hidden="true" />
+          {/if}
         </Button>
         <Button
           variant="outline"
@@ -751,16 +1030,27 @@
         <div class="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
           <FileText size={16} strokeWidth={1.5} class="shrink-0 opacity-70" aria-hidden="true" />
           <span>Character Sheet</span>
+          {#if displayCharacter}
+            <Badge variant="outline" class="rounded-full font-mono text-[11px] normal-case"
+              >{displayCharacter.name}</Badge
+            >
+          {/if}
         </div>
         <div class="flex items-center gap-2">
           <Button
             variant="outline"
-            size="sm"
-            class="h-8 rounded-full px-3"
+            size="icon"
+            class="h-8 w-8"
             onclick={() => (showBaselineDetails = !showBaselineDetails)}
             disabled={!displayCharacter}
+            title={showBaselineDetails ? "Hide details" : "Show details"}
+            aria-label={showBaselineDetails ? "Hide details" : "Show details"}
           >
-            {showBaselineDetails ? "Hide details" : "Show details"}
+            {#if showBaselineDetails}
+              <EyeOff size={12} strokeWidth={2} aria-hidden="true" />
+            {:else}
+              <Eye size={12} strokeWidth={2} aria-hidden="true" />
+            {/if}
           </Button>
           <Button
             variant="outline"
@@ -780,12 +1070,16 @@
         <div class="p-4">
           {#if isInspectMode}
             {#if inspectLoading}
-              <div class="rounded-lg border bg-card p-4 text-sm text-muted-foreground">Loading character...</div>
+              <Card.Root class="rounded-lg p-0 py-0 gap-0">
+                <Card.Content class="p-4 text-sm text-muted-foreground">Loading character...</Card.Content>
+              </Card.Root>
             {:else if inspectError}
-              <div class="rounded-lg border bg-card p-4 text-sm text-muted-foreground">
-                <div>{inspectError}</div>
-                <Button variant="outline" size="sm" class="mt-3" onclick={retryInspect}>Retry</Button>
-              </div>
+              <Card.Root class="rounded-lg p-0 py-0 gap-0">
+                <Card.Content class="p-4 text-sm text-muted-foreground">
+                  <div>{inspectError}</div>
+                  <Button variant="outline" size="sm" class="mt-3" onclick={retryInspect}>Retry</Button>
+                </Card.Content>
+              </Card.Root>
             {:else}
               {@render charContent()}
             {/if}

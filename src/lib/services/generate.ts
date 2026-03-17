@@ -1,8 +1,8 @@
 import { AppError } from "@/errors"
-import * as db from "@/engine/core/db"
-import { StoryModulesSchema } from "@/engine/schemas/story-modules"
-import { createOrGetSession, publishComplete, publishError, publishPreview } from "@/engine/streaming/hub"
-import { generateCharacter, generateCharacterPart, generateChat, generateStory } from "@/engine/llm"
+import * as db from "@/db/core"
+import { StoryModulesSchema } from "@/domain/story/schemas/story-modules"
+import { createOrGetSession, publishComplete, publishError, publishPreview } from "@/llm/io/streaming"
+import { generateCharacter, generateCharacterPart, generateChat, generateStory } from "@/llm"
 import { clearInFlight, getCachedOrInFlight, setInFlight } from "@/services/requests/cache"
 import { isProbablyOfflineError } from "@/services/requests/offline"
 import type {
@@ -13,8 +13,8 @@ import type {
   GenerateCharacterResponse,
   GenerateCharacterTraitsResponse,
   GenerateStoryResponse,
-} from "@/shared/api-types"
-import type { MainCharacterState, StoryModules } from "@/shared/types"
+} from "@/types/api"
+import type { MainCharacterState, NPCState, StoryModules } from "@/types/types"
 
 function asGenerateError(err: unknown): AppError {
   const message = err instanceof Error ? err.message : String(err)
@@ -167,6 +167,7 @@ export const generate = {
     character: Omit<MainCharacterState, "inventory">,
     storyModules?: StoryModules,
     requestId?: string,
+    selectedNpcs?: NPCState[],
   ): Promise<GenerateStoryResponse> => {
     const defaults = db.getSettings().storyDefaults
     const trimmedRequestId = requestId?.trim() || undefined
@@ -185,6 +186,7 @@ export const generate = {
       const task = generateStory(description, character, storyModules ?? defaults, {
         onPreviewPatch:
           shouldStream && trimmedRequestId ? (patch) => publishPreview(trimmedRequestId, patch) : undefined,
+        selectedNpcs,
       })
       if (trimmedRequestId) setInFlight(trimmedRequestId, task)
       try {

@@ -1,8 +1,10 @@
 <script lang="ts">
-  import { onMount } from "svelte"
-  import type { MainCharacterState, NPCState, StoryModules } from "@/shared/types"
-  import type { StoryCharacterGroup, StoryNpcGroup } from "@/shared/api-types"
+  import { untrack } from "svelte"
+  import { SvelteSet } from "svelte/reactivity"
+  import type { MainCharacterState, NPCState, StoryModules } from "@/types/types"
+  import type { CustomFieldDef, StoryCharacterGroup, StoryNpcGroup } from "@/types/api"
   import { stories as storiesService } from "@/services/stories"
+  import { settings as settingsService } from "@/services/settings"
   import { subscribeStreamPreview } from "@/services/streamPreview"
   import { navigate, openCharSheetForCharacter } from "@/stores/router"
   import { showError } from "@/stores/ui"
@@ -22,15 +24,19 @@
   import { Sheet, SheetContent } from "@/components/ui/sheet"
   import { Textarea } from "@/components/ui/textarea"
   import { ScrollArea } from "@/components/ui/scroll-area"
+  import CustomFieldsEditor from "@/components/inputs/CustomFieldsEditor.svelte"
   import NpcLibraryPicker from "@/features/story/NpcLibraryPicker.svelte"
   import { generateStoryFromDescription } from "@/features/story/actions"
+  import { formatStoryLabel } from "@/features/story/formatStoryLabel"
   import { characterToNpc } from "@/utils/characterToNpc"
+  import { isCustomFieldModuleEnabled } from "@/domain/story/custom-field-modules"
   import {
     pendingCharacter,
     pendingStoryTitle,
     pendingStoryScenario,
     pendingStoryNPCs,
     pendingStoryNpcCharacterIds,
+    pendingStoryNpcOverridesById,
     pendingStoryLocation,
     pendingStoryDate,
     pendingStoryTime,
@@ -46,7 +52,7 @@
     storyModulesPreviewCore,
     storyModulesPreviewNpc,
     storyModulesPreviewPlayer,
-  } from "@/shared/story-modules"
+  } from "@/domain/story/story-modules"
 
   let submitting = $state(false)
   let generating = $state(false)
@@ -57,34 +63,58 @@
   let savedNpcs = $state<StoryNpcGroup[]>([])
   let selectedNpcPlayableKey = $state<string | null>(null)
   let storyPromptHistory = $state<string[]>([])
+  let customDefs = $state<CustomFieldDef[]>([])
+  let customDefsLoaded = $state(false)
+  let customDefsError = $state<string | null>(null)
 
   const STORY_PROMPT_HISTORY_KEY = "na:prompt_history:story"
 
-  onMount(() => {
-    loadPlayableLibrary()
-    void loadPromptHistory(STORY_PROMPT_HISTORY_KEY).then((items) => {
-      storyPromptHistory = items
+  async function loadCustomDefs() {
+    if (customDefsLoaded) return
+    customDefsError = null
+    try {
+      customDefs = await settingsService.customFields()
+    } catch (err) {
+      customDefsError = err instanceof Error ? err.message : "Failed to load custom fields."
+      customDefs = []
+    } finally {
+      customDefsLoaded = true
+    }
+  }
+
+  $effect(() => {
+    untrack(() => {
+      loadPlayableLibrary()
+      void loadCustomDefs()
+      void loadPromptHistory(STORY_PROMPT_HISTORY_KEY).then((items) => {
+        storyPromptHistory = items
+      })
+      if (!$pendingStoryModules) pendingStoryModules.set($storyDefaults)
+      if ($pendingCharacterId && $pendingStoryNpcCharacterIds.includes($pendingCharacterId)) {
+        pendingStoryNpcCharacterIds.set($pendingStoryNpcCharacterIds.filter((id) => id !== $pendingCharacterId))
+      }
+      const pending = getPendingRequest<{
+        prompt: string
+        character: Omit<MainCharacterState, "inventory">
+        modules: StoryModules
+        npcCharacterIds?: number[]
+      }>("generate.story")
+      if (pending) {
+        pendingStoryGenerateDescription.set(pending.payload.prompt)
+        pendingCharacter.set(pending.payload.character)
+        pendingStoryModules.set(pending.payload.modules)
+        pendingStoryNpcCharacterIds.set(pending.payload.npcCharacterIds ?? [])
+        if ($pendingCharacterId && $pendingStoryNpcCharacterIds.includes($pendingCharacterId)) {
+          pendingStoryNpcCharacterIds.set($pendingStoryNpcCharacterIds.filter((id) => id !== $pendingCharacterId))
+        }
+        void runGenerateStory(
+          pending.payload.prompt,
+          pending.payload.character,
+          pending.payload.modules,
+          pending.requestId,
+        )
+      }
     })
-    if (!$pendingStoryModules) pendingStoryModules.set($storyDefaults)
-    if ($pendingCharacterId && $pendingStoryNpcCharacterIds.includes($pendingCharacterId)) {
-      pendingStoryNpcCharacterIds.set($pendingStoryNpcCharacterIds.filter((id) => id !== $pendingCharacterId))
-    }
-    const pending = getPendingRequest<{
-      prompt: string
-      character: Omit<MainCharacterState, "inventory">
-      modules: StoryModules
-    }>("generate.story")
-    if (pending) {
-      pendingStoryGenerateDescription.set(pending.payload.prompt)
-      pendingCharacter.set(pending.payload.character)
-      pendingStoryModules.set(pending.payload.modules)
-      void runGenerateStory(
-        pending.payload.prompt,
-        pending.payload.character,
-        pending.payload.modules,
-        pending.requestId,
-      )
-    }
   })
 
   async function loadPlayableLibrary() {
@@ -132,9 +162,15 @@
   function setNpcCharacterIds(nextIds: number[]) {
     const unique = Array.from(new Set(nextIds)).filter((id) => Number.isFinite(id) && id > 0)
     pendingStoryNpcCharacterIds.set(unique)
+    pendingStoryNpcOverridesById.update((prev) => {
+      const next: Record<number, Partial<NPCState>> = {}
+      for (const id of unique) {
+        if (prev[id]) next[id] = prev[id]
+      }
+      return next
+    })
   }
 
-  type StoryRef = { id: number; title: string; updated_at: string }
   type PlayableOption = {
     key: string
     kind: "character" | "npc"
@@ -148,15 +184,23 @@
   const modulesPreviewPlayer = $derived.by(() => storyModulesPreviewPlayer(activeModules))
   const modulesPreviewNpc = $derived.by(() => storyModulesPreviewNpc(activeModules))
 
-  function formatStoryLabel(stories: StoryRef[]): string {
-    if (!stories || stories.length === 0) return "No story yet"
-    const sorted = [...stories].sort((a, b) => b.updated_at.localeCompare(a.updated_at))
-    const titles = sorted.map((s) => s.title).filter(Boolean)
-    const shown = titles.slice(0, 2)
-    const extra = titles.length - shown.length
-    if (shown.length === 0) return "No story yet"
-    return extra > 0 ? `${shown.join(", ")} +${extra} more` : shown.join(", ")
-  }
+  const enabledCurrentCustomDefs = $derived.by(() =>
+    customDefs
+      .filter(
+        (d) =>
+          d.enabled &&
+          d.scope === "character" &&
+          d.placement === "current" &&
+          isCustomFieldModuleEnabled(activeModules, d.id, "character"),
+      )
+      .slice()
+      .sort((a, b) => {
+        const ao = a.sort_order ?? 0
+        const bo = b.sort_order ?? 0
+        if (ao !== bo) return ao - bo
+        return a.label.localeCompare(b.label)
+      }),
+  )
 
   const playableOptions: PlayableOption[] = $derived([
     ...savedCharacters.map((c) => ({
@@ -215,6 +259,39 @@
   )
   const playableSelectLabel = $derived(playableSelectOptions.find((o) => o.value === selectedPlayableKey)?.label ?? "")
 
+  function mergeCustomFields(
+    base: Record<string, string | string[]> | undefined,
+    patch: unknown,
+  ): Record<string, string | string[]> {
+    const current = base && typeof base === "object" ? base : {}
+    if (!patch || typeof patch !== "object" || Array.isArray(patch)) return current
+    return { ...current, ...(patch as Record<string, string | string[]>) }
+  }
+
+  function updatePendingCharacter(patch: Partial<Omit<MainCharacterState, "inventory">>) {
+    pendingCharacter.update((c) => (c ? { ...c, ...patch } : c))
+  }
+
+  type SelectedNpcContext = { id: number; npc: NPCState }
+
+  async function getSelectedNpcContext(modules: StoryModules): Promise<SelectedNpcContext[]> {
+    if (!modules.track_npcs) return []
+    const ids = $pendingStoryNpcCharacterIds
+    if (ids.length === 0) return []
+    const idSet = new Set(ids)
+    const groups = savedCharacters.length > 0 ? savedCharacters : await storiesService.characters().catch(() => [])
+    return groups
+      .filter((g) => idSet.has(g.id))
+      .map((g) => {
+        const base = characterToNpc(g.character)
+        const patch = $pendingStoryNpcOverridesById[g.id]
+        return {
+          id: g.id,
+          npc: patch ? { ...base, ...patch } : base,
+        }
+      })
+  }
+
   async function runGenerateStory(
     prompt: string,
     character: Omit<MainCharacterState, "inventory">,
@@ -229,7 +306,7 @@
       kind: "generate.story",
       requestId,
       createdAt: Date.now(),
-      payload: { prompt: trimmed, character, modules },
+      payload: { prompt: trimmed, character, modules, npcCharacterIds: $pendingStoryNpcCharacterIds },
     })
     const unsub = $streamingEnabled
       ? subscribeStreamPreview(requestId, (patch) => {
@@ -238,9 +315,16 @@
           if (typeof patch.starting_location === "string") pendingStoryLocation.set(patch.starting_location)
           if (typeof patch.starting_date === "string") pendingStoryDate.set(patch.starting_date)
           if (typeof patch.starting_time === "string") pendingStoryTime.set(patch.starting_time)
-          if (typeof patch.general_description === "string" || typeof patch.current_appearance === "string") {
+          if (
+            typeof patch.general_description === "string" ||
+            typeof patch.current_appearance === "string" ||
+            typeof patch.current_clothing === "string" ||
+            typeof patch.current_activity === "string" ||
+            (patch.character_custom_fields && typeof patch.character_custom_fields === "object")
+          ) {
             pendingCharacter.update((c) => {
               if (!c) return c
+              const customFields = mergeCustomFields(c.custom_fields, patch.character_custom_fields)
               return {
                 ...c,
                 ...(typeof patch.general_description === "string"
@@ -249,6 +333,13 @@
                 ...(modules.character_appearance_clothing && typeof patch.current_appearance === "string"
                   ? { current_appearance: patch.current_appearance }
                   : {}),
+                ...(modules.character_appearance_clothing && typeof patch.current_clothing === "string"
+                  ? { current_clothing: patch.current_clothing }
+                  : {}),
+                ...(modules.character_activity && typeof patch.current_activity === "string"
+                  ? { current_activity: patch.current_activity }
+                  : {}),
+                ...(customFields !== c.custom_fields ? { custom_fields: customFields } : {}),
               }
             })
           }
@@ -256,18 +347,57 @@
       : null
     try {
       storyPromptHistory = await savePromptHistory(STORY_PROMPT_HISTORY_KEY, trimmed)
-      const result = await generateStoryFromDescription(trimmed, character, modules, requestId)
+      const selectedNpcContext = await getSelectedNpcContext(modules)
+      const selectedNpcs = selectedNpcContext.map((c) => c.npc)
+      const result = await generateStoryFromDescription(trimmed, character, modules, requestId, selectedNpcs)
       pendingStoryTitle.set(result.title)
       pendingStoryScenario.set(result.opening_scenario)
       pendingStoryLocation.set(result.starting_location)
       pendingStoryDate.set(result.starting_date)
       pendingStoryTime.set(result.starting_time)
-      pendingStoryNPCs.set(result.pregen_npcs ?? [])
+      const selectedNames = new Set(selectedNpcs.map((n) => (n.name || "").trim().toLowerCase()).filter(Boolean))
+      pendingStoryNPCs.set(
+        (result.pregen_npcs ?? []).filter((npc) => !selectedNames.has((npc.name || "").trim().toLowerCase())),
+      )
+      if (result.selected_npc_updates && result.selected_npc_updates.length > 0) {
+        const nameToId = new Map(
+          selectedNpcContext
+            .map(({ id, npc }) => [npc.name.trim().toLowerCase(), id] as const)
+            .filter(([name]) => name.length > 0),
+        )
+        pendingStoryNpcOverridesById.update((prev) => {
+          const next = { ...prev }
+          for (const raw of result.selected_npc_updates ?? []) {
+            const nameKey = (raw.name || "").trim().toLowerCase()
+            if (!nameKey) continue
+            const id = nameToId.get(nameKey)
+            if (!id) continue
+            const patch: Partial<NPCState> = {}
+            if (typeof raw.race === "string") patch.race = raw.race
+            if (typeof raw.gender === "string") patch.gender = raw.gender
+            if (typeof raw.current_location === "string") patch.current_location = raw.current_location
+            if (typeof raw.current_activity === "string") patch.current_activity = raw.current_activity
+            if (typeof raw.current_clothing === "string") patch.current_clothing = raw.current_clothing
+            if (typeof raw.current_appearance === "string") patch.current_appearance = raw.current_appearance
+            next[id] = { ...(next[id] ?? {}), ...patch }
+          }
+          return next
+        })
+      }
       const updatedCharacter = {
         ...character,
         general_description: result.general_description,
         ...(modules.character_appearance_clothing
-          ? { current_appearance: result.current_appearance ?? character.current_appearance }
+          ? {
+              current_appearance: result.current_appearance ?? character.current_appearance,
+              current_clothing: result.current_clothing ?? character.current_clothing,
+            }
+          : {}),
+        ...(modules.character_activity
+          ? { current_activity: result.current_activity ?? character.current_activity }
+          : {}),
+        ...(result.character_custom_fields
+          ? { custom_fields: mergeCustomFields(character.custom_fields, result.character_custom_fields) }
           : {}),
       }
       pendingCharacter.set(updatedCharacter)
@@ -318,11 +448,15 @@
       const npcFromLibrary = activeModules.track_npcs
         ? savedCharacters
             .filter((g) => $pendingStoryNpcCharacterIds.includes(g.id))
-            .map((g) => characterToNpc(g.character))
+            .map((g) => {
+              const base = characterToNpc(g.character)
+              const patch = $pendingStoryNpcOverridesById[g.id]
+              return patch ? { ...base, ...patch } : base
+            })
         : []
       const npcCandidates = activeModules.track_npcs ? [...$pendingStoryNPCs, ...npcFromLibrary] : []
       const dedupedNpcs = (() => {
-        const seen = new Set<string>()
+        const seen = new SvelteSet<string>()
         const out: NPCState[] = []
         for (const npc of npcCandidates) {
           const key = (npc.name || "").trim().toLowerCase()
@@ -372,6 +506,7 @@
       pendingStoryScenario.set("")
       pendingStoryNPCs.set([])
       pendingStoryNpcCharacterIds.set([])
+      pendingStoryNpcOverridesById.set({})
       pendingStoryLocation.set("")
       pendingStoryDate.set("")
       pendingStoryTime.set("")
@@ -511,6 +646,77 @@
                   New Character
                 </Button>
               </div>
+            {/if}
+
+            {#if charData && (activeModules.character_appearance_clothing || activeModules.character_activity || enabledCurrentCustomDefs.length > 0 || customDefsError)}
+              <Card>
+                <CardHeader class="space-y-1">
+                  <CardTitle>Starting State</CardTitle>
+                  <CardDescription
+                    >Story-specific “current” fields. Generated by the story prompt and editable.</CardDescription
+                  >
+                </CardHeader>
+                <CardContent class="space-y-4">
+                  {#if activeModules.character_activity}
+                    <div class="grid gap-2">
+                      <Label for="story-char-activity">Current Activity</Label>
+                      <Input
+                        id="story-char-activity"
+                        type="text"
+                        value={charData.current_activity}
+                        disabled={generating || submitting}
+                        oninput={(e) =>
+                          updatePendingCharacter({ current_activity: (e.target as HTMLInputElement).value })}
+                      />
+                    </div>
+                  {/if}
+
+                  {#if activeModules.character_appearance_clothing}
+                    <div class="grid gap-2">
+                      <Label for="story-char-appearance">Current Appearance</Label>
+                      <Textarea
+                        id="story-char-appearance"
+                        value={charData.current_appearance}
+                        rows={4}
+                        disabled={generating || submitting}
+                        oninput={(e) =>
+                          updatePendingCharacter({ current_appearance: (e.target as HTMLTextAreaElement).value })}
+                      />
+                    </div>
+                    <div class="grid gap-2">
+                      <Label for="story-char-clothing">Current Clothing</Label>
+                      <Textarea
+                        id="story-char-clothing"
+                        value={charData.current_clothing}
+                        rows={4}
+                        disabled={generating || submitting}
+                        oninput={(e) =>
+                          updatePendingCharacter({ current_clothing: (e.target as HTMLTextAreaElement).value })}
+                      />
+                    </div>
+                  {/if}
+
+                  <div class="space-y-2">
+                    <div class="text-sm font-medium text-foreground">Custom Fields (Current)</div>
+                    {#if customDefsError}
+                      <div
+                        class="rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive"
+                      >
+                        {customDefsError}
+                      </div>
+                    {:else}
+                      <CustomFieldsEditor
+                        defs={enabledCurrentCustomDefs}
+                        values={charData.custom_fields}
+                        setValues={(next) => updatePendingCharacter({ custom_fields: next })}
+                        scope="character"
+                        placement="current"
+                        disabled={generating || submitting}
+                      />
+                    {/if}
+                  </div>
+                </CardContent>
+              </Card>
             {/if}
           </CardContent>
         </Card>

@@ -1,9 +1,9 @@
 import { z } from "zod"
 import { AppError } from "@/errors"
-import type { MainCharacterState } from "@/shared/types"
-import type { CharacterImportResult, StoryCharacterGroup } from "@/shared/api-types"
-import * as db from "@/engine/core/db"
-import { MainCharacterStateStoredSchema } from "@/engine/core/models"
+import type { MainCharacterState } from "@/types/types"
+import type { CharacterImportResult, StoryCharacterGroup } from "@/types/api"
+import * as db from "@/db/core"
+import { MainCharacterStateStoredSchema } from "@/types/models"
 import {
   characterToTavernCard,
   detectImportFormat,
@@ -11,7 +11,7 @@ import {
   TavernCardV2Schema,
   tavernCardToCharacter,
   type TavernCardV2,
-} from "@/engine/utils/converters/tavern"
+} from "@/utils/converters/tavern"
 import { base64ToBytes, downloadText } from "@/services/stories/utils"
 
 export async function characters(): Promise<StoryCharacterGroup[]> {
@@ -174,6 +174,9 @@ export async function importCharacter(body: object): Promise<CharacterImportResu
         JSON.stringify(wrapper.tavern_card),
         wrapper.tavern_avatar_data_url ?? undefined,
       )
+    } else if (wrapper.tavern_avatar_data_url) {
+      const card = characterToTavernCard(base)
+      db.upsertCharacterCard(characterId, "tavern-card-v2", JSON.stringify(card), wrapper.tavern_avatar_data_url)
     }
     return { id: characterId, character: base, needs_review: false }
   }

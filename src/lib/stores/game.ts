@@ -1,5 +1,7 @@
 import { writable, derived } from "svelte/store"
-import type { MainCharacterState, NPCState, StoryModules, WorldState, TurnSummary } from "@/shared/types"
+import type { MainCharacterState, NPCState, StoryModules, WorldState, TurnSummary } from "@/types/types"
+
+export type StoryCharacterKey = "player" | `npc:${string}`
 
 export const currentStoryId = writable<number | null>(null)
 export const currentStoryTitle = writable<string>("")
@@ -15,6 +17,7 @@ export const currentStoryInitialWorld = writable<WorldState | null>(null)
 export const character = writable<MainCharacterState | null>(null)
 export const worldState = writable<WorldState | null>(null)
 export const npcs = writable<NPCState[]>([])
+export const activeStoryCharacterKey = writable<StoryCharacterKey>("player")
 export const turns = writable<TurnSummary[]>([])
 export const isGenerating = writable(false)
 export const llmUpdateId = writable(0)
@@ -31,6 +34,7 @@ export const pendingStoryTitle = writable("")
 export const pendingStoryScenario = writable("")
 export const pendingStoryNPCs = writable<NPCState[]>([])
 export const pendingStoryNpcCharacterIds = writable<number[]>([])
+export const pendingStoryNpcOverridesById = writable<Record<number, Partial<NPCState>>>({})
 export const pendingStoryLocation = writable("")
 export const pendingStoryDate = writable("")
 export const pendingStoryTime = writable("")
@@ -55,6 +59,7 @@ export function resetActiveStory() {
   character.set(null)
   worldState.set(null)
   npcs.set([])
+  activeStoryCharacterKey.set("player")
   turns.set([])
   isGenerating.set(false)
   llmUpdateId.set(0)
@@ -64,6 +69,7 @@ export function resetGame() {
   resetActiveStory()
   pendingStoryNPCs.set([])
   pendingStoryNpcCharacterIds.set([])
+  pendingStoryNpcOverridesById.set({})
   pendingStoryLocation.set("")
   pendingStoryDate.set("")
   pendingStoryTime.set("")

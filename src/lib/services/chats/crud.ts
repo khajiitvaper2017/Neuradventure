@@ -1,7 +1,7 @@
 import { AppError } from "@/errors"
-import * as db from "@/engine/core/db"
-import type { ChatDetail, ChatMessage as ChatMessagePayload, ChatSummary } from "@/shared/types"
-import type { ChatUpdateMessageResult, ChatUpdateResult } from "@/shared/api-types"
+import * as db from "@/db/core"
+import type { ChatDetail, ChatMessage as ChatMessagePayload, ChatSummary } from "@/types/types"
+import type { ChatUpdateMessageResult, ChatUpdateResult } from "@/types/api"
 import { buildMessagePayload } from "@/services/chats/messages"
 import { memberNameFromState, parseMemberState } from "@/services/chats/members"
 
@@ -12,6 +12,11 @@ export async function list(): Promise<ChatSummary[]> {
     const names = members.map((m) => memberNameFromState(parseMemberState(m.state_json)))
     const player = members.find((m) => m.role === "player")
     const playerName = player ? memberNameFromState(parseMemberState(player.state_json)) : ""
+    const primaryAiCharacter = members.find((m) => m.role === "ai" && m.member_kind === "character" && m.character_id)
+    const avatar =
+      primaryAiCharacter?.character_id != null
+        ? db.getCharacterCardSummary(primaryAiCharacter.character_id)?.avatar
+        : undefined
     return {
       id: row.id,
       title: row.title,
@@ -19,6 +24,7 @@ export async function list(): Promise<ChatSummary[]> {
       updated_at: row.updated_at,
       participants: names,
       player_name: playerName,
+      avatar,
     }
   })
 }

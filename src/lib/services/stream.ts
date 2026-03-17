@@ -1,5 +1,5 @@
-import { subscribe as subscribeLocal } from "@/engine/streaming/hub"
-import type { StreamServerMessage } from "@/engine/streaming/hub"
+import { subscribe as subscribeLocal } from "@/llm/io/streaming"
+import type { StreamServerMessage } from "@/llm/io/streaming"
 
 export type {
   StreamKind,
@@ -8,7 +8,7 @@ export type {
   StreamErrorMessage,
   StreamCompleteMessage,
   StreamServerMessage,
-} from "@/engine/streaming/hub"
+} from "@/llm/io/streaming"
 
 type Listener = (msg: StreamServerMessage) => void
 

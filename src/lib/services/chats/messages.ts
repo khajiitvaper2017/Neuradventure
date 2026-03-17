@@ -1,6 +1,6 @@
-import * as db from "@/engine/core/db"
-import type { ChatMessage } from "@/engine/llm/chat"
-import type { ChatMessage as ChatMessagePayload } from "@/shared/types"
+import * as db from "@/db/core"
+import type { ChatMessage } from "@/llm/chat"
+import type { ChatMessage as ChatMessagePayload } from "@/types/types"
 import { memberNameFromState, parseMemberState } from "@/services/chats/members"
 
 export function buildMessagePayload(message: db.ChatMessageRow, members: db.ChatMemberRow[]): ChatMessagePayload {

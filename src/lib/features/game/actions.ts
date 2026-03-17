@@ -1,4 +1,4 @@
-import type { MainCharacterState, NPCState, TurnSummary, WorldState } from "@/shared/types"
+import type { MainCharacterState, NPCState, TurnSummary, WorldState } from "@/types/types"
 import { character, worldState, npcs, turns, markLlmUpdate } from "@/stores/game"
 
 type TurnStatePayload = {

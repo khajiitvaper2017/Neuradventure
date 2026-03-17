@@ -1,12 +1,19 @@
 <script lang="ts">
+  import { untrack } from "svelte"
   import { get } from "svelte/store"
-  import { onMount } from "svelte"
   import { SvelteMap, SvelteSet } from "svelte/reactivity"
-  import type { StoryModules } from "@/shared/types"
-  import { storyModulesPreviewCore, storyModulesPreviewNpc, storyModulesPreviewPlayer } from "@/shared/story-modules"
+  import type { StoryModules } from "@/types/types"
+  import {
+    storyModulesPreviewCore,
+    storyModulesPreviewNpc,
+    storyModulesPreviewPlayer,
+  } from "@/domain/story/story-modules"
   import { goBack, navigate } from "@/stores/router"
   import { showError, showQuietNotice } from "@/stores/ui"
   import { cn } from "@/utils.js"
+  import type { CustomFieldDef } from "@/types/api"
+  import { settings as settingsService } from "@/services/settings"
+  import { isCustomFieldModuleEnabled } from "@/domain/story/custom-field-modules"
   import {
     pendingCharacter,
     pendingCharacterId,
@@ -17,14 +24,15 @@
   } from "@/stores/game"
   import { pendingCharacterGenerateDescription } from "@/stores/game"
   import { storyDefaults, streamingEnabled } from "@/stores/settings"
-  import personalityOptions from "@/shared/config/traits.json"
-  import serverDefaults from "@/shared/config/server-defaults.json"
+  import personalityOptions from "@/config/traits.json"
+  import serverDefaults from "@/config/server-defaults.json"
   import { loadPromptHistory, savePromptHistory, removePromptHistory } from "@/utils/promptHistory"
   import { normalizeGender } from "@/utils/text"
   import { createRequestId } from "@/utils/ids"
   import { clearPendingRequest, getPendingRequest, setPendingRequest } from "@/utils/pendingRequests"
   import PromptHistoryPanel from "@/components/panels/PromptHistoryPanel.svelte"
   import { subscribeStreamPreview } from "@/services/streamPreview"
+  import { pickFile, readFileAsDataUrl } from "@/utils/dom/filePick"
   import StoryModulesPanel from "@/components/panels/StoryModulesPanel.svelte"
   import { Button } from "@/components/ui/button"
   import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -32,13 +40,14 @@
   import { Input } from "@/components/ui/input"
   import * as InputGroup from "@/components/ui/input-group"
   import { Label } from "@/components/ui/label"
+  import * as Avatar from "@/components/ui/avatar"
   import { Textarea } from "@/components/ui/textarea"
   import { ScrollArea } from "@/components/ui/scroll-area"
   import * as ToggleGroup from "@/components/ui/toggle-group"
+  import CustomFieldsEditor from "@/components/inputs/CustomFieldsEditor.svelte"
   import {
     generateCharacterFromDescription,
     generateCharacterAppearance,
-    generateCharacterClothing,
     generateCharacterTraits,
     importCharacter,
   } from "@/features/character/actions"
@@ -152,22 +161,40 @@
   let savingCharacter = $state(false)
   let autofilling = $state(false)
   let regeneratingAppearance = $state(false)
-  let regeneratingClothing = $state(false)
   let regeneratingTraits = $state(false)
   let showModulesPanel = $state(false)
   let promptHistory = $state<string[]>([])
+  let customDefs = $state<CustomFieldDef[]>([])
+  let customDefsLoaded = $state(false)
+  let customDefsError = $state<string | null>(null)
 
-  onMount(() => {
-    void loadPromptHistory(CHARACTER_PROMPT_HISTORY_KEY).then((items) => {
-      promptHistory = items
-    })
-    if (!$pendingStoryModules) pendingStoryModules.set($storyDefaults)
-    const pending = getPendingRequest<{ prompt: string; modules: StoryModules }>("generate.character")
-    if (pending) {
-      pendingCharacterGenerateDescription.set(pending.payload.prompt)
-      pendingStoryModules.set(pending.payload.modules)
-      void runGenerate(pending.payload.prompt, pending.payload.modules, pending.requestId)
+  async function loadCustomDefs() {
+    if (customDefsLoaded) return
+    customDefsError = null
+    try {
+      customDefs = await settingsService.customFields()
+    } catch (err) {
+      customDefsError = err instanceof Error ? err.message : "Failed to load custom fields."
+      customDefs = []
+    } finally {
+      customDefsLoaded = true
     }
+  }
+
+  $effect(() => {
+    untrack(() => {
+      void loadPromptHistory(CHARACTER_PROMPT_HISTORY_KEY).then((items) => {
+        promptHistory = items
+      })
+      void loadCustomDefs()
+      if (!$pendingStoryModules) pendingStoryModules.set($storyDefaults)
+      const pending = getPendingRequest<{ prompt: string; modules: StoryModules }>("generate.character")
+      if (pending) {
+        pendingCharacterGenerateDescription.set(pending.payload.prompt)
+        pendingStoryModules.set(pending.payload.modules)
+        void runGenerate(pending.payload.prompt, pending.payload.modules, pending.requestId)
+      }
+    })
   })
 
   async function runGenerate(prompt: string, modules: StoryModules, requestId: string) {
@@ -191,7 +218,9 @@
             if (typeof patch.baseline_appearance === "string") {
               baselineAppearance = patch.baseline_appearance
             }
-            if (typeof patch.current_clothing === "string") currentClothing = patch.current_clothing
+          }
+          if (patch.custom_fields && typeof patch.custom_fields === "object" && !Array.isArray(patch.custom_fields)) {
+            customFields = mergeCustomFields(customFields, patch.custom_fields)
           }
         })
       : null
@@ -207,7 +236,9 @@
         if (result.baseline_appearance) {
           baselineAppearance = result.baseline_appearance
         }
-        if (result.current_clothing) currentClothing = result.current_clothing
+      }
+      if (result.custom_fields) {
+        customFields = mergeCustomFields(customFields, result.custom_fields)
       }
 
       if (traitsEnabled) {
@@ -233,6 +264,24 @@
     await runGenerate(prompt, activeModules, requestId)
   }
 
+  const avatarSrc = $derived(($pendingCharacterImportAvatarDataUrl ?? "").trim())
+
+  async function loadAvatar() {
+    if (generating || savingCharacter || autofilling) return
+    try {
+      const file = await pickFile({ accept: "image/*" })
+      if (!file) return
+      const dataUrl = (await readFileAsDataUrl(file)).trim()
+      pendingCharacterImportAvatarDataUrl.set(dataUrl || null)
+    } catch (err) {
+      showError(err instanceof Error ? err.message : "Failed to load avatar")
+    }
+  }
+
+  function clearAvatar() {
+    pendingCharacterImportAvatarDataUrl.set(null)
+  }
+
   const isMissingText = (value: string) => {
     const trimmed = value.trim()
     return !trimmed || /^unknown\b/i.test(trimmed)
@@ -250,6 +299,15 @@
     return out
   }
 
+  function mergeCustomFields(
+    base: Record<string, string | string[]> | undefined,
+    patch: unknown,
+  ): Record<string, string | string[]> {
+    const current = base && typeof base === "object" ? base : {}
+    if (!patch || typeof patch !== "object" || Array.isArray(patch)) return current
+    return { ...current, ...(patch as Record<string, string | string[]>) }
+  }
+
   async function autofillFromImport() {
     if (autofilling) return
     const seed = $pendingCharacterImportText.trim()
@@ -261,7 +319,7 @@
     try {
       const prompt = [
         "Use the following SillyTavern character card data to infer missing fields.",
-        "Focus on race, gender, baseline appearance, clothing, personality traits, and perks.",
+        "Focus on race, gender, baseline appearance, personality traits, and perks.",
         seed,
       ].join("\n")
       const result = await generateCharacterFromDescription(prompt, activeModules)
@@ -277,7 +335,9 @@
       if (activeModules.character_appearance_clothing) {
         if (isMissingText(baselineAppearance) && result.baseline_appearance)
           baselineAppearance = result.baseline_appearance
-        if (isMissingText(currentClothing) && result.current_clothing) currentClothing = result.current_clothing
+      }
+      if (result.custom_fields) {
+        customFields = mergeCustomFields(customFields, result.custom_fields)
       }
 
       if (traitsEnabled) {
@@ -314,7 +374,7 @@
   }
   let generalDescription = $state(existing?.general_description ?? "")
   let baselineAppearance = $state(existing?.baseline_appearance ?? "")
-  let currentClothing = $state(existing?.current_clothing ?? "")
+  let customFields = $state<Record<string, string | string[]>>(existing?.custom_fields ?? {})
   let selectedTraits = $state<string[]>(initialPersonality.selected)
   let customPersonalityInput = $state("")
   let customPersonalityTraits = $state<string[]>(initialPersonality.custom)
@@ -328,6 +388,34 @@
   const majorFlawsEnabled = $derived(activeModules.character_major_flaws)
   const perksEnabled = $derived(activeModules.character_perks)
   const canRegenerateTraits = $derived(traitsEnabled && majorFlawsEnabled && perksEnabled)
+
+  const enabledBaseCustomDefs = $derived.by(() =>
+    customDefs
+      .filter(
+        (d) =>
+          d.enabled &&
+          d.scope === "character" &&
+          d.placement === "base" &&
+          isCustomFieldModuleEnabled(activeModules, d.id, "character"),
+      )
+      .slice()
+      .sort((a, b) => {
+        const ao = a.sort_order ?? 0
+        const bo = b.sort_order ?? 0
+        if (ao !== bo) return ao - bo
+        return a.label.localeCompare(b.label)
+      }),
+  )
+
+  const enabledCurrentCustomDefs = $derived.by(() =>
+    customDefs.filter(
+      (d) =>
+        d.enabled &&
+        d.scope === "character" &&
+        d.placement === "current" &&
+        isCustomFieldModuleEnabled(activeModules, d.id, "character"),
+    ),
+  )
 
   let hoveredTrait = $state<string | null>(null)
 
@@ -461,20 +549,21 @@
       return out
     }
     const baseline = baselineAppearance.trim() || serverDefaults.unknown.baselineAppearance
-    const clothing = currentClothing.trim() || serverDefaults.unknown.clothing
+    const clothing = serverDefaults.unknown.clothing
     return {
       name: name.trim(),
       race: race.trim(),
       gender,
       general_description: generalDescription.trim() || serverDefaults.unknown.generalDescription,
-      current_location: existing?.current_location ?? serverDefaults.unknown.location,
+      current_location: serverDefaults.unknown.location,
+      current_activity: serverDefaults.unknown.activity,
       baseline_appearance: baseline,
       current_appearance: baseline,
       current_clothing: clothing,
       personality_traits: uniquePersonality([...selectedTraits, ...customPersonalityTraits]),
       major_flaws: majorFlaws,
       perks,
-      custom_fields: existing?.custom_fields ?? {},
+      custom_fields: customFields,
     }
   }
 
@@ -525,30 +614,6 @@
       showError(err instanceof Error ? err.message : "Regeneration failed")
     } finally {
       regeneratingTraits = false
-    }
-  }
-
-  async function regenerateClothing() {
-    if (regeneratingClothing) return
-    if (!activeModules.character_appearance_clothing) {
-      showError("Clothing regeneration is disabled by story modules")
-      return
-    }
-    regeneratingClothing = true
-    const requestId = createRequestId()
-    const unsub = $streamingEnabled
-      ? subscribeStreamPreview(requestId, (patch) => {
-          if (typeof patch.current_clothing === "string") currentClothing = patch.current_clothing
-        })
-      : null
-    try {
-      const result = await generateCharacterClothing(buildCharacterContext(), activeModules, requestId)
-      currentClothing = result.current_clothing
-    } catch (err) {
-      showError(err instanceof Error ? err.message : "Regeneration failed")
-    } finally {
-      regeneratingClothing = false
-      unsub?.()
     }
   }
 
@@ -644,6 +709,24 @@
             <CardDescription>These fields are required.</CardDescription>
           </CardHeader>
           <CardContent class="space-y-4">
+            <div class="flex flex-wrap items-center gap-3">
+              {#if avatarSrc}
+                <Avatar.Root class="size-16 rounded-xl border bg-muted shadow-sm">
+                  <Avatar.Image src={avatarSrc} alt="Character avatar" class="object-cover" />
+                </Avatar.Root>
+              {/if}
+              <div class="flex flex-wrap items-center gap-2">
+                <Button variant="outline" onclick={loadAvatar} disabled={generating || savingCharacter || autofilling}>
+                  {avatarSrc ? "Replace avatar" : "Load avatar"}
+                </Button>
+                {#if avatarSrc}
+                  <Button variant="ghost" onclick={clearAvatar} disabled={generating || savingCharacter || autofilling}>
+                    Clear
+                  </Button>
+                {/if}
+              </div>
+            </div>
+
             <div class="grid gap-2">
               <Label for="char-name">Name</Label>
               <Input id="char-name" type="text" bind:value={name} placeholder="Full legal name" />
@@ -727,7 +810,7 @@
           <Card>
             <CardHeader class="space-y-1">
               <CardTitle class="text-base">Appearance</CardTitle>
-              <CardDescription>Baseline appearance and starting clothing.</CardDescription>
+              <CardDescription>Baseline appearance. Current appearance/clothing is set per story.</CardDescription>
             </CardHeader>
             <CardContent class="space-y-4">
               <div class="grid gap-2">
@@ -749,26 +832,47 @@
                   class="min-h-[96px]"
                 />
               </div>
+            </CardContent>
+          </Card>
+        {/if}
 
-              <div class="grid gap-2">
-                <div class="flex items-center justify-between gap-3">
-                  <Label for="char-clothing">Starting Clothing</Label>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onclick={regenerateClothing}
-                    disabled={generating || regeneratingClothing}
-                  >
-                    {regeneratingClothing ? "Regenerating..." : "Regenerate"}
-                  </Button>
-                </div>
-                <Textarea
-                  id="char-clothing"
-                  bind:value={currentClothing}
-                  placeholder="What are they wearing?"
-                  class="min-h-[96px]"
+        {#if customDefsError}
+          <Card>
+            <CardHeader class="space-y-1">
+              <CardTitle class="text-base">Custom Fields</CardTitle>
+              <CardDescription>Base fields are saved with the character.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div class="rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">
+                {customDefsError}
+              </div>
+            </CardContent>
+          </Card>
+        {:else if enabledBaseCustomDefs.length > 0 || enabledCurrentCustomDefs.length > 0}
+          <Card>
+            <CardHeader class="space-y-1">
+              <CardTitle class="text-base">Custom Fields</CardTitle>
+              <CardDescription
+                >Base fields are saved with the character. Current fields are set per story.</CardDescription
+              >
+            </CardHeader>
+            <CardContent class="space-y-4">
+              <div class="space-y-2">
+                <div class="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Base</div>
+                <CustomFieldsEditor
+                  defs={enabledBaseCustomDefs}
+                  values={customFields}
+                  setValues={(next) => (customFields = next)}
+                  scope="character"
+                  placement="base"
+                  disabled={generating || savingCharacter || autofilling}
                 />
               </div>
+              {#if enabledCurrentCustomDefs.length > 0}
+                <div class="rounded-md border bg-muted/30 p-3 text-sm text-muted-foreground">
+                  Current custom fields are set when starting a new story.
+                </div>
+              {/if}
             </CardContent>
           </Card>
         {/if}
@@ -974,12 +1078,7 @@
     <Button
       variant="outline"
       onclick={saveCharacter}
-      disabled={savingCharacter ||
-        generating ||
-        autofilling ||
-        regeneratingAppearance ||
-        regeneratingClothing ||
-        regeneratingTraits}
+      disabled={savingCharacter || generating || autofilling || regeneratingAppearance || regeneratingTraits}
     >
       {savingCharacter ? "Saving..." : "Save Character"}
     </Button>
@@ -987,12 +1086,7 @@
     <Button
       variant="default"
       onclick={useNow}
-      disabled={savingCharacter ||
-        generating ||
-        autofilling ||
-        regeneratingAppearance ||
-        regeneratingClothing ||
-        regeneratingTraits}
+      disabled={savingCharacter || generating || autofilling || regeneratingAppearance || regeneratingTraits}
     >
       Use Now →
     </Button>

@@ -1,7 +1,7 @@
 import { generate } from "@/services/generate"
 import { stories } from "@/services/stories"
-import type { GenerateCharacterContext } from "@/shared/api-types"
-import type { MainCharacterState, StoryModules } from "@/shared/types"
+import type { GenerateCharacterContext } from "@/types/api"
+import type { MainCharacterState, StoryModules } from "@/types/types"
 
 export async function generateCharacterFromDescription(prompt: string, modules: StoryModules, requestId?: string) {
   return generate.character(prompt, modules, requestId)
@@ -36,7 +36,15 @@ export async function importCharacter(
   tavernCard?: object | null,
   tavernAvatarDataUrl?: string | null,
 ) {
-  if (!tavernCard) return stories.importCharacter(character)
+  if (!tavernCard) {
+    if (tavernAvatarDataUrl?.trim()) {
+      return stories.importCharacter({
+        character,
+        tavern_avatar_data_url: tavernAvatarDataUrl.trim(),
+      })
+    }
+    return stories.importCharacter(character)
+  }
   return stories.importCharacter({
     character,
     tavern_card: tavernCard,

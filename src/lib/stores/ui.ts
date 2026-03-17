@@ -1,5 +1,5 @@
 import { writable, readable, get } from "svelte/store"
-import { INTERNAL_UI_ERROR_TOAST_MS, INTERNAL_UI_QUIET_NOTICE_MS } from "@/shared/internal-timeouts"
+import { INTERNAL_UI_ERROR_TOAST_MS, INTERNAL_UI_QUIET_NOTICE_MS } from "@/config/internal-timeouts"
 export const errorMessage = writable<string | null>(null)
 export const quietNotice = writable<string | null>(null)
 
@@ -39,8 +39,7 @@ type ConfirmResolve = (confirmed: boolean) => void
 
 export const confirmDialog = writable<(ConfirmOptions & { resolve: ConfirmResolve }) | null>(null)
 export const collapseCharSheet = writable(false)
-export const collapseNPCTracker = writable(false)
-export const collapseLocationsPanel = writable(false)
+export const collapseCharactersPanel = writable(false)
 
 export function showConfirm(options: ConfirmOptions): Promise<boolean> {
   return new Promise((resolve) => {

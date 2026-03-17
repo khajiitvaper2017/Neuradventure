@@ -1,9 +1,9 @@
 <script lang="ts">
-  import type { GenerationParams, SamplerPreset } from "@/shared/api-types"
+  import type { GenerationParams, SamplerPreset } from "@/types/api"
   import { settings as settingsService } from "@/services/settings"
   import { generation } from "@/stores/settings"
   import { loadPresets, presets, refreshPresets } from "@/utils/presets"
-  import { pickFile } from "@/utils/filePick"
+  import { pickFile } from "@/utils/dom/filePick"
   import { coercePresetFromJson, filenameToPresetName } from "@/features/settings/lib/presetImport"
   import { Badge } from "@/components/ui/badge"
   import { Button } from "@/components/ui/button"

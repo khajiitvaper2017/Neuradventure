@@ -1,5 +1,5 @@
 <script lang="ts">
-  import promptFields from "@/shared/config/prompt-fields.json"
+  import promptFields from "@/config/prompt-fields.json"
   import FieldPromptOverridesCard from "@/features/settings/components/FieldPromptOverridesCard.svelte"
   import PromptTemplatesCard from "@/features/settings/components/PromptTemplatesCard.svelte"
 

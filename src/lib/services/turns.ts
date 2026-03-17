@@ -1,6 +1,6 @@
 import { AppError } from "@/errors"
-import * as db from "@/engine/core/db"
-import { WorldStateStoredSchema } from "@/engine/core/models"
+import * as db from "@/db/core"
+import { WorldStateStoredSchema } from "@/types/models"
 import {
   buildTurnResultFromRow,
   cancelLastTurn,
@@ -10,8 +10,8 @@ import {
   regenerateLastTurn,
   selectTurnVariant,
   undoCancelLastTurn,
-} from "@/engine/game"
-import { createOrGetSession, publishComplete, publishError, publishPreview } from "@/engine/streaming/hub"
+} from "@/domain/story"
+import { createOrGetSession, publishComplete, publishError, publishPreview } from "@/llm/io/streaming"
 import { isProbablyOfflineError } from "@/services/requests/offline"
 import type {
   CancelLastResult,
@@ -21,8 +21,8 @@ import type {
   TurnResult,
   TurnVariantsResponse,
   UndoCancelResult,
-} from "@/shared/api-types"
-import type { TurnSummary } from "@/shared/types"
+} from "@/types/api"
+import type { TurnSummary } from "@/types/types"
 
 const inFlight = new Map<string, ReturnType<typeof processTurn>>()
 const npcInFlight = new Map<string, ReturnType<typeof createNpcFromTurnPrompt>>()

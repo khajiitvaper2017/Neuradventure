@@ -1,4 +1,4 @@
-import type { ChatDetail, ChatMessage as ChatMessagePayload, ChatSummary } from "@/shared/types"
+import type { ChatDetail, ChatMessage as ChatMessagePayload, ChatSummary } from "@/types/types"
 import type {
   ChatCancelResult,
   ChatContinueResult,
@@ -8,7 +8,7 @@ import type {
   ChatUndoCancelResult,
   ChatUpdateMessageResult,
   ChatUpdateResult,
-} from "@/shared/api-types"
+} from "@/types/api"
 import { create, deleteChat, deleteMessage, get, list, messages, update, updateMessage } from "@/services/chats/crud"
 import { exportAndDownload } from "@/services/chats/export"
 import { cancelLast, continueChat, regenerateLast, send, setNextSpeaker, undoCancel } from "@/services/chats/generation"

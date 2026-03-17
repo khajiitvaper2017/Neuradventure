@@ -1,6 +1,6 @@
 <script lang="ts">
-  import { onMount } from "svelte"
-  import type { StoryCharacterGroup, StoryNpcGroup } from "@/shared/api-types"
+  import { untrack } from "svelte"
+  import type { StoryCharacterGroup, StoryNpcGroup } from "@/types/api"
   import { stories as storiesService } from "@/services/stories"
   import { chats } from "@/services/chats"
   import { subscribeStreamPreview } from "@/services/streamPreview"
@@ -13,10 +13,10 @@
   import { cn } from "@/utils.js"
   import { FileText } from "@lucide/svelte"
   import PromptHistoryPanel from "@/components/panels/PromptHistoryPanel.svelte"
+  import MultiSelectPicker from "@/components/pickers/MultiSelectPicker.svelte"
   import * as Select from "@/components/ui/select"
   import { Button } from "@/components/ui/button"
   import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-  import { Checkbox } from "@/components/ui/checkbox"
   import { Input } from "@/components/ui/input"
   import { Label } from "@/components/ui/label"
   import { Textarea } from "@/components/ui/textarea"
@@ -60,21 +60,24 @@
     kind: "character" | "npc"
     name: string
     character_id: number | null
+    avatar?: string | null
     state: Omit<StoryCharacterGroup["character"], "inventory"> | Omit<StoryNpcGroup["npc"], "inventory">
     description: string
   }
 
-  onMount(() => {
-    resetChat()
-    void loadOptions()
-    void loadPromptHistory(CHAT_PROMPT_HISTORY_KEY).then((items) => {
-      chatPromptHistory = items
+  $effect(() => {
+    untrack(() => {
+      resetChat()
+      void loadOptions()
+      void loadPromptHistory(CHAT_PROMPT_HISTORY_KEY).then((items) => {
+        chatPromptHistory = items
+      })
+      const pending = getPendingRequest<{ prompt: string }>("generate.chat")
+      if (pending && pending.payload.prompt?.trim()) {
+        if (!description.trim()) description = pending.payload.prompt
+        void runGenerateFromDescription(pending.payload.prompt, pending.requestId)
+      }
     })
-    const pending = getPendingRequest<{ prompt: string }>("generate.chat")
-    if (pending && pending.payload.prompt?.trim()) {
-      if (!description.trim()) description = pending.payload.prompt
-      void runGenerateFromDescription(pending.payload.prompt, pending.requestId)
-    }
   })
 
   async function loadOptions() {
@@ -121,6 +124,7 @@
       kind: "character" as const,
       name: c.character.name,
       character_id: c.id,
+      avatar: c.card?.avatar ?? null,
       state: c.character,
       description: `${c.character.race || "Unknown"} · ${c.character.gender || "Unknown"} · ${formatStoryLabel(
         c.stories,
@@ -131,6 +135,7 @@
       kind: "npc" as const,
       name: n.npc.name,
       character_id: null,
+      avatar: null,
       state: n.npc,
       description: `${n.npc.race || "Unknown"} · ${n.npc.gender || "Unknown"} · ${formatStoryLabel(n.stories)}`,
     })),
@@ -150,15 +155,9 @@
     void refreshGreeting()
   }
 
-  function toggleAi(key: string) {
-    if (key === playerKey) return
-    if (aiKeys.includes(key)) {
-      aiKeys = aiKeys.filter((k) => k !== key)
-      maybeAutofillTitle()
-      void refreshGreeting()
-      return
-    }
-    aiKeys = [...aiKeys, key]
+  function setAiMemberKeys(nextKeys: string[]) {
+    const unique = Array.from(new Set(nextKeys))
+    aiKeys = playerKey ? unique.filter((k) => k !== playerKey) : unique
     maybeAutofillTitle()
     void refreshGreeting()
   }
@@ -200,9 +199,24 @@
       label: `${o.name}${o.kind === "npc" ? " (NPC)" : ""}`,
     })),
   )
-  let selectedAiOptions = $derived(
-    aiKeys.map((key) => optionByKey(key)).filter((entry): entry is PlayableOption => !!entry),
+  let aiMemberItems = $derived(
+    playableOptions.map((o) => ({
+      id: o.key,
+      name: o.name,
+      description: o.description,
+      avatar: o.kind === "character" ? (o.avatar ?? null) : null,
+      tag: o.kind === "npc" ? "NPC" : undefined,
+      details: o.kind === "character" && !!o.character_id,
+      detailsTitle: "Details",
+      detailsAriaLabel: `Character details for ${o.name}`,
+    })),
   )
+
+  function openAiMemberDetails(item: { id: string }) {
+    const option = optionByKey(item.id)
+    if (!option || option.kind !== "character" || !option.character_id) return
+    openCharSheetForCharacter(option.character_id)
+  }
 
   async function refreshGreeting() {
     greetingOptions = []
@@ -515,71 +529,27 @@
               <div class="rounded-lg border bg-card p-4 text-sm text-muted-foreground">Loading characters…</div>
             {:else if playableOptions.length === 0}
               <div class="rounded-lg border border-dashed bg-card p-6 text-center text-sm text-muted-foreground">
-                No characters available yet.
+                No members available yet.
               </div>
             {:else}
-              <div class="grid gap-2">
-                {#each playableOptions as option (option.key)}
-                  {@const rowDisabled = generating || submitting || option.key === playerKey}
-                  <div
-                    class={cn("flex items-start gap-3 rounded-lg border bg-card p-3", rowDisabled && "opacity-60")}
-                    aria-disabled={rowDisabled}
-                  >
-                    <Checkbox
-                      checked={aiKeys.includes(option.key)}
-                      disabled={rowDisabled}
-                      onCheckedChange={() => toggleAi(option.key)}
-                    />
-                    <span class="min-w-0 flex-1">
-                      <span class="flex items-center gap-2">
-                        <span class="truncate text-sm font-medium text-foreground">
-                          {option.name}{option.kind === "npc" ? " (NPC)" : ""}
-                        </span>
-                      </span>
-                      <span class="mt-0.5 block truncate text-xs text-muted-foreground">{option.description}</span>
-                    </span>
-                    {#if option.kind === "character" && option.character_id}
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        class="h-9 w-9"
-                        title="Details"
-                        aria-label="Character details"
-                        disabled={generating || submitting}
-                        onclick={(e) => {
-                          e.preventDefault()
-                          e.stopPropagation()
-                          openCharSheetForCharacter(option.character_id)
-                        }}
-                      >
-                        <FileText size={16} strokeWidth={1.6} aria-hidden="true" />
-                      </Button>
-                    {/if}
-                  </div>
-                {/each}
-              </div>
+              <MultiSelectPicker
+                bare
+                showHeader={false}
+                title="AI Members"
+                ariaLabel="AI members"
+                items={aiMemberItems}
+                selectedIds={aiKeys}
+                excludeIds={playerKey ? [playerKey] : []}
+                excludeBadgeLabel="Player"
+                locked={generating || submitting}
+                searchPlaceholder="Search members…"
+                emptyText="No members available yet."
+                onChange={setAiMemberKeys}
+                onDetails={openAiMemberDetails}
+              />
             {/if}
             {#if playerKey && aiKeys.length === 0}
               <div class="text-xs text-muted-foreground">Select at least one AI member.</div>
-            {/if}
-
-            {#if selectedAiOptions.length > 0}
-              <div class="rounded-lg border bg-card p-4">
-                <div class="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Selected</div>
-                <div class="mt-3 grid gap-3 sm:grid-cols-2">
-                  {#each selectedAiOptions as member (member.key)}
-                    <div class="rounded-lg border bg-background p-3">
-                      <div class="text-sm font-medium text-foreground">{member.name}</div>
-                      <div class="mt-1 text-xs text-muted-foreground">
-                        {member.state.race || "Unknown"} · {member.state.gender || "Unknown"}
-                      </div>
-                      <div class="mt-1 text-xs text-muted-foreground">
-                        {[...member.state.personality_traits, ...member.state.perks].join(", ") || "No traits"}
-                      </div>
-                    </div>
-                  {/each}
-                </div>
-              </div>
             {/if}
           </CardContent>
         </Card>
