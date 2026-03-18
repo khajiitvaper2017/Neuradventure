@@ -1,8 +1,8 @@
 import { z } from "zod"
 import { buildJsonSchemaResponseFormat } from "@/llm/schema/json-schema"
-import { buildNpcCreationSchema } from "@/domain/story/schemas/npc-creation"
+import { buildCharacterCreationSchema } from "@/domain/story/schemas/character-creation"
 import { DEFAULT_STORY_MODULES, resolveModuleFlags } from "@/domain/story/schemas/story-modules"
-import { type NPCState, type NPCCreation, type StoryModules, type TurnResponse } from "@/types/models"
+import { type CharacterCreation, type NPCState, type StoryModules, type TurnResponse } from "@/types/models"
 import { buildTurnResponseSchema } from "@/llm/schema"
 import { buildSamplingParams } from "@/llm/sampling"
 import { createLlmLogBase, logLlmEntry } from "@/llm/logging"
@@ -49,23 +49,24 @@ export async function generateNpcCreation(
   messages: ChatCompletionMessageParam[],
   forcedName?: string,
   storyModules?: StoryModules,
-): Promise<NPCCreation> {
+): Promise<CharacterCreation> {
   const modules = storyModules ?? DEFAULT_STORY_MODULES
   const flags = resolveModuleFlags(modules)
   const customDefs = db
     .listCustomFields()
     .filter((d) => d.enabled && d.scope === "character" && isCustomFieldModuleEnabled(modules, d.id, "npc"))
-  const npcCustomFields = customDefs.length > 0 ? buildCharacterCustomFieldsUpdateSchema(customDefs) : undefined
-  const creationSchema = buildNpcCreationSchema(
+  const characterCustomFields = customDefs.length > 0 ? buildCharacterCustomFieldsUpdateSchema(customDefs) : undefined
+  const creationSchema = buildCharacterCreationSchema(
     {
-      useNpcAppearance: flags.useNpcAppearance,
-      useNpcPersonalityTraits: flags.useNpcPersonalityTraits,
-      useNpcMajorFlaws: flags.useNpcMajorFlaws,
-      useNpcPerks: flags.useNpcPerks,
-      useNpcLocation: flags.useNpcLocation,
-      useNpcActivity: flags.useNpcActivity,
+      useAppearance: flags.useNpcAppearance,
+      usePersonalityTraits: flags.useNpcPersonalityTraits,
+      useMajorFlaws: flags.useNpcMajorFlaws,
+      usePerks: flags.useNpcPerks,
+      useLocation: flags.useNpcLocation,
+      useActivity: flags.useNpcActivity,
+      useInventory: flags.useNpcInventory,
     },
-    npcCustomFields,
+    characterCustomFields,
   )
   const parsed = await callLLMRaw(messages, "NPCCreation", creationSchema)
   return forcedName ? { ...parsed, name: forcedName } : parsed
@@ -111,7 +112,7 @@ export async function callLLMRaw<TSchema extends z.ZodTypeAny>(
   try {
     const schemaDescriptions: Record<string, string> = {
       TurnResponse: "Game turn response with narrative text and state updates",
-      NPCCreation: "NPC character creation data",
+      NPCCreation: "Character creation data",
     }
 
     const responseFormat = buildJsonSchemaResponseFormat(schemaName, jsonSchema, {

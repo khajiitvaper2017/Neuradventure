@@ -3,7 +3,7 @@ import {
   NPCStateStoredSchema,
   WorldStateStoredSchema,
   type MainCharacterState,
-  type NPCCreation,
+  type CharacterCreation,
   type NPCState,
   type StoryModules,
   type TurnResponse,
@@ -13,7 +13,12 @@ import type { CancelLastResult, SelectVariantResult, TurnResult, UndoCancelResul
 import * as db from "@/db/core"
 import { buildTurnMessages, callLLM, getCtxLimitCached } from "@/llm"
 import { resolveModuleFlags } from "@/domain/story/schemas/story-modules"
-import { applyNPCCreations, applyNPCUpdates, applyPlayerUpdate, collectLlmWarnings } from "@/domain/story/state"
+import {
+  applyCharacterIntroductions,
+  applyCharacterUpdate,
+  applyCharacterUpdates,
+  collectLlmWarnings,
+} from "@/domain/story/state"
 import { parseInitialStorySnapshot, parseTurnSnapshot, parseTurnVariantSnapshot } from "@/domain/story/snapshots"
 import { getAuthorNote, getStoryCharacterBook, getStoryModules } from "@/domain/story/helpers"
 
@@ -51,10 +56,22 @@ function buildWorldUpdate(
 
 function applyTurnResponse(snapshot: TurnSnapshot, response: TurnResponse, modules: StoryModules) {
   const flags = resolveModuleFlags(modules)
-  const newCharacter = applyPlayerUpdate(snapshot.character, response, flags)
-  const updatedNpcs = modules.track_npcs ? applyNPCUpdates(snapshot.npcs, response, flags) : snapshot.npcs
-  const npcCreations: NPCCreation[] = modules.track_npcs ? (response.npc_introductions ?? []) : []
-  const newNpcs = modules.track_npcs ? applyNPCCreations(updatedNpcs, npcCreations) : updatedNpcs
+  const playerPolicy = {
+    useAppearance: flags.useCharAppearance,
+    useLocation: flags.useCharLocation,
+    useActivity: flags.useCharActivity,
+    useInventory: flags.useCharInventory,
+  }
+  const npcPolicy = {
+    useAppearance: flags.useNpcAppearance,
+    useLocation: flags.useNpcLocation,
+    useActivity: flags.useNpcActivity,
+    useInventory: flags.useNpcInventory,
+  }
+  const newCharacter = applyCharacterUpdate(snapshot.character, response, playerPolicy)
+  const updatedNpcs = modules.track_npcs ? applyCharacterUpdates(snapshot.npcs, response, npcPolicy) : snapshot.npcs
+  const characterIntroductions: CharacterCreation[] = modules.track_npcs ? (response.character_introductions ?? []) : []
+  const newNpcs = modules.track_npcs ? applyCharacterIntroductions(updatedNpcs, characterIntroductions) : updatedNpcs
   const newWorld = buildWorldUpdate(snapshot.world, response.world_state_update, newCharacter)
   return { character: newCharacter, world: newWorld, npcs: newNpcs }
 }

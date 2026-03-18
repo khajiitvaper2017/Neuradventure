@@ -2,7 +2,7 @@ import { MainCharacterStateStoredSchema, NPCStateStoredSchema, WorldStateStoredS
 import type { CreateNpcResult } from "@/types/api"
 import * as db from "@/db/core"
 import { buildNpcCreationMessages, generateNpcCreation, getCtxLimitCached } from "@/llm"
-import { applyNPCCreations, buildNpcFromCreation, syncCharacterLocation } from "@/domain/story/state"
+import { applyCharacterIntroductions, buildCharacterFromCreation, syncCharacterLocation } from "@/domain/story/state"
 import { getAuthorNote, getStoryCharacterBook, getStoryModules } from "@/domain/story/helpers"
 
 export async function createNpcFromTurnPrompt(storyId: number, npcName: string): Promise<CreateNpcResult> {
@@ -39,8 +39,8 @@ export async function createNpcFromTurnPrompt(storyId: number, npcName: string):
     characterBook,
   )
   const creation = await generateNpcCreation(messages, trimmedName, modules)
-  const updatedNpcs = applyNPCCreations(npcs, [creation])
-  const newNpc = buildNpcFromCreation(creation)
+  const updatedNpcs = applyCharacterIntroductions(npcs, [creation])
+  const newNpc = buildCharacterFromCreation(creation)
   const locationSyncedCharacter = syncCharacterLocation(character, world)
   db.updateStory(storyId, locationSyncedCharacter, world, updatedNpcs)
 

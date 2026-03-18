@@ -1,19 +1,9 @@
-import type { MainCharacterState, NPCCreation, NPCState, TurnResponse, WorldState } from "@/types/models"
+import type { CharacterCreation, MainCharacterState, NPCState, TurnResponse, WorldState } from "@/types/models"
 import { getServerDefaults } from "@/utils/text/strings"
 import { normalizeGender } from "@/domain/story/schemas/normalizers"
 import { NPCStateStoredSchema } from "@/types/models"
-import type { ModuleFlags } from "@/domain/story/schemas/story-modules"
 
-const PLAYER_UPDATE_KEYS = new Set([
-  "current_location",
-  "current_appearance",
-  "current_clothing",
-  "current_activity",
-  "inventory",
-])
-const NPC_UPDATE_KEYS = new Set([
-  "race",
-  "gender",
+const CHARACTER_UPDATE_KEYS = new Set([
   "current_location",
   "current_appearance",
   "current_clothing",
@@ -55,13 +45,20 @@ function extractCustomFieldPatch(
   return Object.keys(customFields).length > 0 ? customFields : undefined
 }
 
-export function applyPlayerUpdate(
-  character: MainCharacterState,
+export type CharacterUpdatePolicy = {
+  useAppearance: boolean
+  useLocation: boolean
+  useActivity: boolean
+  useInventory: boolean
+}
+
+export function applyCharacterUpdate<TCharacter extends MainCharacterState | NPCState>(
+  character: TCharacter,
   turnResponse: TurnResponse,
-  flags: ModuleFlags,
-): MainCharacterState {
+  policy: CharacterUpdatePolicy,
+): TCharacter {
   const patch = getCharacterTurnPatch(turnResponse, character.name)
-  const appearance = flags.useCharAppearance
+  const appearance = policy.useAppearance
     ? {
         baseline_appearance: character.baseline_appearance,
         current_appearance:
@@ -79,71 +76,43 @@ export function applyPlayerUpdate(
     ...character,
     ...appearance,
     current_location:
-      flags.useCharLocation && typeof patch?.current_location === "string"
+      policy.useLocation && typeof patch?.current_location === "string"
         ? patch.current_location
         : character.current_location,
-    current_activity: flags.useCharActivity
+    current_activity: policy.useActivity
       ? typeof patch?.current_activity === "string"
         ? patch.current_activity
         : character.current_activity
       : character.current_activity,
     inventory:
-      flags.useCharInventory && Array.isArray(patch?.inventory)
+      policy.useInventory && Array.isArray(patch?.inventory)
         ? (patch.inventory as typeof character.inventory)
         : character.inventory,
-    custom_fields: mergeCustomFields(character.custom_fields, extractCustomFieldPatch(patch, PLAYER_UPDATE_KEYS)),
-  }
+    custom_fields: mergeCustomFields(character.custom_fields, extractCustomFieldPatch(patch, CHARACTER_UPDATE_KEYS)),
+  } as TCharacter
 }
 
-export function buildNpcFromCreation(creation: NPCCreation): NPCState {
+export function applyCharacterUpdates<TCharacter extends MainCharacterState | NPCState>(
+  characters: TCharacter[],
+  turnResponse: TurnResponse,
+  policy: CharacterUpdatePolicy,
+): TCharacter[] {
+  return characters.map((character) => applyCharacterUpdate(character, turnResponse, policy))
+}
+
+export function buildCharacterFromCreation(creation: CharacterCreation): NPCState {
   return NPCStateStoredSchema.parse({
     ...creation,
     gender: normalizeGender(creation.gender, getServerDefaults().unknown.value),
   })
 }
 
-export function applyNPCUpdates(npcs: NPCState[], turnResponse: TurnResponse, flags: ModuleFlags): NPCState[] {
-  return npcs.map((npc) => {
-    const patch = getCharacterTurnPatch(turnResponse, npc.name)
-    if (!patch) return npc
-
-    return {
-      ...npc,
-      race: typeof patch.race === "string" ? patch.race : npc.race,
-      gender: typeof patch.gender === "string" ? normalizeGender(patch.gender, npc.gender) : npc.gender,
-      current_location:
-        flags.useNpcLocation && typeof patch.current_location === "string"
-          ? patch.current_location
-          : npc.current_location,
-      current_appearance: flags.useNpcAppearance
-        ? typeof patch.current_appearance === "string"
-          ? patch.current_appearance
-          : npc.current_appearance
-        : npc.current_appearance,
-      current_clothing: flags.useNpcAppearance
-        ? typeof patch.current_clothing === "string"
-          ? patch.current_clothing
-          : npc.current_clothing
-        : npc.current_clothing,
-      current_activity:
-        flags.useNpcActivity && typeof patch.current_activity === "string"
-          ? patch.current_activity
-          : npc.current_activity,
-      inventory:
-        flags.useNpcInventory && Array.isArray(patch.inventory)
-          ? (patch.inventory as typeof npc.inventory)
-          : npc.inventory,
-      custom_fields: mergeCustomFields(npc.custom_fields, extractCustomFieldPatch(patch, NPC_UPDATE_KEYS)),
-    }
-  })
-}
-
-export function applyNPCCreations(npcs: NPCState[], creations: NPCCreation[]): NPCState[] {
+export function applyCharacterIntroductions(npcs: NPCState[], creations: CharacterCreation[]): NPCState[] {
   if (creations.length === 0) return npcs
   const existingNames = new Set(npcs.map((npc) => npc.name.toLowerCase()))
   const newNPCs = creations
     .filter((creation) => !existingNames.has(creation.name.toLowerCase()))
-    .map((creation) => buildNpcFromCreation(creation))
+    .map((creation) => buildCharacterFromCreation(creation))
   return [...npcs, ...newNPCs]
 }
 
@@ -185,12 +154,12 @@ export function collectLlmWarnings(world: WorldState, npcs: NPCState[], turnResp
     }
   }
 
-  const npcCreations = turnResponse.npc_introductions ?? []
-  for (const creation of npcCreations) {
+  const characterIntroductions = turnResponse.character_introductions ?? []
+  for (const creation of characterIntroductions) {
     const existing = npcs.find((npc) => npc.name.toLowerCase() === creation.name.toLowerCase())
     if (existing) {
       warnings.push(
-        `npc_introductions[${creation.name}] matches existing NPC name; use the root-level "${creation.name}" update object instead`,
+        `character_introductions[${creation.name}] matches existing NPC name; use the root-level "${creation.name}" update object instead`,
       )
     }
   }

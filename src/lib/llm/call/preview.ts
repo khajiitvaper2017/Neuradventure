@@ -14,10 +14,6 @@ const DEFAULT_PREVIEW_KEYS: Record<string, string[]> = {
     "starting_date",
     "starting_time",
     "general_description",
-    "current_appearance",
-    "current_clothing",
-    "current_activity",
-    "character_custom_fields",
   ],
   GenerateChatResponse: ["title", "greeting"],
 }

@@ -5,9 +5,9 @@ import {
   type StoryModules,
   type NPCState,
   type TurnResponse,
-  buildTurnCharacterUpdateSchema,
+  buildCharacterUpdateSchema,
 } from "@/types/models"
-import { buildNpcCreationSchema } from "@/domain/story/schemas/npc-creation"
+import { buildCharacterCreationSchema } from "@/domain/story/schemas/character-creation"
 import { DEFAULT_STORY_MODULES, resolveModuleFlags } from "@/domain/story/schemas/story-modules"
 import * as db from "@/db/core"
 import {
@@ -28,19 +28,22 @@ export function buildTurnResponseSchema(
   const flags = resolveModuleFlags(modules)
   const customFieldDefs = db.listCustomFields().filter((d) => d.enabled)
   const characterDefs = customFieldDefs.filter((d) => d.scope === "character")
-  const playerCharacterDefs = characterDefs.filter((d) => isCustomFieldModuleEnabled(modules, d.id, "character"))
-  const npcCharacterDefs = characterDefs.filter((d) => isCustomFieldModuleEnabled(modules, d.id, "npc"))
-  const playerCustomFieldShape = buildCharacterCustomFieldShape(playerCharacterDefs)
-  const npcCustomFieldShape = buildCharacterCustomFieldShape(npcCharacterDefs)
+  const playerCustomFieldShape = buildCharacterCustomFieldShape(
+    characterDefs.filter((d) => isCustomFieldModuleEnabled(modules, d.id, "character")),
+  )
+  const npcCustomFieldShape = buildCharacterCustomFieldShape(
+    characterDefs.filter((d) => isCustomFieldModuleEnabled(modules, d.id, "npc")),
+  )
   const worldCustomFields = buildWorldCustomFieldsUpdateSchema(customFieldDefs)
-  const npcCreationSchema = buildNpcCreationSchema(
+  const characterCreationSchema = buildCharacterCreationSchema(
     {
-      useNpcAppearance: flags.useNpcAppearance,
-      useNpcPersonalityTraits: flags.useNpcPersonalityTraits,
-      useNpcMajorFlaws: flags.useNpcMajorFlaws,
-      useNpcPerks: flags.useNpcPerks,
-      useNpcLocation: flags.useNpcLocation,
-      useNpcActivity: flags.useNpcActivity,
+      useAppearance: flags.useNpcAppearance,
+      usePersonalityTraits: flags.useNpcPersonalityTraits,
+      useMajorFlaws: flags.useNpcMajorFlaws,
+      usePerks: flags.useNpcPerks,
+      useLocation: flags.useNpcLocation,
+      useActivity: flags.useNpcActivity,
+      useInventory: flags.useNpcInventory,
     },
     Object.keys(npcCustomFieldShape).length > 0 ? z.object(npcCustomFieldShape).strict() : undefined,
   )
@@ -53,7 +56,7 @@ export function buildTurnResponseSchema(
 
   if (modules.track_npcs) {
     schema = schema.extend({
-      npc_introductions: z.array(npcCreationSchema).optional(),
+      character_introductions: z.array(characterCreationSchema).optional(),
     })
   }
 
@@ -61,10 +64,8 @@ export function buildTurnResponseSchema(
     schema = schema.omit({ background_events: true })
   }
 
-  const playerUpdateSchema = buildTurnCharacterUpdateSchema(
+  const playerUpdateSchema = buildCharacterUpdateSchema(
     {
-      allowRace: false,
-      allowGender: false,
       allowLocation: flags.useCharLocation,
       allowAppearance: flags.useCharAppearance,
       allowClothing: flags.useCharAppearance,
@@ -73,10 +74,8 @@ export function buildTurnResponseSchema(
     },
     playerCustomFieldShape,
   )
-  const npcUpdateSchema = buildTurnCharacterUpdateSchema(
+  const npcUpdateSchema = buildCharacterUpdateSchema(
     {
-      allowRace: true,
-      allowGender: true,
       allowLocation: flags.useNpcLocation,
       allowAppearance: flags.useNpcAppearance,
       allowClothing: flags.useNpcAppearance,

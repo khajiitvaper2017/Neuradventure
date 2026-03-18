@@ -56,9 +56,7 @@ function childPrefixOverride(currentPrefix: string, propName: string, schemaName
   if (schemaName === "TurnResponse" && currentPrefix === "llm.turn_response") {
     if (propName === "world_state_update") return "llm.world_state_update"
     if (propName === "current_inventory") return "state.inventory_item"
-    if (propName === "npc_changes") return "llm.npc_update"
-    if (propName === "npc_introductions") return "state.character"
-    if (propName === "character_custom_fields") return "state.character.custom_fields"
+    if (propName === "character_introductions") return "state.character"
   }
 
   // World state nested contexts
@@ -68,13 +66,7 @@ function childPrefixOverride(currentPrefix: string, propName: string, schemaName
 
   // StoryResponse nested contexts
   if (schemaName === "StoryResponse" && currentPrefix === "generation.story") {
-    if (propName === "pregen_npcs") return "state.character"
-  }
-
-  // NPC update nested contexts
-  if (schemaName === "TurnResponse" && currentPrefix === "llm.npc_update") {
-    if (propName === "custom_fields") return "state.character.custom_fields"
-    if (propName === "inventory") return "state.inventory_item"
+    if (propName === "character_introductions") return "state.character"
   }
 
   // Character creation/update nested contexts

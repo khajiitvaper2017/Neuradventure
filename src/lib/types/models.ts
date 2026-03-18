@@ -12,19 +12,14 @@ import {
   WorldStateStoredSchema,
 } from "@/domain/story/schemas/game-state"
 import { StoryModulesSchema } from "@/domain/story/schemas/story-modules"
-import { NPCStateUpdateBaseSchema } from "@/domain/story/schemas/npc-state-update-base"
 import {
   SetCurrentAppearanceSection,
   CurrentClothingSection,
   SetCurrentInventorySection,
-  NPCChangesSection,
-  NPCIntroductionsSection,
-  NPCStateUpdateSchema,
-  NPCCreationSchema,
+  CharacterCreationSchema,
+  CharacterIntroductionsSection,
   TurnResponseSchema,
-  buildNPCChangesSection,
-  buildNPCStateUpdateSchema,
-  buildTurnCharacterUpdateSchema,
+  buildCharacterUpdateSchema,
 } from "@/domain/story/schemas/llm-response"
 import {
   GenerateCharacterAppearanceResponseSchema,
@@ -69,18 +64,13 @@ export {
   WorldStateUpdateSchema,
   WorldStateSchema,
   WorldStateStoredSchema,
-  NPCStateUpdateBaseSchema,
-  buildNPCStateUpdateSchema,
-  NPCStateUpdateSchema,
-  NPCCreationSchema,
+  CharacterCreationSchema,
   SetCurrentAppearanceSection,
   CurrentClothingSection,
   SetCurrentInventorySection,
-  buildNPCChangesSection,
-  NPCChangesSection,
-  NPCIntroductionsSection,
+  CharacterIntroductionsSection,
   TurnResponseSchema,
-  buildTurnCharacterUpdateSchema,
+  buildCharacterUpdateSchema,
   GenerateCharacterResponseSchema,
   GenerateCharacterAppearanceResponseSchema,
   GenerateCharacterClothingResponseSchema,
@@ -117,8 +107,7 @@ export type StoryModules = z.infer<typeof StoryModulesSchema>
 export type WorldStateUpdate = z.infer<typeof WorldStateUpdateSchema>
 export type WorldState = z.infer<typeof WorldStateSchema>
 export type TurnResponse = z.infer<typeof TurnResponseSchema> & Record<string, unknown>
-export type NPCStateUpdate = z.infer<typeof NPCStateUpdateSchema>
-export type NPCCreation = z.infer<typeof NPCCreationSchema>
+export type CharacterCreation = z.infer<typeof CharacterCreationSchema>
 
 export type CreateCharacterRequest = z.infer<typeof CreateCharacterRequestSchema>
 export type CreateStoryRequest = z.infer<typeof CreateStoryRequestSchema>

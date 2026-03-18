@@ -4,11 +4,14 @@ import { DATE_REGEX, TIME_OF_DAY_REGEX } from "@/domain/story/schemas/constants"
 import { PersonalityTraitsSchema } from "@/domain/story/schemas/personality-traits"
 import { resolveModuleFlags, type StoryModules } from "@/domain/story/schemas/story-modules"
 import type { GenerateCharacterResponse, GenerateStoryResponse } from "@/types/api"
-import { buildNpcCreationSchema } from "@/domain/story/schemas/npc-creation"
+import { buildCharacterCreationSchema } from "@/domain/story/schemas/character-creation"
 import * as db from "@/db/core"
-import { buildCharacterCustomFieldsUpdateSchema } from "@/domain/story/schemas/custom-fields"
+import {
+  buildCharacterCustomFieldShape,
+  buildCharacterCustomFieldsUpdateSchema,
+} from "@/domain/story/schemas/custom-fields"
 import { isCustomFieldModuleEnabled } from "@/domain/story/custom-field-modules"
-import { buildNPCChangesSection } from "@/domain/story/schemas/llm-response"
+import { buildCharacterUpdateSchema } from "@/domain/story/schemas/llm-response"
 
 const MajorFlawSchema = z.string().min(1)
 const PerkSchema = z.string().min(1)
@@ -89,35 +92,18 @@ export const StoryResponseSchema = z
     starting_location: z.string().min(1),
     starting_date: z.string().regex(DATE_REGEX, "starting_date must be YYYY-MM-DD"),
     starting_time: z.string().regex(TIME_OF_DAY_REGEX, "starting_time must be 24h HH:MM"),
-    current_appearance: z.string().min(1).optional(),
-    current_clothing: z.string().min(1).optional(),
-    current_activity: z.string().min(1).optional(),
-    character_custom_fields: z
-      .record(z.string().min(1), z.union([z.string().min(1), z.array(z.string().min(1)).min(1)]))
-      .optional(),
     general_description: z.string().trim().min(1),
-    pregen_npcs: z.array(NPCStateStoredSchema).optional(),
-    selected_npc_updates: z
-      .array(
-        z
-          .object({
-            name: z.string().min(1),
-            race: z.string().min(1).optional(),
-            gender: z.string().min(1).optional(),
-            current_location: z.string().min(1).optional(),
-            current_activity: z.string().min(1).optional(),
-            current_clothing: z.string().min(1).optional(),
-            current_appearance: z.string().min(1).optional(),
-          })
-          .strict(),
-      )
-      .optional(),
+    character_introductions: z.array(NPCStateStoredSchema).optional(),
   })
   .strict()
 
-export function buildStoryResponseSchema(modules: StoryModules): z.ZodType<GenerateStoryResponse> {
+export function buildStoryResponseSchema(
+  playerName: string,
+  selectedNpcNames: string[],
+  modules: StoryModules,
+): z.ZodType<GenerateStoryResponse> {
   const flags = resolveModuleFlags(modules)
-  const enabledCurrentCustomDefs = db
+  const enabledPlayerCurrentCustomDefs = db
     .listCustomFields()
     .filter(
       (d) =>
@@ -126,76 +112,87 @@ export function buildStoryResponseSchema(modules: StoryModules): z.ZodType<Gener
         d.placement === "current" &&
         isCustomFieldModuleEnabled(modules, d.id, "character"),
     )
-  const characterCustomFields =
-    enabledCurrentCustomDefs.length > 0 ? buildCharacterCustomFieldsUpdateSchema(enabledCurrentCustomDefs) : undefined
-  const customDefs = db
+  const playerCustomFieldShape = buildCharacterCustomFieldShape(enabledPlayerCurrentCustomDefs)
+  const npcCurrentCustomDefs = db
     .listCustomFields()
     .filter((d) => d.enabled && d.scope === "character" && isCustomFieldModuleEnabled(modules, d.id, "npc"))
-  const npcCustomFields = customDefs.length > 0 ? buildCharacterCustomFieldsUpdateSchema(customDefs) : undefined
-  const npcSchema = buildNpcCreationSchema(
+  const npcCustomFieldShape = buildCharacterCustomFieldShape(npcCurrentCustomDefs)
+  const npcCustomFields =
+    npcCurrentCustomDefs.length > 0 ? buildCharacterCustomFieldsUpdateSchema(npcCurrentCustomDefs) : undefined
+  const npcSchema = buildCharacterCreationSchema(
     {
-      useNpcActivity: flags.useNpcActivity,
-      useNpcLocation: flags.useNpcLocation,
-      useNpcPersonalityTraits: flags.useNpcPersonalityTraits,
-      useNpcAppearance: flags.useNpcAppearance,
-      useNpcMajorFlaws: flags.useNpcMajorFlaws,
-      useNpcPerks: flags.useNpcPerks,
+      useActivity: flags.useNpcActivity,
+      useLocation: flags.useNpcLocation,
+      usePersonalityTraits: flags.useNpcPersonalityTraits,
+      useAppearance: flags.useNpcAppearance,
+      useMajorFlaws: flags.useNpcMajorFlaws,
+      usePerks: flags.useNpcPerks,
+      useInventory: flags.useNpcInventory,
     },
     npcCustomFields,
   )
-  const selectedNpcUpdatesSchema = buildNPCChangesSection(z.string().min(1), {
-    allowLocation: flags.useNpcLocation,
-    allowAppearance: flags.useNpcAppearance,
-    allowClothing: flags.useNpcAppearance,
-    allowActivity: flags.useNpcActivity,
-    allowInventory: false,
-  })
+  const playerUpdateSchema = buildCharacterUpdateSchema(
+    {
+      allowLocation: flags.useCharLocation,
+      allowAppearance: flags.useCharAppearance,
+      allowClothing: flags.useCharAppearance,
+      allowActivity: flags.useCharActivity,
+      allowInventory: false,
+    },
+    playerCustomFieldShape,
+  )
+  const npcUpdateSchema = buildCharacterUpdateSchema(
+    {
+      allowLocation: flags.useNpcLocation,
+      allowAppearance: flags.useNpcAppearance,
+      allowClothing: flags.useNpcAppearance,
+      allowActivity: flags.useNpcActivity,
+      allowInventory: false,
+    },
+    npcCustomFieldShape,
+  )
 
-  const baseShape = {
+  const shape: Record<string, z.ZodTypeAny> = {
     title: z.string().min(1),
     opening_scenario: z.string().min(1),
     starting_location: z.string().min(1),
     starting_date: z.string().regex(DATE_REGEX, "starting_date must be YYYY-MM-DD"),
     starting_time: z.string().regex(TIME_OF_DAY_REGEX, "starting_time must be 24h HH:MM"),
     general_description: z.string().trim().min(1).describe("{state.character.general_description}"),
-    ...(flags.useCharAppearance
-      ? {
-          current_appearance: z.string().min(1).describe("{state.character.current_appearance}"),
-          current_clothing: z.string().min(1).describe("{state.character.current_clothing}"),
-        }
-      : {}),
-    ...(flags.useCharActivity
-      ? {
-          current_activity: z.string().min(1).describe("{state.character.current_activity}"),
-        }
-      : {}),
-    ...(characterCustomFields
-      ? { character_custom_fields: characterCustomFields.optional().describe("{state.character.custom_fields}") }
-      : {}),
   }
+  shape.character_introductions = modules.track_npcs
+    ? z.array(npcSchema).optional()
+    : z.array(npcSchema).max(0).optional()
 
-  let schema = z.object(baseShape).strict()
-
-  schema = schema.extend({
-    selected_npc_updates: modules.track_npcs
-      ? selectedNpcUpdatesSchema.optional()
-      : selectedNpcUpdatesSchema.max(0).optional(),
-  })
-
+  const trimmedPlayerName = playerName.trim()
+  if (trimmedPlayerName) {
+    shape[trimmedPlayerName] = playerUpdateSchema
+      .optional()
+      .describe(`Optional story-setup state updates for ${trimmedPlayerName}. Use the exact character name as the key.`)
+  }
   if (modules.track_npcs) {
-    schema = schema.extend({
-      pregen_npcs: z.array(npcSchema),
-    })
-  } else {
-    schema = schema.extend({
-      pregen_npcs: z.array(npcSchema).max(0).optional(),
-    })
+    const seen = new Set(trimmedPlayerName ? [trimmedPlayerName.toLowerCase()] : [])
+    for (const rawName of selectedNpcNames) {
+      const name = rawName.trim()
+      if (!name || seen.has(name.toLowerCase())) continue
+      seen.add(name.toLowerCase())
+      shape[name] = npcUpdateSchema
+        .optional()
+        .describe(
+          `Optional story-setup state updates for existing character ${name}. Use the exact character name as the key.`,
+        )
+    }
   }
 
-  return schema.transform((value: { [key: string]: unknown; pregen_npcs?: unknown[] }) => ({
-    ...value,
-    pregen_npcs: (value.pregen_npcs ?? []).map((npc: unknown) => NPCStateStoredSchema.parse(npc)),
-  })) as unknown as z.ZodType<GenerateStoryResponse>
+  return z
+    .object(shape)
+    .strict()
+    .transform((value: { [key: string]: unknown; character_introductions?: unknown[] }) => ({
+      ...value,
+      character_introductions: (value.character_introductions ?? []).map((npc: unknown) =>
+        NPCStateStoredSchema.parse(npc),
+      ),
+    })) as unknown as z.ZodType<GenerateStoryResponse>
 }
 
 export const GenerateChatResponseSchema = z

@@ -123,21 +123,9 @@ export interface GenerateStoryResponse {
   starting_location: string
   starting_date: string
   starting_time: string
-  current_appearance?: string
-  current_clothing?: string
-  current_activity?: string
-  character_custom_fields?: Record<string, string | string[]>
   general_description: string
-  pregen_npcs?: NPCState[]
-  selected_npc_updates?: Array<{
-    name: string
-    race?: string
-    gender?: string
-    current_location?: string
-    current_activity?: string
-    current_clothing?: string
-    current_appearance?: string
-  }>
+  character_introductions?: NPCState[]
+  [characterName: string]: unknown
 }
 
 export interface GenerateChatResponse {

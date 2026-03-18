@@ -28,7 +28,12 @@ export async function generateStory(
 ): Promise<StoryResponse> {
   const modules = storyModules ?? DEFAULT_STORY_MODULES
   const flags = resolveModuleFlags(modules)
-  const responseSchema = buildStoryResponseSchema(modules)
+  const selectedNpcs = options.selectedNpcs ?? []
+  const responseSchema = buildStoryResponseSchema(
+    character.name,
+    selectedNpcs.map((npc) => npc.name),
+    modules,
+  )
   const llmStrings = getLlmStrings()
   const defaults = getServerDefaults()
   const unknown = defaults.unknown.value
@@ -42,7 +47,6 @@ export async function generateStory(
   const majorFlaws = flags.useCharMajorFlaws ? (character.major_flaws?.map((t) => t.trim()).filter(Boolean) ?? []) : []
   const generalDescription = character.general_description?.trim() || defaults.unknown.generalDescription
   const promptLines = getGenerateStoryPrompt(modules).split("\n")
-  const selectedNpcs = options.selectedNpcs ?? []
 
   const missingTokens = new Set(
     [
@@ -69,8 +73,8 @@ export async function generateStory(
       : [
           "",
           "User-selected NPCs (from library; already exist in this story):",
-          "Do NOT include these NPCs in pregen_npcs. Only generate additional NPCs not listed here.",
-          "If any user-selected NPC is missing/unknown current fields, generate those missing values and return them in selected_npc_updates (match by name).",
+          "Do NOT include these NPCs in character_introductions. Only generate additional NPCs not listed here.",
+          'If any user-selected NPC is missing or needs setup changes, return those values in a root-level object keyed by that exact name, for example: "Eliza": { "current_activity": "..." }.',
           ...selectedNpcs.map((npc) => {
             const name = (npc.name ?? "").trim() || unknown
             const race = (npc.race ?? "").trim() || unknown
@@ -156,7 +160,19 @@ export async function generateStory(
     "StoryResponse",
     responseSchema,
     undefined,
-    { disableRepetition: true, ...(options.onPreviewPatch ? { onPreviewPatch: options.onPreviewPatch } : {}) },
+    {
+      disableRepetition: true,
+      previewKeys: [
+        "title",
+        "opening_scenario",
+        "starting_location",
+        "starting_date",
+        "starting_time",
+        "general_description",
+        character.name.trim(),
+      ].filter((key) => key.length > 0),
+      ...(options.onPreviewPatch ? { onPreviewPatch: options.onPreviewPatch } : {}),
+    },
   )
   return result
 }
