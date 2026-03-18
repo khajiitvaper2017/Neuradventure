@@ -8,7 +8,7 @@
   import { looksLikeBlockHtml } from "@/utils/text/sanitizeHtml"
 
   type Props = {
-    anchorId?: number | null
+    anchorId?: number | string | null
     playerInput?: string | null
     onEdit?: (() => void) | null
     onDelete?: (() => void) | null

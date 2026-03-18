@@ -13,6 +13,7 @@
   type Props = {
     storyDiv?: HTMLDivElement | null
     initialScrollDone?: boolean
+    streamPreviewAnchorId?: string
     flashLocation?: boolean
     flashOpening?: boolean
     editingOpening?: boolean
@@ -43,6 +44,7 @@
   let {
     storyDiv = $bindable(null),
     initialScrollDone = false,
+    streamPreviewAnchorId = "story-stream-preview",
     flashLocation = false,
     flashOpening = false,
     editingOpening = false,
@@ -226,7 +228,7 @@
 
     {#if liveTurn && liveTurn.anchorId === null}
       <StoryTurnRow
-        anchorId={null}
+        anchorId={streamPreviewAnchorId}
         playerInput={liveTurn.playerInput}
         statusText={liveTurn.statusText}
         worldLine={liveTurn.worldLine}

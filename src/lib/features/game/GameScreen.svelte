@@ -101,6 +101,7 @@
   const keyboardScrollTimer = createTimer()
   let lastViewportHeight = 0
   let regeneratingTurnId = $state<number | null>(null)
+  const STREAM_PREVIEW_ANCHOR = "story-stream-preview"
 
   let initialScrollDone = $state(false)
   let userActed = $state(false)
@@ -127,7 +128,7 @@
       if (typeof p.time_of_day === "string") state.time = p.time_of_day
     },
     isNearBottom: () => (storyDiv ? isNearBottom(storyDiv) : true),
-    scrollToBottom: (opts) => scrollStoryToBottom(opts),
+    scrollToBottom: (opts) => scrollStoryToGenerationTarget(opts),
     tick,
   })
 
@@ -136,14 +137,26 @@
     scrollToBottom(storyDiv, opts)
   }
 
-  function scrollToTurnStart(turnId: number, opts?: { smooth?: boolean }) {
+  function scrollStoryToAnchor(anchorId: number | string, opts?: { smooth?: boolean }) {
     if (!storyDiv) return
-    const anchor = storyDiv.querySelector<HTMLElement>(`[data-turn-anchor="${turnId}"]`)
+    const anchor = storyDiv.querySelector<HTMLElement>(`[data-turn-anchor="${anchorId}"]`)
     if (!anchor) {
       scrollStoryToBottom(opts)
       return
     }
     anchor.scrollIntoView({ block: "start", behavior: opts?.smooth ? "smooth" : "auto" })
+  }
+
+  function scrollToTurnStart(turnId: number, opts?: { smooth?: boolean }) {
+    scrollStoryToAnchor(turnId, opts)
+  }
+
+  function scrollStoryToGenerationTarget(opts?: { smooth?: boolean }) {
+    if (regeneratingTurnId !== null) {
+      scrollStoryToAnchor(regeneratingTurnId, opts)
+      return
+    }
+    scrollStoryToAnchor(STREAM_PREVIEW_ANCHOR, opts)
   }
 
   function lastTurnId(): number | null {
@@ -224,14 +237,15 @@
   async function finishTurn(
     turnId: number,
     prevWorld: WorldSnapshot,
-    opts?: { afterFlash?: () => void; afterLoad?: () => void },
+    opts?: { afterFlash?: () => void; afterLoad?: () => void; scrollAfterFinish?: boolean },
   ) {
+    const scrollAfterFinish = opts?.scrollAfterFinish ?? true
     flashWorldDiff(prevWorld)
     opts?.afterFlash?.()
     await variantsState.load(turnId, true)
     opts?.afterLoad?.()
     await tick()
-    scrollToTurnStart(turnId, { smooth: true })
+    if (scrollAfterFinish) scrollToTurnStart(turnId, { smooth: true })
   }
 
   async function sendTurn() {
@@ -242,6 +256,7 @@
     if ((!isEmpty && !text) || $isGenerating || !$currentStoryId) return
     const requestId = createRequestId()
     const prevWorld = snapshotWorld()
+    const scrollAfterFinish = !$streamingEnabled
     try {
       await withStreamSetupGeneration(
         requestId,
@@ -261,7 +276,10 @@
           const res = await takeTurn({ storyId: $currentStoryId, playerInput: text, actionMode: sendMode, requestId })
           const notice = formatLlmWarningsNotice(res.llmWarnings)
           if (notice) showQuietNotice(notice)
-          await finishTurn(res.turnId, prevWorld, { afterFlash: () => (canUndoCancel = false) })
+          await finishTurn(res.turnId, prevWorld, {
+            afterFlash: () => (canUndoCancel = false),
+            scrollAfterFinish,
+          })
           clearPendingTurn()
         },
       )
@@ -297,6 +315,7 @@
       return
     }
     const prevWorld = snapshotWorld()
+    const scrollAfterFinish = !$streamingEnabled
     try {
       await withGenerationAndStream(pending.requestId, async () => {
         const res = await resumePendingTurnAction({
@@ -307,7 +326,10 @@
         })
         const notice = formatLlmWarningsNotice(res.llmWarnings)
         if (notice) showQuietNotice(notice)
-        await finishTurn(res.turnId, prevWorld, { afterFlash: () => clearPendingTurn() })
+        await finishTurn(res.turnId, prevWorld, {
+          afterFlash: () => clearPendingTurn(),
+          scrollAfterFinish,
+        })
       })
     } catch (err) {
       handleError(err, "Failed to resume generation")
@@ -337,13 +359,17 @@
     const requestId = createRequestId()
     regeneratingTurnId = $turns[$turns.length - 1]?.id ?? null
     const prevWorld = snapshotWorld()
+    const scrollAfterFinish = !$streamingEnabled
     try {
       await withGenerationAndStream(requestId, async () => {
         const lastMode = $turns[$turns.length - 1]?.action_mode ?? actionMode
         const res = await regenerateLastTurnAction({ storyId: $currentStoryId, mode: lastMode, requestId })
         const notice = formatLlmWarningsNotice(res.llmWarnings)
         if (notice) showQuietNotice(notice)
-        await finishTurn(res.turnId, prevWorld, { afterLoad: () => (editingTurnId = null) })
+        await finishTurn(res.turnId, prevWorld, {
+          afterLoad: () => (editingTurnId = null),
+          scrollAfterFinish,
+        })
       })
     } catch (err) {
       handleError(err, "Generation failed. Is KoboldCpp running?")
@@ -721,6 +747,7 @@
   <GameStoryArea
     bind:storyDiv
     {initialScrollDone}
+    streamPreviewAnchorId={STREAM_PREVIEW_ANCHOR}
     {flashLocation}
     {flashOpening}
     {editingOpening}
