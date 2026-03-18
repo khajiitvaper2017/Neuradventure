@@ -1,6 +1,6 @@
 <script lang="ts">
   import type { StoryModules } from "@/types/types"
-  import { STORY_MODULE_META, type StoryModuleKey } from "@/domain/story/story-modules"
+  import { MODULE_DEFS_BY_ID, STORY_MODULE_FIELD_ROWS, type StoryModuleKey } from "@/domain/story/module-definitions"
   import { settings as settingsService } from "@/services/settings"
   import type { CustomFieldDef } from "@/types/api"
   import { cn } from "@/utils.js"
@@ -53,74 +53,6 @@
     void loadCustomDefs()
   })
 
-  type FieldRow = {
-    id: string
-    title: string
-    sub?: string
-    characterKey?: StoryModuleKey
-    npcKey?: StoryModuleKey
-    promptKey?: StoryModuleKey
-  }
-
-  const FIELD_ROWS: readonly FieldRow[] = [
-    {
-      id: "appearance",
-      title: "Appearance + clothing",
-      sub: "Show and update appearance/clothing fields",
-      characterKey: "character_appearance_clothing",
-      npcKey: "npc_appearance_clothing",
-      promptKey: "character_appearance_clothing",
-    },
-    {
-      id: "location",
-      title: "Location",
-      sub: "Track and update current location",
-      characterKey: "character_location",
-      npcKey: "npc_location",
-      promptKey: "npc_location",
-    },
-    {
-      id: "activity",
-      title: "Activity",
-      sub: "Track and update current activity",
-      characterKey: "character_activity",
-      npcKey: "npc_activity",
-      promptKey: "npc_activity",
-    },
-    {
-      id: "traits",
-      title: "Personality traits",
-      sub: "Track and update personality traits",
-      characterKey: "character_personality_traits",
-      npcKey: "npc_personality_traits",
-      promptKey: "character_personality_traits",
-    },
-    {
-      id: "flaws",
-      title: "Major flaws",
-      sub: "Track and update major flaws",
-      characterKey: "character_major_flaws",
-      npcKey: "npc_major_flaws",
-      promptKey: "character_major_flaws",
-    },
-    {
-      id: "perks",
-      title: "Perks",
-      sub: "Track and update perks",
-      characterKey: "character_perks",
-      npcKey: "npc_perks",
-      promptKey: "character_perks",
-    },
-    {
-      id: "inventory",
-      title: "Inventory",
-      sub: "Track and update the inventory list",
-      characterKey: "character_inventory",
-      npcKey: "npc_inventory",
-      promptKey: "character_inventory",
-    },
-  ] as const
-
   const enabledCharacterCustomDefs = $derived.by(() =>
     customDefs
       .filter((d) => d.enabled && d.scope === "character")
@@ -142,7 +74,7 @@
     const next = { ...(modules.custom_field_modules ?? {}) }
     const current = next[fieldId] ?? {}
     next[fieldId] = { ...current, [target]: value }
-    setModules({ ...modules, custom_field_modules: next })
+    setModules({ ...modules, custom_field_modules: next } as StoryModules)
   }
 
   let customPromptOpen = $state(false)
@@ -338,7 +270,7 @@
       <div class={cn(bare ? "" : "px-4 pb-3")}>
         {@render ColHeaders("On", "")}
         {#each ["track_npcs", "track_background_events"] as const as key (key)}
-          {@const meta = STORY_MODULE_META[key]}
+          {@const meta = MODULE_DEFS_BY_ID[key]}
           <div class={cn(ROW_GRID, "border-b py-2 last:border-b-0")}>
             <div class="min-w-0 pr-3">
               <div class="text-sm font-medium leading-snug text-foreground">{meta.title}</div>
@@ -373,7 +305,7 @@
       </div>
       <div class={cn(bare ? "" : "px-4 pb-3")}>
         {@render ColHeaders("Player", "NPC")}
-        {#each FIELD_ROWS as row (row.id)}
+        {#each STORY_MODULE_FIELD_ROWS as row (row.id)}
           {@render FieldRow(row)}
         {/each}
       </div>

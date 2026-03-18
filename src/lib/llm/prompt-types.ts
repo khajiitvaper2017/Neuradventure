@@ -1,4 +1,5 @@
 import { z } from "zod"
+import { STORY_MODULE_KEYS } from "@/domain/story/module-definitions"
 
 export type SectionFormat = "xml" | "markdown" | "equals" | "bbcode" | "colon" | "none"
 
@@ -9,26 +10,11 @@ export const PromptModuleBlockSchema = z
   })
   .passthrough()
 
-export const PromptModulesSchema = z
-  .object({
-    track_npcs: PromptModuleBlockSchema.optional(),
-    track_background_events: PromptModuleBlockSchema.optional(),
-    character_appearance_clothing: PromptModuleBlockSchema.optional(),
-    character_personality_traits: PromptModuleBlockSchema.optional(),
-    character_major_flaws: PromptModuleBlockSchema.optional(),
-    character_perks: PromptModuleBlockSchema.optional(),
-    character_inventory: PromptModuleBlockSchema.optional(),
-    character_location: PromptModuleBlockSchema.optional(),
-    character_activity: PromptModuleBlockSchema.optional(),
-    npc_appearance_clothing: PromptModuleBlockSchema.optional(),
-    npc_personality_traits: PromptModuleBlockSchema.optional(),
-    npc_major_flaws: PromptModuleBlockSchema.optional(),
-    npc_perks: PromptModuleBlockSchema.optional(),
-    npc_inventory: PromptModuleBlockSchema.optional(),
-    npc_location: PromptModuleBlockSchema.optional(),
-    npc_activity: PromptModuleBlockSchema.optional(),
-  })
-  .passthrough()
+const promptModuleShape = Object.fromEntries(
+  STORY_MODULE_KEYS.map((key) => [key, PromptModuleBlockSchema.optional()]),
+) as Record<string, z.ZodTypeAny>
+
+export const PromptModulesSchema = z.object(promptModuleShape).passthrough()
 
 export const ModularPromptSchema = z
   .object({
@@ -51,8 +37,5 @@ export const PromptConfigSchema = z
     sectionFormat: SectionFormatSchema.optional(),
   })
   .passthrough()
-
-export type PromptModuleBlock = z.infer<typeof PromptModuleBlockSchema>
-export type PromptModules = z.infer<typeof PromptModulesSchema>
 export type ModularPrompt = z.infer<typeof ModularPromptSchema>
 export type PromptConfig = z.infer<typeof PromptConfigSchema>

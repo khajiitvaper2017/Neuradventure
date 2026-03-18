@@ -2,14 +2,7 @@ import type { CharacterCreation, MainCharacterState, NPCState, TurnResponse, Wor
 import { getServerDefaults } from "@/utils/text/strings"
 import { normalizeGender } from "@/domain/story/schemas/normalizers"
 import { NPCStateStoredSchema } from "@/types/models"
-
-const CHARACTER_UPDATE_KEYS = new Set([
-  "current_location",
-  "current_appearance",
-  "current_clothing",
-  "current_activity",
-  "inventory",
-])
+import { extractCustomFieldPatch, getCharacterPatch } from "@/llm/contract"
 
 function mergeCustomFields(
   base: Record<string, string | string[]> | undefined,
@@ -20,36 +13,12 @@ function mergeCustomFields(
   return { ...current, ...(patch as Record<string, string | string[]>) }
 }
 
-function getCharacterTurnPatch(turnResponse: TurnResponse, name: string): Record<string, unknown> | null {
-  const patch = turnResponse[name]
-  if (!patch || typeof patch !== "object" || Array.isArray(patch)) return null
-  return patch as Record<string, unknown>
-}
-
-function extractCustomFieldPatch(
-  patch: Record<string, unknown> | null,
-  builtInKeys: Set<string>,
-): Record<string, string | string[]> | undefined {
-  if (!patch) return undefined
-  const customFields: Record<string, string | string[]> = {}
-  for (const [key, value] of Object.entries(patch)) {
-    if (builtInKeys.has(key)) continue
-    if (typeof value === "string") {
-      customFields[key] = value
-      continue
-    }
-    if (Array.isArray(value) && value.every((entry) => typeof entry === "string")) {
-      customFields[key] = value as string[]
-    }
-  }
-  return Object.keys(customFields).length > 0 ? customFields : undefined
-}
-
 export type CharacterUpdatePolicy = {
   useAppearance: boolean
   useLocation: boolean
   useActivity: boolean
   useInventory: boolean
+  builtInKeys: readonly string[]
 }
 
 export function applyCharacterUpdate<TCharacter extends MainCharacterState | NPCState>(
@@ -57,7 +26,7 @@ export function applyCharacterUpdate<TCharacter extends MainCharacterState | NPC
   turnResponse: TurnResponse,
   policy: CharacterUpdatePolicy,
 ): TCharacter {
-  const patch = getCharacterTurnPatch(turnResponse, character.name)
+  const patch = getCharacterPatch(turnResponse, character.name)
   const appearance = policy.useAppearance
     ? {
         baseline_appearance: character.baseline_appearance,
@@ -88,7 +57,7 @@ export function applyCharacterUpdate<TCharacter extends MainCharacterState | NPC
       policy.useInventory && Array.isArray(patch?.inventory)
         ? (patch.inventory as typeof character.inventory)
         : character.inventory,
-    custom_fields: mergeCustomFields(character.custom_fields, extractCustomFieldPatch(patch, CHARACTER_UPDATE_KEYS)),
+    custom_fields: mergeCustomFields(character.custom_fields, extractCustomFieldPatch(patch, policy.builtInKeys)),
   } as TCharacter
 }
 
@@ -138,7 +107,7 @@ export function collectLlmWarnings(world: WorldState, npcs: NPCState[], turnResp
   }
 
   for (const npc of npcs) {
-    const patch = getCharacterTurnPatch(turnResponse, npc.name)
+    const patch = getCharacterPatch(turnResponse, npc.name)
     if (!patch) continue
     if (typeof patch.current_location === "string" && patch.current_location === npc.current_location) {
       warnings.push(`${npc.name}.current_location matches existing value`)

@@ -6,6 +6,7 @@ import type {
   TurnVariantSummary,
   WorldState,
 } from "@/types/types"
+import type { CharacterCreation } from "@/types/models"
 
 export interface ChatUpdateResult {
   ok: boolean
@@ -124,7 +125,7 @@ export interface GenerateStoryResponse {
   starting_date: string
   starting_time: string
   general_description: string
-  character_introductions?: NPCState[]
+  character_introductions?: CharacterCreation[]
   [characterName: string]: unknown
 }
 

@@ -2,6 +2,7 @@
   import { untrack } from "svelte"
   import { SvelteSet } from "svelte/reactivity"
   import type { MainCharacterState, NPCState, StoryModules } from "@/types/types"
+  import type { CharacterCreation } from "@/types/models"
   import type { CustomFieldDef, StoryCharacterGroup, StoryNpcGroup } from "@/types/api"
   import { stories as storiesService } from "@/services/stories"
   import { settings as settingsService } from "@/services/settings"
@@ -30,6 +31,8 @@
   import { formatStoryLabel } from "@/features/story/formatStoryLabel"
   import { characterToNpc } from "@/utils/characterToNpc"
   import { isCustomFieldModuleEnabled } from "@/domain/story/custom-field-modules"
+  import { buildCharacterFromCreation } from "@/domain/story/state"
+  import { extractCustomFieldPatch, getCharacterPatch } from "@/llm/contract"
   import {
     pendingCharacter,
     pendingStoryTitle,
@@ -52,7 +55,7 @@
     storyModulesPreviewCore,
     storyModulesPreviewNpc,
     storyModulesPreviewPlayer,
-  } from "@/domain/story/story-modules"
+  } from "@/domain/story/module-definitions"
 
   let submitting = $state(false)
   let generating = $state(false)
@@ -268,36 +271,16 @@
     return { ...current, ...(patch as Record<string, string | string[]>) }
   }
 
-  function getCharacterPatch(value: unknown, name: string): Record<string, unknown> | null {
-    if (!value || typeof value !== "object" || Array.isArray(value)) return null
-    const patch = (value as Record<string, unknown>)[name]
-    if (!patch || typeof patch !== "object" || Array.isArray(patch)) return null
-    return patch as Record<string, unknown>
-  }
-
   function extractCharacterCustomFields(
     patch: Record<string, unknown> | null,
   ): Record<string, string | string[]> | undefined {
-    if (!patch) return undefined
-    const builtInKeys = new Set([
+    return extractCustomFieldPatch(patch, [
       "current_location",
       "current_appearance",
       "current_clothing",
       "current_activity",
       "inventory",
     ])
-    const custom: Record<string, string | string[]> = {}
-    for (const [key, value] of Object.entries(patch)) {
-      if (builtInKeys.has(key)) continue
-      if (typeof value === "string") {
-        custom[key] = value
-        continue
-      }
-      if (Array.isArray(value) && value.every((entry) => typeof entry === "string")) {
-        custom[key] = value as string[]
-      }
-    }
-    return Object.keys(custom).length > 0 ? custom : undefined
   }
 
   function updatePendingCharacter(patch: Partial<Omit<MainCharacterState, "inventory">>) {
@@ -388,9 +371,9 @@
       const playerPatch = getCharacterPatch(result, character.name)
       const selectedNames = new Set(selectedNpcs.map((n) => (n.name || "").trim().toLowerCase()).filter(Boolean))
       pendingStoryNPCs.set(
-        (result.character_introductions ?? []).filter(
-          (npc) => !selectedNames.has((npc.name || "").trim().toLowerCase()),
-        ),
+        (result.character_introductions ?? [])
+          .map((creation) => buildCharacterFromCreation(creation as CharacterCreation))
+          .filter((npc) => !selectedNames.has((npc.name || "").trim().toLowerCase())),
       )
       if (selectedNpcContext.length > 0) {
         const nameToId = new Map(

@@ -12,6 +12,7 @@ import {
 import type { CancelLastResult, SelectVariantResult, TurnResult, UndoCancelResult } from "@/types/api"
 import * as db from "@/db/core"
 import { buildTurnMessages, callLLM, getCtxLimitCached } from "@/llm"
+import { buildLlmContract } from "@/llm/contract"
 import { resolveModuleFlags } from "@/domain/story/schemas/story-modules"
 import {
   applyCharacterIntroductions,
@@ -56,17 +57,24 @@ function buildWorldUpdate(
 
 function applyTurnResponse(snapshot: TurnSnapshot, response: TurnResponse, modules: StoryModules) {
   const flags = resolveModuleFlags(modules)
+  const contract = buildLlmContract("turn", {
+    modules,
+    playerName: snapshot.character.name,
+    knownNpcNames: snapshot.npcs.map((npc) => npc.name),
+  })
   const playerPolicy = {
     useAppearance: flags.useCharAppearance,
     useLocation: flags.useCharLocation,
     useActivity: flags.useCharActivity,
     useInventory: flags.useCharInventory,
+    builtInKeys: contract.builtInUpdateKeys.player,
   }
   const npcPolicy = {
     useAppearance: flags.useNpcAppearance,
     useLocation: flags.useNpcLocation,
     useActivity: flags.useNpcActivity,
     useInventory: flags.useNpcInventory,
+    builtInKeys: contract.builtInUpdateKeys.npc,
   }
   const newCharacter = applyCharacterUpdate(snapshot.character, response, playerPolicy)
   const updatedNpcs = modules.track_npcs ? applyCharacterUpdates(snapshot.npcs, response, npcPolicy) : snapshot.npcs

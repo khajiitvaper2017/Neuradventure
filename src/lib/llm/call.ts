@@ -1,9 +1,7 @@
 import { z } from "zod"
 import { buildJsonSchemaResponseFormat } from "@/llm/schema/json-schema"
-import { buildCharacterCreationSchema } from "@/domain/story/schemas/character-creation"
-import { DEFAULT_STORY_MODULES, resolveModuleFlags } from "@/domain/story/schemas/story-modules"
 import { type CharacterCreation, type NPCState, type StoryModules, type TurnResponse } from "@/types/models"
-import { buildTurnResponseSchema } from "@/llm/schema"
+import { buildLlmContract } from "@/llm/contract"
 import { buildSamplingParams } from "@/llm/sampling"
 import { createLlmLogBase, logLlmEntry } from "@/llm/logging"
 import { getCachedSupportedParameters, getClient, getConnector, getGenerationParams } from "@/llm/client"
@@ -23,9 +21,6 @@ import type {
   ChatCompletionMessageParam,
   ResponseFormatJSONSchema,
 } from "@/llm/openai-types"
-import * as db from "@/db/core"
-import { buildCharacterCustomFieldsUpdateSchema } from "@/domain/story/schemas/custom-fields"
-import { isCustomFieldModuleEnabled } from "@/domain/story/custom-field-modules"
 
 export async function callLLM(
   messages: ChatCompletionMessageParam[],
@@ -34,15 +29,15 @@ export async function callLLM(
   storyModules?: StoryModules,
   options: { onPreviewPatch?: (patch: Record<string, unknown>) => void } = {},
 ): Promise<TurnResponse> {
-  const turnSchema = buildTurnResponseSchema(playerName, knownNpcs, storyModules)
-  const includeBackgroundEvents = !!storyModules?.track_background_events
-  const previewKeys = includeBackgroundEvents
-    ? ["narrative_text", "background_events", "time_of_day"]
-    : ["narrative_text", "time_of_day"]
-  return await callLLMRaw(messages, "TurnResponse", turnSchema, undefined, {
-    ...options,
-    previewKeys,
+  const contract = buildLlmContract("turn", {
+    modules: storyModules,
+    playerName,
+    knownNpcNames: knownNpcs.map((npc) => npc.name),
   })
+  return (await callLLMRaw(messages, contract.schemaName, contract.zodSchema, undefined, {
+    ...options,
+    previewKeys: contract.previewKeys,
+  })) as TurnResponse
 }
 
 export async function generateNpcCreation(
@@ -50,25 +45,10 @@ export async function generateNpcCreation(
   forcedName?: string,
   storyModules?: StoryModules,
 ): Promise<CharacterCreation> {
-  const modules = storyModules ?? DEFAULT_STORY_MODULES
-  const flags = resolveModuleFlags(modules)
-  const customDefs = db
-    .listCustomFields()
-    .filter((d) => d.enabled && d.scope === "character" && isCustomFieldModuleEnabled(modules, d.id, "npc"))
-  const characterCustomFields = customDefs.length > 0 ? buildCharacterCustomFieldsUpdateSchema(customDefs) : undefined
-  const creationSchema = buildCharacterCreationSchema(
-    {
-      useAppearance: flags.useNpcAppearance,
-      usePersonalityTraits: flags.useNpcPersonalityTraits,
-      useMajorFlaws: flags.useNpcMajorFlaws,
-      usePerks: flags.useNpcPerks,
-      useLocation: flags.useNpcLocation,
-      useActivity: flags.useNpcActivity,
-      useInventory: flags.useNpcInventory,
-    },
-    characterCustomFields,
-  )
-  const parsed = await callLLMRaw(messages, "NPCCreation", creationSchema)
+  const contract = buildLlmContract("character_creation", { modules: storyModules })
+  const parsed = (await callLLMRaw(messages, contract.schemaName, contract.zodSchema, undefined, {
+    previewKeys: contract.previewKeys,
+  })) as CharacterCreation
   return forcedName ? { ...parsed, name: forcedName } : parsed
 }
 
@@ -112,7 +92,9 @@ export async function callLLMRaw<TSchema extends z.ZodTypeAny>(
   try {
     const schemaDescriptions: Record<string, string> = {
       TurnResponse: "Game turn response with narrative text and state updates",
-      NPCCreation: "Character creation data",
+      CharacterCreation: "Character creation data",
+      GenerateStoryResponse: "Story setup response with starting state and initial character updates",
+      GenerateCharacterResponse: "Character generation response",
     }
 
     const responseFormat = buildJsonSchemaResponseFormat(schemaName, jsonSchema, {

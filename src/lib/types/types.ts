@@ -1,3 +1,5 @@
+import type { StoryModuleKey } from "@/domain/story/module-definitions"
+
 export interface InventoryItem {
   name: string
   description: string
@@ -24,23 +26,7 @@ export type MainCharacterState = CharacterState
 
 export type NPCState = CharacterState
 
-export interface StoryModules {
-  track_npcs: boolean
-  track_background_events: boolean
-  character_appearance_clothing: boolean
-  character_personality_traits: boolean
-  character_major_flaws: boolean
-  character_perks: boolean
-  character_inventory: boolean
-  character_location: boolean
-  character_activity: boolean
-  npc_appearance_clothing: boolean
-  npc_personality_traits: boolean
-  npc_major_flaws: boolean
-  npc_perks: boolean
-  npc_inventory: boolean
-  npc_location: boolean
-  npc_activity: boolean
+export type StoryModules = Record<StoryModuleKey, boolean> & {
   /**
    * Per-story enable/disable map for user-defined character custom fields.
    * Missing entries default to enabled.

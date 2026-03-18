@@ -151,6 +151,10 @@ function requireDb(): SqlJsDatabase {
   return db
 }
 
+export function isEngineDbInitialized(): boolean {
+  return db !== null
+}
+
 export async function initEngineDb(): Promise<void> {
   if (db) return
   const SQL = await getSql()

@@ -2,23 +2,22 @@ import type { MainCharacterState, NPCState, StoryModules, WorldState } from "@/t
 import type { TurnRow } from "@/db/core"
 import { getGenerationParams } from "@/llm/client"
 import { getImpersonatePrompt, getNpcCreationPrompt, getSectionFormat, getSystemPrompt } from "@/llm/config"
+import { buildLlmContract } from "@/llm/contract"
 import {
-  buildHistoryBlock,
-  formatInventory,
-  formatNPCBaselines,
-  formatNPCCurrentStates,
-  injectEntryAtDepth,
-  wrapSection,
-  estimateTokens,
-} from "@/llm/io/format"
-import { formatTemplate, getLlmStrings, getServerDefaults } from "@/utils/text/strings"
-import { DEFAULT_STORY_MODULES, resolveModuleFlags } from "@/domain/story/schemas/story-modules"
+  renderCharacterContextLine,
+  renderWorldContextLine,
+  type CharacterFieldId,
+  type CompiledFieldDefinition,
+  type WorldFieldId,
+} from "@/llm/contract/fields"
+import { buildHistoryBlock, injectEntryAtDepth, wrapNamedEntry, wrapSection, estimateTokens } from "@/llm/io/format"
+import { getLlmStrings } from "@/utils/text/strings"
+import { DEFAULT_STORY_MODULES } from "@/domain/story/schemas/story-modules"
 import { renderCharacterBook } from "@/utils/tavern/character-book"
 import type { CharacterBook } from "@/utils/converters/tavern"
 import type { ChatCompletionMessageParam } from "@/llm/openai-types"
 import * as db from "@/db/core"
 import type { CustomFieldDef } from "@/types/api"
-import { isCustomFieldModuleEnabled } from "@/domain/story/custom-field-modules"
 
 // ─── Shared context block builder ─────────────────────────────────────────────
 
@@ -81,6 +80,70 @@ export interface ContextBlockOpts {
   modules?: StoryModules
 }
 
+function formatCustomFieldValue(value: string | string[]): string {
+  return Array.isArray(value) ? value.join(", ") : value
+}
+
+function renderCustomFieldLines(
+  fields: CompiledFieldDefinition[],
+  values: Record<string, string | string[]> | undefined,
+  fieldDefsById: Map<string, CustomFieldDef>,
+): string[] {
+  if (!values) return []
+  const lines: string[] = []
+  for (const field of fields) {
+    const value = values[field.id]
+    if (value === undefined) continue
+    const rendered = formatCustomFieldValue(value).trim()
+    if (!rendered) continue
+    const def = fieldDefsById.get(field.id)
+    const label = def?.label?.trim() || field.id
+    lines.push(`${label} (${field.id}): ${rendered}`)
+  }
+  return lines
+}
+
+function renderCharacterFieldLines(
+  character: MainCharacterState | NPCState,
+  builtInFields: CompiledFieldDefinition[],
+  customFields: CompiledFieldDefinition[],
+  fieldDefsById: Map<string, CustomFieldDef>,
+): string[] {
+  const builtInLines = builtInFields
+    .map((field) => renderCharacterContextLine(field.id as CharacterFieldId, character))
+    .filter((line): line is string => Boolean(line?.trim()))
+  const customLines = renderCustomFieldLines(customFields, character.custom_fields, fieldDefsById)
+  return [...builtInLines, ...customLines]
+}
+
+function renderWorldFieldLines(
+  world: WorldState,
+  builtInFields: CompiledFieldDefinition[],
+  customFields: CompiledFieldDefinition[],
+  fieldDefsById: Map<string, CustomFieldDef>,
+): string[] {
+  const builtInLines = builtInFields
+    .map((field) => renderWorldContextLine(field.id as WorldFieldId, world))
+    .filter((line): line is string => Boolean(line?.trim()))
+  const customLines = renderCustomFieldLines(customFields, world.custom_fields, fieldDefsById)
+  return [...builtInLines, ...customLines]
+}
+
+function renderNamedCharacterSection(
+  characters: NPCState[],
+  builtInFields: CompiledFieldDefinition[],
+  customFields: CompiledFieldDefinition[],
+  fieldDefsById: Map<string, CustomFieldDef>,
+): string {
+  return characters
+    .map((character) => {
+      const lines = renderCharacterFieldLines(character, builtInFields, customFields, fieldDefsById)
+      const content = lines.map((line) => `  ${line}`).join("\n")
+      return wrapNamedEntry(character.name, content)
+    })
+    .join("\n\n")
+}
+
 function buildContextBlock(opts: ContextBlockOpts): string {
   const {
     character,
@@ -96,69 +159,23 @@ function buildContextBlock(opts: ContextBlockOpts): string {
   } = opts
   const initial = initialCharacter ?? character
   const llmStrings = getLlmStrings()
-  const defaults = getServerDefaults()
-  const labels = llmStrings.contextLabels
-  const characterLabels = llmStrings.characterContextLabels
   const sections = llmStrings.sections
-  const none = defaults.format.noneLower
   const modules: StoryModules = opts.modules ?? DEFAULT_STORY_MODULES
-  const flags = resolveModuleFlags(modules)
-  const generalDescription = character.general_description?.trim() || defaults.unknown.generalDescription
   const customFieldDefs = db.listCustomFields().filter((d) => d.enabled)
-  const characterCustomDefs = customFieldDefs.filter((d) => d.scope === "character")
-  const playerCustomDefs = characterCustomDefs.filter((d) => isCustomFieldModuleEnabled(modules, d.id, "character"))
-  const npcCustomDefs = characterCustomDefs.filter((d) => isCustomFieldModuleEnabled(modules, d.id, "npc"))
+  const contract = buildLlmContract("turn", {
+    modules,
+    customFieldDefs,
+    playerName: character.name,
+    knownNpcNames: npcs.map((npc) => npc.name),
+  })
+  const fieldDefsById = new Map(customFieldDefs.map((def) => [def.id, def]))
 
-  const formatCustomFieldValue = (value: string | string[]): string => (Array.isArray(value) ? value.join(", ") : value)
-
-  const customLines = (
-    defs: CustomFieldDef[],
-    values: Record<string, string | string[]> | undefined,
-    scope: "character" | "world",
-    placement: CustomFieldDef["placement"],
-  ): string[] => {
-    if (!values) return []
-    const lines: string[] = []
-    for (const def of defs) {
-      if (def.scope !== scope) continue
-      if (def.placement !== placement) continue
-      const value = values[def.id]
-      if (value === undefined) continue
-      const rendered = formatCustomFieldValue(value).trim()
-      if (!rendered) continue
-      lines.push(`${def.label} (${def.id}): ${rendered}`)
-    }
-    return lines
-  }
-
-  const playerBaseCustom = customLines(playerCustomDefs, character.custom_fields, "character", "base")
-  const playerCurrentCustom = customLines(playerCustomDefs, character.custom_fields, "character", "current")
-  const worldContextCustom = customLines(customFieldDefs, world.custom_fields, "world", "context")
-  const worldMemoryCustom = customLines(customFieldDefs, world.custom_fields, "world", "memory")
-
-  const baseLines = [
-    formatTemplate(labels.nameRaceGender, {
-      name: character.name,
-      race: character.race,
-      gender: character.gender,
-    }),
-    formatTemplate(labels.generalDescription, { value: generalDescription }),
-    flags.useCharAppearance
-      ? formatTemplate(labels.baselineAppearance, {
-          value: initial.baseline_appearance?.trim() || defaults.unknown.baselineAppearance,
-        })
-      : null,
-    flags.useCharPersonalityTraits
-      ? formatTemplate(labels.personalityTraits, { value: character.personality_traits.join(", ") || none })
-      : null,
-    flags.useCharMajorFlaws
-      ? formatTemplate(labels.majorFlaws, { value: character.major_flaws.join(", ") || none })
-      : null,
-    flags.useCharPerks ? formatTemplate(labels.perks, { value: character.perks.join(", ") || none }) : null,
-    ...(playerBaseCustom.length > 0 ? playerBaseCustom : []),
-  ]
-    .filter(Boolean)
-    .join("\n")
+  const baseLines = renderCharacterFieldLines(
+    { ...character, baseline_appearance: initial.baseline_appearance },
+    contract.fieldSet.player.base,
+    contract.fieldSet.player.customBase,
+    fieldDefsById,
+  ).join("\n")
 
   const baseSection = wrapSection(sections.playerCharacterBase, baseLines)
 
@@ -186,47 +203,61 @@ function buildContextBlock(opts: ContextBlockOpts): string {
 
   const npcBaselineSection =
     modules.track_npcs && npcs.length > 0
-      ? wrapSection(sections.npcBaselines, formatNPCBaselines(npcs, flags, npcCustomDefs))
+      ? wrapSection(
+          sections.npcBaselines,
+          renderNamedCharacterSection(
+            npcs,
+            contract.fieldSet.npc.base,
+            contract.fieldSet.npc.customBase,
+            fieldDefsById,
+          ),
+        )
       : null
 
   // ── SEMI-STABLE ──
   const memorySection = (() => {
-    if (!world.memory) return null
-    const content = worldMemoryCustom.length > 0 ? [world.memory, "", ...worldMemoryCustom].join("\n") : world.memory
-    return wrapSection(sections.memory, content)
+    const lines = renderWorldFieldLines(
+      world,
+      contract.fieldSet.world.memory,
+      contract.fieldSet.world.customMemory,
+      fieldDefsById,
+    )
+    if (lines.length === 0) return null
+    return wrapSection(sections.memory, lines.join("\n"))
   })()
 
   // ── VOLATILE ──
   const currentSection = wrapSection(
     sections.playerCharacterState,
-    [
-      flags.useCharAppearance
-        ? formatTemplate(labels.currentAppearance, { value: character.current_appearance })
-        : null,
-      flags.useCharAppearance ? formatTemplate(labels.wearing, { value: character.current_clothing }) : null,
-      flags.useCharLocation ? formatTemplate(labels.location, { value: character.current_location }) : null,
-      flags.useCharActivity
-        ? formatTemplate(characterLabels.currentActivity, { value: character.current_activity })
-        : null,
-      flags.useCharInventory ? formatTemplate(labels.inventory, { value: formatInventory(character.inventory) }) : null,
-      ...(playerCurrentCustom.length > 0 ? playerCurrentCustom : []),
-    ]
-      .filter(Boolean)
-      .join("\n"),
+    renderCharacterFieldLines(
+      character,
+      contract.fieldSet.player.current,
+      contract.fieldSet.player.customCurrent,
+      fieldDefsById,
+    ).join("\n"),
   )
 
   const npcCurrentSection =
     modules.track_npcs && npcs.length > 0
-      ? wrapSection(sections.npcCurrentStates, formatNPCCurrentStates(npcs, flags, npcCustomDefs))
+      ? wrapSection(
+          sections.npcCurrentStates,
+          renderNamedCharacterSection(
+            npcs,
+            contract.fieldSet.npc.current,
+            contract.fieldSet.npc.customCurrent,
+            fieldDefsById,
+          ),
+        )
       : null
 
   const storyContextSection = wrapSection(
     sections.storyContext,
-    [
-      formatTemplate(labels.location, { value: world.current_location }),
-      formatTemplate(labels.time, { value: world.time_of_day }),
-      ...(worldContextCustom.length > 0 ? worldContextCustom : []),
-    ].join("\n"),
+    renderWorldFieldLines(
+      world,
+      contract.fieldSet.world.context,
+      contract.fieldSet.world.customContext,
+      fieldDefsById,
+    ).join("\n"),
   )
 
   const joinSections = (sections: Array<string | null | undefined>): string => sections.filter(Boolean).join("\n\n")

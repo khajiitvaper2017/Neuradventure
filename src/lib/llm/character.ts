@@ -1,16 +1,19 @@
 import {
-  GenerateCharacterAppearanceResponseSchema,
-  GenerateCharacterClothingResponseSchema,
-  GenerateCharacterTraitsResponseSchema,
-  buildGenerateCharacterResponseSchema,
   type GenerateCharacterAppearanceResponse,
   type GenerateCharacterClothingResponse,
   type GenerateCharacterResponse,
   type GenerateCharacterTraitsResponse,
+} from "@/types/api"
+import {
+  GenerateCharacterAppearanceResponseSchema,
+  GenerateCharacterClothingResponseSchema,
+  GenerateCharacterTraitsResponseSchema,
   type StoryModules,
 } from "@/types/models"
+import type { ZodType } from "zod"
 import { callLLMRaw } from "@/llm/call"
 import { getGenerateCharacterPrompt, npcTraits } from "@/llm/config"
+import { buildLlmContract } from "@/llm/contract"
 import { formatTemplate, getLlmStrings, getServerDefaults } from "@/utils/text/strings"
 import { DEFAULT_STORY_MODULES } from "@/domain/story/schemas/story-modules"
 
@@ -20,7 +23,8 @@ export async function generateCharacter(
   options: { onPreviewPatch?: (patch: Record<string, unknown>) => void } = {},
 ): Promise<GenerateCharacterResponse> {
   const modules = storyModules ?? DEFAULT_STORY_MODULES
-  const responseSchema = buildGenerateCharacterResponseSchema(modules)
+  const responseSchema = buildLlmContract("character_generation", { modules })
+    .zodSchema as ZodType<GenerateCharacterResponse>
   const llmStrings = getLlmStrings()
   const availableTraitsLine = formatTemplate(llmStrings.generateCharacter.availableTraitsLine, {
     npcTraits: npcTraits.join(", "),

@@ -1,6 +1,9 @@
-import { buildStoryResponseSchema, type NPCState, type StoryModules, type StoryResponse } from "@/types/models"
+import { type NPCState, type StoryModules } from "@/types/models"
+import type { GenerateStoryResponse } from "@/types/api"
+import type { ZodType } from "zod"
 import { callLLMRaw } from "@/llm/call"
 import { getGenerateStoryPrompt } from "@/llm/config"
+import { buildLlmContract } from "@/llm/contract"
 import { formatTemplate, getLlmStrings, getServerDefaults } from "@/utils/text/strings"
 import { DEFAULT_STORY_MODULES, resolveModuleFlags } from "@/domain/story/schemas/story-modules"
 
@@ -25,15 +28,17 @@ export async function generateStory(
     onPreviewPatch?: (patch: Record<string, unknown>) => void
     selectedNpcs?: NPCState[]
   } = {},
-): Promise<StoryResponse> {
+): Promise<GenerateStoryResponse> {
   const modules = storyModules ?? DEFAULT_STORY_MODULES
   const flags = resolveModuleFlags(modules)
   const selectedNpcs = options.selectedNpcs ?? []
-  const responseSchema = buildStoryResponseSchema(
-    character.name,
-    selectedNpcs.map((npc) => npc.name),
+  const selectedNpcNames = selectedNpcs.map((npc) => npc.name)
+  const contract = buildLlmContract("story_setup", {
     modules,
-  )
+    playerName: character.name,
+    knownNpcNames: selectedNpcNames,
+  })
+  const responseSchema = contract.zodSchema as ZodType<GenerateStoryResponse>
   const llmStrings = getLlmStrings()
   const defaults = getServerDefaults()
   const unknown = defaults.unknown.value
@@ -157,20 +162,12 @@ export async function generateStory(
         ].join("\n"),
       },
     ],
-    "StoryResponse",
+    "GenerateStoryResponse",
     responseSchema,
     undefined,
     {
       disableRepetition: true,
-      previewKeys: [
-        "title",
-        "opening_scenario",
-        "starting_location",
-        "starting_date",
-        "starting_time",
-        "general_description",
-        character.name.trim(),
-      ].filter((key) => key.length > 0),
+      previewKeys: contract.previewKeys,
       ...(options.onPreviewPatch ? { onPreviewPatch: options.onPreviewPatch } : {}),
     },
   )
