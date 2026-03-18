@@ -93,30 +93,31 @@
     embedState: false,
   }))
   const modulesModal = createModal<StoryModules>(() => ({ ...DEFAULT_STORY_MODULES }))
-  let flashScene = $state(false)
+  let flashLocation = $state(false)
   let flashOpening = $state(false)
   let isImpersonating = $state(false)
-  const sceneFlashTimer = createTimer()
+  const locationFlashTimer = createTimer()
   const openingFlashTimer = createTimer()
   const keyboardScrollTimer = createTimer()
   let lastViewportHeight = 0
   let regeneratingTurnId = $state<number | null>(null)
+  const STREAM_PREVIEW_ANCHOR = "story-stream-preview"
 
   let initialScrollDone = $state(false)
   let userActed = $state(false)
   const resumedRequestIds = new SvelteSet<string>()
 
-  let sceneText = $derived($worldState ? `${$worldState.current_scene} · ${$worldState.time_of_day}` : "")
+  let locationText = $derived($worldState ? `${$worldState.current_location} · ${$worldState.time_of_day}` : "")
   let openingText = $derived($currentStoryOpeningScenario || $worldState?.memory || "")
 
   const stream = createStreamController({
     enabled: () => $streamingEnabled,
     subscribe: subscribeStreamPreview,
-    seed: () => ({ narrative: "", background: "", scene: "", time: "" }),
+    seed: () => ({ narrative: "", background: "", location: "", time: "" }),
     reset: (state) => {
       state.narrative = ""
       state.background = ""
-      state.scene = ""
+      state.location = ""
       state.time = ""
     },
     applyPatch: (state, patch) => {
@@ -124,11 +125,10 @@
       const p = patch as Record<string, unknown>
       if (typeof p.narrative_text === "string") state.narrative = p.narrative_text
       if (typeof p.background_events === "string") state.background = p.background_events
-      if (typeof p.current_scene === "string") state.scene = p.current_scene
       if (typeof p.time_of_day === "string") state.time = p.time_of_day
     },
     isNearBottom: () => (storyDiv ? isNearBottom(storyDiv) : true),
-    scrollToBottom: (opts) => scrollStoryToBottom(opts),
+    scrollToBottom: (opts) => scrollStoryToGenerationTarget(opts),
     tick,
   })
 
@@ -137,14 +137,26 @@
     scrollToBottom(storyDiv, opts)
   }
 
-  function scrollToTurnStart(turnId: number, opts?: { smooth?: boolean }) {
+  function scrollStoryToAnchor(anchorId: number | string, opts?: { smooth?: boolean }) {
     if (!storyDiv) return
-    const anchor = storyDiv.querySelector<HTMLElement>(`[data-turn-anchor="${turnId}"]`)
+    const anchor = storyDiv.querySelector<HTMLElement>(`[data-turn-anchor="${anchorId}"]`)
     if (!anchor) {
       scrollStoryToBottom(opts)
       return
     }
     anchor.scrollIntoView({ block: "start", behavior: opts?.smooth ? "smooth" : "auto" })
+  }
+
+  function scrollToTurnStart(turnId: number, opts?: { smooth?: boolean }) {
+    scrollStoryToAnchor(turnId, opts)
+  }
+
+  function scrollStoryToGenerationTarget(opts?: { smooth?: boolean }) {
+    if (regeneratingTurnId !== null) {
+      scrollStoryToAnchor(regeneratingTurnId, opts)
+      return
+    }
+    scrollStoryToAnchor(STREAM_PREVIEW_ANCHOR, opts)
   }
 
   function lastTurnId(): number | null {
@@ -172,21 +184,23 @@
 
   type WorldSnapshot = {
     hasBaseline: boolean
-    sceneText: string
+    locationText: string
     openingText: string
   }
 
   function snapshotWorld(): WorldSnapshot {
     return {
       hasBaseline: Boolean($worldState || $currentStoryOpeningScenario),
-      sceneText,
+      locationText,
       openingText,
     }
   }
 
   function flashWorldDiff(prev: WorldSnapshot) {
     if (!prev.hasBaseline) return
-    if (sceneText && sceneText !== prev.sceneText) triggerFlash((v) => (flashScene = v), sceneFlashTimer)
+    if (locationText && locationText !== prev.locationText) {
+      triggerFlash((v) => (flashLocation = v), locationFlashTimer)
+    }
     if (openingText && openingText !== prev.openingText) triggerFlash((v) => (flashOpening = v), openingFlashTimer)
   }
 
@@ -223,14 +237,15 @@
   async function finishTurn(
     turnId: number,
     prevWorld: WorldSnapshot,
-    opts?: { afterFlash?: () => void; afterLoad?: () => void },
+    opts?: { afterFlash?: () => void; afterLoad?: () => void; scrollAfterFinish?: boolean },
   ) {
+    const scrollAfterFinish = opts?.scrollAfterFinish ?? true
     flashWorldDiff(prevWorld)
     opts?.afterFlash?.()
     await variantsState.load(turnId, true)
     opts?.afterLoad?.()
     await tick()
-    scrollToTurnStart(turnId, { smooth: true })
+    if (scrollAfterFinish) scrollToTurnStart(turnId, { smooth: true })
   }
 
   async function sendTurn() {
@@ -241,6 +256,7 @@
     if ((!isEmpty && !text) || $isGenerating || !$currentStoryId) return
     const requestId = createRequestId()
     const prevWorld = snapshotWorld()
+    const scrollAfterFinish = !$streamingEnabled
     try {
       await withStreamSetupGeneration(
         requestId,
@@ -260,7 +276,10 @@
           const res = await takeTurn({ storyId: $currentStoryId, playerInput: text, actionMode: sendMode, requestId })
           const notice = formatLlmWarningsNotice(res.llmWarnings)
           if (notice) showQuietNotice(notice)
-          await finishTurn(res.turnId, prevWorld, { afterFlash: () => (canUndoCancel = false) })
+          await finishTurn(res.turnId, prevWorld, {
+            afterFlash: () => (canUndoCancel = false),
+            scrollAfterFinish,
+          })
           clearPendingTurn()
         },
       )
@@ -296,6 +315,7 @@
       return
     }
     const prevWorld = snapshotWorld()
+    const scrollAfterFinish = !$streamingEnabled
     try {
       await withGenerationAndStream(pending.requestId, async () => {
         const res = await resumePendingTurnAction({
@@ -306,7 +326,10 @@
         })
         const notice = formatLlmWarningsNotice(res.llmWarnings)
         if (notice) showQuietNotice(notice)
-        await finishTurn(res.turnId, prevWorld, { afterFlash: () => clearPendingTurn() })
+        await finishTurn(res.turnId, prevWorld, {
+          afterFlash: () => clearPendingTurn(),
+          scrollAfterFinish,
+        })
       })
     } catch (err) {
       handleError(err, "Failed to resume generation")
@@ -336,13 +359,17 @@
     const requestId = createRequestId()
     regeneratingTurnId = $turns[$turns.length - 1]?.id ?? null
     const prevWorld = snapshotWorld()
+    const scrollAfterFinish = !$streamingEnabled
     try {
       await withGenerationAndStream(requestId, async () => {
         const lastMode = $turns[$turns.length - 1]?.action_mode ?? actionMode
         const res = await regenerateLastTurnAction({ storyId: $currentStoryId, mode: lastMode, requestId })
         const notice = formatLlmWarningsNotice(res.llmWarnings)
         if (notice) showQuietNotice(notice)
-        await finishTurn(res.turnId, prevWorld, { afterLoad: () => (editingTurnId = null) })
+        await finishTurn(res.turnId, prevWorld, {
+          afterLoad: () => (editingTurnId = null),
+          scrollAfterFinish,
+        })
       })
     } catch (err) {
       handleError(err, "Generation failed. Is KoboldCpp running?")
@@ -631,10 +658,10 @@
     const storyId = $currentStoryId
     untrack(() => {
       if (!storyId) {
-        flashScene = false
+        flashLocation = false
         flashOpening = false
         canUndoCancel = false
-        clearTimer(sceneFlashTimer)
+        clearTimer(locationFlashTimer)
         clearTimer(openingFlashTimer)
       }
     })
@@ -662,14 +689,14 @@
   })
 
   onDestroy(() => {
-    ;[sceneFlashTimer, openingFlashTimer, keyboardScrollTimer].forEach(clearTimer)
+    ;[locationFlashTimer, openingFlashTimer, keyboardScrollTimer].forEach(clearTimer)
     stream.stop()
   })
 </script>
 
 <div class="relative mx-auto flex h-dvh w-full max-w-3xl flex-col overflow-hidden">
   <GameTopBar
-    {flashScene}
+    {flashLocation}
     onGoHome={goHome}
     onOpenMemoryEditor={openMemoryEditor}
     onOpenWorldFieldsEditor={() => void openWorldFieldsEditor()}
@@ -720,7 +747,8 @@
   <GameStoryArea
     bind:storyDiv
     {initialScrollDone}
-    {flashScene}
+    streamPreviewAnchorId={STREAM_PREVIEW_ANCHOR}
+    {flashLocation}
     {flashOpening}
     {editingOpening}
     bind:openingDraft
@@ -742,7 +770,7 @@
     {handleStoryScroll}
     streamNarrative={stream.state.narrative}
     streamBackground={stream.state.background}
-    streamScene={stream.state.scene}
+    streamLocation={stream.state.location}
     streamTime={stream.state.time}
     {pendingPlayerInput}
   />

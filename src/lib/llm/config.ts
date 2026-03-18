@@ -1,14 +1,12 @@
 import type { StoryModules } from "@/types/models"
 import { DEFAULT_STORY_MODULES } from "@/domain/story/schemas/story-modules"
-import { replaceFieldShortcuts } from "@/domain/story/schemas/field-descriptions"
+import { MODULE_DEFS } from "@/domain/story/module-definitions"
 import * as db from "@/db/core"
 import type { ModularPrompt, PromptConfig, SectionFormat } from "@/llm/prompt-types"
 import { npcTraits } from "@/domain/story/schemas/npc-traits"
-import { isCustomFieldModuleEnabled } from "@/domain/story/custom-field-modules"
+import { buildLlmContract } from "@/llm/contract"
 
 // ─── Prompt config (stored in SQLite, seeded from shared/config/prompts/*.txt) ──────────
-
-const DEFAULT_MODULES: StoryModules = { ...DEFAULT_STORY_MODULES }
 
 export { npcTraits }
 
@@ -16,100 +14,51 @@ export function getConfig(): PromptConfig {
   return db.getMergedPromptConfig()
 }
 
-function buildCustomFieldsHintLines(modules?: StoryModules): string[] {
-  const defs = db.listCustomFields().filter((d) => d.enabled)
-  if (defs.length === 0) return []
-
-  const charDefs = defs.filter((d) => d.scope === "character")
-  const playerCharDefs = charDefs.filter((d) => isCustomFieldModuleEnabled(modules, d.id, "character"))
-  const npcCharDefs = charDefs.filter((d) => isCustomFieldModuleEnabled(modules, d.id, "npc"))
-  const worldDefs = defs.filter((d) => d.scope === "world")
-
-  const fmt = (d: (typeof defs)[number]) => `${d.id} (${d.value_type}) — ${d.label}`
-
+function buildPromptHintLines(
+  kind: "turn" | "story_setup" | "character_generation" | "character_creation",
+  modules?: StoryModules,
+): string[] {
+  const contract = buildLlmContract(kind, {
+    modules,
+    playerName: kind === "turn" || kind === "story_setup" ? "Player" : undefined,
+  })
   const lines: string[] = []
-  lines.push("Custom fields (user-defined):")
-  lines.push(
-    "When something changes, use: character_custom_fields (player), npc_changes[].custom_fields (NPCs), world_state_update.custom_fields (world).",
-  )
-  if (playerCharDefs.length > 0) lines.push(`Enabled player fields: ${playerCharDefs.map(fmt).join("; ")}`)
-  if ((modules?.track_npcs ?? true) && npcCharDefs.length > 0)
-    lines.push(`Enabled NPC fields: ${npcCharDefs.map(fmt).join("; ")}`)
-  if (worldDefs.length > 0) lines.push(`Enabled world fields: ${worldDefs.map(fmt).join("; ")}`)
+  if (contract.promptHints.outputShapeLines.length > 0) {
+    lines.push("Output contract:")
+    lines.push(...contract.promptHints.outputShapeLines.map((line) => `- ${line}`))
+  }
+  if (contract.promptHints.enabledPlayerFields.length > 0) {
+    lines.push(`Enabled player fields: ${contract.promptHints.enabledPlayerFields.join(", ")}`)
+  }
+  if (contract.promptHints.enabledNpcFields.length > 0) {
+    lines.push(`Enabled NPC fields: ${contract.promptHints.enabledNpcFields.join(", ")}`)
+  }
+  if (contract.promptHints.enabledWorldFields.length > 0) {
+    lines.push(`Enabled world fields: ${contract.promptHints.enabledWorldFields.join(", ")}`)
+  }
   return lines
 }
 
 function resolvePrompt(prompt: ModularPrompt | undefined, modules?: StoryModules): string[] {
   if (!prompt) return []
-  const active = modules ?? DEFAULT_MODULES
-  const lines = [...(prompt.base ?? [])].map(replaceFieldShortcuts)
-  const blocks = prompt.modules
+  const active = modules ?? DEFAULT_STORY_MODULES
+  const lines = [...(prompt.base ?? [])]
+  const blocks = (prompt.modules ?? {}) as Record<string, { on?: string[]; off?: string[] } | undefined>
   const pushLines = (items?: string[]) => {
     if (!items || items.length === 0) return
-    lines.push(...items.map(replaceFieldShortcuts))
+    lines.push(...items)
   }
-  if (blocks?.track_npcs) {
-    pushLines(active.track_npcs ? blocks.track_npcs.on : blocks.track_npcs.off)
-  }
-  if (blocks?.track_background_events) {
-    pushLines(active.track_background_events ? blocks.track_background_events.on : blocks.track_background_events.off)
-  }
-  if (blocks?.character_appearance_clothing) {
-    pushLines(
-      active.character_appearance_clothing
-        ? blocks.character_appearance_clothing.on
-        : blocks.character_appearance_clothing.off,
-    )
-  }
-  if (blocks?.character_personality_traits) {
-    pushLines(
-      active.character_personality_traits
-        ? blocks.character_personality_traits.on
-        : blocks.character_personality_traits.off,
-    )
-  }
-  if (blocks?.character_major_flaws) {
-    pushLines(active.character_major_flaws ? blocks.character_major_flaws.on : blocks.character_major_flaws.off)
-  }
-  if (blocks?.character_perks) {
-    pushLines(active.character_perks ? blocks.character_perks.on : blocks.character_perks.off)
-  }
-  if (blocks?.character_inventory) {
-    pushLines(active.character_inventory ? blocks.character_inventory.on : blocks.character_inventory.off)
-  }
-  if (blocks?.character_location) {
-    pushLines(active.character_location ? blocks.character_location.on : blocks.character_location.off)
-  }
-  if (blocks?.character_activity) {
-    pushLines(active.character_activity ? blocks.character_activity.on : blocks.character_activity.off)
-  }
-  if (blocks?.npc_appearance_clothing) {
-    pushLines(active.npc_appearance_clothing ? blocks.npc_appearance_clothing.on : blocks.npc_appearance_clothing.off)
-  }
-  if (blocks?.npc_personality_traits) {
-    pushLines(active.npc_personality_traits ? blocks.npc_personality_traits.on : blocks.npc_personality_traits.off)
-  }
-  if (blocks?.npc_major_flaws) {
-    pushLines(active.npc_major_flaws ? blocks.npc_major_flaws.on : blocks.npc_major_flaws.off)
-  }
-  if (blocks?.npc_perks) {
-    pushLines(active.npc_perks ? blocks.npc_perks.on : blocks.npc_perks.off)
-  }
-  if (blocks?.npc_inventory) {
-    pushLines(active.npc_inventory ? blocks.npc_inventory.on : blocks.npc_inventory.off)
-  }
-  if (blocks?.npc_location) {
-    pushLines(active.npc_location ? blocks.npc_location.on : blocks.npc_location.off)
-  }
-  if (blocks?.npc_activity) {
-    pushLines(active.npc_activity ? blocks.npc_activity.on : blocks.npc_activity.off)
+  for (const def of MODULE_DEFS) {
+    const block = blocks[def.id]
+    if (!block) continue
+    pushLines(active[def.id] ? block.on : block.off)
   }
   return lines
 }
 
 export function getSystemPrompt(modules?: StoryModules): string {
   const lines = resolvePrompt(getConfig().systemPromptLines, modules)
-  const hint = buildCustomFieldsHintLines(modules)
+  const hint = buildPromptHintLines("turn", modules)
   const joined = [...lines, ...(hint.length > 0 ? ["", ...hint] : [])].join("\n")
   return joined.replace("{npcTraits}", npcTraits.join(", "))
 }
@@ -123,7 +72,7 @@ export function getChatPrompt(modules?: StoryModules): string {
 export function getNpcCreationPrompt(modules?: StoryModules): string {
   const config = getConfig()
   const lines = resolvePrompt(config.npcCreationPrompt ?? config.systemPromptLines, modules)
-  const hint = buildCustomFieldsHintLines(modules)
+  const hint = buildPromptHintLines("character_creation", modules)
   const joined = [...lines, ...(hint.length > 0 ? ["", ...hint] : [])].join("\n")
   return joined.replace("{npcTraits}", npcTraits.join(", "))
 }
@@ -134,11 +83,15 @@ export function getImpersonatePrompt(modules?: StoryModules): string {
 }
 
 export function getGenerateCharacterPrompt(modules?: StoryModules): string {
-  return resolvePrompt(getConfig().generateCharacterPrompt, modules).join("\n")
+  const lines = resolvePrompt(getConfig().generateCharacterPrompt, modules)
+  const hint = buildPromptHintLines("character_generation", modules)
+  return [...lines, ...(hint.length > 0 ? ["", ...hint] : [])].join("\n")
 }
 
 export function getGenerateStoryPrompt(modules?: StoryModules): string {
-  return resolvePrompt(getConfig().generateStoryPrompt, modules).join("\n")
+  const lines = resolvePrompt(getConfig().generateStoryPrompt, modules)
+  const hint = buildPromptHintLines("story_setup", modules)
+  return [...lines, ...(hint.length > 0 ? ["", ...hint] : [])].join("\n")
 }
 
 export function getGenerateChatPrompt(modules?: StoryModules): string {

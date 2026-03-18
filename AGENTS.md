@@ -77,6 +77,9 @@ Concise and precise.
 - Don’t “helpfully” restore deleted files/folders (e.g. `scripts/`) unless explicitly asked.
 - When some files “unexpectedly” dissapeared or got commited, assume it's user and don't undo his edits, adapt to them.
 - DON'T UNDO CHANGES THAT OTHER agent OR ME MADE. ADAPT OR IGNORE.
+- Don’t add legacy/backward-compatibility support unless explicitly asked.
+- When replacing an LLM field or schema shape, remove the old field completely from prompts, schemas, logs, previews, and related code paths unless explicitly asked to keep it.
+- Never edit or delete files in `logs/` unless the user explicitly asks for that exact change.
 
 ## MCP & Skills (When Relevant)
 

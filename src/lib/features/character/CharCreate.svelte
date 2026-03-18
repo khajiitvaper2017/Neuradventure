@@ -7,7 +7,7 @@
     storyModulesPreviewCore,
     storyModulesPreviewNpc,
     storyModulesPreviewPlayer,
-  } from "@/domain/story/story-modules"
+  } from "@/domain/story/module-definitions"
   import { goBack, navigate } from "@/stores/router"
   import { showError, showQuietNotice } from "@/stores/ui"
   import { cn } from "@/utils.js"

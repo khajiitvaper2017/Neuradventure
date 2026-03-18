@@ -2,6 +2,7 @@
   import { untrack } from "svelte"
   import { SvelteSet } from "svelte/reactivity"
   import type { MainCharacterState, NPCState, StoryModules } from "@/types/types"
+  import type { CharacterCreation } from "@/types/models"
   import type { CustomFieldDef, StoryCharacterGroup, StoryNpcGroup } from "@/types/api"
   import { stories as storiesService } from "@/services/stories"
   import { settings as settingsService } from "@/services/settings"
@@ -30,6 +31,8 @@
   import { formatStoryLabel } from "@/features/story/formatStoryLabel"
   import { characterToNpc } from "@/utils/characterToNpc"
   import { isCustomFieldModuleEnabled } from "@/domain/story/custom-field-modules"
+  import { buildCharacterFromCreation } from "@/domain/story/state"
+  import { extractCustomFieldPatch, getCharacterPatch } from "@/llm/contract"
   import {
     pendingCharacter,
     pendingStoryTitle,
@@ -52,7 +55,7 @@
     storyModulesPreviewCore,
     storyModulesPreviewNpc,
     storyModulesPreviewPlayer,
-  } from "@/domain/story/story-modules"
+  } from "@/domain/story/module-definitions"
 
   let submitting = $state(false)
   let generating = $state(false)
@@ -268,6 +271,18 @@
     return { ...current, ...(patch as Record<string, string | string[]>) }
   }
 
+  function extractCharacterCustomFields(
+    patch: Record<string, unknown> | null,
+  ): Record<string, string | string[]> | undefined {
+    return extractCustomFieldPatch(patch, [
+      "current_location",
+      "current_appearance",
+      "current_clothing",
+      "current_activity",
+      "inventory",
+    ])
+  }
+
   function updatePendingCharacter(patch: Partial<Omit<MainCharacterState, "inventory">>) {
     pendingCharacter.update((c) => (c ? { ...c, ...patch } : c))
   }
@@ -315,29 +330,27 @@
           if (typeof patch.starting_location === "string") pendingStoryLocation.set(patch.starting_location)
           if (typeof patch.starting_date === "string") pendingStoryDate.set(patch.starting_date)
           if (typeof patch.starting_time === "string") pendingStoryTime.set(patch.starting_time)
-          if (
-            typeof patch.general_description === "string" ||
-            typeof patch.current_appearance === "string" ||
-            typeof patch.current_clothing === "string" ||
-            typeof patch.current_activity === "string" ||
-            (patch.character_custom_fields && typeof patch.character_custom_fields === "object")
-          ) {
+          const playerPatch = getCharacterPatch(patch, character.name)
+          if (typeof patch.general_description === "string" || playerPatch) {
             pendingCharacter.update((c) => {
               if (!c) return c
-              const customFields = mergeCustomFields(c.custom_fields, patch.character_custom_fields)
+              const customFields = mergeCustomFields(c.custom_fields, extractCharacterCustomFields(playerPatch))
               return {
                 ...c,
                 ...(typeof patch.general_description === "string"
                   ? { general_description: patch.general_description }
                   : {}),
-                ...(modules.character_appearance_clothing && typeof patch.current_appearance === "string"
-                  ? { current_appearance: patch.current_appearance }
+                ...(modules.character_appearance_clothing && typeof playerPatch?.current_appearance === "string"
+                  ? { current_appearance: playerPatch.current_appearance }
                   : {}),
-                ...(modules.character_appearance_clothing && typeof patch.current_clothing === "string"
-                  ? { current_clothing: patch.current_clothing }
+                ...(modules.character_appearance_clothing && typeof playerPatch?.current_clothing === "string"
+                  ? { current_clothing: playerPatch.current_clothing }
                   : {}),
-                ...(modules.character_activity && typeof patch.current_activity === "string"
-                  ? { current_activity: patch.current_activity }
+                ...(modules.character_activity && typeof playerPatch?.current_activity === "string"
+                  ? { current_activity: playerPatch.current_activity }
+                  : {}),
+                ...(modules.character_location && typeof patch.starting_location === "string"
+                  ? { current_location: patch.starting_location }
                   : {}),
                 ...(customFields !== c.custom_fields ? { custom_fields: customFields } : {}),
               }
@@ -355,11 +368,14 @@
       pendingStoryLocation.set(result.starting_location)
       pendingStoryDate.set(result.starting_date)
       pendingStoryTime.set(result.starting_time)
+      const playerPatch = getCharacterPatch(result, character.name)
       const selectedNames = new Set(selectedNpcs.map((n) => (n.name || "").trim().toLowerCase()).filter(Boolean))
       pendingStoryNPCs.set(
-        (result.pregen_npcs ?? []).filter((npc) => !selectedNames.has((npc.name || "").trim().toLowerCase())),
+        (result.character_introductions ?? [])
+          .map((creation) => buildCharacterFromCreation(creation as CharacterCreation))
+          .filter((npc) => !selectedNames.has((npc.name || "").trim().toLowerCase())),
       )
-      if (result.selected_npc_updates && result.selected_npc_updates.length > 0) {
+      if (selectedNpcContext.length > 0) {
         const nameToId = new Map(
           selectedNpcContext
             .map(({ id, npc }) => [npc.name.trim().toLowerCase(), id] as const)
@@ -367,18 +383,19 @@
         )
         pendingStoryNpcOverridesById.update((prev) => {
           const next = { ...prev }
-          for (const raw of result.selected_npc_updates ?? []) {
-            const nameKey = (raw.name || "").trim().toLowerCase()
+          for (const { npc } of selectedNpcContext) {
+            const raw = getCharacterPatch(result, npc.name)
+            const nameKey = npc.name.trim().toLowerCase()
             if (!nameKey) continue
             const id = nameToId.get(nameKey)
-            if (!id) continue
+            if (!id || !raw) continue
             const patch: Partial<NPCState> = {}
-            if (typeof raw.race === "string") patch.race = raw.race
-            if (typeof raw.gender === "string") patch.gender = raw.gender
             if (typeof raw.current_location === "string") patch.current_location = raw.current_location
             if (typeof raw.current_activity === "string") patch.current_activity = raw.current_activity
             if (typeof raw.current_clothing === "string") patch.current_clothing = raw.current_clothing
             if (typeof raw.current_appearance === "string") patch.current_appearance = raw.current_appearance
+            const customFields = extractCharacterCustomFields(raw)
+            if (customFields) patch.custom_fields = mergeCustomFields(next[id]?.custom_fields, customFields)
             next[id] = { ...(next[id] ?? {}), ...patch }
           }
           return next
@@ -387,17 +404,29 @@
       const updatedCharacter = {
         ...character,
         general_description: result.general_description,
+        ...(modules.character_location ? { current_location: result.starting_location } : {}),
         ...(modules.character_appearance_clothing
           ? {
-              current_appearance: result.current_appearance ?? character.current_appearance,
-              current_clothing: result.current_clothing ?? character.current_clothing,
+              current_appearance:
+                typeof playerPatch?.current_appearance === "string"
+                  ? playerPatch.current_appearance
+                  : character.current_appearance,
+              current_clothing:
+                typeof playerPatch?.current_clothing === "string"
+                  ? playerPatch.current_clothing
+                  : character.current_clothing,
             }
           : {}),
         ...(modules.character_activity
-          ? { current_activity: result.current_activity ?? character.current_activity }
+          ? {
+              current_activity:
+                typeof playerPatch?.current_activity === "string"
+                  ? playerPatch.current_activity
+                  : character.current_activity,
+            }
           : {}),
-        ...(result.character_custom_fields
-          ? { custom_fields: mergeCustomFields(character.custom_fields, result.character_custom_fields) }
+        ...(extractCharacterCustomFields(playerPatch)
+          ? { custom_fields: mergeCustomFields(character.custom_fields, extractCharacterCustomFields(playerPatch)) }
           : {}),
       }
       pendingCharacter.set(updatedCharacter)

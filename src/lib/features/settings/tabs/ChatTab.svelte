@@ -1,17 +1,13 @@
 <script lang="ts">
-  import promptFields from "@/config/prompt-fields.json"
   import FieldPromptOverridesCard from "@/features/settings/components/FieldPromptOverridesCard.svelte"
   import PromptTemplatesCard from "@/features/settings/components/PromptTemplatesCard.svelte"
+  import { CHAT_FIELD_PREFIXES, getFieldDescriptionMap, listFieldKeysWithPrefixes } from "@/llm/contract/descriptions"
 
   type Props = { active?: boolean }
   let { active = false }: Props = $props()
 
-  const builtins = promptFields as Record<string, string>
-  const CHAT_FIELD_PREFIXES = ["generation.chat.", "chat."] as const
-
-  const chatFieldKeys = Object.keys(builtins)
-    .filter((k) => CHAT_FIELD_PREFIXES.some((p) => k.startsWith(p)))
-    .sort((a, b) => a.localeCompare(b))
+  const builtins = getFieldDescriptionMap()
+  const chatFieldKeys = listFieldKeysWithPrefixes(builtins, CHAT_FIELD_PREFIXES)
 </script>
 
 <div class="space-y-4">

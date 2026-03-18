@@ -1,6 +1,5 @@
 import { z } from "zod"
 import { derefJsonSchema, zodSchemaToJsonSchema } from "@/llm/schema/json-schema"
-import { injectSchemaDescriptions } from "@/llm/schema/inject-schema-descriptions"
 
 type MissingDescription = { path: string }
 
@@ -12,9 +11,7 @@ export function buildInjectedJsonSchema(
   missing: MissingDescription[]
 } {
   const schema = zodSchemaToJsonSchema(zodSchema, schemaName)
-  const deref = derefJsonSchema(schema)
-  const injected = injectSchemaDescriptions(schemaName, deref)
-  return { jsonSchema: injected.schema, missing: injected.missing as MissingDescription[] }
+  return { jsonSchema: derefJsonSchema(schema), missing: [] }
 }
 
 export function warnOnMissingSchemaDescriptions(schemaName: string, missing: MissingDescription[]): void {

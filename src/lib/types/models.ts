@@ -12,28 +12,11 @@ import {
   WorldStateStoredSchema,
 } from "@/domain/story/schemas/game-state"
 import { StoryModulesSchema } from "@/domain/story/schemas/story-modules"
-import { NPCStateUpdateBaseSchema } from "@/domain/story/schemas/npc-state-update-base"
-import {
-  SetCurrentAppearanceSection,
-  CurrentClothingSection,
-  SetCurrentInventorySection,
-  NPCChangesSection,
-  NPCIntroductionsSection,
-  NPCStateUpdateSchema,
-  NPCCreationSchema,
-  TurnResponseSchema,
-  buildNPCChangesSection,
-  buildNPCStateUpdateSchema,
-} from "@/domain/story/schemas/llm-response"
 import {
   GenerateCharacterAppearanceResponseSchema,
   GenerateCharacterClothingResponseSchema,
-  GenerateCharacterResponseSchema,
   GenerateCharacterTraitsResponseSchema,
   GenerateChatResponseSchema,
-  StoryResponseSchema,
-  buildGenerateCharacterResponseSchema,
-  buildStoryResponseSchema,
 } from "@/domain/story/schemas/story-response"
 import {
   CancelLastRequestSchema,
@@ -55,7 +38,6 @@ import {
   UpdateStoryStateRequestSchema,
   UpdateTurnRequestSchema,
 } from "@/domain/story/schemas/requests"
-
 export {
   InventoryItemSchema,
   CharacterStateSchema,
@@ -68,25 +50,10 @@ export {
   WorldStateUpdateSchema,
   WorldStateSchema,
   WorldStateStoredSchema,
-  NPCStateUpdateBaseSchema,
-  buildNPCStateUpdateSchema,
-  NPCStateUpdateSchema,
-  NPCCreationSchema,
-  SetCurrentAppearanceSection,
-  CurrentClothingSection,
-  SetCurrentInventorySection,
-  buildNPCChangesSection,
-  NPCChangesSection,
-  NPCIntroductionsSection,
-  TurnResponseSchema,
-  GenerateCharacterResponseSchema,
   GenerateCharacterAppearanceResponseSchema,
   GenerateCharacterClothingResponseSchema,
   GenerateCharacterTraitsResponseSchema,
   GenerateChatResponseSchema,
-  StoryResponseSchema,
-  buildGenerateCharacterResponseSchema,
-  buildStoryResponseSchema,
   CreateCharacterRequestSchema,
   UpdateCharacterRequestSchema,
   CreateStoryRequestSchema,
@@ -114,9 +81,29 @@ export type NPCState = z.infer<typeof NPCStateSchema>
 export type StoryModules = z.infer<typeof StoryModulesSchema>
 export type WorldStateUpdate = z.infer<typeof WorldStateUpdateSchema>
 export type WorldState = z.infer<typeof WorldStateSchema>
-export type TurnResponse = z.infer<typeof TurnResponseSchema>
-export type NPCStateUpdate = z.infer<typeof NPCStateUpdateSchema>
-export type NPCCreation = z.infer<typeof NPCCreationSchema>
+export type CharacterCreation = Pick<NPCState, "name" | "race" | "gender" | "general_description"> &
+  Partial<
+    Pick<
+      NPCState,
+      | "current_location"
+      | "current_activity"
+      | "baseline_appearance"
+      | "current_appearance"
+      | "current_clothing"
+      | "personality_traits"
+      | "major_flaws"
+      | "perks"
+      | "inventory"
+    >
+  > & {
+    custom_fields?: Record<string, string | string[]>
+  }
+export type TurnResponse = {
+  narrative_text: string
+  background_events?: string
+  world_state_update: WorldStateUpdate
+  character_introductions?: CharacterCreation[]
+} & Record<string, unknown>
 
 export type CreateCharacterRequest = z.infer<typeof CreateCharacterRequestSchema>
 export type CreateStoryRequest = z.infer<typeof CreateStoryRequestSchema>
@@ -133,9 +120,3 @@ export type ImpersonateRequest = z.infer<typeof ImpersonateRequestSchema>
 export type CancelLastRequest = z.infer<typeof CancelLastRequestSchema>
 export type UndoCancelRequest = z.infer<typeof UndoCancelRequestSchema>
 export type SelectTurnVariantRequest = z.infer<typeof SelectTurnVariantRequestSchema>
-export type GenerateCharacterResponse = z.infer<typeof GenerateCharacterResponseSchema>
-export type GenerateCharacterAppearanceResponse = z.infer<typeof GenerateCharacterAppearanceResponseSchema>
-export type GenerateCharacterClothingResponse = z.infer<typeof GenerateCharacterClothingResponseSchema>
-export type GenerateCharacterTraitsResponse = z.infer<typeof GenerateCharacterTraitsResponseSchema>
-export type GenerateChatResponse = z.infer<typeof GenerateChatResponseSchema>
-export type StoryResponse = z.infer<typeof StoryResponseSchema>

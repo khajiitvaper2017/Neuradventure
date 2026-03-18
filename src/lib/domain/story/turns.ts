@@ -3,8 +3,7 @@ import {
   NPCStateStoredSchema,
   WorldStateStoredSchema,
   type MainCharacterState,
-  type NPCCreation,
-  type NPCStateUpdate,
+  type CharacterCreation,
   type NPCState,
   type StoryModules,
   type TurnResponse,
@@ -13,13 +12,13 @@ import {
 import type { CancelLastResult, SelectVariantResult, TurnResult, UndoCancelResult } from "@/types/api"
 import * as db from "@/db/core"
 import { buildTurnMessages, callLLM, getCtxLimitCached } from "@/llm"
+import { buildLlmContract } from "@/llm/contract"
 import { resolveModuleFlags } from "@/domain/story/schemas/story-modules"
 import {
-  applyNPCCreations,
-  applyNPCUpdates,
-  applyPlayerUpdate,
+  applyCharacterIntroductions,
+  applyCharacterUpdate,
+  applyCharacterUpdates,
   collectLlmWarnings,
-  syncCharacterLocation,
 } from "@/domain/story/state"
 import { parseInitialStorySnapshot, parseTurnSnapshot, parseTurnVariantSnapshot } from "@/domain/story/snapshots"
 import { getAuthorNote, getStoryCharacterBook, getStoryModules } from "@/domain/story/helpers"
@@ -36,10 +35,12 @@ type TurnSnapshot = {
   npcs: NPCState[]
 }
 
-type NPCUpdateArray = NPCStateUpdate[]
-
-function buildWorldUpdate(baseWorld: WorldState, update: TurnResponse["world_state_update"]) {
-  const nextCurrentScene = update.current_scene ?? baseWorld.current_scene
+function buildWorldUpdate(
+  baseWorld: WorldState,
+  update: TurnResponse["world_state_update"],
+  character: MainCharacterState,
+) {
+  const nextCurrentLocation = character.current_location || baseWorld.current_location
   const nextTimeOfDay = update.time_of_day ?? baseWorld.time_of_day
   const nextCustomFields =
     update.custom_fields && typeof update.custom_fields === "object" && !Array.isArray(update.custom_fields)
@@ -47,28 +48,40 @@ function buildWorldUpdate(baseWorld: WorldState, update: TurnResponse["world_sta
       : baseWorld.custom_fields
 
   return {
-    current_scene: nextCurrentScene,
+    current_location: nextCurrentLocation,
     time_of_day: nextTimeOfDay,
     memory: baseWorld.memory,
     custom_fields: nextCustomFields,
   }
 }
 
-function applyTurnResponse(
-  snapshot: TurnSnapshot,
-  response: TurnResponse,
-  modules: StoryModules,
-  options: { syncCharacterLocation?: boolean } = {},
-) {
+function applyTurnResponse(snapshot: TurnSnapshot, response: TurnResponse, modules: StoryModules) {
   const flags = resolveModuleFlags(modules)
-  const newCharacter = applyPlayerUpdate(snapshot.character, response, flags)
-  const npcUpdates: NPCUpdateArray = modules.track_npcs ? (response.npc_changes ?? []) : []
-  const updatedNpcs = modules.track_npcs ? applyNPCUpdates(snapshot.npcs, npcUpdates, flags) : snapshot.npcs
-  const npcCreations: NPCCreation[] = modules.track_npcs ? (response.npc_introductions ?? []) : []
-  const newNpcs = modules.track_npcs ? applyNPCCreations(updatedNpcs, npcCreations) : updatedNpcs
-  const newWorld = buildWorldUpdate(snapshot.world, response.world_state_update)
-  const finalCharacter = options.syncCharacterLocation ? syncCharacterLocation(newCharacter, newWorld) : newCharacter
-  return { character: finalCharacter, world: newWorld, npcs: newNpcs }
+  const contract = buildLlmContract("turn", {
+    modules,
+    playerName: snapshot.character.name,
+    knownNpcNames: snapshot.npcs.map((npc) => npc.name),
+  })
+  const playerPolicy = {
+    useAppearance: flags.useCharAppearance,
+    useLocation: flags.useCharLocation,
+    useActivity: flags.useCharActivity,
+    useInventory: flags.useCharInventory,
+    builtInKeys: contract.builtInUpdateKeys.player,
+  }
+  const npcPolicy = {
+    useAppearance: flags.useNpcAppearance,
+    useLocation: flags.useNpcLocation,
+    useActivity: flags.useNpcActivity,
+    useInventory: flags.useNpcInventory,
+    builtInKeys: contract.builtInUpdateKeys.npc,
+  }
+  const newCharacter = applyCharacterUpdate(snapshot.character, response, playerPolicy)
+  const updatedNpcs = modules.track_npcs ? applyCharacterUpdates(snapshot.npcs, response, npcPolicy) : snapshot.npcs
+  const characterIntroductions: CharacterCreation[] = modules.track_npcs ? (response.character_introductions ?? []) : []
+  const newNpcs = modules.track_npcs ? applyCharacterIntroductions(updatedNpcs, characterIntroductions) : updatedNpcs
+  const newWorld = buildWorldUpdate(snapshot.world, response.world_state_update, newCharacter)
+  return { character: newCharacter, world: newWorld, npcs: newNpcs }
 }
 
 export async function processTurn(
@@ -104,13 +117,13 @@ export async function processTurn(
     modules,
     characterBook,
   )
-  const turnResponse = await callLLM(messages, npcs, modules, { onPreviewPatch: options.onPreviewPatch })
+  const turnResponse = await callLLM(messages, character.name, npcs, modules, {
+    onPreviewPatch: options.onPreviewPatch,
+  })
   const llmWarnings = collectLlmWarnings(world, npcs, turnResponse)
   const backgroundEvents = turnResponse.background_events ?? null
 
-  const updated = applyTurnResponse({ character, world, npcs }, turnResponse, modules, {
-    syncCharacterLocation: true,
-  })
+  const updated = applyTurnResponse({ character, world, npcs }, turnResponse, modules)
 
   db.updateStory(storyId, updated.character, updated.world, updated.npcs)
 
@@ -328,7 +341,9 @@ export async function regenerateLastTurn(
     modules,
     characterBook,
   )
-  const turnResponse = await callLLM(messages, snapshot.npcs, modules, { onPreviewPatch: options.onPreviewPatch })
+  const turnResponse = await callLLM(messages, snapshot.character.name, snapshot.npcs, modules, {
+    onPreviewPatch: options.onPreviewPatch,
+  })
   const llmWarnings = collectLlmWarnings(snapshot.world, snapshot.npcs, turnResponse)
   const backgroundEvents = turnResponse.background_events ?? null
 

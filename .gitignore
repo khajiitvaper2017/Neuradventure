@@ -4,6 +4,7 @@ node_modules/
 .svelte-kit/
 .vscode/
 build/
+logs/
 
 package-lock.json
 .env

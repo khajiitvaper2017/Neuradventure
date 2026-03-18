@@ -1,23 +1,15 @@
 import { z } from "zod"
+import { MODULE_DEFS, STORY_MODULE_KEYS } from "@/domain/story/module-definitions"
+import type { StoryModules as SharedStoryModules } from "@/types/types"
 
-export const StoryModulesSchema = z
+const storyModuleShape = Object.fromEntries(STORY_MODULE_KEYS.map((key) => [key, z.boolean()])) as Record<
+  string,
+  z.ZodTypeAny
+>
+
+export const StoryModulesSchema: z.ZodType<SharedStoryModules> = z
   .object({
-    track_npcs: z.boolean(),
-    track_background_events: z.boolean(),
-    character_appearance_clothing: z.boolean(),
-    character_personality_traits: z.boolean(),
-    character_major_flaws: z.boolean(),
-    character_perks: z.boolean(),
-    character_inventory: z.boolean(),
-    character_location: z.boolean(),
-    character_activity: z.boolean(),
-    npc_appearance_clothing: z.boolean(),
-    npc_personality_traits: z.boolean(),
-    npc_major_flaws: z.boolean(),
-    npc_perks: z.boolean(),
-    npc_inventory: z.boolean(),
-    npc_location: z.boolean(),
-    npc_activity: z.boolean(),
+    ...storyModuleShape,
     custom_field_modules: z
       .record(
         z.string().trim().min(1),
@@ -30,29 +22,19 @@ export const StoryModulesSchema = z
       )
       .optional(),
   })
-  .strip()
+  .strip() as unknown as z.ZodType<SharedStoryModules>
 
-export type StoryModules = z.infer<typeof StoryModulesSchema>
+export type StoryModules = SharedStoryModules
 
 export const DEFAULT_STORY_MODULES: StoryModules = {
-  track_npcs: true,
-  track_background_events: false,
-  character_appearance_clothing: true,
-  character_personality_traits: true,
-  character_major_flaws: true,
-  character_perks: true,
-  character_inventory: true,
-  character_location: true,
-  character_activity: true,
-  npc_appearance_clothing: true,
-  npc_personality_traits: true,
-  npc_major_flaws: true,
-  npc_perks: true,
-  npc_inventory: true,
-  npc_location: true,
-  npc_activity: true,
+  ...Object.fromEntries(
+    MODULE_DEFS.map((def) => {
+      if (def.id === "track_background_events") return [def.id, false]
+      return [def.id, true]
+    }),
+  ),
   custom_field_modules: {},
-}
+} as StoryModules
 
 export type ModuleFlags = {
   useCharAppearance: boolean
@@ -72,9 +54,8 @@ export type ModuleFlags = {
 }
 
 export function resolveModuleFlags(modules: StoryModules): ModuleFlags {
-  const useCharAppearance = modules.character_appearance_clothing
   return {
-    useCharAppearance,
+    useCharAppearance: modules.character_appearance_clothing,
     useCharPersonalityTraits: modules.character_personality_traits,
     useCharMajorFlaws: modules.character_major_flaws,
     useCharPerks: modules.character_perks,
@@ -113,36 +94,10 @@ export function normalizeStoryModules(value: unknown, fallback: StoryModules): S
     }
     return out
   })()
-  return {
-    track_npcs: typeof raw.track_npcs === "boolean" ? raw.track_npcs : fallback.track_npcs,
-    track_background_events:
-      typeof raw.track_background_events === "boolean" ? raw.track_background_events : fallback.track_background_events,
-    character_appearance_clothing:
-      typeof raw.character_appearance_clothing === "boolean"
-        ? raw.character_appearance_clothing
-        : fallback.character_appearance_clothing,
-    character_personality_traits:
-      typeof raw.character_personality_traits === "boolean"
-        ? raw.character_personality_traits
-        : fallback.character_personality_traits,
-    character_major_flaws:
-      typeof raw.character_major_flaws === "boolean" ? raw.character_major_flaws : fallback.character_major_flaws,
-    character_perks: typeof raw.character_perks === "boolean" ? raw.character_perks : fallback.character_perks,
-    character_inventory:
-      typeof raw.character_inventory === "boolean" ? raw.character_inventory : fallback.character_inventory,
-    character_location:
-      typeof raw.character_location === "boolean" ? raw.character_location : fallback.character_location,
-    character_activity:
-      typeof raw.character_activity === "boolean" ? raw.character_activity : fallback.character_activity,
-    npc_appearance_clothing:
-      typeof raw.npc_appearance_clothing === "boolean" ? raw.npc_appearance_clothing : fallback.npc_appearance_clothing,
-    npc_personality_traits:
-      typeof raw.npc_personality_traits === "boolean" ? raw.npc_personality_traits : fallback.npc_personality_traits,
-    npc_major_flaws: typeof raw.npc_major_flaws === "boolean" ? raw.npc_major_flaws : fallback.npc_major_flaws,
-    npc_perks: typeof raw.npc_perks === "boolean" ? raw.npc_perks : fallback.npc_perks,
-    npc_inventory: typeof raw.npc_inventory === "boolean" ? raw.npc_inventory : fallback.npc_inventory,
-    npc_location: typeof raw.npc_location === "boolean" ? raw.npc_location : fallback.npc_location,
-    npc_activity: typeof raw.npc_activity === "boolean" ? raw.npc_activity : fallback.npc_activity,
-    custom_field_modules,
+  const normalized = { ...fallback } as StoryModules
+  for (const key of STORY_MODULE_KEYS) {
+    normalized[key] = typeof raw[key] === "boolean" ? (raw[key] as boolean) : fallback[key]
   }
+  normalized.custom_field_modules = custom_field_modules
+  return normalized
 }

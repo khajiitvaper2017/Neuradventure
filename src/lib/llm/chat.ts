@@ -1,5 +1,6 @@
 import type { MainCharacterState, NPCState } from "@/types/models"
-import { GenerateChatResponseSchema, type GenerateChatResponse } from "@/types/models"
+import { GenerateChatResponseSchema } from "@/types/models"
+import type { GenerateChatResponse } from "@/types/api"
 import { getChatPrompt, getGenerateChatPrompt } from "@/llm/config"
 import { getServerDefaults } from "@/utils/text/strings"
 import { callLLMRaw, callLLMText } from "@/llm/call"
