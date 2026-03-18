@@ -5,7 +5,7 @@ function isEnabledForScope(def: CustomFieldDef, scope: CustomFieldDef["scope"]):
   return def.scope === scope && def.enabled === true
 }
 
-export function buildCharacterCustomFieldsUpdateSchema(defs: CustomFieldDef[]): z.ZodObject {
+export function buildCharacterCustomFieldShape(defs: CustomFieldDef[]): Record<string, z.ZodTypeAny> {
   const shape: Record<string, z.ZodTypeAny> = {}
   for (const def of defs) {
     if (!isEnabledForScope(def, "character")) continue
@@ -17,7 +17,11 @@ export function buildCharacterCustomFieldsUpdateSchema(defs: CustomFieldDef[]): 
         ? z.array(z.string().min(1)).min(1).optional().describe(placeholder)
         : z.string().min(1).optional().describe(placeholder)
   }
-  return z.object(shape).strict()
+  return shape
+}
+
+export function buildCharacterCustomFieldsUpdateSchema(defs: CustomFieldDef[]): z.ZodObject {
+  return z.object(buildCharacterCustomFieldShape(defs)).strict()
 }
 
 export function buildWorldCustomFieldsUpdateSchema(defs: CustomFieldDef[]): z.ZodObject {

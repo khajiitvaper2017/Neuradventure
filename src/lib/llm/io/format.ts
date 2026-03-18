@@ -199,7 +199,7 @@ export function buildHistoryBlock(
 
   const summaryContent = [
     "{",
-    `  "current_scene": "${escapeForInlineJson(world.current_scene)}",`,
+    `  "current_location": "${escapeForInlineJson(world.current_location)}",`,
     `  "time_of_day": "${escapeForInlineJson(world.time_of_day)}"`,
     "}",
   ].join("\n")

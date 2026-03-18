@@ -2,7 +2,7 @@ import { z } from "zod"
 import { PersonalityTraitSchema } from "@/domain/story/schemas/personality-traits"
 import { TIME_OF_DAY_REGEX } from "@/domain/story/schemas/constants"
 import {
-  normalizeCurrentScene,
+  normalizeCurrentLocation,
   normalizeNonEmptyString,
   normalizeGender,
   normalizePersonalityTraits,
@@ -136,7 +136,6 @@ export const NPCStateStoredSchema = CharacterStateStoredBaseSchema.transform((va
 
 export const WorldStateUpdateSchema = z
   .object({
-    current_scene: z.string().min(1).optional(),
     time_of_day: z.string().regex(TIME_OF_DAY_REGEX, "time_of_day must be 24h HH:MM").optional(),
     custom_fields: CustomFieldsUpdateSchema,
   })
@@ -144,7 +143,7 @@ export const WorldStateUpdateSchema = z
 
 export const WorldStateSchema: z.ZodType<SharedWorldState> = z
   .object({
-    current_scene: z.string().min(1),
+    current_location: z.string().min(1),
     time_of_day: z.string().regex(TIME_OF_DAY_REGEX, "time_of_day must be 24h HH:MM"),
     memory: z.string().min(1),
     custom_fields: CustomFieldsSchema,
@@ -153,16 +152,16 @@ export const WorldStateSchema: z.ZodType<SharedWorldState> = z
 
 export const WorldStateStoredSchema: z.ZodType<SharedWorldState> = z
   .object({
-    current_scene: z.string().optional(),
+    current_location: z.string().optional(),
     time_of_day: z.string().optional(),
     memory: z.string().optional(),
     custom_fields: z.unknown().optional(),
   })
   .passthrough()
   .transform((value) => {
-    const currentScene = normalizeCurrentScene(value.current_scene)
+    const currentLocation = normalizeCurrentLocation(value.current_location)
     const normalized = {
-      current_scene: currentScene,
+      current_location: currentLocation,
       time_of_day: normalizeTimeOfDay(value.time_of_day),
       memory: normalizeMemory(value.memory),
       custom_fields: normalizeCustomFields(value.custom_fields),

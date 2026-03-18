@@ -13,7 +13,7 @@
   type Props = {
     storyDiv?: HTMLDivElement | null
     initialScrollDone?: boolean
-    flashScene?: boolean
+    flashLocation?: boolean
     flashOpening?: boolean
     editingOpening?: boolean
     openingDraft?: string
@@ -35,7 +35,7 @@
     handleStoryScroll?: () => void
     streamNarrative?: string
     streamBackground?: string
-    streamScene?: string
+    streamLocation?: string
     streamTime?: string
     pendingPlayerInput?: string
   }
@@ -43,7 +43,7 @@
   let {
     storyDiv = $bindable(null),
     initialScrollDone = false,
-    flashScene = false,
+    flashLocation = false,
     flashOpening = false,
     editingOpening = false,
     openingDraft = $bindable(""),
@@ -65,7 +65,7 @@
     handleStoryScroll,
     streamNarrative = "",
     streamBackground = "",
-    streamScene = "",
+    streamLocation = "",
     streamTime = "",
     pendingPlayerInput = "",
   }: Props = $props()
@@ -88,10 +88,10 @@
       <p
         class={cn(
           "mb-5 text-[11px] uppercase tracking-wider text-muted-foreground/80 min-[1200px]:hidden",
-          flashScene && "animate-pulse",
+          flashLocation && "animate-pulse",
         )}
       >
-        {$worldState.current_scene} · {$worldState.time_of_day}
+        {$worldState.current_location} · {$worldState.time_of_day}
       </p>
     {/if}
 
@@ -116,7 +116,7 @@
       </div>
       {#if $currentStoryInitialWorld}
         <p class="mt-2 text-[11px] uppercase tracking-wider text-muted-foreground/80">
-          {$currentStoryInitialWorld.current_scene} · {$currentStoryInitialWorld.time_of_day}
+          {$currentStoryInitialWorld.current_location} · {$currentStoryInitialWorld.time_of_day}
         </p>
       {/if}
       {#if editingOpening}
@@ -236,7 +236,7 @@
         {@render turnBody({
           anchorId: turn.id,
           statusText: $isGenerating && regeneratingTurnId === turn.id ? "Regenerating…" : "",
-          worldLine: turn.world ? `${turn.world.current_scene} · ${turn.world.time_of_day}` : "",
+          worldLine: turn.world ? `${turn.world.current_location} · ${turn.world.time_of_day}` : "",
           backgroundEvents: turn.background_events,
           narrativeText: turn.narrative_text,
           isFresh,
@@ -265,7 +265,7 @@
     {#if $isGenerating && $streamingEnabled}
       {@const pendingInput = pendingPlayerInput}
       {@const streamWorldLine =
-        streamScene && streamTime ? `${streamScene} · ${streamTime}` : streamScene || streamTime || ""}
+        streamLocation && streamTime ? `${streamLocation} · ${streamTime}` : streamLocation || streamTime || ""}
 
       {@render turnPlayerBar(pendingInput, { isFresh: false, ariaLive: true })}
 

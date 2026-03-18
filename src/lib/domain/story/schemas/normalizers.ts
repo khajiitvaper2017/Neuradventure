@@ -52,7 +52,7 @@ export function normalizeTimeOfDay(value: unknown): string {
   return getServerDefaults().defaultTimeOfDay
 }
 
-export function normalizeCurrentScene(value: unknown): string {
+export function normalizeCurrentLocation(value: unknown): string {
   if (typeof value === "string") {
     const trimmed = value.trim()
     if (trimmed.length > 0) {

@@ -21,6 +21,11 @@ export type NPCUpdateFlags = {
   allowInventory: boolean
 }
 
+export type CharacterTurnUpdateFlags = NPCUpdateFlags & {
+  allowRace: boolean
+  allowGender: boolean
+}
+
 export const buildNPCStateUpdateSchema = (
   nameSchema: z.ZodType<string>,
   flags: NPCUpdateFlags = {
@@ -100,6 +105,65 @@ export const CurrentActivitySection = z.string().min(1).describe("{state.charact
 
 export const SetCurrentInventorySection = z.array(InventoryItemSchema)
 
+const TURN_CHARACTER_UPDATE_FIELD_DESCRIPTIONS = {
+  race: "{state.character.race}",
+  gender: "{state.character.gender}",
+  current_activity: "{state.character.current_activity}",
+  current_location: "{state.character.current_location}",
+  current_clothing: "{state.character.current_clothing}",
+  current_appearance: "{state.character.current_appearance}",
+  inventory: "{state.character.inventory}",
+} as const
+
+export function buildTurnCharacterUpdateSchema(
+  flags: CharacterTurnUpdateFlags,
+  customFieldShape: Record<string, z.ZodTypeAny> = {},
+): z.ZodType<Record<string, unknown>> {
+  const shape: Record<string, z.ZodTypeAny> = {}
+
+  if (flags.allowRace) shape.race = z.string().min(1).optional().describe(TURN_CHARACTER_UPDATE_FIELD_DESCRIPTIONS.race)
+  if (flags.allowGender)
+    shape.gender = z.string().min(1).optional().describe(TURN_CHARACTER_UPDATE_FIELD_DESCRIPTIONS.gender)
+  if (flags.allowActivity)
+    shape.current_activity = z
+      .string()
+      .min(1)
+      .optional()
+      .describe(TURN_CHARACTER_UPDATE_FIELD_DESCRIPTIONS.current_activity)
+  if (flags.allowLocation)
+    shape.current_location = z
+      .string()
+      .min(1)
+      .optional()
+      .describe(TURN_CHARACTER_UPDATE_FIELD_DESCRIPTIONS.current_location)
+  if (flags.allowClothing)
+    shape.current_clothing = z
+      .string()
+      .min(1)
+      .optional()
+      .describe(TURN_CHARACTER_UPDATE_FIELD_DESCRIPTIONS.current_clothing)
+  if (flags.allowAppearance)
+    shape.current_appearance = z
+      .string()
+      .min(1)
+      .optional()
+      .describe(TURN_CHARACTER_UPDATE_FIELD_DESCRIPTIONS.current_appearance)
+  if (flags.allowInventory)
+    shape.inventory = z
+      .array(InventoryItemSchema)
+      .optional()
+      .describe(TURN_CHARACTER_UPDATE_FIELD_DESCRIPTIONS.inventory)
+
+  Object.assign(shape, customFieldShape)
+
+  return z
+    .object(shape)
+    .strict()
+    .refine((value) => Object.values(value).some((entry) => entry !== undefined), {
+      message: "Include at least one changed field.",
+    }) as z.ZodType<Record<string, unknown>>
+}
+
 export const BackgroundEventsSection = z
   .preprocess((value) => {
     if (typeof value !== "string") return value
@@ -124,13 +188,7 @@ export const TurnResponseSchema = z
   .object({
     narrative_text: z.string().min(1),
     background_events: BackgroundEventsSection,
-    current_clothing: CurrentClothingSection.optional(),
-    current_appearance: SetCurrentAppearanceSection.optional(),
-    current_activity: CurrentActivitySection.optional(),
-    current_inventory: SetCurrentInventorySection.optional(),
-    character_custom_fields: CustomFieldsAnySchema.optional(),
     world_state_update: WorldStateUpdateSchema.optional().default({}),
-    npc_changes: NPCChangesSection.optional(),
     npc_introductions: NPCIntroductionsSection.optional(),
   })
   .strict()

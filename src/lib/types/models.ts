@@ -24,6 +24,7 @@ import {
   TurnResponseSchema,
   buildNPCChangesSection,
   buildNPCStateUpdateSchema,
+  buildTurnCharacterUpdateSchema,
 } from "@/domain/story/schemas/llm-response"
 import {
   GenerateCharacterAppearanceResponseSchema,
@@ -79,6 +80,7 @@ export {
   NPCChangesSection,
   NPCIntroductionsSection,
   TurnResponseSchema,
+  buildTurnCharacterUpdateSchema,
   GenerateCharacterResponseSchema,
   GenerateCharacterAppearanceResponseSchema,
   GenerateCharacterClothingResponseSchema,
@@ -114,7 +116,7 @@ export type NPCState = z.infer<typeof NPCStateSchema>
 export type StoryModules = z.infer<typeof StoryModulesSchema>
 export type WorldStateUpdate = z.infer<typeof WorldStateUpdateSchema>
 export type WorldState = z.infer<typeof WorldStateSchema>
-export type TurnResponse = z.infer<typeof TurnResponseSchema>
+export type TurnResponse = z.infer<typeof TurnResponseSchema> & Record<string, unknown>
 export type NPCStateUpdate = z.infer<typeof NPCStateUpdateSchema>
 export type NPCCreation = z.infer<typeof NPCCreationSchema>
 

@@ -3,7 +3,7 @@ import { createStructuredPreviewExtractor } from "@/llm/structured-preview"
 export type PreviewExtractor = { push: (delta: string) => Record<string, unknown> | null }
 
 const DEFAULT_PREVIEW_KEYS: Record<string, string[]> = {
-  TurnResponse: ["narrative_text", "background_events", "current_scene", "time_of_day"],
+  TurnResponse: ["narrative_text", "background_events", "time_of_day"],
   GenerateCharacterResponse: ["name", "race", "gender", "general_description", "baseline_appearance", "custom_fields"],
   GenerateCharacterAppearanceResponse: ["baseline_appearance"],
   GenerateCharacterClothingResponse: ["current_clothing"],

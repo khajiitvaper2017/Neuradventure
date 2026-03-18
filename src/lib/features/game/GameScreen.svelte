@@ -93,10 +93,10 @@
     embedState: false,
   }))
   const modulesModal = createModal<StoryModules>(() => ({ ...DEFAULT_STORY_MODULES }))
-  let flashScene = $state(false)
+  let flashLocation = $state(false)
   let flashOpening = $state(false)
   let isImpersonating = $state(false)
-  const sceneFlashTimer = createTimer()
+  const locationFlashTimer = createTimer()
   const openingFlashTimer = createTimer()
   const keyboardScrollTimer = createTimer()
   let lastViewportHeight = 0
@@ -106,17 +106,17 @@
   let userActed = $state(false)
   const resumedRequestIds = new SvelteSet<string>()
 
-  let sceneText = $derived($worldState ? `${$worldState.current_scene} · ${$worldState.time_of_day}` : "")
+  let locationText = $derived($worldState ? `${$worldState.current_location} · ${$worldState.time_of_day}` : "")
   let openingText = $derived($currentStoryOpeningScenario || $worldState?.memory || "")
 
   const stream = createStreamController({
     enabled: () => $streamingEnabled,
     subscribe: subscribeStreamPreview,
-    seed: () => ({ narrative: "", background: "", scene: "", time: "" }),
+    seed: () => ({ narrative: "", background: "", location: "", time: "" }),
     reset: (state) => {
       state.narrative = ""
       state.background = ""
-      state.scene = ""
+      state.location = ""
       state.time = ""
     },
     applyPatch: (state, patch) => {
@@ -124,7 +124,6 @@
       const p = patch as Record<string, unknown>
       if (typeof p.narrative_text === "string") state.narrative = p.narrative_text
       if (typeof p.background_events === "string") state.background = p.background_events
-      if (typeof p.current_scene === "string") state.scene = p.current_scene
       if (typeof p.time_of_day === "string") state.time = p.time_of_day
     },
     isNearBottom: () => (storyDiv ? isNearBottom(storyDiv) : true),
@@ -172,21 +171,23 @@
 
   type WorldSnapshot = {
     hasBaseline: boolean
-    sceneText: string
+    locationText: string
     openingText: string
   }
 
   function snapshotWorld(): WorldSnapshot {
     return {
       hasBaseline: Boolean($worldState || $currentStoryOpeningScenario),
-      sceneText,
+      locationText,
       openingText,
     }
   }
 
   function flashWorldDiff(prev: WorldSnapshot) {
     if (!prev.hasBaseline) return
-    if (sceneText && sceneText !== prev.sceneText) triggerFlash((v) => (flashScene = v), sceneFlashTimer)
+    if (locationText && locationText !== prev.locationText) {
+      triggerFlash((v) => (flashLocation = v), locationFlashTimer)
+    }
     if (openingText && openingText !== prev.openingText) triggerFlash((v) => (flashOpening = v), openingFlashTimer)
   }
 
@@ -631,10 +632,10 @@
     const storyId = $currentStoryId
     untrack(() => {
       if (!storyId) {
-        flashScene = false
+        flashLocation = false
         flashOpening = false
         canUndoCancel = false
-        clearTimer(sceneFlashTimer)
+        clearTimer(locationFlashTimer)
         clearTimer(openingFlashTimer)
       }
     })
@@ -662,14 +663,14 @@
   })
 
   onDestroy(() => {
-    ;[sceneFlashTimer, openingFlashTimer, keyboardScrollTimer].forEach(clearTimer)
+    ;[locationFlashTimer, openingFlashTimer, keyboardScrollTimer].forEach(clearTimer)
     stream.stop()
   })
 </script>
 
 <div class="relative mx-auto flex h-dvh w-full max-w-3xl flex-col overflow-hidden">
   <GameTopBar
-    {flashScene}
+    {flashLocation}
     onGoHome={goHome}
     onOpenMemoryEditor={openMemoryEditor}
     onOpenWorldFieldsEditor={() => void openWorldFieldsEditor()}
@@ -720,7 +721,7 @@
   <GameStoryArea
     bind:storyDiv
     {initialScrollDone}
-    {flashScene}
+    {flashLocation}
     {flashOpening}
     {editingOpening}
     bind:openingDraft
@@ -742,7 +743,7 @@
     {handleStoryScroll}
     streamNarrative={stream.state.narrative}
     streamBackground={stream.state.background}
-    streamScene={stream.state.scene}
+    streamLocation={stream.state.location}
     streamTime={stream.state.time}
     {pendingPlayerInput}
   />

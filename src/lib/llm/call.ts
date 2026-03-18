@@ -29,15 +29,16 @@ import { isCustomFieldModuleEnabled } from "@/domain/story/custom-field-modules"
 
 export async function callLLM(
   messages: ChatCompletionMessageParam[],
+  playerName: string,
   knownNpcs: NPCState[] = [],
   storyModules?: StoryModules,
   options: { onPreviewPatch?: (patch: Record<string, unknown>) => void } = {},
 ): Promise<TurnResponse> {
-  const turnSchema = buildTurnResponseSchema(knownNpcs, storyModules)
+  const turnSchema = buildTurnResponseSchema(playerName, knownNpcs, storyModules)
   const includeBackgroundEvents = !!storyModules?.track_background_events
   const previewKeys = includeBackgroundEvents
-    ? ["narrative_text", "background_events", "current_scene", "time_of_day"]
-    : ["narrative_text", "current_scene", "time_of_day"]
+    ? ["narrative_text", "background_events", "time_of_day"]
+    : ["narrative_text", "time_of_day"]
   return await callLLMRaw(messages, "TurnResponse", turnSchema, undefined, {
     ...options,
     previewKeys,

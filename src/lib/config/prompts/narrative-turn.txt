@@ -36,4 +36,4 @@ Progression
 - Do not generate actions or dialogue for the player that they did not perform or say. Only show the world's reaction to what they actually did.
 
 Consistency Check (before finalizing)
-Verify that narrative_text contains no contradictions with: world_state_update, current_appearance, current_clothing, and current_inventory.
+Verify that narrative_text contains no contradictions with: world_state_update and any character update objects you include.

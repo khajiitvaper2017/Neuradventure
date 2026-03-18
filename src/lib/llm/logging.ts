@@ -23,12 +23,38 @@ export type LlmLogEntry = {
   }
 }
 
+const DEV_LLM_LOG_ENDPOINT = "/__dev/llm-log"
+
 function randomId(): string {
   try {
     return crypto.randomUUID()
   } catch {
     return `${Date.now()}_${Math.random().toString(16).slice(2)}`
   }
+}
+
+function shouldPersistDevLlmLog(): boolean {
+  try {
+    return import.meta.env.DEV && typeof window !== "undefined" && typeof fetch === "function"
+  } catch {
+    return false
+  }
+}
+
+function persistDevLlmLog(entry: LlmLogEntry): void {
+  if (!shouldPersistDevLlmLog()) return
+
+  const body = JSON.stringify({ entry })
+  void fetch(DEV_LLM_LOG_ENDPOINT, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body,
+    keepalive: body.length <= 60_000,
+  }).catch(() => {
+    // Best-effort dev logging only.
+  })
 }
 
 export function logLlmEntry(entry: LlmLogEntry): void {
@@ -49,6 +75,7 @@ export function logLlmEntry(entry: LlmLogEntry): void {
 
   console.info(parts.join(" "))
   console.debug("[llm-log:detail]", entry)
+  persistDevLlmLog(entry)
 }
 
 export function createLlmLogBase(

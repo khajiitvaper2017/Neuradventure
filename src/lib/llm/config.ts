@@ -30,7 +30,10 @@ function buildCustomFieldsHintLines(modules?: StoryModules): string[] {
   const lines: string[] = []
   lines.push("Custom fields (user-defined):")
   lines.push(
-    "When something changes, use: character_custom_fields (player), npc_changes[].custom_fields (NPCs), world_state_update.custom_fields (world).",
+    'When a character changes, add one root-level object keyed by that exact character name, for example: "Erika": { "current_activity": "...", "genitalia": "..." }.',
+  )
+  lines.push(
+    "Put built-in character fields and enabled custom field ids together in that same object. Use world_state_update.custom_fields only for world fields.",
   )
   if (playerCharDefs.length > 0) lines.push(`Enabled player fields: ${playerCharDefs.map(fmt).join("; ")}`)
   if ((modules?.track_npcs ?? true) && npcCharDefs.length > 0)

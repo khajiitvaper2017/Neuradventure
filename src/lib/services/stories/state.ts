@@ -13,9 +13,9 @@ export function parseStoryState(row: db.StoryRow): {
   const initialWorld = WorldStateStoredSchema.parse(JSON.parse(row.initial_world_state_json ?? row.world_state_json))
   const parsedCharacter = MainCharacterStateStoredSchema.parse(JSON.parse(row.character_state_json))
   const character =
-    parsedCharacter.current_location.trim().toLowerCase() === world.current_scene.trim().toLowerCase()
+    parsedCharacter.current_location.trim().toLowerCase() === world.current_location.trim().toLowerCase()
       ? parsedCharacter
-      : { ...parsedCharacter, current_location: world.current_scene }
+      : { ...parsedCharacter, current_location: world.current_location }
   const npcs = (JSON.parse(row.npc_states_json) as unknown[]).map((n) => NPCStateStoredSchema.parse(n))
   return { character, world, initialWorld, npcs }
 }

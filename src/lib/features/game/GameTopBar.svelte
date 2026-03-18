@@ -17,7 +17,7 @@
   import { currentStoryId, currentStoryModules, currentStoryTitle, turns, worldState } from "@/stores/game"
 
   type Props = {
-    flashScene?: boolean
+    flashLocation?: boolean
     onGoHome?: () => void
     onOpenMemoryEditor?: () => void
     onOpenWorldFieldsEditor?: () => void
@@ -26,7 +26,7 @@
   }
 
   let {
-    flashScene = false,
+    flashLocation = false,
     onGoHome,
     onOpenMemoryEditor,
     onOpenWorldFieldsEditor,
@@ -92,10 +92,10 @@
       <span
         class={cn(
           "break-words text-[11px] uppercase tracking-wider text-muted-foreground/80",
-          flashScene && "animate-pulse",
+          flashLocation && "animate-pulse",
         )}
       >
-        {$worldState.current_scene} · {$worldState.time_of_day}
+        {$worldState.current_location} · {$worldState.time_of_day}
       </span>
     {/if}
   </div>

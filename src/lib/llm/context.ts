@@ -223,7 +223,7 @@ function buildContextBlock(opts: ContextBlockOpts): string {
   const storyContextSection = wrapSection(
     sections.storyContext,
     [
-      formatTemplate(labels.scene, { value: world.current_scene }),
+      formatTemplate(labels.location, { value: world.current_location }),
       formatTemplate(labels.time, { value: world.time_of_day }),
       ...(worldContextCustom.length > 0 ? worldContextCustom : []),
     ].join("\n"),

@@ -49,7 +49,7 @@ export interface StoryModules {
 }
 
 export interface WorldState {
-  current_scene: string
+  current_location: string
   time_of_day: string
   memory: string
   custom_fields: Record<string, string | string[]>
