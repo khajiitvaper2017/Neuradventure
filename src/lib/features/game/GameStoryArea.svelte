@@ -1,8 +1,8 @@
 <script lang="ts">
   import type { TurnSummary, TurnVariantSummary } from "@/types/types"
   import { cn } from "@/utils.js"
-  import { SquarePen, Trash } from "@lucide/svelte"
-  import BackgroundEventsReveal from "@/components/rich/BackgroundEventsReveal.svelte"
+  import { SquarePen } from "@lucide/svelte"
+  import StoryTurnRow from "@/features/game/StoryTurnRow.svelte"
   import RichText from "@/components/rich/RichText.svelte"
   import { currentStoryInitialWorld, currentStoryOpeningScenario, turns, worldState, isGenerating } from "@/stores/game"
   import { streamingEnabled } from "@/stores/settings"
@@ -69,6 +69,37 @@
     streamTime = "",
     pendingPlayerInput = "",
   }: Props = $props()
+
+  let streamWorldLine = $derived(
+    streamLocation && streamTime ? `${streamLocation} · ${streamTime}` : streamLocation || streamTime || "",
+  )
+
+  let liveTurn = $derived.by(() => {
+    if (regeneratingTurnId !== null) {
+      const turn = $turns.find((item) => item.id === regeneratingTurnId)
+      if (!turn) return null
+      return {
+        anchorId: turn.id,
+        playerInput: turn.player_input,
+        statusText: "Regenerating…",
+        worldLine: streamWorldLine,
+        backgroundEvents: streamBackground,
+        narrativeText: streamNarrative,
+      }
+    }
+
+    if (!$isGenerating || !$streamingEnabled) return null
+
+    const hasPreviewContent = streamNarrative.trim().length > 0 || streamBackground.trim().length > 0
+    return {
+      anchorId: null,
+      playerInput: pendingPlayerInput,
+      statusText: hasPreviewContent ? "" : "Generating…",
+      worldLine: streamWorldLine,
+      backgroundEvents: streamBackground,
+      narrativeText: streamNarrative,
+    }
+  })
 
   $effect(() => {
     if (!storyDiv || !handleStoryScroll) return
@@ -139,74 +170,6 @@
       {/if}
     </div>
 
-    {#snippet turnPlayerBar(playerInput, opts)}
-      <div
-        class={cn(
-          "my-4 -mx-5 flex scroll-mt-6 items-baseline gap-2 bg-accent/60 px-5 py-3 font-story text-sm italic leading-relaxed text-accent-foreground/90 min-[1200px]:-mx-10 min-[1200px]:px-10",
-          opts.isFresh && "animate-in fade-in slide-in-from-bottom-1 duration-200",
-        )}
-        aria-live={opts.ariaLive ? "polite" : undefined}
-      >
-        {#if playerInput.trim().length > 0}
-          <SquarePen class="mt-[1px] shrink-0 opacity-60" size={12} strokeWidth={2} aria-hidden="true" />
-        {/if}
-        <span class="min-w-0 flex-1">
-          <RichText text={playerInput} mode="inline" />
-        </span>
-
-        <Button
-          variant="outline"
-          size="icon"
-          class="h-8 w-8"
-          onclick={opts.onEdit}
-          disabled={$isGenerating || !opts.onEdit}
-          title="Edit turn"
-          aria-label="Edit turn"
-        >
-          <SquarePen size={12} strokeWidth={2} aria-hidden="true" />
-        </Button>
-        <Button
-          variant="outline"
-          size="icon"
-          class="h-8 w-8 border-destructive/40 text-destructive hover:bg-destructive/10 hover:text-destructive"
-          onclick={opts.onDelete}
-          disabled={$isGenerating || !opts.onDelete}
-          title="Delete turn"
-          aria-label="Delete turn"
-        >
-          <Trash size={12} strokeWidth={2} aria-hidden="true" />
-        </Button>
-      </div>
-    {/snippet}
-
-    {#snippet turnBody(opts)}
-      <div data-turn-anchor={opts.anchorId ?? undefined} class="mb-4 scroll-mt-6">
-        {#if opts.statusText}
-          <p class="text-sm italic text-muted-foreground">{opts.statusText}</p>
-        {:else}
-          {#if opts.worldLine}
-            <p class="mb-2 text-[11px] uppercase tracking-wider text-muted-foreground/80">
-              {opts.worldLine}
-            </p>
-          {/if}
-
-          <BackgroundEventsReveal text={opts.backgroundEvents} />
-
-          {@const narrative = opts.narrativeText ?? ""}
-          {#if narrative.trim().length > 0}
-            <div
-              class={cn(
-                "whitespace-pre-line font-story text-[length:var(--story-size)] leading-[var(--story-line)] text-foreground",
-                opts.isFresh && "animate-in fade-in slide-in-from-bottom-1 duration-300",
-              )}
-            >
-              <RichText text={narrative} mode="block" />
-            </div>
-          {/if}
-        {/if}
-      </div>
-    {/snippet}
-
     {#each $turns as turn, i (turn.id)}
       {#if editingTurnId === turn.id}
         <div data-turn-anchor={turn.id} class="mb-5 scroll-mt-6 rounded-lg border bg-card p-4">
@@ -227,22 +190,21 @@
         </div>
       {:else}
         {@const isFresh = userActed && i === $turns.length - 1 && !$isGenerating}
-        {@render turnPlayerBar(turn.player_input, {
-          isFresh,
-          onEdit: () => startEditTurn?.(turn),
-          onDelete: () => deleteTurn?.(turn.id),
-        })}
+        {@const liveTurnHere = liveTurn?.anchorId === turn.id ? liveTurn : null}
+        <StoryTurnRow
+          anchorId={turn.id}
+          playerInput={liveTurnHere?.playerInput ?? turn.player_input}
+          onEdit={() => startEditTurn?.(turn)}
+          onDelete={() => deleteTurn?.(turn.id)}
+          statusText={liveTurnHere?.statusText ?? ""}
+          worldLine={liveTurnHere?.worldLine ??
+            (turn.world ? `${turn.world.current_location} · ${turn.world.time_of_day}` : "")}
+          backgroundEvents={liveTurnHere?.backgroundEvents ?? turn.background_events}
+          narrativeText={liveTurnHere?.narrativeText ?? turn.narrative_text}
+          {isFresh}
+        />
 
-        {@render turnBody({
-          anchorId: turn.id,
-          statusText: $isGenerating && regeneratingTurnId === turn.id ? "Regenerating…" : "",
-          worldLine: turn.world ? `${turn.world.current_location} · ${turn.world.time_of_day}` : "",
-          backgroundEvents: turn.background_events,
-          narrativeText: turn.narrative_text,
-          isFresh,
-        })}
-
-        {#if !($isGenerating && regeneratingTurnId === turn.id) && i === $turns.length - 1 && lastTurnVariants.length > 1}
+        {#if !liveTurnHere && i === $turns.length - 1 && lastTurnVariants.length > 1}
           <div class="mt-4 flex flex-wrap items-center gap-2">
             <span class="mr-1 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Versions</span>
             {#each lastTurnVariants as variant (variant.id)}
@@ -262,21 +224,17 @@
       {/if}
     {/each}
 
-    {#if $isGenerating && $streamingEnabled}
-      {@const pendingInput = pendingPlayerInput}
-      {@const streamWorldLine =
-        streamLocation && streamTime ? `${streamLocation} · ${streamTime}` : streamLocation || streamTime || ""}
-
-      {@render turnPlayerBar(pendingInput, { isFresh: false, ariaLive: true })}
-
-      {@render turnBody({
-        statusText:
-          streamNarrative.trim().length === 0 && (streamBackground?.trim() ?? "").length === 0 ? "Generating…" : "",
-        worldLine: streamWorldLine,
-        backgroundEvents: streamBackground,
-        narrativeText: streamNarrative,
-        isFresh: false,
-      })}
+    {#if liveTurn && liveTurn.anchorId === null}
+      <StoryTurnRow
+        anchorId={null}
+        playerInput={liveTurn.playerInput}
+        statusText={liveTurn.statusText}
+        worldLine={liveTurn.worldLine}
+        backgroundEvents={liveTurn.backgroundEvents}
+        narrativeText={liveTurn.narrativeText}
+        isFresh={false}
+        ariaLive={true}
+      />
     {/if}
 
     <div class="h-4"></div>
