@@ -105,19 +105,17 @@ function isHrLine(line: string): boolean {
   return HR_RE.test(line)
 }
 
-function renderMarkdownishLineToHtml(line: string): string {
-  const tokens = tokenizeInline(line)
+function renderMarkdownishInlineToHtml(text: string): string {
+  const tokens = tokenizeInline(text)
   let out = ""
   for (const token of tokens) {
     if (token.type === "text") out += escapeHtml(token.content)
     else if (token.type === "code") out += `<code>${escapeHtml(token.content)}</code>`
     else if (token.type === "strong") out += `<strong>${escapeHtml(token.content)}</strong>`
     else if (token.type === "em") out += `<em>${escapeHtml(token.content)}</em>`
-    else if (token.type === "quote") out += `<mark>"""${escapeHtml(token.content)}"""</mark>`
-    else if (token.type === "dquote")
-      out += `<em><mark>"</mark><mark><em>${escapeHtml(token.content)}</em></mark><mark>"</mark></em>`
-    else if (token.type === "squote")
-      out += `<em><mark>'</mark><mark><em>${escapeHtml(token.content)}</em></mark><mark>'</mark></em>`
+    else if (token.type === "quote") out += `<mark>"""${renderMarkdownishInlineToHtml(token.content)}"""</mark>`
+    else if (token.type === "dquote") out += `<mark>"${renderMarkdownishInlineToHtml(token.content)}"</mark>`
+    else if (token.type === "squote") out += `<mark>'${renderMarkdownishInlineToHtml(token.content)}'</mark>`
     else out += `<img alt="${escapeHtml(token.alt)}" src="${escapeHtml(token.src)}" />`
   }
   return out
@@ -130,7 +128,7 @@ function renderMarkdownishToHtml(text: string): string {
   for (let index = 0; index < lines.length; index += 1) {
     const line = lines[index] ?? ""
     if (isHrLine(line)) out += "<hr />"
-    else out += renderMarkdownishLineToHtml(line)
+    else out += renderMarkdownishInlineToHtml(line)
     if (index < lines.length - 1 && !isHrLine(line)) out += "<br />"
   }
   return out

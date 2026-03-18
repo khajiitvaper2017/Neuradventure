@@ -20,6 +20,7 @@
   --muted-foreground: oklch(0.556 0 0);
   --accent: oklch(0.97 0 0);
   --accent-foreground: oklch(0.205 0 0);
+  --dialogue: #c85c5c;
   --destructive: oklch(0.577 0.245 27.325);
   --border: oklch(0.922 0 0);
   --input: oklch(0.922 0 0);
@@ -94,6 +95,7 @@
   --color-muted-foreground: var(--muted-foreground);
   --color-accent: var(--accent);
   --color-accent-foreground: var(--accent-foreground);
+  --color-dialogue: var(--dialogue);
   --color-destructive: var(--destructive);
   --color-border: var(--border);
   --color-input: var(--input);
@@ -126,4 +128,9 @@
   .font-story {
     font-family: var(--font-story);
   }
+}
+
+.rich-html mark {
+  background-color: transparent;
+  color: var(--dialogue);
 }
