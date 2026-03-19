@@ -1,5 +1,6 @@
 import { AppError } from "@/errors"
 import * as db from "@/db/core"
+import { LlmRole } from "@/types/roles"
 import { getServerDefaults } from "@/utils/text/strings"
 import { chatToPlaintext, chatToTavernJSONL } from "@/utils/converters/tavern"
 import { memberNameFromState, resolveMemberState } from "@/services/chats/members"
@@ -26,7 +27,9 @@ export async function exportAndDownload(
   const defaults = getServerDefaults()
   const messageSummaries = messages.map((message) => {
     const speakerName =
-      message.role === "system" ? "System" : (memberNameById.get(message.speaker_member_id) ?? defaults.unknown.value)
+      message.role === LlmRole.System
+        ? "System"
+        : (memberNameById.get(message.speaker_member_id) ?? defaults.unknown.value)
     return {
       role: message.role,
       content: message.content,
@@ -37,7 +40,7 @@ export async function exportAndDownload(
     }
   })
 
-  const playerMember = members.find((member) => member.role === "player")
+  const playerMember = members.find((member) => member.role === LlmRole.User)
   const playerName = playerMember
     ? (memberNameById.get(playerMember.id) ?? defaults.unknown.value)
     : defaults.unknown.value

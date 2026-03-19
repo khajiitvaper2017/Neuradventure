@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { SvelteSet } from "svelte/reactivity"
   import { onDestroy } from "svelte"
   import { get } from "svelte/store"
   import { AppError } from "@/errors"
@@ -146,6 +147,12 @@
   const useInventory = $derived($currentStoryModules?.character_inventory ?? true)
   const useLocation = $derived($currentStoryModules?.npc_location ?? true)
   const useActivity = $derived($currentStoryModules?.npc_activity ?? true)
+  const useMemories = $derived.by(() => {
+    if (!selectedStoryCharacter) return $currentStoryModules?.character_memories ?? true
+    return selectedStoryCharacter.kind === "player"
+      ? ($currentStoryModules?.character_memories ?? true)
+      : ($currentStoryModules?.npc_memories ?? true)
+  })
   const showTraitSection = $derived(usePersonalityTraits || useMajorFlaws || usePerks)
 
   type InventoryDraft = { name: string; description: string }
@@ -162,6 +169,7 @@
     personalityTraits: string
     majorFlaws: string
     perks: string
+    memories: string
     inventory: InventoryDraft[]
     customFields: Record<string, string | string[]>
   }
@@ -178,6 +186,7 @@
     personalityTraits: "",
     majorFlaws: "",
     perks: "",
+    memories: "",
     inventory: [],
     customFields: {},
   })
@@ -339,7 +348,30 @@
         onInput: (v) => (draft.perks = v),
       })
     }
+    if (isStoryContext && useMemories) {
+      fields.push({
+        id: "cs-memories",
+        label: "Memories (one per line)",
+        kind: "textarea",
+        value: draft.memories,
+        onInput: (v) => (draft.memories = v),
+      })
+    }
     return fields
+  }
+
+  function splitUniqueLines(value: string): string[] {
+    const seen = new SvelteSet<string>()
+    const out: string[] = []
+    for (const raw of value.split("\n")) {
+      const trimmed = raw.trim()
+      if (!trimmed) continue
+      const key = trimmed.toLowerCase()
+      if (seen.has(key)) continue
+      seen.add(key)
+      out.push(trimmed)
+    }
+    return out
   }
 
   function startEdit() {
@@ -360,6 +392,7 @@
       personalityTraits: current.personality_traits.join(", "),
       majorFlaws: current.major_flaws.join(", "),
       perks: current.perks.join(", "),
+      memories: current.memories.join("\n"),
       inventory: current.inventory.map((item) => ({ name: item.name, description: item.description })),
       customFields: { ...(current.custom_fields ?? {}) },
     }
@@ -416,6 +449,7 @@
       : (existing.personality_traits ?? [])
     const majorFlaws = useMajorFlaws ? splitCsv(draft.majorFlaws) : (existing.major_flaws ?? [])
     const perks = usePerks ? splitCsv(draft.perks) : (existing.perks ?? [])
+    const memories = useMemories ? splitUniqueLines(draft.memories) : (existing.memories ?? [])
     const inventory = useInventory
       ? draft.inventory
           .map((item) => ({ name: item.name.trim(), description: item.description.trim() }))
@@ -455,6 +489,7 @@
         personality_traits: personalityTraits.length > 0 ? personalityTraits : (existing.personality_traits ?? []),
         major_flaws: majorFlaws.length > 0 ? majorFlaws : (existing.major_flaws ?? []),
         perks: perks.length > 0 ? perks : (existing.perks ?? []),
+        memories,
         inventory,
         custom_fields: draft.customFields ?? existing.custom_fields ?? {},
       }
@@ -518,6 +553,7 @@
       personality_traits: personalityTraits.length > 0 ? personalityTraits : (existingNpc.personality_traits ?? []),
       major_flaws: majorFlaws.length > 0 ? majorFlaws : (existingNpc.major_flaws ?? []),
       perks: perks.length > 0 ? perks : (existingNpc.perks ?? []),
+      memories,
       inventory,
       custom_fields: draft.customFields ?? existingNpc.custom_fields ?? {},
     }
@@ -939,6 +975,33 @@
         </Card.Root>
       {/if}
 
+      {#if isStoryContext && useMemories}
+        <Card.Root class="mt-3 rounded-lg p-0 py-0 gap-0">
+          <Card.Header class="px-4 pt-4 pb-0">
+            <div class="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+              <FileText size={14} strokeWidth={1.5} class="shrink-0 opacity-70" aria-hidden="true" />
+              <Card.Title class="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                Memories ({displayCharacter.memories.length})
+              </Card.Title>
+            </div>
+          </Card.Header>
+          <Card.Content class="px-4 pb-4 pt-0">
+            {#if displayCharacter.memories.length === 0}
+              <div class="mt-2 text-sm italic text-muted-foreground">No memories yet.</div>
+            {:else}
+              <ul class="mt-3 space-y-2">
+                {#each displayCharacter.memories as memory, index (memory + ":" + index)}
+                  <li class="flex items-start gap-2">
+                    <Dot size={12} strokeWidth={1.5} class="mt-1 shrink-0 text-muted-foreground" aria-hidden="true" />
+                    <div class="min-w-0 text-sm text-foreground">{memory}</div>
+                  </li>
+                {/each}
+              </ul>
+            {/if}
+          </Card.Content>
+        </Card.Root>
+      {/if}
+
       {#if useInventory}
         <Card.Root class={cn("mt-3 rounded-lg p-0 py-0 gap-0", flashInventory && "ring-2 ring-primary/30")}>
           <Card.Header class="px-4 pt-4 pb-0">
@@ -1063,7 +1126,6 @@
           >
             <SquarePen size={12} strokeWidth={2} aria-hidden="true" />
           </Button>
-          <Button variant="ghost" size="icon" class="h-9 w-9" onclick={closeCharSheet} aria-label="Close">×</Button>
         </div>
       </div>
       <ScrollArea class="max-h-[calc(100dvh-3.25rem)]">

@@ -1,4 +1,6 @@
 import type { StoryModuleKey } from "@/domain/story/module-definitions"
+import type { ConversationRole } from "@/types/roles"
+import { LlmRole } from "@/types/roles"
 
 export interface InventoryItem {
   name: string
@@ -19,6 +21,7 @@ export interface CharacterState {
   major_flaws: string[]
   perks: string[]
   inventory: InventoryItem[]
+  memories: string[]
   custom_fields: Record<string, string | string[]>
 }
 
@@ -31,13 +34,12 @@ export type StoryModules = Record<StoryModuleKey, boolean> & {
    * Per-story enable/disable map for user-defined character custom fields.
    * Missing entries default to enabled.
    */
-  custom_field_modules?: Record<string, { character?: boolean; npc?: boolean }>
+  custom_field_modules?: Record<string, { player?: boolean; npc?: boolean }>
 }
 
 export interface WorldState {
   current_location: string
   time_of_day: string
-  memory: string
   custom_fields: Record<string, string | string[]>
 }
 
@@ -64,7 +66,7 @@ export interface ChatSummary {
 
 export interface ChatMember {
   id: number
-  role: "player" | "ai"
+  role: ConversationRole
   member_kind: "character" | "npc"
   character_id: number | null
   sort_order: number
@@ -87,7 +89,7 @@ export interface ChatMessage {
   message_index: number
   speaker_member_id: number
   speaker_name: string
-  role: "user" | "assistant" | "system"
+  role: LlmRole
   content: string
   created_at: string
 }

@@ -1,5 +1,4 @@
 import type { MainCharacterState, NPCState, StoryModules, WorldState } from "@/types/models"
-import type { TurnRow } from "@/db/core"
 import { getGenerationParams } from "@/llm/client"
 import { getImpersonatePrompt, getNpcCreationPrompt, getSectionFormat, getSystemPrompt } from "@/llm/config"
 import { buildLlmContract } from "@/llm/contract"
@@ -10,25 +9,34 @@ import {
   type CompiledFieldDefinition,
   type WorldFieldId,
 } from "@/llm/contract/fields"
-import { buildHistoryBlock, injectEntryAtDepth, wrapNamedEntry, wrapSection, estimateTokens } from "@/llm/io/format"
-import { getLlmStrings } from "@/utils/text/strings"
+import {
+  buildHistoryBlock,
+  injectEntryAtDepth,
+  wrapNamedEntry,
+  wrapSection,
+  estimateTokens,
+  type TurnHistoryEntry,
+} from "@/llm/io/format"
+import { formatTemplate, getLlmStrings } from "@/utils/text/strings"
 import { DEFAULT_STORY_MODULES } from "@/domain/story/schemas/story-modules"
 import { renderCharacterBook } from "@/utils/tavern/character-book"
 import type { CharacterBook } from "@/utils/converters/tavern"
 import type { ChatCompletionMessageParam } from "@/llm/openai-types"
+import { LlmRole } from "@/types/roles"
 import * as db from "@/db/core"
 import type { CustomFieldDef } from "@/types/api"
 
 // ─── Shared context block builder ─────────────────────────────────────────────
 
-function authorNoteRoleName(role: number): "system" | "user" | "assistant" {
-  if (role === 1) return "user"
-  if (role === 2) return "assistant"
-  return "system"
+function authorNoteRoleName(role: number): LlmRole {
+  if (role === 1) return LlmRole.User
+  if (role === 2) return LlmRole.Assistant
+  return LlmRole.System
 }
 
-function wrapAuthorNoteSection(tag: string, content: string, role: "system" | "user" | "assistant"): string {
+function wrapAuthorNoteSection(tag: string, content: string, role: LlmRole): string {
   const format = getSectionFormat()
+  const llmStrings = getLlmStrings()
   const roleUpper = role.toUpperCase()
   const roleTitle = `${role.slice(0, 1).toUpperCase()}${role.slice(1)}`
 
@@ -37,7 +45,7 @@ function wrapAuthorNoteSection(tag: string, content: string, role: "system" | "u
   }
 
   if (format === "none") {
-    return `Author note (${roleUpper}):\n${content}`
+    return formatTemplate(llmStrings.authorNote.none, { role: roleUpper, content })
   }
 
   const wrapped = wrapSection(tag, content)
@@ -61,11 +69,10 @@ export interface ContextBlockOpts {
   character: MainCharacterState
   world: WorldState
   npcs: NPCState[]
-  recentTurns: TurnRow[]
+  recentTurns: TurnHistoryEntry[]
   ctxLimit: number
   initialCharacter?: MainCharacterState
   actionBlock?: string | null
-  memory?: string | null
   playerInput?: string | null
   authorNote?: {
     text: string
@@ -187,11 +194,7 @@ function buildContextBlock(opts: ContextBlockOpts): string {
         ? Math.min(characterBook.scan_depth, recentTurns.length)
         : recentTurns.length
     const scanTurns = scanDepth > 0 ? recentTurns.slice(-scanDepth) : []
-    const scanText = [
-      world.memory,
-      scanTurns.map((t) => `${t.player_input}\n${t.narrative_text}`).join("\n\n"),
-      actionBlock ?? "",
-    ]
+    const scanText = [scanTurns.map((t) => `${t.player_input}\n${t.narrative_text}`).join("\n\n"), actionBlock ?? ""]
       .filter(Boolean)
       .join("\n\n")
     const rendered = renderCharacterBook(characterBook, scanText)
@@ -213,18 +216,6 @@ function buildContextBlock(opts: ContextBlockOpts): string {
           ),
         )
       : null
-
-  // ── SEMI-STABLE ──
-  const memorySection = (() => {
-    const lines = renderWorldFieldLines(
-      world,
-      contract.fieldSet.world.memory,
-      contract.fieldSet.world.customMemory,
-      fieldDefsById,
-    )
-    if (lines.length === 0) return null
-    return wrapSection(sections.memory, lines.join("\n"))
-  })()
 
   // ── VOLATILE ──
   const currentSection = wrapSection(
@@ -270,7 +261,6 @@ function buildContextBlock(opts: ContextBlockOpts): string {
     baseSection,
     afterCharacterBookSection,
     npcBaselineSection,
-    memorySection,
   ])
 
   const volatileBlock = joinSections([currentSection, npcCurrentSection, storyContextSection])
@@ -347,7 +337,7 @@ export function buildTurnMessages(
   character: MainCharacterState,
   world: WorldState,
   npcs: NPCState[],
-  recentTurns: TurnRow[],
+  recentTurns: TurnHistoryEntry[],
   playerInput: string,
   actionMode: string,
   initialCharacter?: MainCharacterState,
@@ -390,8 +380,8 @@ export function buildTurnMessages(
   })
 
   return [
-    { role: "system", content: getSystemPrompt(modules) },
-    { role: "user", content: contextBlock },
+    { role: LlmRole.System, content: getSystemPrompt(modules) },
+    { role: LlmRole.User, content: contextBlock },
   ]
 }
 
@@ -399,7 +389,7 @@ export function buildNpcCreationMessages(
   character: MainCharacterState,
   world: WorldState,
   npcs: NPCState[],
-  recentTurns: TurnRow[],
+  recentTurns: TurnHistoryEntry[],
   npcName: string,
   ctxLimitOverride?: number,
   authorNote?: {
@@ -435,8 +425,8 @@ export function buildNpcCreationMessages(
   })
 
   return [
-    { role: "system", content: getNpcCreationPrompt(modules) },
-    { role: "user", content: contextBlock },
+    { role: LlmRole.System, content: getNpcCreationPrompt(modules) },
+    { role: LlmRole.User, content: contextBlock },
   ]
 }
 
@@ -444,7 +434,7 @@ export function buildImpersonateMessages(
   character: MainCharacterState,
   world: WorldState,
   npcs: NPCState[],
-  recentTurns: TurnRow[],
+  recentTurns: TurnHistoryEntry[],
   actionMode: string,
   initialCharacter?: MainCharacterState,
   ctxLimitOverride?: number,
@@ -483,7 +473,7 @@ export function buildImpersonateMessages(
   const prompt = `${contextBlock}\n\n${wrapSection(sections.playersAction, "")}`
 
   return [
-    { role: "system", content: getImpersonatePrompt(modules) },
-    { role: "user", content: prompt },
+    { role: LlmRole.System, content: getImpersonatePrompt(modules) },
+    { role: LlmRole.User, content: prompt },
   ]
 }

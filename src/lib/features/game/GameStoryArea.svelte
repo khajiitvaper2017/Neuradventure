@@ -167,7 +167,7 @@
             flashOpening && "animate-pulse",
           )}
         >
-          <RichText text={$currentStoryOpeningScenario || $worldState?.memory || ""} mode="block" />
+          <RichText text={$currentStoryOpeningScenario || ""} mode="block" />
         </div>
       {/if}
     </div>

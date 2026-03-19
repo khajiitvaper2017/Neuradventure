@@ -1,6 +1,7 @@
 import { z } from "zod"
 import type { CustomFieldDef } from "@/types/api"
 import type { MainCharacterState, NPCState, WorldState } from "@/types/models"
+import { CharacterRole } from "@/types/roles"
 import type { StoryModuleKey } from "@/domain/story/module-definitions"
 import { InventoryItemSchema } from "@/domain/story/schemas/game-state"
 import { TIME_OF_DAY_REGEX } from "@/domain/story/schemas/constants"
@@ -8,7 +9,7 @@ import { formatTemplate, getLlmStrings, getServerDefaults } from "@/utils/text/s
 import { isCustomFieldModuleEnabled } from "@/domain/story/custom-field-modules"
 import { getFieldDescription } from "@/llm/contract/descriptions"
 
-export type ContractRole = "player" | "npc"
+export type ContractRole = CharacterRole
 
 export type FieldValueKind = "text" | "string_list" | "inventory" | "time"
 
@@ -25,9 +26,10 @@ export type CharacterFieldId =
   | "personality_traits"
   | "major_flaws"
   | "perks"
+  | "memories"
   | "inventory"
 
-export type WorldFieldId = "current_location" | "time_of_day" | "memory"
+export type WorldFieldId = "current_location" | "time_of_day"
 
 export type FieldDefinition = {
   id: string
@@ -75,8 +77,8 @@ const CHARACTER_FIELD_DEFS: Record<CharacterFieldId, FieldDefinition> = {
     descriptionKey: "state.character.baseline_appearance",
     kind: "text",
     moduleByRole: {
-      player: "character_appearance_clothing",
-      npc: "npc_appearance_clothing",
+      [CharacterRole.Player]: "character_appearance_clothing",
+      [CharacterRole.Npc]: "npc_appearance_clothing",
     },
     renderLabel: { group: "characterContextLabels", key: "baselineAppearance" },
   },
@@ -85,8 +87,8 @@ const CHARACTER_FIELD_DEFS: Record<CharacterFieldId, FieldDefinition> = {
     descriptionKey: "state.character.current_appearance",
     kind: "text",
     moduleByRole: {
-      player: "character_appearance_clothing",
-      npc: "npc_appearance_clothing",
+      [CharacterRole.Player]: "character_appearance_clothing",
+      [CharacterRole.Npc]: "npc_appearance_clothing",
     },
     renderLabel: { group: "characterContextLabels", key: "currentAppearance" },
   },
@@ -95,8 +97,8 @@ const CHARACTER_FIELD_DEFS: Record<CharacterFieldId, FieldDefinition> = {
     descriptionKey: "state.character.current_clothing",
     kind: "text",
     moduleByRole: {
-      player: "character_appearance_clothing",
-      npc: "npc_appearance_clothing",
+      [CharacterRole.Player]: "character_appearance_clothing",
+      [CharacterRole.Npc]: "npc_appearance_clothing",
     },
     renderLabel: { group: "contextLabels", key: "wearing" },
   },
@@ -105,8 +107,8 @@ const CHARACTER_FIELD_DEFS: Record<CharacterFieldId, FieldDefinition> = {
     descriptionKey: "state.character.current_location",
     kind: "text",
     moduleByRole: {
-      player: "character_location",
-      npc: "npc_location",
+      [CharacterRole.Player]: "character_location",
+      [CharacterRole.Npc]: "npc_location",
     },
     renderLabel: { group: "characterContextLabels", key: "location" },
   },
@@ -115,8 +117,8 @@ const CHARACTER_FIELD_DEFS: Record<CharacterFieldId, FieldDefinition> = {
     descriptionKey: "state.character.current_activity",
     kind: "text",
     moduleByRole: {
-      player: "character_activity",
-      npc: "npc_activity",
+      [CharacterRole.Player]: "character_activity",
+      [CharacterRole.Npc]: "npc_activity",
     },
     renderLabel: { group: "characterContextLabels", key: "currentActivity" },
   },
@@ -125,8 +127,8 @@ const CHARACTER_FIELD_DEFS: Record<CharacterFieldId, FieldDefinition> = {
     descriptionKey: "traits.personality_traits",
     kind: "string_list",
     moduleByRole: {
-      player: "character_personality_traits",
-      npc: "npc_personality_traits",
+      [CharacterRole.Player]: "character_personality_traits",
+      [CharacterRole.Npc]: "npc_personality_traits",
     },
     renderLabel: { group: "contextLabels", key: "personalityTraits" },
   },
@@ -135,8 +137,8 @@ const CHARACTER_FIELD_DEFS: Record<CharacterFieldId, FieldDefinition> = {
     descriptionKey: "traits.major_flaws",
     kind: "string_list",
     moduleByRole: {
-      player: "character_major_flaws",
-      npc: "npc_major_flaws",
+      [CharacterRole.Player]: "character_major_flaws",
+      [CharacterRole.Npc]: "npc_major_flaws",
     },
     renderLabel: { group: "contextLabels", key: "majorFlaws" },
   },
@@ -145,18 +147,28 @@ const CHARACTER_FIELD_DEFS: Record<CharacterFieldId, FieldDefinition> = {
     descriptionKey: "traits.perks",
     kind: "string_list",
     moduleByRole: {
-      player: "character_perks",
-      npc: "npc_perks",
+      [CharacterRole.Player]: "character_perks",
+      [CharacterRole.Npc]: "npc_perks",
     },
     renderLabel: { group: "contextLabels", key: "perks" },
+  },
+  memories: {
+    id: "memories",
+    descriptionKey: "state.character.memories",
+    kind: "string_list",
+    moduleByRole: {
+      [CharacterRole.Player]: "character_memories",
+      [CharacterRole.Npc]: "npc_memories",
+    },
+    renderLabel: { group: "contextLabels", key: "memories" },
   },
   inventory: {
     id: "inventory",
     descriptionKey: "state.character.inventory",
     kind: "inventory",
     moduleByRole: {
-      player: "character_inventory",
-      npc: "npc_inventory",
+      [CharacterRole.Player]: "character_inventory",
+      [CharacterRole.Npc]: "npc_inventory",
     },
     renderLabel: { group: "contextLabels", key: "inventory" },
   },
@@ -174,11 +186,6 @@ const WORLD_FIELD_DEFS: Record<WorldFieldId, FieldDefinition> = {
     descriptionKey: "llm.world_state_update.time_of_day",
     kind: "time",
     renderLabel: { group: "contextLabels", key: "time" },
-  },
-  memory: {
-    id: "memory",
-    descriptionKey: "llm.world_state_update.memory",
-    kind: "text",
   },
 }
 
@@ -198,6 +205,7 @@ const CURRENT_CHARACTER_FIELD_IDS: CharacterFieldId[] = [
   "current_clothing",
   "current_location",
   "current_activity",
+  "memories",
   "inventory",
 ]
 
@@ -297,16 +305,19 @@ export function buildWorldFieldShape(
 export function compileCustomCharacterFields(
   defs: CustomFieldDef[],
   role: ContractRole,
-  modules: { custom_field_modules?: Record<string, { character?: boolean; npc?: boolean }> },
+  modules: { custom_field_modules?: Record<string, { player?: boolean; npc?: boolean }> },
   options?: { placement?: "base" | "current" },
 ): CompiledFieldDefinition[] {
   const placement = options?.placement
   const fields: CompiledFieldDefinition[] = []
+  const promptHints = getLlmStrings().promptHints
   for (const def of defs) {
     if (!def.enabled || def.scope !== "character") continue
     if (placement && def.placement !== placement) continue
-    if (!isCustomFieldModuleEnabled(modules, def.id, role === "player" ? "character" : "npc")) continue
-    const description = (def.prompt ?? "").trim() || `User-defined character field "${def.label}" (${def.id}).`
+    if (!isCustomFieldModuleEnabled(modules, def.id, role)) continue
+    const description =
+      (def.prompt ?? "").trim() ||
+      formatTemplate(promptHints.customFieldFallback.character, { label: def.label, id: def.id })
     fields.push({
       id: def.id,
       descriptionKey: `state.character.custom_fields.${def.id}`,
@@ -318,16 +329,14 @@ export function compileCustomCharacterFields(
   return fields
 }
 
-export function compileCustomWorldFields(
-  defs: CustomFieldDef[],
-  options?: { placement?: "context" | "memory" },
-): CompiledFieldDefinition[] {
-  const placement = options?.placement
+export function compileCustomWorldFields(defs: CustomFieldDef[]): CompiledFieldDefinition[] {
   const fields: CompiledFieldDefinition[] = []
+  const promptHints = getLlmStrings().promptHints
   for (const def of defs) {
     if (!def.enabled || def.scope !== "world") continue
-    if (placement && def.placement !== placement) continue
-    const description = (def.prompt ?? "").trim() || `User-defined world field "${def.label}" (${def.id}).`
+    const description =
+      (def.prompt ?? "").trim() ||
+      formatTemplate(promptHints.customFieldFallback.world, { label: def.label, id: def.id })
     fields.push({
       id: def.id,
       descriptionKey: `llm.world_state_update.custom_fields.${def.id}`,
@@ -366,6 +375,12 @@ export function buildCustomFieldShape(
 function formatInventoryValue(inventory: MainCharacterState["inventory"] | NPCState["inventory"]): string {
   if (inventory.length === 0) return getServerDefaults().format.nothing
   return inventory.map((item) => `${item.name} (${item.description})`).join(", ")
+}
+
+function formatMemoriesValue(memories: MainCharacterState["memories"] | NPCState["memories"]): string {
+  const defaults = getServerDefaults()
+  if (memories.length === 0) return defaults.format.noneLower
+  return memories.map((memory) => `- ${memory}`).join("\n")
 }
 
 export function renderCharacterContextLine(
@@ -417,6 +432,8 @@ export function renderCharacterContextLine(
       return formatTemplate(template, {
         value: character[fieldId].join(", ") || defaults.format.noneLower,
       })
+    case "memories":
+      return formatTemplate(template, { value: formatMemoriesValue(character.memories) })
     case "inventory":
       return formatTemplate(template, { value: formatInventoryValue(character.inventory) })
     default:
@@ -428,7 +445,7 @@ export function renderWorldContextLine(fieldId: WorldFieldId, world: WorldState)
   const llmStrings = getLlmStrings()
   const defaults = getServerDefaults()
   const def = WORLD_FIELD_DEFS[fieldId]
-  if (!def.renderLabel) return fieldId === "memory" ? world.memory : null
+  if (!def.renderLabel) return null
 
   const labels = llmStrings[def.renderLabel.group]
   const template = labels[def.renderLabel.key as keyof typeof labels]
@@ -439,8 +456,6 @@ export function renderWorldContextLine(fieldId: WorldFieldId, world: WorldState)
       return formatTemplate(template, { value: world.current_location?.trim() || defaults.unknown.location })
     case "time_of_day":
       return formatTemplate(template, { value: world.time_of_day?.trim() || defaults.defaultTimeOfDay })
-    case "memory":
-      return world.memory
     default:
       return null
   }

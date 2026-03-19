@@ -2,6 +2,8 @@ import { AppError } from "@/errors"
 import * as db from "@/db/core"
 import type { ChatDetail, ChatMessage as ChatMessagePayload, ChatSummary } from "@/types/types"
 import type { ChatUpdateMessageResult, ChatUpdateResult } from "@/types/api"
+import type { ConversationRole } from "@/types/roles"
+import { LlmRole } from "@/types/roles"
 import { buildMessagePayload } from "@/services/chats/messages"
 import { memberNameFromState, parseMemberState } from "@/services/chats/members"
 
@@ -10,12 +12,14 @@ export async function list(): Promise<ChatSummary[]> {
   return rows.map((row) => {
     const members = db.listChatMembers(row.id)
     const names = members.map((m) => memberNameFromState(parseMemberState(m.state_json)))
-    const player = members.find((m) => m.role === "player")
-    const playerName = player ? memberNameFromState(parseMemberState(player.state_json)) : ""
-    const primaryAiCharacter = members.find((m) => m.role === "ai" && m.member_kind === "character" && m.character_id)
+    const user = members.find((m) => m.role === LlmRole.User)
+    const playerName = user ? memberNameFromState(parseMemberState(user.state_json)) : ""
+    const primaryAssistantCharacter = members.find(
+      (m) => m.role === LlmRole.Assistant && m.member_kind === "character" && m.character_id,
+    )
     const avatar =
-      primaryAiCharacter?.character_id != null
-        ? db.getCharacterCardSummary(primaryAiCharacter.character_id)?.avatar
+      primaryAssistantCharacter?.character_id != null
+        ? db.getCharacterCardSummary(primaryAssistantCharacter.character_id)?.avatar
         : undefined
     return {
       id: row.id,
@@ -106,7 +110,7 @@ export async function deleteMessage(chatId: number, messageId: number): Promise<
 export async function create(data: {
   title?: string
   members: Array<{
-    role: "player" | "ai"
+    role: ConversationRole
     member_kind: "character" | "npc"
     character_id?: number | null
     state: db.ChatMemberState
@@ -114,16 +118,18 @@ export async function create(data: {
   seed_greeting?: { speaker_sort_order: number; content: string }
 }): Promise<{ id: number }> {
   const members = data.members
-  const playerMembers = members.filter((m) => m.role === "player")
-  const aiMembers = members.filter((m) => m.role === "ai")
-  if (playerMembers.length !== 1) throw new AppError(400, "Exactly one player member is required")
-  if (aiMembers.length < 1) throw new AppError(400, "At least one AI member is required")
+  const userMembers = members.filter((m) => m.role === LlmRole.User)
+  const assistantMembers = members.filter((m) => m.role === LlmRole.Assistant)
+  if (userMembers.length !== 1) throw new AppError(400, "Exactly one user member is required")
+  if (assistantMembers.length < 1) throw new AppError(400, "At least one assistant member is required")
 
   if (data.seed_greeting) {
     const index = data.seed_greeting.speaker_sort_order
     const seedTarget = members[index]
     if (!seedTarget) throw new AppError(400, "seed_greeting.speaker_sort_order is out of range")
-    if (seedTarget.role !== "ai") throw new AppError(400, "seed_greeting target must be an AI member")
+    if (seedTarget.role !== LlmRole.Assistant) {
+      throw new AppError(400, "seed_greeting target must be an assistant member")
+    }
   }
 
   const chatId = db.createChat(
@@ -142,13 +148,13 @@ export async function create(data: {
   if (data.seed_greeting) {
     const createdMembers = db.listChatMembers(chatId)
     const speaker = createdMembers.find((m) => m.sort_order === data.seed_greeting?.speaker_sort_order)
-    const player = createdMembers.find((m) => m.role === "player")
-    if (speaker && speaker.role === "ai" && player) {
-      const playerName = memberNameFromState(parseMemberState(player.state_json))
+    const user = createdMembers.find((m) => m.role === LlmRole.User)
+    if (speaker && speaker.role === LlmRole.Assistant && user) {
+      const playerName = memberNameFromState(parseMemberState(user.state_json))
       const speakerName = memberNameFromState(parseMemberState(speaker.state_json))
       const seeded = data.seed_greeting.content.replaceAll("{{user}}", playerName).replaceAll("{{char}}", speakerName)
       const messageIndex = db.getNextChatMessageIndex(chatId)
-      db.appendChatMessage(chatId, messageIndex, speaker.id, "assistant", seeded)
+      db.appendChatMessage(chatId, messageIndex, speaker.id, LlmRole.Assistant, seeded)
     }
   }
 

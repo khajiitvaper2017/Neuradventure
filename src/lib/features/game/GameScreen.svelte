@@ -54,7 +54,6 @@
   import GameTopBar from "@/features/game/GameTopBar.svelte"
   import GameStoryArea from "@/features/game/GameStoryArea.svelte"
   import GameInputZone from "@/features/game/GameInputZone.svelte"
-  import MemoryModal from "@/features/game/MemoryModal.svelte"
   import StoryModulesModal from "@/features/game/StoryModulesModal.svelte"
   import WorldFieldsModal from "@/features/game/WorldFieldsModal.svelte"
 
@@ -82,7 +81,6 @@
   let editNarrative = $state("")
   const variantsState = createTurnVariantsState()
   let canUndoCancel = $state(false)
-  const memoryModal = createModal(() => "")
   const worldFieldsModal = createWorldFieldsModal()
   const authorNoteModal = createModal(() => ({
     note: "",
@@ -108,7 +106,7 @@
   const resumedRequestIds = new SvelteSet<string>()
 
   let locationText = $derived($worldState ? `${$worldState.current_location} · ${$worldState.time_of_day}` : "")
-  let openingText = $derived($currentStoryOpeningScenario || $worldState?.memory || "")
+  let openingText = $derived($currentStoryOpeningScenario || "")
 
   const stream = createStreamController({
     enabled: () => $streamingEnabled,
@@ -174,6 +172,14 @@
     const pending = getPendingTurn()
     if (!pending || pending.storyId !== $currentStoryId) return ""
     return pending.playerInput
+  })
+
+  const pendingActionMode = $derived.by(() => {
+    if (typeof window === "undefined") return null
+    if (!$isGenerating || !$currentStoryId) return null
+    const pending = getPendingTurn()
+    if (!pending || pending.storyId !== $currentStoryId) return null
+    return pending.actionMode
   })
 
   function triggerFlash(setter: (v: boolean) => void, ref: { id: number | null }) {
@@ -423,7 +429,7 @@
   }
 
   function startEditOpening() {
-    openingDraft = $currentStoryOpeningScenario || $worldState?.memory || ""
+    openingDraft = $currentStoryOpeningScenario || ""
     editingOpening = true
   }
 
@@ -444,26 +450,6 @@
       editingOpening = false
     } catch {
       showError("Failed to update opening scenario")
-    }
-  }
-
-  function openMemoryEditor() {
-    memoryModal.show($worldState?.memory ?? "")
-  }
-
-  async function saveMemory() {
-    if (!$currentStoryId) return
-    const text = memoryModal.draft.trim()
-    if (!text) {
-      showError("Memory cannot be empty")
-      return
-    }
-    try {
-      const result = await stories.updateState($currentStoryId, { world: { memory: text } })
-      worldState.set(result.world)
-      memoryModal.close()
-    } catch {
-      showError("Failed to update memory")
     }
   }
 
@@ -697,19 +683,12 @@
 <div class="relative mx-auto flex h-dvh w-full max-w-3xl flex-col overflow-hidden">
   <GameTopBar
     {flashLocation}
+    input={pendingPlayerInput || input}
+    actionMode={pendingActionMode ?? actionMode}
     onGoHome={goHome}
-    onOpenMemoryEditor={openMemoryEditor}
     onOpenWorldFieldsEditor={() => void openWorldFieldsEditor()}
     onOpenAuthorNoteEditor={openAuthorNoteEditor}
     onOpenModulesEditor={openModulesEditor}
-  />
-
-  <MemoryModal
-    open={memoryModal.open}
-    disabled={$isGenerating}
-    bind:draft={memoryModal.draft}
-    onCancel={() => memoryModal.close()}
-    onSave={saveMemory}
   />
 
   <WorldFieldsModal

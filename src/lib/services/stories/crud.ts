@@ -143,7 +143,7 @@ export async function updateState(
   data: {
     character?: MainCharacterState
     npcs?: NPCState[]
-    world?: { memory?: string; custom_fields?: Record<string, string | string[]> }
+    world?: { custom_fields?: Record<string, string | string[]> }
   },
 ): Promise<UpdateStoryStateResult> {
   const row = db.getStory(id)
@@ -155,7 +155,6 @@ export async function updateState(
   const nextWorld = data.world
     ? {
         ...currentWorld,
-        memory: data.world.memory ?? currentWorld.memory,
         custom_fields:
           data.world.custom_fields &&
           typeof data.world.custom_fields === "object" &&

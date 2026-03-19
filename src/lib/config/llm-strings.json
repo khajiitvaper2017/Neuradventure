@@ -31,7 +31,54 @@
   },
   "generateStory": {
     "characterHeader": "Character:",
-    "storyDescription": "Story description: \"{description}\""
+    "storyDescription": "Story description: \"{description}\"",
+    "selectedNpc": {
+      "header": "User-selected NPCs (from library; already exist in this story):",
+      "excludeInstruction": "Do NOT include these NPCs in character_introductions. Only generate additional NPCs not listed here.",
+      "missingChangesInstruction": "If any user-selected NPC is missing or needs setup changes, return those values in a root-level object keyed by that exact name, for example: \"Eliza\": { \"current_activity\": \"...\" }.",
+      "summary": "- {name} ({race}, {gender}) - {description}",
+      "missingValue": "(missing)",
+      "fields": {
+        "currentLocation": "  current_location: {value}",
+        "currentActivity": "  current_activity: {value}",
+        "baselineAppearance": "  baseline_appearance: {value}",
+        "currentAppearance": "  current_appearance: {value}",
+        "currentClothing": "  current_clothing: {value}"
+      }
+    }
+  },
+  "schemaPrompt": {
+    "outputRequirements": "OUTPUT REQUIREMENTS ({schemaName}): You must output a single JSON object that validates against the following JSON Schema. Do not output the schema. Do not include any surrounding text. Do not add extra keys.",
+    "draft07": "JSON_SCHEMA_DRAFT_07:{schemaText}"
+  },
+  "promptHints": {
+    "outputContractHeader": "Output contract:",
+    "outputShape": {
+      "turnOrStoryBase": [
+        "Use one root-level object per exact character name when a tracked character changes.",
+        "Put built-in character fields and enabled custom field ids in that same object.",
+        "Use world_state_update.custom_fields only for world fields."
+      ],
+      "turnOrStoryNpcIntroductions": "Use character_introductions only for new NPCs, never for already tracked or selected characters.",
+      "playerKey": "Player key: \"{value}\"",
+      "knownNpcKeys": "Known NPC keys: {value}"
+    },
+    "enabledFields": {
+      "player": "Enabled player fields: {value}",
+      "npc": "Enabled NPC fields: {value}",
+      "world": "Enabled world fields: {value}"
+    },
+    "outputHygiene": {
+      "header": "Output hygiene:",
+      "rules": [
+        "Never emit literal placeholder text such as Unknown, unknown, N/A, null, none, or empty labels.",
+        "If a detail is missing or unspecified, infer a concrete plausible value from context instead of copying placeholder text."
+      ]
+    },
+    "customFieldFallback": {
+      "character": "User-defined character field \"{label}\" ({id}).",
+      "world": "User-defined world field \"{label}\" ({id})."
+    }
   },
   "contextLabels": {
     "baselineAppearance": "Baseline appearance: {value}",
@@ -42,6 +89,7 @@
     "personalityTraits": "Personality traits: {value}",
     "majorFlaws": "Major flaws: {value}",
     "perks": "Perks: {value}",
+    "memories": "Memories:\n{value}",
     "location": "Location: {value}",
     "inventory": "Inventory: {value}",
     "scene": "Scene: {value}",
@@ -60,7 +108,6 @@
     "characterBookAfterChar": "character_book_after_char",
     "npcBaselines": "npc_baselines",
     "locations": "locations",
-    "memory": "memory",
     "authorNote": "author_note",
     "playerCharacterState": "player_character_state",
     "npcCurrentStates": "npc_current_states",
@@ -71,15 +118,30 @@
     "playersAction": "players_action",
     "introduceNewNpc": "introduce_new_npc",
     "actionMode": "action_mode",
-    "compressedEarlierContext": "compressed_earlier_context"
+    "compressedEarlierContext": "compressed_earlier_context",
+    "chatParticipants": "chat_participants",
+    "chatCharacterBookBeforeParticipants": "chat_character_book_before_participants",
+    "chatCharacterBookAfterParticipants": "chat_character_book_after_participants",
+    "chatExampleDialogs": "chat_example_dialogs",
+    "chatHistory": "chat_history",
+    "chatPostHistoryInstructions": "chat_post_history_instructions",
+    "chatNextSpeaker": "chat_next_speaker",
+    "chatReplyInstruction": "chat_reply_instruction"
   },
   "actionModeHints": {
     "say": "Say only the exact words spoken. No quotes or 'You say'.",
     "story": "Continue the story in 1-2 short sentences, second-person present tense.",
     "do": "Describe the action the player takes in a short, concrete clause."
   },
+  "chatPrompt": {
+    "emptyParticipants": "(none)",
+    "emptyHistory": "(no messages yet)",
+    "continueWithoutPlayer": "Player sent no new message; continue the conversation naturally.",
+    "replyInstruction": "Reply as {nextSpeakerName} with message text only."
+  },
   "playerSayPrefix": "You say: ",
   "authorNote": {
-    "wrapper": "[Author's Note: {note}]"
+    "wrapper": "[Author's Note: {note}]",
+    "none": "Author note ({role}):\n{content}"
   }
 }

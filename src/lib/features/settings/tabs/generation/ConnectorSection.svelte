@@ -9,6 +9,7 @@
   import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
   import * as InputGroup from "@/components/ui/input-group"
   import { Switch } from "@/components/ui/switch"
+  import { toast } from "@/components/ui/sonner/index.js"
   import { cn } from "@/utils.js"
   import { isChatGenerating } from "@/stores/chat"
   import { isGenerating } from "@/stores/game"
@@ -48,6 +49,7 @@
   let modelSearchError = $state<string | null>(null)
   let modelSearchOnlyFree = $state(false)
   let modelSearchOnlyJson = $state(false)
+  let modelLookupAttemptedKey: string | null = null
 
   function commitConnector() {
     const trimmedUrl = connectorUrl.trim()
@@ -131,12 +133,14 @@
       seen[m.id] = true
     }
     const out = [...existing]
+    let changed = false
     for (const m of incoming) {
       if (!m.id || seen[m.id]) continue
       seen[m.id] = true
       out.push(m)
+      changed = true
     }
-    return out
+    return changed ? out : existing
   }
 
   $effect(() => {
@@ -145,23 +149,51 @@
 
     const currentId = $connector.model.trim()
     if (!currentId) return
+    const currentKey = `${$connector.type}|${$connector.url.trim()}|${currentId}`
     const existing = modelSearchResults.find((m) => m.id === currentId) ?? null
-    if (existing?.supported_parameters && existing.supported_parameters.length > 0) return
+    if (existing?.supported_parameters && existing.supported_parameters.length > 0) {
+      modelLookupAttemptedKey = currentKey
+      return
+    }
+    if (modelLookupAttemptedKey === currentKey) return
     if (modelSearchLoading) return
 
-    const q = currentId
+    modelLookupAttemptedKey = currentKey
     modelSearchLoading = true
     modelSearchError = null
     void settingsService
-      .models(q, 25)
+      .models(currentId, 25)
       .then((res) => {
+        const liveKey =
+          $connector.type === "openrouter"
+            ? `${$connector.type}|${$connector.url.trim()}|${$connector.model.trim()}`
+            : null
+        if (liveKey !== currentKey) return
         const models = Array.isArray(res.models) ? res.models : []
-        modelSearchResults = mergeModels(modelSearchResults, models)
+        const nextResults = mergeModels(modelSearchResults, models)
+        if (nextResults !== modelSearchResults) {
+          modelSearchResults = nextResults
+        }
+        const resolved = nextResults.find((m) => m.id === currentId) ?? existing
+        if (resolved?.supported_parameters && resolved.supported_parameters.length > 0) return
+
+        toast.warning(`OpenRouter model "${currentId}" could not be resolved.`, {
+          id: currentKey,
+          description:
+            "The saved model stays in place, but parameter metadata and model-specific hints are unavailable.",
+          duration: 6000,
+        })
       })
       .catch((err) => {
+        const liveKey =
+          $connector.type === "openrouter"
+            ? `${$connector.type}|${$connector.url.trim()}|${$connector.model.trim()}`
+            : null
+        if (liveKey !== currentKey) return
         modelSearchError = err instanceof Error ? err.message : String(err)
       })
       .finally(() => {
+        if (modelLookupAttemptedKey !== currentKey) return
         modelSearchLoading = false
       })
   })

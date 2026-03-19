@@ -21,7 +21,8 @@ export function createNewStory(
   const fallbackTime = `${now.getHours().toString().padStart(2, "0")}:${now.getMinutes().toString().padStart(2, "0")}`
   const timeCandidate = startingTime?.trim()
   const currentLocation = startingLocation?.trim() || getServerDefaults().unknown.location
-  const locationSyncedCharacter: MainCharacterState = { ...character, current_location: currentLocation }
+  const locationSyncedCharacter: MainCharacterState = { ...character, current_location: currentLocation, memories: [] }
+  const normalizedNpcs = npcs.map((npc) => ({ ...npc, memories: [] }))
   if (modules.character_appearance_clothing) {
     if (!locationSyncedCharacter.current_appearance.trim()) {
       locationSyncedCharacter.current_appearance = locationSyncedCharacter.baseline_appearance.trim()
@@ -32,7 +33,6 @@ export function createNewStory(
   const world: WorldState = {
     current_location: currentLocation,
     time_of_day: timeCandidate && TIME_OF_DAY_REGEX.test(timeCandidate) ? timeCandidate : fallbackTime,
-    memory: opening_scenario.trim(),
     custom_fields: {},
   }
   return db.createStory(
@@ -40,7 +40,7 @@ export function createNewStory(
     opening_scenario,
     locationSyncedCharacter,
     world,
-    npcs,
+    normalizedNpcs,
     modules,
     characterId,
     settings.defaultAuthorNote ?? "",

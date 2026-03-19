@@ -3,9 +3,11 @@ import * as db from "@/db/core"
 import { isEngineDbInitialized } from "@/db/connection"
 import type { CustomFieldDef } from "@/types/api"
 import type { StoryModules } from "@/types/models"
+import { CharacterRole } from "@/types/roles"
 import { STORY_MODULE_KEYS } from "@/domain/story/module-definitions"
 import { DEFAULT_STORY_MODULES } from "@/domain/story/schemas/story-modules"
 import { getFieldDescription } from "@/llm/contract/descriptions"
+import { formatTemplate, getLlmStrings } from "@/utils/text/strings"
 import {
   buildCharacterFieldShape,
   buildCustomFieldShape,
@@ -42,9 +44,7 @@ export type CompiledFieldSet = {
   }
   world: {
     context: CompiledFieldDefinition[]
-    memory: CompiledFieldDefinition[]
     customContext: CompiledFieldDefinition[]
-    customMemory: CompiledFieldDefinition[]
     customUpdate: CompiledFieldDefinition[]
   }
 }
@@ -90,7 +90,7 @@ function getCustomFieldDefs(customFieldDefs?: CustomFieldDef[]): CustomFieldDef[
   return db.listCustomFields()
 }
 
-function buildContextField(fieldId: "current_location" | "time_of_day" | "memory"): CompiledFieldDefinition {
+function buildContextField(fieldId: "current_location" | "time_of_day"): CompiledFieldDefinition {
   const def = getWorldFieldDefinition(fieldId)
   return {
     id: def.id,
@@ -126,11 +126,22 @@ function buildCharacterPatchSchema(
   customFields: CompiledFieldDefinition[],
   modules: Record<string, boolean>,
 ): z.ZodType<Record<string, unknown>> {
-  const builtInShape = buildCharacterFieldShape(fieldIds, role, modules, { optional: true })
+  const updateFieldIds = fieldIds.filter((fieldId) => fieldId !== "memories")
+  const builtInShape = buildCharacterFieldShape(updateFieldIds, role, modules, { optional: true })
   const customShape = buildCustomFieldShape(customFields, { optional: true })
+  const memoryShape = isFieldEnabledForRole("memories", role, modules)
+    ? {
+        new_memories: z
+          .array(z.string().min(1))
+          .min(1)
+          .optional()
+          .describe(getFieldDescription("llm.character_update.new_memories")),
+      }
+    : {}
   return z
     .object({
       ...builtInShape,
+      ...memoryShape,
       ...customShape,
     })
     .strict()
@@ -192,16 +203,21 @@ function buildCharacterRequestSchemas(
     .filter((fieldId) => (options.excludeInventoryForPlayer === true ? fieldId !== "inventory" : true))
 
   return {
-    playerPatch: buildCharacterPatchSchema(playerFieldIds, "player", fieldSet.player.customCurrent, moduleState),
+    playerPatch: buildCharacterPatchSchema(
+      playerFieldIds,
+      CharacterRole.Player,
+      fieldSet.player.customCurrent,
+      moduleState,
+    ),
     npcPatch: buildCharacterPatchSchema(
       fieldSet.npc.current.map((field) => field.id as CharacterFieldId),
-      "npc",
+      CharacterRole.Npc,
       fieldSet.npc.customCurrent,
       moduleState,
     ),
     npcCreation: buildCharacterCreationSchema(
       fieldSet.npc.creation.map((field) => field.id as CharacterFieldId),
-      "npc",
+      CharacterRole.Npc,
       fieldSet.npc.customCreation,
       moduleState,
     ),
@@ -326,44 +342,42 @@ function buildPromptHints(
   knownNpcNames: string[],
   fieldSet: CompiledFieldSet,
 ): CompiledLlmContract["promptHints"] {
-  const enabledPlayerFields = [
+  const promptHints = getLlmStrings().promptHints
+  const includeMemoryFields = kind === "turn"
+  const visiblePlayerFields = [
     ...fieldSet.player.base,
     ...fieldSet.player.current,
     ...fieldSet.player.customBase,
     ...fieldSet.player.customCurrent,
-  ].map((field) => field.id)
-  const enabledNpcFields = [
+  ].filter((field) => includeMemoryFields || field.id !== "memories")
+  const visibleNpcFields = [
     ...fieldSet.npc.base,
     ...fieldSet.npc.current,
     ...fieldSet.npc.customBase,
     ...fieldSet.npc.customCurrent,
-  ].map((field) => field.id)
-  const enabledWorldFields = [
-    ...fieldSet.world.context,
-    ...fieldSet.world.customContext,
-    ...fieldSet.world.customMemory,
-  ].map((field) => field.id)
+  ].filter((field) => includeMemoryFields || field.id !== "memories")
+  const enabledPlayerFields = [...visiblePlayerFields].map((field) => field.id)
+  const enabledNpcFields = [...visibleNpcFields].map((field) => field.id)
+  const enabledWorldFields = [...fieldSet.world.context, ...fieldSet.world.customContext].map((field) => field.id)
 
   const outputShapeLines: string[] = []
   if (kind === "turn" || kind === "story_setup") {
-    outputShapeLines.push("Use one root-level object per exact character name when a tracked character changes.")
-    outputShapeLines.push("Put built-in character fields and enabled custom field ids in that same object.")
-    outputShapeLines.push("Use world_state_update.custom_fields only for world fields.")
+    outputShapeLines.push(...promptHints.outputShape.turnOrStoryBase)
   }
   if (modules.track_npcs && (kind === "turn" || kind === "story_setup")) {
-    outputShapeLines.push(
-      "Use character_introductions only for new NPCs, never for already tracked or selected characters.",
-    )
+    outputShapeLines.push(promptHints.outputShape.turnOrStoryNpcIntroductions)
   }
   if ((kind === "turn" || kind === "story_setup") && playerName.trim()) {
-    outputShapeLines.push(`Player key: "${playerName.trim()}"`)
+    outputShapeLines.push(formatTemplate(promptHints.outputShape.playerKey, { value: playerName.trim() }))
   }
   if ((kind === "turn" || kind === "story_setup") && modules.track_npcs && knownNpcNames.length > 0) {
     outputShapeLines.push(
-      `Known NPC keys: ${knownNpcNames
-        .map((name) => `"${name.trim()}"`)
-        .filter(Boolean)
-        .join(", ")}`,
+      formatTemplate(promptHints.outputShape.knownNpcKeys, {
+        value: knownNpcNames
+          .map((name) => `"${name.trim()}"`)
+          .filter(Boolean)
+          .join(", "),
+      }),
     )
   }
 
@@ -377,20 +391,27 @@ export function buildLlmContract(kind: LlmRequestKind, input: BuildLlmContractIn
   const playerName = input.playerName?.trim() ?? ""
   const knownNpcNames = input.knownNpcNames?.map((name) => name.trim()).filter(Boolean) ?? []
 
-  const playerBaseCustom = compileCustomCharacterFields(customFieldDefs, "player", modules, { placement: "base" })
-  const playerCurrentCustom = compileCustomCharacterFields(customFieldDefs, "player", modules, { placement: "current" })
-  const npcBaseCustom = compileCustomCharacterFields(customFieldDefs, "npc", modules, { placement: "base" })
-  const npcCurrentCustom = compileCustomCharacterFields(customFieldDefs, "npc", modules, { placement: "current" })
-  const npcCreationCustom = compileCustomCharacterFields(customFieldDefs, "npc", modules)
-  const worldContextCustom = compileCustomWorldFields(customFieldDefs, { placement: "context" })
-  const worldMemoryCustom = compileCustomWorldFields(customFieldDefs, { placement: "memory" })
+  const playerBaseCustom = compileCustomCharacterFields(customFieldDefs, CharacterRole.Player, modules, {
+    placement: "base",
+  })
+  const playerCurrentCustom = compileCustomCharacterFields(customFieldDefs, CharacterRole.Player, modules, {
+    placement: "current",
+  })
+  const npcBaseCustom = compileCustomCharacterFields(customFieldDefs, CharacterRole.Npc, modules, {
+    placement: "base",
+  })
+  const npcCurrentCustom = compileCustomCharacterFields(customFieldDefs, CharacterRole.Npc, modules, {
+    placement: "current",
+  })
+  const npcCreationCustom = compileCustomCharacterFields(customFieldDefs, CharacterRole.Npc, modules)
+  const worldContextCustom = compileCustomWorldFields(customFieldDefs)
   const worldUpdateCustom = compileCustomWorldFields(customFieldDefs)
 
-  const playerBase = compileBuiltInFields(listBaseCharacterFieldIds(), "player", moduleState)
-  const playerCurrent = compileBuiltInFields(listCurrentCharacterFieldIds(), "player", moduleState)
-  const npcBase = compileBuiltInFields(listBaseCharacterFieldIds(), "npc", moduleState)
-  const npcCurrent = compileBuiltInFields(listCurrentCharacterFieldIds(), "npc", moduleState)
-  const npcCreation = compileBuiltInFields(listCreationCharacterFieldIds(), "npc", moduleState)
+  const playerBase = compileBuiltInFields(listBaseCharacterFieldIds(), CharacterRole.Player, moduleState)
+  const playerCurrent = compileBuiltInFields(listCurrentCharacterFieldIds(), CharacterRole.Player, moduleState)
+  const npcBase = compileBuiltInFields(listBaseCharacterFieldIds(), CharacterRole.Npc, moduleState)
+  const npcCurrent = compileBuiltInFields(listCurrentCharacterFieldIds(), CharacterRole.Npc, moduleState)
+  const npcCreation = compileBuiltInFields(listCreationCharacterFieldIds(), CharacterRole.Npc, moduleState)
 
   const fieldSet: CompiledFieldSet = {
     player: {
@@ -409,9 +430,7 @@ export function buildLlmContract(kind: LlmRequestKind, input: BuildLlmContractIn
     },
     world: {
       context: [buildContextField("current_location"), buildContextField("time_of_day")],
-      memory: [buildContextField("memory")],
       customContext: worldContextCustom,
-      customMemory: worldMemoryCustom,
       customUpdate: worldUpdateCustom,
     },
   }
@@ -440,10 +459,14 @@ export function buildLlmContract(kind: LlmRequestKind, input: BuildLlmContractIn
     schemaName = "GenerateCharacterResponse"
     zodSchema = z
       .object({
-        ...buildCharacterFieldShape(["name", "race", "gender", "general_description"], "player", moduleState),
+        ...buildCharacterFieldShape(
+          ["name", "race", "gender", "general_description"],
+          CharacterRole.Player,
+          moduleState,
+        ),
         ...buildCharacterFieldShape(
           ["baseline_appearance", "personality_traits", "major_flaws", "perks"],
-          "player",
+          CharacterRole.Player,
           moduleState,
         ),
         ...(playerBaseCustom.length > 0
@@ -462,7 +485,7 @@ export function buildLlmContract(kind: LlmRequestKind, input: BuildLlmContractIn
     schemaName = "CharacterCreation"
     zodSchema = buildCharacterCreationSchema(
       fieldSet.npc.creation.map((field) => field.id as CharacterFieldId),
-      "npc",
+      CharacterRole.Npc,
       fieldSet.npc.customCreation,
       moduleState,
     )
@@ -483,8 +506,14 @@ export function buildLlmContract(kind: LlmRequestKind, input: BuildLlmContractIn
     zodSchema,
     previewKeys,
     builtInUpdateKeys: {
-      player: fieldSet.player.current.map((field) => field.id),
-      npc: fieldSet.npc.current.map((field) => field.id),
+      player: [
+        ...fieldSet.player.current.map((field) => field.id).filter((fieldId) => fieldId !== "memories"),
+        ...(moduleState.character_memories ? ["new_memories"] : []),
+      ],
+      npc: [
+        ...fieldSet.npc.current.map((field) => field.id).filter((fieldId) => fieldId !== "memories"),
+        ...(moduleState.npc_memories ? ["new_memories"] : []),
+      ],
     },
     promptHints: buildPromptHints(kind, modules, playerName, knownNpcNames, fieldSet),
     fieldSet,

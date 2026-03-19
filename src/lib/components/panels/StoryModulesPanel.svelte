@@ -1,5 +1,6 @@
 <script lang="ts">
   import type { StoryModules } from "@/types/types"
+  import { CharacterRole } from "@/types/roles"
   import { MODULE_DEFS_BY_ID, STORY_MODULE_FIELD_ROWS, type StoryModuleKey } from "@/domain/story/module-definitions"
   import { settings as settingsService } from "@/services/settings"
   import type { CustomFieldDef } from "@/types/api"
@@ -65,12 +66,12 @@
       }),
   )
 
-  function customModuleValue(fieldId: string, target: "character" | "npc"): boolean {
+  function customModuleValue(fieldId: string, target: CharacterRole): boolean {
     const raw = modules.custom_field_modules?.[fieldId]?.[target]
     return typeof raw === "boolean" ? raw : true
   }
 
-  function setCustomModuleValue(fieldId: string, target: "character" | "npc", value: boolean) {
+  function setCustomModuleValue(fieldId: string, target: CharacterRole, value: boolean) {
     const next = { ...(modules.custom_field_modules ?? {}) }
     const current = next[fieldId] ?? {}
     next[fieldId] = { ...current, [target]: value }
@@ -229,8 +230,8 @@
     <div class="flex justify-center">
       <div class="w-14 flex items-center justify-center rounded-md border bg-card/60 py-1">
         <Switch
-          checked={customModuleValue(def.id, "character")}
-          onCheckedChange={(v) => setCustomModuleValue(def.id, "character", v)}
+          checked={customModuleValue(def.id, CharacterRole.Player)}
+          onCheckedChange={(v) => setCustomModuleValue(def.id, CharacterRole.Player, v)}
           aria-label={`Toggle player custom field ${def.label}`}
         />
       </div>
@@ -244,9 +245,9 @@
         )}
       >
         <Switch
-          checked={customModuleValue(def.id, "npc")}
+          checked={customModuleValue(def.id, CharacterRole.Npc)}
           disabled={npcDisabled}
-          onCheckedChange={(v) => setCustomModuleValue(def.id, "npc", v)}
+          onCheckedChange={(v) => setCustomModuleValue(def.id, CharacterRole.Npc, v)}
           aria-label={`Toggle NPC custom field ${def.label}`}
         />
       </div>

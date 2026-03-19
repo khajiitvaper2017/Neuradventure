@@ -175,7 +175,6 @@
   <SheetContent side="right" class="w-[min(92vw,44rem)] sm:max-w-none p-0">
     <div class="flex items-center justify-between gap-3 border-b px-4 py-3">
       <div class="min-w-0 truncate text-sm font-semibold text-foreground">{title}</div>
-      <Button variant="ghost" size="icon" class="h-9 w-9" onclick={close} aria-label="Close">×</Button>
     </div>
 
     <ScrollArea class="max-h-[calc(100dvh-3.25rem)]">

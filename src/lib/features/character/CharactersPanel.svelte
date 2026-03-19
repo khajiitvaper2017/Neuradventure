@@ -16,7 +16,6 @@
   import type { NPCState } from "@/types/types"
   import { createRequestId } from "@/utils/ids"
   import { Badge } from "@/components/ui/badge"
-  import { Button } from "@/components/ui/button"
   import { Sheet, SheetContent } from "@/components/ui/sheet"
   import { ScrollArea } from "@/components/ui/scroll-area"
   import { Users } from "@lucide/svelte"
@@ -109,15 +108,6 @@
         <span>Characters</span>
         <Badge variant="outline" class="rounded-full font-mono text-[11px]">{Math.max(0, $npcs.length)}</Badge>
       </div>
-      {#if !inline}
-        <Button
-          variant="ghost"
-          size="icon"
-          class="h-9 w-9"
-          onclick={() => showCharactersPanel.set(false)}
-          aria-label="Close">×</Button
-        >
-      {/if}
     </div>
 
     <ScrollArea class="min-h-0 flex-1">

@@ -56,10 +56,7 @@
           { value: "base", label: "Base context" },
           { value: "current", label: "Current state" },
         ]
-      : [
-          { value: "context", label: "Scene/time context" },
-          { value: "memory", label: "Memory section" },
-        ]
+      : [{ value: "context", label: "Context" }]
   }
 
   type NewFieldDraft = {

@@ -1,6 +1,7 @@
 import * as db from "@/db/core"
 import { getServerDefaults } from "@/utils/text/strings"
 import type { ChatMember } from "@/llm/chat"
+import { LlmRole } from "@/types/roles"
 import { TavernCardV2Schema, type TavernCardV2 } from "@/utils/converters/tavern"
 
 export function parseMemberState(raw: string): db.ChatMemberState | null {
@@ -32,6 +33,7 @@ function defaultMemberState(): db.ChatMemberState {
     personality_traits: [],
     major_flaws: [],
     perks: [],
+    memories: [],
     custom_fields: {},
   }
   return base
@@ -53,7 +55,7 @@ export function buildChatMembersForPrompt(members: db.ChatMemberRow[]): ChatMemb
 }
 
 export function listAiMembers(members: db.ChatMemberRow[]) {
-  return members.filter((m) => m.role === "ai").sort((a, b) => a.sort_order - b.sort_order)
+  return members.filter((m) => m.role === LlmRole.Assistant).sort((a, b) => a.sort_order - b.sort_order)
 }
 
 export function resolveSpeakerCard(member: db.ChatMemberRow): TavernCardV2 | null {

@@ -2,6 +2,7 @@ import { z } from "zod"
 import { MainCharacterStateSchema, NPCStateSchema, NPCStateStoredSchema } from "@/domain/story/schemas/game-state"
 import { StoryModulesSchema } from "@/domain/story/schemas/story-modules"
 import { DATE_REGEX, TIME_OF_DAY_REGEX } from "@/domain/story/schemas/constants"
+import { LlmRole } from "@/types/roles"
 
 export const CreateCharacterRequestSchema = z.object({
   name: z.string().min(1),
@@ -15,6 +16,7 @@ export const CreateCharacterRequestSchema = z.object({
   personality_traits: z.array(z.string()).optional(),
   major_flaws: z.array(z.string()).optional(),
   perks: z.array(z.string()).optional(),
+  memories: z.array(z.string()).optional(),
 })
 
 export const UpdateCharacterRequestSchema = CreateCharacterRequestSchema.partial()
@@ -41,6 +43,7 @@ export const CreateStoryRequestSchema = z.object({
       personality_traits: z.array(z.string()).optional(),
       major_flaws: z.array(z.string()).optional(),
       perks: z.array(z.string()).optional(),
+      memories: z.array(z.string()).optional(),
     })
     .optional(),
   npcs: z.array(NPCStateStoredSchema).optional(),
@@ -65,7 +68,6 @@ export const UpdateStoryStateRequestSchema = z
     npcs: z.array(NPCStateStoredSchema).optional(),
     world: z
       .object({
-        memory: z.string().min(1).optional(),
         custom_fields: z.record(z.string(), z.union([z.string(), z.array(z.string())])).optional(),
       })
       .optional(),
@@ -124,7 +126,7 @@ export const CreateChatRequestSchema = z.object({
   members: z
     .array(
       z.object({
-        role: z.enum(["player", "ai"]),
+        role: z.enum([LlmRole.User, LlmRole.Assistant]),
         member_kind: z.enum(["character", "npc"]),
         character_id: z.number().int().nullable().optional(),
         state: ChatMemberStateSchema,

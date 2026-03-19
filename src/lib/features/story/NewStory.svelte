@@ -4,6 +4,7 @@
   import type { MainCharacterState, NPCState, StoryModules } from "@/types/types"
   import type { CharacterCreation } from "@/types/models"
   import type { CustomFieldDef, StoryCharacterGroup, StoryNpcGroup } from "@/types/api"
+  import { CharacterRole } from "@/types/roles"
   import { stories as storiesService } from "@/services/stories"
   import { settings as settingsService } from "@/services/settings"
   import { subscribeStreamPreview } from "@/services/streamPreview"
@@ -194,7 +195,7 @@
           d.enabled &&
           d.scope === "character" &&
           d.placement === "current" &&
-          isCustomFieldModuleEnabled(activeModules, d.id, "character"),
+          isCustomFieldModuleEnabled(activeModules, d.id, CharacterRole.Player),
       )
       .slice()
       .sort((a, b) => {
@@ -564,7 +565,7 @@
             <CardDescription>Optional: generate modules, character, and NPCs from a prompt.</CardDescription>
           </CardHeader>
           <CardContent class="space-y-3">
-            <div class="flex items-start gap-2">
+            <div class="space-y-2">
               <Textarea
                 id="story-generate"
                 bind:value={$pendingStoryGenerateDescription}
@@ -573,7 +574,7 @@
               />
               <Button
                 variant="outline"
-                class="shrink-0"
+                class="w-full sm:w-auto"
                 onclick={generate}
                 disabled={generating || !$pendingStoryGenerateDescription.trim()}
               >
@@ -840,15 +841,6 @@
           <div class="truncate text-sm font-semibold text-foreground">Story Modules</div>
           <div class="mt-0.5 text-xs text-muted-foreground">Configure which systems are active for this story.</div>
         </div>
-        <Button
-          variant="ghost"
-          size="icon"
-          class="h-9 w-9"
-          onclick={() => (showModulesPanel = false)}
-          aria-label="Close"
-        >
-          ×
-        </Button>
       </div>
 
       <ScrollArea class="max-h-[calc(100dvh-3.25rem)]">

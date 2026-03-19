@@ -1,7 +1,12 @@
 import type { MainCharacterState, WorldState } from "@/types/models"
-import type { TurnRow } from "@/db/core"
 import { getSectionFormat } from "@/llm/config"
 import { getLlmStrings, getServerDefaults } from "@/utils/text/strings"
+
+export type TurnHistoryEntry = {
+  player_input: string
+  narrative_text: string
+  background_events?: string | null
+}
 
 function toTitleCase(tag: string): string {
   return tag.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase())
@@ -68,7 +73,10 @@ export function escapeForInlineJson(value: string): string {
   return value.replace(/\\/g, "\\\\").replace(/"/g, '\\"')
 }
 
-export function formatHistoryEntries(turns: TurnRow[], options: { includeBackgroundEvents?: boolean } = {}): string[] {
+export function formatHistoryEntries(
+  turns: TurnHistoryEntry[],
+  options: { includeBackgroundEvents?: boolean } = {},
+): string[] {
   if (turns.length === 0) return []
   const includeBackgroundEvents = options.includeBackgroundEvents === true
   const backgroundTag = includeBackgroundEvents ? getLlmStrings().sections.backgroundEvents : null
@@ -93,7 +101,7 @@ export function injectEntryAtDepth(entries: string[], entry: string, depth: numb
 }
 
 export function buildHistoryBlock(
-  turns: TurnRow[],
+  turns: TurnHistoryEntry[],
   world: WorldState,
   ctxLimit: number,
   baseTokens: number,

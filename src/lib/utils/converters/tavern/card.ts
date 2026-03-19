@@ -271,6 +271,7 @@ export function tavernCardToCharacter(card: TavernCardV2): TavernImportResult {
       personality_traits: traits,
       major_flaws: [],
       perks: [],
+      memories: [],
       custom_fields: {},
     },
     needs_review: true,

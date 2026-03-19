@@ -42,6 +42,7 @@
   import { Textarea } from "@/components/ui/textarea"
   import ChatTitleModal from "@/features/chat/ChatTitleModal.svelte"
   import NextSpeakerModal from "@/features/chat/NextSpeakerModal.svelte"
+  import { LlmRole } from "@/types/roles"
 
   type ActionMode = "do" | "say"
   const ACTION_MODES: ActionMode[] = ["do", "say"]
@@ -89,7 +90,7 @@
   let streamPreviewMode = $state<"append" | "replace">("append")
   let regeneratingMessageId = $state<number | null>(null)
 
-  let visibleMessages = $derived($chatMessages.filter((m) => m.role !== "system"))
+  let visibleMessages = $derived($chatMessages.filter((m) => m.role !== LlmRole.System))
 
   const avatarByMemberId = $derived.by(() => {
     const map: Record<number, string> = {}
@@ -130,7 +131,7 @@
   function lastAssistantMessageId(): number | null {
     for (let i = visibleMessages.length - 1; i >= 0; i--) {
       const msg = visibleMessages[i]
-      if (msg?.role === "assistant") return msg.id
+      if (msg?.role === LlmRole.Assistant) return msg.id
     }
     return null
   }
@@ -140,7 +141,7 @@
   }
 
   function aiMembers() {
-    return $chatMembers.filter((m) => m.role === "ai").sort((a, b) => a.sort_order - b.sort_order)
+    return $chatMembers.filter((m) => m.role === LlmRole.Assistant).sort((a, b) => a.sort_order - b.sort_order)
   }
 
   function showNextSpeakerControl() {
@@ -241,9 +242,9 @@
     }
   }
 
-  type SingleAiCharacter = ChatMember & { role: "ai"; member_kind: "character"; character_id: number }
+  type SingleAiCharacter = ChatMember & { role: LlmRole.Assistant; member_kind: "character"; character_id: number }
   function singleAiCharacter(): SingleAiCharacter | null {
-    const ai = $chatMembers.filter((m) => m.role === "ai")
+    const ai = $chatMembers.filter((m) => m.role === LlmRole.Assistant)
     if (ai.length !== 1) return null
     const member = ai[0]
     if (!member || member.member_kind !== "character" || member.character_id == null) return null
@@ -251,13 +252,13 @@
   }
 
   function playerName() {
-    return $chatMembers.find((m) => m.role === "player")?.name?.trim() || "Player"
+    return $chatMembers.find((m) => m.role === LlmRole.User)?.name?.trim() || "Player"
   }
 
   function seededGreetingMessage() {
-    const hasAnyUser = visibleMessages.some((m) => m.role === "user")
+    const hasAnyUser = visibleMessages.some((m) => m.role === LlmRole.User)
     if (hasAnyUser) return null
-    const assistants = visibleMessages.filter((m) => m.role === "assistant")
+    const assistants = visibleMessages.filter((m) => m.role === LlmRole.Assistant)
     if (assistants.length !== 1) return null
     return assistants[0] ?? null
   }
@@ -601,7 +602,7 @@
       {:else}
         <div class="space-y-3">
           {#each visibleMessages as message (message.id)}
-            {@const fromUser = message.role === "user"}
+            {@const fromUser = message.role === LlmRole.User}
             {@const avatarSrc = avatarByMemberId[message.speaker_member_id] ?? ""}
             <div class={cn("rounded-lg border bg-card p-4", fromUser && "border-primary/20 bg-primary/5")}>
               <div class="flex items-start justify-between gap-3">

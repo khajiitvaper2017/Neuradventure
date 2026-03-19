@@ -5,6 +5,7 @@ import * as db from "@/db/core"
 import type { ModularPrompt, PromptConfig, SectionFormat } from "@/llm/prompt-types"
 import { npcTraits } from "@/domain/story/schemas/npc-traits"
 import { buildLlmContract } from "@/llm/contract"
+import { formatTemplate, getLlmStrings } from "@/utils/text/strings"
 
 // ─── Prompt config (stored in SQLite, seeded from shared/config/prompts/*.txt) ──────────
 
@@ -22,21 +23,35 @@ function buildPromptHintLines(
     modules,
     playerName: kind === "turn" || kind === "story_setup" ? "Player" : undefined,
   })
+  const llmStrings = getLlmStrings()
+  const promptHints = llmStrings.promptHints
   const lines: string[] = []
   if (contract.promptHints.outputShapeLines.length > 0) {
-    lines.push("Output contract:")
+    lines.push(promptHints.outputContractHeader)
     lines.push(...contract.promptHints.outputShapeLines.map((line) => `- ${line}`))
   }
   if (contract.promptHints.enabledPlayerFields.length > 0) {
-    lines.push(`Enabled player fields: ${contract.promptHints.enabledPlayerFields.join(", ")}`)
+    lines.push(
+      formatTemplate(promptHints.enabledFields.player, { value: contract.promptHints.enabledPlayerFields.join(", ") }),
+    )
   }
   if (contract.promptHints.enabledNpcFields.length > 0) {
-    lines.push(`Enabled NPC fields: ${contract.promptHints.enabledNpcFields.join(", ")}`)
+    lines.push(
+      formatTemplate(promptHints.enabledFields.npc, { value: contract.promptHints.enabledNpcFields.join(", ") }),
+    )
   }
   if (contract.promptHints.enabledWorldFields.length > 0) {
-    lines.push(`Enabled world fields: ${contract.promptHints.enabledWorldFields.join(", ")}`)
+    lines.push(
+      formatTemplate(promptHints.enabledFields.world, { value: contract.promptHints.enabledWorldFields.join(", ") }),
+    )
   }
   return lines
+}
+
+function appendOutputHygiene(lines: string[]): string[] {
+  const promptHints = getLlmStrings().promptHints
+  const hygiene = [promptHints.outputHygiene.header, ...promptHints.outputHygiene.rules.map((line) => `- ${line}`)]
+  return lines.length > 0 ? [...lines, "", ...hygiene] : hygiene
 }
 
 function resolvePrompt(prompt: ModularPrompt | undefined, modules?: StoryModules): string[] {
@@ -59,45 +74,45 @@ function resolvePrompt(prompt: ModularPrompt | undefined, modules?: StoryModules
 export function getSystemPrompt(modules?: StoryModules): string {
   const lines = resolvePrompt(getConfig().systemPromptLines, modules)
   const hint = buildPromptHintLines("turn", modules)
-  const joined = [...lines, ...(hint.length > 0 ? ["", ...hint] : [])].join("\n")
+  const joined = appendOutputHygiene([...lines, ...(hint.length > 0 ? ["", ...hint] : [])]).join("\n")
   return joined.replace("{npcTraits}", npcTraits.join(", "))
 }
 
 export function getChatPrompt(modules?: StoryModules): string {
   const config = getConfig()
   const lines = resolvePrompt(config.chatPromptLines ?? config.systemPromptLines, modules)
-  return lines.join("\n")
+  return appendOutputHygiene(lines).join("\n")
 }
 
 export function getNpcCreationPrompt(modules?: StoryModules): string {
   const config = getConfig()
   const lines = resolvePrompt(config.npcCreationPrompt ?? config.systemPromptLines, modules)
   const hint = buildPromptHintLines("character_creation", modules)
-  const joined = [...lines, ...(hint.length > 0 ? ["", ...hint] : [])].join("\n")
+  const joined = appendOutputHygiene([...lines, ...(hint.length > 0 ? ["", ...hint] : [])]).join("\n")
   return joined.replace("{npcTraits}", npcTraits.join(", "))
 }
 
 export function getImpersonatePrompt(modules?: StoryModules): string {
   const config = getConfig()
-  return resolvePrompt(config.impersonatePrompt ?? config.systemPromptLines, modules).join("\n")
+  return appendOutputHygiene(resolvePrompt(config.impersonatePrompt ?? config.systemPromptLines, modules)).join("\n")
 }
 
 export function getGenerateCharacterPrompt(modules?: StoryModules): string {
   const lines = resolvePrompt(getConfig().generateCharacterPrompt, modules)
   const hint = buildPromptHintLines("character_generation", modules)
-  return [...lines, ...(hint.length > 0 ? ["", ...hint] : [])].join("\n")
+  return appendOutputHygiene([...lines, ...(hint.length > 0 ? ["", ...hint] : [])]).join("\n")
 }
 
 export function getGenerateStoryPrompt(modules?: StoryModules): string {
   const lines = resolvePrompt(getConfig().generateStoryPrompt, modules)
   const hint = buildPromptHintLines("story_setup", modules)
-  return [...lines, ...(hint.length > 0 ? ["", ...hint] : [])].join("\n")
+  return appendOutputHygiene([...lines, ...(hint.length > 0 ? ["", ...hint] : [])]).join("\n")
 }
 
 export function getGenerateChatPrompt(modules?: StoryModules): string {
   const config = getConfig()
   const lines = resolvePrompt(config.generateChatPrompt ?? config.generateStoryPrompt, modules)
-  return lines.join("\n")
+  return appendOutputHygiene(lines).join("\n")
 }
 
 export function getSectionFormat(): SectionFormat {

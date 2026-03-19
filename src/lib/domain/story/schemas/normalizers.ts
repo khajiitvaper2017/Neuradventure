@@ -1,4 +1,4 @@
-import { DATE_REGEX, getDefaultRecentEventsSummary } from "@/domain/story/schemas/constants"
+import { DATE_REGEX } from "@/domain/story/schemas/constants"
 import { npcTraitLookup } from "@/domain/story/schemas/npc-traits"
 import { getServerDefaults } from "@/utils/text/strings"
 export { normalizeGender } from "@/utils/text/normalize"
@@ -63,35 +63,6 @@ export function normalizeCurrentLocation(value: unknown): string {
   return getServerDefaults().unknown.location
 }
 
-export function stripSummaryLeak(value: string): string {
-  let sanitized = value
-  sanitized = sanitized.replace(/\/\*[\s\S]*?\*\//g, " ")
-  sanitized = sanitized.replace(/<!--[\s\S]*?-->/g, " ")
-  sanitized = sanitized.replace(/(^|[\s.!?])\/\/.*$/g, "$1")
-  return sanitized.trim()
-}
-
-export function normalizeRecentEventsSummary(value: unknown): string {
-  if (typeof value === "string") {
-    const trimmed = stripSummaryLeak(value).trim()
-    if (trimmed.length > 0) {
-      const matches = trimmed.match(/[^.!?]+[.!?]+/g) ?? []
-      let sentences = matches.map((sentence) => sentence.trim()).filter(Boolean)
-      if (sentences.length === 0) sentences = [trimmed]
-      sentences = sentences.map((sentence) => (/[.!?]$/.test(sentence) ? sentence : `${sentence}.`))
-      if (sentences.length === 1) sentences.push(getServerDefaults().furtherDetailsUnknown)
-      if (sentences.length > 3) sentences = sentences.slice(0, 3)
-      const summary = sentences.join(" ").trim()
-      return summary
-    }
-  }
-  return getDefaultRecentEventsSummary()
-}
-
-export function normalizeMemory(value: unknown): string {
-  return normalizeRecentEventsSummary(value)
-}
-
 export function normalizeNonEmptyString(value: unknown, fallback: string): string {
   if (typeof value === "string") {
     const trimmed = value.trim()
@@ -116,6 +87,10 @@ export function normalizePersonalityTraits(value: unknown): string[] {
 }
 
 export function normalizeTraitList(value: unknown): string[] {
+  return normalizeUniqueStringList(value)
+}
+
+export function normalizeMemories(value: unknown): string[] {
   return normalizeUniqueStringList(value)
 }
 

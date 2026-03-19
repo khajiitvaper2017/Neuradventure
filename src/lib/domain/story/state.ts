@@ -13,11 +13,32 @@ function mergeCustomFields(
   return { ...current, ...(patch as Record<string, string | string[]>) }
 }
 
+function mergeMemories(base: string[] | undefined, patch: unknown): string[] {
+  const current = Array.isArray(base) ? base : []
+  if (!Array.isArray(patch)) return current
+
+  const next = [...current]
+  const seen = new Set(current.map((memory) => memory.trim().toLowerCase()).filter(Boolean))
+
+  for (const entry of patch) {
+    if (typeof entry !== "string") continue
+    const trimmed = entry.trim()
+    if (!trimmed) continue
+    const key = trimmed.toLowerCase()
+    if (seen.has(key)) continue
+    seen.add(key)
+    next.push(trimmed)
+  }
+
+  return next
+}
+
 export type CharacterUpdatePolicy = {
   useAppearance: boolean
   useLocation: boolean
   useActivity: boolean
   useInventory: boolean
+  useMemories: boolean
   builtInKeys: readonly string[]
 }
 
@@ -57,6 +78,7 @@ export function applyCharacterUpdate<TCharacter extends MainCharacterState | NPC
       policy.useInventory && Array.isArray(patch?.inventory)
         ? (patch.inventory as typeof character.inventory)
         : character.inventory,
+    memories: policy.useMemories ? mergeMemories(character.memories, patch?.new_memories) : character.memories,
     custom_fields: mergeCustomFields(character.custom_fields, extractCustomFieldPatch(patch, policy.builtInKeys)),
   } as TCharacter
 }

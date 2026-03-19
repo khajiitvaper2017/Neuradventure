@@ -6,9 +6,9 @@ import {
   normalizeNonEmptyString,
   normalizeGender,
   normalizePersonalityTraits,
-  normalizeMemory,
   normalizeTimeOfDay,
   normalizeTraitList,
+  normalizeMemories,
   normalizeCustomFields,
 } from "@/domain/story/schemas/normalizers"
 import { getServerDefaults } from "@/utils/text/strings"
@@ -55,6 +55,7 @@ const CharacterStateBaseSchema = z
     major_flaws: MajorFlawsSchema.optional().default([]),
     perks: PerksSchema.optional().default([]),
     inventory: z.array(InventoryItemSchema).optional().default([]),
+    memories: z.array(z.string().min(1)).optional().default([]),
     custom_fields: CustomFieldsSchema,
   })
   .strict()
@@ -94,6 +95,7 @@ const CharacterStateStoredBaseSchema = z
     perks: z.unknown().optional(),
     current_activity: z.string().optional(),
     inventory: z.unknown().optional(),
+    memories: z.unknown().optional(),
     custom_fields: z.unknown().optional(),
   })
   .passthrough()
@@ -121,6 +123,7 @@ const normalizeCharacterStoredBase = (value: z.input<typeof CharacterStateStored
   major_flaws: normalizeTraitList(value.major_flaws),
   perks: normalizeTraitList(value.perks),
   inventory: normalizeInventoryItems(value.inventory),
+  memories: normalizeMemories(value.memories),
   custom_fields: normalizeCustomFields(value.custom_fields),
 })
 
@@ -145,7 +148,6 @@ export const WorldStateSchema: z.ZodType<SharedWorldState> = z
   .object({
     current_location: z.string().min(1),
     time_of_day: z.string().regex(TIME_OF_DAY_REGEX, "time_of_day must be 24h HH:MM"),
-    memory: z.string().min(1),
     custom_fields: CustomFieldsSchema,
   })
   .strict()
@@ -154,7 +156,6 @@ export const WorldStateStoredSchema: z.ZodType<SharedWorldState> = z
   .object({
     current_location: z.string().optional(),
     time_of_day: z.string().optional(),
-    memory: z.string().optional(),
     custom_fields: z.unknown().optional(),
   })
   .passthrough()
@@ -163,7 +164,6 @@ export const WorldStateStoredSchema: z.ZodType<SharedWorldState> = z
     const normalized = {
       current_location: currentLocation,
       time_of_day: normalizeTimeOfDay(value.time_of_day),
-      memory: normalizeMemory(value.memory),
       custom_fields: normalizeCustomFields(value.custom_fields),
     }
     return WorldStateSchema.parse(normalized)

@@ -1,4 +1,5 @@
 import { countTokens } from "token-estimator"
+import type { ChatCompletionMessageParam } from "@/llm/openai-types"
 
 export function estimateTokens(text: string): number {
   const normalized = text.trim()
@@ -7,6 +8,16 @@ export function estimateTokens(text: string): number {
     keepWhitespace: false,
     mode: "openai",
   })
+}
+
+export function estimateChatTokens(messages: ChatCompletionMessageParam[]): number {
+  if (!Array.isArray(messages) || messages.length === 0) return 0
+  return estimateTokens(
+    messages
+      .map((message) => (typeof message.content === "string" ? message.content.trim() : ""))
+      .filter(Boolean)
+      .join("\n\n"),
+  )
 }
 
 export function formatTokenCount(count: number): string {

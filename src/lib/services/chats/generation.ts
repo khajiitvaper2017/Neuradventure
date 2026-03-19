@@ -19,6 +19,7 @@ import {
   resolveSpeakerCard,
 } from "@/services/chats/members"
 import { buildChatHistory, buildMessagePayload } from "@/services/chats/messages"
+import { LlmRole } from "@/types/roles"
 import { clearInFlight, getCachedOrInFlight, setInFlight } from "@/services/requests/cache"
 import { isProbablyOfflineError } from "@/services/requests/offline"
 
@@ -27,8 +28,8 @@ export async function send(id: number, content: string, requestId?: string): Pro
   if (!chat) throw new AppError(404, "Chat not found")
 
   const members = db.listChatMembers(id)
-  const playerMember = members.find((m) => m.role === "player")
-  if (!playerMember) throw new AppError(400, "Chat has no player member")
+  const playerMember = members.find((m) => m.role === LlmRole.User)
+  if (!playerMember) throw new AppError(400, "Chat has no user member")
   const aiMembers = listAiMembers(members)
   if (aiMembers.length === 0) throw new AppError(400, "Chat has no AI members")
 
@@ -36,7 +37,7 @@ export async function send(id: number, content: string, requestId?: string): Pro
   if (!trimmedContent) throw new AppError(400, "Message content is required")
 
   const playerMessageIndex = db.getNextChatMessageIndex(id)
-  const playerMessageId = db.appendChatMessage(id, playerMessageIndex, playerMember.id, "user", trimmedContent)
+  const playerMessageId = db.appendChatMessage(id, playerMessageIndex, playerMember.id, LlmRole.User, trimmedContent)
   db.clearCanceledChatExchange(id)
 
   const safeIndex = chat.next_speaker_index % aiMembers.length
@@ -72,7 +73,7 @@ export async function send(id: number, content: string, requestId?: string): Pro
       if (!replyText) throw new Error("LLM returned empty response")
 
       const aiMessageIndex = playerMessageIndex + 1
-      const aiMessageId = db.appendChatMessage(id, aiMessageIndex, nextSpeaker.id, "assistant", replyText)
+      const aiMessageId = db.appendChatMessage(id, aiMessageIndex, nextSpeaker.id, LlmRole.Assistant, replyText)
       const nextIndex = (safeIndex + 1) % aiMembers.length
       db.advanceChatSpeaker(id, nextIndex)
 
@@ -152,7 +153,7 @@ export async function continueChat(id: number, requestId?: string): Promise<Chat
       if (!replyText) throw new Error("LLM returned empty response")
 
       const aiMessageIndex = db.getNextChatMessageIndex(id)
-      const aiMessageId = db.appendChatMessage(id, aiMessageIndex, nextSpeaker.id, "assistant", replyText)
+      const aiMessageId = db.appendChatMessage(id, aiMessageIndex, nextSpeaker.id, LlmRole.Assistant, replyText)
       const nextIndex = (safeIndex + 1) % aiMembers.length
       db.advanceChatSpeaker(id, nextIndex)
       db.clearCanceledChatExchange(id)
@@ -204,7 +205,7 @@ export async function regenerateLast(id: number, requestId?: string): Promise<Ch
   let speakerMember = null as db.ChatMemberRow | null
   let replaced = false
 
-  if (lastMessage.role === "assistant") {
+  if (lastMessage.role === LlmRole.Assistant) {
     speakerMember = members.find((m) => m.id === lastMessage.speaker_member_id) ?? null
     history = allMessages.slice(0, -1)
     replaced = true
@@ -252,7 +253,7 @@ export async function regenerateLast(id: number, requestId?: string): Promise<Ch
         aiMessageId = lastMessage.id
       } else {
         const aiMessageIndex = db.getNextChatMessageIndex(id)
-        aiMessageId = db.appendChatMessage(id, aiMessageIndex, speakerMember.id, "assistant", replyText)
+        aiMessageId = db.appendChatMessage(id, aiMessageIndex, speakerMember.id, LlmRole.Assistant, replyText)
         const speakerIndex = aiMembers.findIndex((m) => m.id === speakerMember?.id)
         nextIndex = speakerIndex >= 0 ? (speakerIndex + 1) % aiMembers.length : chat.next_speaker_index
         db.advanceChatSpeaker(id, nextIndex)
@@ -303,7 +304,7 @@ export async function cancelLast(id: number): Promise<ChatCancelResult> {
   const prev = messages.length > 1 ? messages[messages.length - 2] : null
   const toRemove: db.ChatMessageRow[] = []
 
-  if (last.role === "assistant" && prev && prev.role === "user") {
+  if (last.role === LlmRole.Assistant && prev && prev.role === LlmRole.User) {
     toRemove.push(prev, last)
   } else {
     toRemove.push(last)
@@ -323,7 +324,7 @@ export async function cancelLast(id: number): Promise<ChatCancelResult> {
   for (const msg of toRemove) db.deleteChatMessage(msg.id)
 
   let nextIndex = chat.next_speaker_index
-  const lastAssistant = toRemove.find((m) => m.role === "assistant")
+  const lastAssistant = toRemove.find((m) => m.role === LlmRole.Assistant)
   if (lastAssistant && aiMembers.length > 0) {
     const assistantIndex = aiMembers.findIndex((m) => m.id === lastAssistant.speaker_member_id)
     if (assistantIndex >= 0) {

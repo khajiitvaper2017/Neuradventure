@@ -1,7 +1,9 @@
 import type { ChatCompletionMessageParam } from "@/llm/openai-types"
+import { LlmRole } from "@/types/roles"
+import { formatTemplate, getLlmStrings } from "@/utils/text/strings"
 
 function isSystemMessage(msg: ChatCompletionMessageParam): boolean {
-  return msg.role === "system"
+  return msg.role === LlmRole.System
 }
 
 export function injectOutputSchemaIntoMessages(
@@ -10,12 +12,13 @@ export function injectOutputSchemaIntoMessages(
   jsonSchema: object,
 ): ChatCompletionMessageParam[] {
   const schemaText = JSON.stringify(jsonSchema)
+  const schemaPrompt = getLlmStrings().schemaPrompt
   const injection: ChatCompletionMessageParam = {
-    role: "system",
-    content:
-      `OUTPUT REQUIREMENTS (${schemaName}): You must output a single JSON object that validates against the following JSON Schema. ` +
-      `Do not output the schema. Do not include any surrounding text. Do not add extra keys. ` +
-      `JSON_SCHEMA_DRAFT_07:${schemaText}`,
+    role: LlmRole.System,
+    content: [
+      formatTemplate(schemaPrompt.outputRequirements, { schemaName }),
+      formatTemplate(schemaPrompt.draft07, { schemaText }),
+    ].join(" "),
   }
 
   let insertAt = 0

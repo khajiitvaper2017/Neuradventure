@@ -50,7 +50,6 @@ function buildWorldUpdate(
   return {
     current_location: nextCurrentLocation,
     time_of_day: nextTimeOfDay,
-    memory: baseWorld.memory,
     custom_fields: nextCustomFields,
   }
 }
@@ -67,6 +66,7 @@ function applyTurnResponse(snapshot: TurnSnapshot, response: TurnResponse, modul
     useLocation: flags.useCharLocation,
     useActivity: flags.useCharActivity,
     useInventory: flags.useCharInventory,
+    useMemories: flags.useCharMemories,
     builtInKeys: contract.builtInUpdateKeys.player,
   }
   const npcPolicy = {
@@ -74,6 +74,7 @@ function applyTurnResponse(snapshot: TurnSnapshot, response: TurnResponse, modul
     useLocation: flags.useNpcLocation,
     useActivity: flags.useNpcActivity,
     useInventory: flags.useNpcInventory,
+    useMemories: flags.useNpcMemories,
     builtInKeys: contract.builtInUpdateKeys.npc,
   }
   const newCharacter = applyCharacterUpdate(snapshot.character, response, playerPolicy)
