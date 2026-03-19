@@ -28,7 +28,6 @@
         <div class="truncate text-sm font-semibold text-foreground">Story Modules</div>
         <div class="mt-0.5 text-xs text-muted-foreground">Control which mechanics are tracked for this story.</div>
       </div>
-      <Button variant="ghost" size="icon" class="h-9 w-9" onclick={onCancel} aria-label="Close">×</Button>
     </div>
 
     <ScrollArea class="max-h-[calc(100dvh-7.25rem)]">

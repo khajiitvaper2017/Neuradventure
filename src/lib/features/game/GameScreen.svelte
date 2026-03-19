@@ -174,6 +174,14 @@
     return pending.playerInput
   })
 
+  const pendingActionMode = $derived.by(() => {
+    if (typeof window === "undefined") return null
+    if (!$isGenerating || !$currentStoryId) return null
+    const pending = getPendingTurn()
+    if (!pending || pending.storyId !== $currentStoryId) return null
+    return pending.actionMode
+  })
+
   function triggerFlash(setter: (v: boolean) => void, ref: { id: number | null }) {
     setter(true)
     if (ref.id) window.clearTimeout(ref.id)
@@ -675,6 +683,8 @@
 <div class="relative mx-auto flex h-dvh w-full max-w-3xl flex-col overflow-hidden">
   <GameTopBar
     {flashLocation}
+    input={pendingPlayerInput || input}
+    actionMode={pendingActionMode ?? actionMode}
     onGoHome={goHome}
     onOpenWorldFieldsEditor={() => void openWorldFieldsEditor()}
     onOpenAuthorNoteEditor={openAuthorNoteEditor}

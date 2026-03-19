@@ -1063,7 +1063,6 @@
           >
             <SquarePen size={12} strokeWidth={2} aria-hidden="true" />
           </Button>
-          <Button variant="ghost" size="icon" class="h-9 w-9" onclick={closeCharSheet} aria-label="Close">×</Button>
         </div>
       </div>
       <ScrollArea class="max-h-[calc(100dvh-3.25rem)]">

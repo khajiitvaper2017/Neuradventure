@@ -1,5 +1,4 @@
 import type { MainCharacterState, NPCState, StoryModules, WorldState } from "@/types/models"
-import type { TurnRow } from "@/db/core"
 import { getGenerationParams } from "@/llm/client"
 import { getImpersonatePrompt, getNpcCreationPrompt, getSectionFormat, getSystemPrompt } from "@/llm/config"
 import { buildLlmContract } from "@/llm/contract"
@@ -10,7 +9,14 @@ import {
   type CompiledFieldDefinition,
   type WorldFieldId,
 } from "@/llm/contract/fields"
-import { buildHistoryBlock, injectEntryAtDepth, wrapNamedEntry, wrapSection, estimateTokens } from "@/llm/io/format"
+import {
+  buildHistoryBlock,
+  injectEntryAtDepth,
+  wrapNamedEntry,
+  wrapSection,
+  estimateTokens,
+  type TurnHistoryEntry,
+} from "@/llm/io/format"
 import { getLlmStrings } from "@/utils/text/strings"
 import { DEFAULT_STORY_MODULES } from "@/domain/story/schemas/story-modules"
 import { renderCharacterBook } from "@/utils/tavern/character-book"
@@ -61,7 +67,7 @@ export interface ContextBlockOpts {
   character: MainCharacterState
   world: WorldState
   npcs: NPCState[]
-  recentTurns: TurnRow[]
+  recentTurns: TurnHistoryEntry[]
   ctxLimit: number
   initialCharacter?: MainCharacterState
   actionBlock?: string | null
@@ -329,7 +335,7 @@ export function buildTurnMessages(
   character: MainCharacterState,
   world: WorldState,
   npcs: NPCState[],
-  recentTurns: TurnRow[],
+  recentTurns: TurnHistoryEntry[],
   playerInput: string,
   actionMode: string,
   initialCharacter?: MainCharacterState,
@@ -381,7 +387,7 @@ export function buildNpcCreationMessages(
   character: MainCharacterState,
   world: WorldState,
   npcs: NPCState[],
-  recentTurns: TurnRow[],
+  recentTurns: TurnHistoryEntry[],
   npcName: string,
   ctxLimitOverride?: number,
   authorNote?: {
@@ -426,7 +432,7 @@ export function buildImpersonateMessages(
   character: MainCharacterState,
   world: WorldState,
   npcs: NPCState[],
-  recentTurns: TurnRow[],
+  recentTurns: TurnHistoryEntry[],
   actionMode: string,
   initialCharacter?: MainCharacterState,
   ctxLimitOverride?: number,

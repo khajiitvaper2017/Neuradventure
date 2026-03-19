@@ -1,7 +1,9 @@
 <script lang="ts">
+  import { buildTurnMessages } from "@/llm"
   import { stories } from "@/services/stories"
+  import { normalizePlayerInput } from "@/utils/text/inputNormalize"
   import { cn } from "@/utils.js"
-  import { estimateTokens, formatTokenCount } from "@/utils/text/tokenEstimate"
+  import { estimateChatTokens, formatTokenCount } from "@/utils/text/tokenEstimate"
   import { EllipsisVertical, User, Users } from "@lucide/svelte"
   import { Badge } from "@/components/ui/badge"
   import { Button } from "@/components/ui/button"
@@ -12,12 +14,31 @@
     DropdownMenuSeparator,
     DropdownMenuTrigger,
   } from "@/components/ui/dropdown-menu"
-  import { generation } from "@/stores/settings"
+  import { authorNoteEnabled, ctxLimitDetected, generation } from "@/stores/settings"
   import { collapseCharSheet, collapseCharactersPanel } from "@/stores/ui"
-  import { currentStoryId, currentStoryModules, currentStoryTitle, turns, worldState } from "@/stores/game"
+  import {
+    character,
+    currentStoryAuthorNote,
+    currentStoryAuthorNoteDepth,
+    currentStoryAuthorNoteEmbedState,
+    currentStoryAuthorNoteInterval,
+    currentStoryAuthorNotePosition,
+    currentStoryAuthorNoteRole,
+    currentStoryId,
+    currentStoryModules,
+    currentStoryTitle,
+    llmUpdateId,
+    npcs,
+    turns,
+    worldState,
+  } from "@/stores/game"
+
+  type ActionMode = "do" | "say" | "story"
 
   type Props = {
     flashLocation?: boolean
+    input?: string
+    actionMode?: ActionMode
     onGoHome?: () => void
     onOpenWorldFieldsEditor?: () => void
     onOpenAuthorNoteEditor?: () => void
@@ -26,6 +47,8 @@
 
   let {
     flashLocation = false,
+    input = "",
+    actionMode = "do",
     onGoHome,
     onOpenWorldFieldsEditor,
     onOpenAuthorNoteEditor,
@@ -35,18 +58,36 @@
   let showMenu = $state(false)
   const trackNpcs = $derived($currentStoryModules?.track_npcs ?? true)
   const approxPromptTokens = $derived.by(() => {
-    const parts: string[] = []
-    const recentTurns = $turns.slice(-12)
-    for (const turn of recentTurns) {
-      const player = turn.player_input?.trim()
-      if (player) parts.push(player)
-      const bg = turn.background_events?.trim()
-      if (bg) parts.push(bg)
-      const narrative = turn.narrative_text?.trim()
-      if (narrative) parts.push(narrative)
-    }
+    void $llmUpdateId
+    if (!$character || !$worldState) return 0
 
-    return estimateTokens(parts.join("\n\n"))
+    const trimmedInput = input.trim()
+    const playerInput = trimmedInput ? normalizePlayerInput(trimmedInput, actionMode) : ""
+    const effectiveActionMode: ActionMode = playerInput ? actionMode : "story"
+    const ctxLimit = $generation.ctx_limit > 0 ? $generation.ctx_limit : $ctxLimitDetected
+
+    const messages = buildTurnMessages(
+      $character,
+      $worldState,
+      $npcs,
+      $turns,
+      playerInput,
+      effectiveActionMode,
+      undefined,
+      ctxLimit,
+      {
+        text: $currentStoryAuthorNote,
+        depth: $currentStoryAuthorNoteDepth,
+        position: $currentStoryAuthorNotePosition,
+        interval: $currentStoryAuthorNoteInterval,
+        role: $currentStoryAuthorNoteRole,
+        embedState: $currentStoryAuthorNoteEmbedState,
+        enabled: $authorNoteEnabled,
+      },
+      $currentStoryModules ?? undefined,
+    )
+
+    return estimateChatTokens(messages)
   })
 
   async function exportStory(format: "neuradventure" | "tavern" | "plaintext") {
@@ -99,7 +140,7 @@
     <Badge
       variant="secondary"
       class="mr-1 font-mono text-xs tabular-nums"
-      title={`Approx prompt tokens (heuristic): ~${approxPromptTokens} · Max completion: ≤${$generation.max_tokens}`}
+      title={`Approx prompt tokens from the current turn builder: ~${approxPromptTokens} · Max completion: ≤${$generation.max_tokens}`}
     >
       ~{formatTokenCount(approxPromptTokens)}
     </Badge>
