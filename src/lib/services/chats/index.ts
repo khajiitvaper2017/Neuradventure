@@ -9,6 +9,7 @@ import type {
   ChatUpdateMessageResult,
   ChatUpdateResult,
 } from "@/types/api"
+import type { ConversationRole } from "@/types/roles"
 import { create, deleteChat, deleteMessage, get, list, messages, update, updateMessage } from "@/services/chats/crud"
 import { exportAndDownload } from "@/services/chats/export"
 import { cancelLast, continueChat, regenerateLast, send, setNextSpeaker, undoCancel } from "@/services/chats/generation"
@@ -41,7 +42,7 @@ export const chats = {
   create: (data: {
     title?: string
     members: Array<{
-      role: "player" | "ai"
+      role: ConversationRole
       member_kind: "character" | "npc"
       character_id?: number | null
       state: unknown

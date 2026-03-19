@@ -1,4 +1,5 @@
 import type { ChatMessageRow, ChatRow, TurnRow } from "@/db/core"
+import { LlmRole } from "@/types/roles"
 import { getServerDefaults } from "@/utils/text/strings"
 
 export interface STChatLine {
@@ -69,7 +70,9 @@ export function chatToTavernJSONL(
   const createdAt = chat.created_at || new Date().toISOString()
   const safeTitle = chat.title?.trim() || "Group Chat"
   const resolvedPlayerName =
-    playerName?.trim() || messages.find((m) => m.role === "user")?.speaker_name || getServerDefaults().unknown.value
+    playerName?.trim() ||
+    messages.find((m) => m.role === LlmRole.User)?.speaker_name ||
+    getServerDefaults().unknown.value
 
   lines.push({
     user_name: resolvedPlayerName,
@@ -80,7 +83,7 @@ export function chatToTavernJSONL(
   for (const message of messages) {
     lines.push({
       name: message.speaker_name || getServerDefaults().unknown.value,
-      is_user: message.role === "user",
+      is_user: message.role === LlmRole.User,
       send_date: message.created_at,
       mes: message.content,
     })

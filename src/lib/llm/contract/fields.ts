@@ -1,6 +1,7 @@
 import { z } from "zod"
 import type { CustomFieldDef } from "@/types/api"
 import type { MainCharacterState, NPCState, WorldState } from "@/types/models"
+import { CharacterRole } from "@/types/roles"
 import type { StoryModuleKey } from "@/domain/story/module-definitions"
 import { InventoryItemSchema } from "@/domain/story/schemas/game-state"
 import { TIME_OF_DAY_REGEX } from "@/domain/story/schemas/constants"
@@ -8,7 +9,7 @@ import { formatTemplate, getLlmStrings, getServerDefaults } from "@/utils/text/s
 import { isCustomFieldModuleEnabled } from "@/domain/story/custom-field-modules"
 import { getFieldDescription } from "@/llm/contract/descriptions"
 
-export type ContractRole = "player" | "npc"
+export type ContractRole = CharacterRole
 
 export type FieldValueKind = "text" | "string_list" | "inventory" | "time"
 
@@ -76,8 +77,8 @@ const CHARACTER_FIELD_DEFS: Record<CharacterFieldId, FieldDefinition> = {
     descriptionKey: "state.character.baseline_appearance",
     kind: "text",
     moduleByRole: {
-      player: "character_appearance_clothing",
-      npc: "npc_appearance_clothing",
+      [CharacterRole.Player]: "character_appearance_clothing",
+      [CharacterRole.Npc]: "npc_appearance_clothing",
     },
     renderLabel: { group: "characterContextLabels", key: "baselineAppearance" },
   },
@@ -86,8 +87,8 @@ const CHARACTER_FIELD_DEFS: Record<CharacterFieldId, FieldDefinition> = {
     descriptionKey: "state.character.current_appearance",
     kind: "text",
     moduleByRole: {
-      player: "character_appearance_clothing",
-      npc: "npc_appearance_clothing",
+      [CharacterRole.Player]: "character_appearance_clothing",
+      [CharacterRole.Npc]: "npc_appearance_clothing",
     },
     renderLabel: { group: "characterContextLabels", key: "currentAppearance" },
   },
@@ -96,8 +97,8 @@ const CHARACTER_FIELD_DEFS: Record<CharacterFieldId, FieldDefinition> = {
     descriptionKey: "state.character.current_clothing",
     kind: "text",
     moduleByRole: {
-      player: "character_appearance_clothing",
-      npc: "npc_appearance_clothing",
+      [CharacterRole.Player]: "character_appearance_clothing",
+      [CharacterRole.Npc]: "npc_appearance_clothing",
     },
     renderLabel: { group: "contextLabels", key: "wearing" },
   },
@@ -106,8 +107,8 @@ const CHARACTER_FIELD_DEFS: Record<CharacterFieldId, FieldDefinition> = {
     descriptionKey: "state.character.current_location",
     kind: "text",
     moduleByRole: {
-      player: "character_location",
-      npc: "npc_location",
+      [CharacterRole.Player]: "character_location",
+      [CharacterRole.Npc]: "npc_location",
     },
     renderLabel: { group: "characterContextLabels", key: "location" },
   },
@@ -116,8 +117,8 @@ const CHARACTER_FIELD_DEFS: Record<CharacterFieldId, FieldDefinition> = {
     descriptionKey: "state.character.current_activity",
     kind: "text",
     moduleByRole: {
-      player: "character_activity",
-      npc: "npc_activity",
+      [CharacterRole.Player]: "character_activity",
+      [CharacterRole.Npc]: "npc_activity",
     },
     renderLabel: { group: "characterContextLabels", key: "currentActivity" },
   },
@@ -126,8 +127,8 @@ const CHARACTER_FIELD_DEFS: Record<CharacterFieldId, FieldDefinition> = {
     descriptionKey: "traits.personality_traits",
     kind: "string_list",
     moduleByRole: {
-      player: "character_personality_traits",
-      npc: "npc_personality_traits",
+      [CharacterRole.Player]: "character_personality_traits",
+      [CharacterRole.Npc]: "npc_personality_traits",
     },
     renderLabel: { group: "contextLabels", key: "personalityTraits" },
   },
@@ -136,8 +137,8 @@ const CHARACTER_FIELD_DEFS: Record<CharacterFieldId, FieldDefinition> = {
     descriptionKey: "traits.major_flaws",
     kind: "string_list",
     moduleByRole: {
-      player: "character_major_flaws",
-      npc: "npc_major_flaws",
+      [CharacterRole.Player]: "character_major_flaws",
+      [CharacterRole.Npc]: "npc_major_flaws",
     },
     renderLabel: { group: "contextLabels", key: "majorFlaws" },
   },
@@ -146,8 +147,8 @@ const CHARACTER_FIELD_DEFS: Record<CharacterFieldId, FieldDefinition> = {
     descriptionKey: "traits.perks",
     kind: "string_list",
     moduleByRole: {
-      player: "character_perks",
-      npc: "npc_perks",
+      [CharacterRole.Player]: "character_perks",
+      [CharacterRole.Npc]: "npc_perks",
     },
     renderLabel: { group: "contextLabels", key: "perks" },
   },
@@ -156,8 +157,8 @@ const CHARACTER_FIELD_DEFS: Record<CharacterFieldId, FieldDefinition> = {
     descriptionKey: "state.character.memories",
     kind: "string_list",
     moduleByRole: {
-      player: "character_memories",
-      npc: "npc_memories",
+      [CharacterRole.Player]: "character_memories",
+      [CharacterRole.Npc]: "npc_memories",
     },
     renderLabel: { group: "contextLabels", key: "memories" },
   },
@@ -166,8 +167,8 @@ const CHARACTER_FIELD_DEFS: Record<CharacterFieldId, FieldDefinition> = {
     descriptionKey: "state.character.inventory",
     kind: "inventory",
     moduleByRole: {
-      player: "character_inventory",
-      npc: "npc_inventory",
+      [CharacterRole.Player]: "character_inventory",
+      [CharacterRole.Npc]: "npc_inventory",
     },
     renderLabel: { group: "contextLabels", key: "inventory" },
   },
@@ -304,7 +305,7 @@ export function buildWorldFieldShape(
 export function compileCustomCharacterFields(
   defs: CustomFieldDef[],
   role: ContractRole,
-  modules: { custom_field_modules?: Record<string, { character?: boolean; npc?: boolean }> },
+  modules: { custom_field_modules?: Record<string, { player?: boolean; npc?: boolean }> },
   options?: { placement?: "base" | "current" },
 ): CompiledFieldDefinition[] {
   const placement = options?.placement
@@ -313,7 +314,7 @@ export function compileCustomCharacterFields(
   for (const def of defs) {
     if (!def.enabled || def.scope !== "character") continue
     if (placement && def.placement !== placement) continue
-    if (!isCustomFieldModuleEnabled(modules, def.id, role === "player" ? "character" : "npc")) continue
+    if (!isCustomFieldModuleEnabled(modules, def.id, role)) continue
     const description =
       (def.prompt ?? "").trim() ||
       formatTemplate(promptHints.customFieldFallback.character, { label: def.label, id: def.id })

@@ -3,6 +3,7 @@ import * as db from "@/db/core"
 import { isEngineDbInitialized } from "@/db/connection"
 import type { CustomFieldDef } from "@/types/api"
 import type { StoryModules } from "@/types/models"
+import { CharacterRole } from "@/types/roles"
 import { STORY_MODULE_KEYS } from "@/domain/story/module-definitions"
 import { DEFAULT_STORY_MODULES } from "@/domain/story/schemas/story-modules"
 import { getFieldDescription } from "@/llm/contract/descriptions"
@@ -202,16 +203,21 @@ function buildCharacterRequestSchemas(
     .filter((fieldId) => (options.excludeInventoryForPlayer === true ? fieldId !== "inventory" : true))
 
   return {
-    playerPatch: buildCharacterPatchSchema(playerFieldIds, "player", fieldSet.player.customCurrent, moduleState),
+    playerPatch: buildCharacterPatchSchema(
+      playerFieldIds,
+      CharacterRole.Player,
+      fieldSet.player.customCurrent,
+      moduleState,
+    ),
     npcPatch: buildCharacterPatchSchema(
       fieldSet.npc.current.map((field) => field.id as CharacterFieldId),
-      "npc",
+      CharacterRole.Npc,
       fieldSet.npc.customCurrent,
       moduleState,
     ),
     npcCreation: buildCharacterCreationSchema(
       fieldSet.npc.creation.map((field) => field.id as CharacterFieldId),
-      "npc",
+      CharacterRole.Npc,
       fieldSet.npc.customCreation,
       moduleState,
     ),
@@ -385,19 +391,27 @@ export function buildLlmContract(kind: LlmRequestKind, input: BuildLlmContractIn
   const playerName = input.playerName?.trim() ?? ""
   const knownNpcNames = input.knownNpcNames?.map((name) => name.trim()).filter(Boolean) ?? []
 
-  const playerBaseCustom = compileCustomCharacterFields(customFieldDefs, "player", modules, { placement: "base" })
-  const playerCurrentCustom = compileCustomCharacterFields(customFieldDefs, "player", modules, { placement: "current" })
-  const npcBaseCustom = compileCustomCharacterFields(customFieldDefs, "npc", modules, { placement: "base" })
-  const npcCurrentCustom = compileCustomCharacterFields(customFieldDefs, "npc", modules, { placement: "current" })
-  const npcCreationCustom = compileCustomCharacterFields(customFieldDefs, "npc", modules)
+  const playerBaseCustom = compileCustomCharacterFields(customFieldDefs, CharacterRole.Player, modules, {
+    placement: "base",
+  })
+  const playerCurrentCustom = compileCustomCharacterFields(customFieldDefs, CharacterRole.Player, modules, {
+    placement: "current",
+  })
+  const npcBaseCustom = compileCustomCharacterFields(customFieldDefs, CharacterRole.Npc, modules, {
+    placement: "base",
+  })
+  const npcCurrentCustom = compileCustomCharacterFields(customFieldDefs, CharacterRole.Npc, modules, {
+    placement: "current",
+  })
+  const npcCreationCustom = compileCustomCharacterFields(customFieldDefs, CharacterRole.Npc, modules)
   const worldContextCustom = compileCustomWorldFields(customFieldDefs)
   const worldUpdateCustom = compileCustomWorldFields(customFieldDefs)
 
-  const playerBase = compileBuiltInFields(listBaseCharacterFieldIds(), "player", moduleState)
-  const playerCurrent = compileBuiltInFields(listCurrentCharacterFieldIds(), "player", moduleState)
-  const npcBase = compileBuiltInFields(listBaseCharacterFieldIds(), "npc", moduleState)
-  const npcCurrent = compileBuiltInFields(listCurrentCharacterFieldIds(), "npc", moduleState)
-  const npcCreation = compileBuiltInFields(listCreationCharacterFieldIds(), "npc", moduleState)
+  const playerBase = compileBuiltInFields(listBaseCharacterFieldIds(), CharacterRole.Player, moduleState)
+  const playerCurrent = compileBuiltInFields(listCurrentCharacterFieldIds(), CharacterRole.Player, moduleState)
+  const npcBase = compileBuiltInFields(listBaseCharacterFieldIds(), CharacterRole.Npc, moduleState)
+  const npcCurrent = compileBuiltInFields(listCurrentCharacterFieldIds(), CharacterRole.Npc, moduleState)
+  const npcCreation = compileBuiltInFields(listCreationCharacterFieldIds(), CharacterRole.Npc, moduleState)
 
   const fieldSet: CompiledFieldSet = {
     player: {
@@ -445,10 +459,14 @@ export function buildLlmContract(kind: LlmRequestKind, input: BuildLlmContractIn
     schemaName = "GenerateCharacterResponse"
     zodSchema = z
       .object({
-        ...buildCharacterFieldShape(["name", "race", "gender", "general_description"], "player", moduleState),
+        ...buildCharacterFieldShape(
+          ["name", "race", "gender", "general_description"],
+          CharacterRole.Player,
+          moduleState,
+        ),
         ...buildCharacterFieldShape(
           ["baseline_appearance", "personality_traits", "major_flaws", "perks"],
-          "player",
+          CharacterRole.Player,
           moduleState,
         ),
         ...(playerBaseCustom.length > 0
@@ -467,7 +485,7 @@ export function buildLlmContract(kind: LlmRequestKind, input: BuildLlmContractIn
     schemaName = "CharacterCreation"
     zodSchema = buildCharacterCreationSchema(
       fieldSet.npc.creation.map((field) => field.id as CharacterFieldId),
-      "npc",
+      CharacterRole.Npc,
       fieldSet.npc.customCreation,
       moduleState,
     )

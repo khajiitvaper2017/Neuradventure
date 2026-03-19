@@ -1,5 +1,7 @@
 import type { MainCharacterState, NPCState } from "@/types/types"
 import { getDb } from "@/db/connection"
+import type { ConversationRole } from "@/types/roles"
+import { LlmRole } from "@/types/roles"
 
 export type ChatMemberState = Omit<MainCharacterState, "inventory"> | Omit<NPCState, "inventory">
 
@@ -16,7 +18,7 @@ export interface ChatRow {
 export interface ChatMemberRow {
   id: number
   chat_id: number
-  role: "player" | "ai"
+  role: ConversationRole
   member_kind: "character" | "npc"
   character_id: number | null
   state_json: string
@@ -29,13 +31,13 @@ export interface ChatMessageRow {
   chat_id: number
   message_index: number
   speaker_member_id: number
-  role: "user" | "assistant" | "system"
+  role: LlmRole
   content: string
   created_at: string
 }
 
 export interface ChatMemberInput {
-  role: "player" | "ai"
+  role: ConversationRole
   member_kind: "character" | "npc"
   character_id: number | null
   state: ChatMemberState
@@ -46,7 +48,7 @@ export type CanceledChatExchangePayload = {
   messages: Array<{
     message_index: number
     speaker_member_id: number
-    role: "user" | "assistant" | "system"
+    role: LlmRole
     content: string
   }>
   next_speaker_index: number
@@ -169,7 +171,7 @@ export function appendChatMessage(
   chat_id: number,
   message_index: number,
   speaker_member_id: number,
-  role: "user" | "assistant" | "system",
+  role: LlmRole,
   content: string,
 ): number {
   const result = getDb()

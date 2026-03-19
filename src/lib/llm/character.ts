@@ -14,6 +14,7 @@ import type { ZodType } from "zod"
 import { callLLMRaw } from "@/llm/call"
 import { getGenerateCharacterPrompt, npcTraits } from "@/llm/config"
 import { buildLlmContract } from "@/llm/contract"
+import { LlmRole } from "@/types/roles"
 import { formatTemplate, getLlmStrings, getServerDefaults } from "@/utils/text/strings"
 import { DEFAULT_STORY_MODULES } from "@/domain/story/schemas/story-modules"
 
@@ -33,11 +34,11 @@ export async function generateCharacter(
   const result = await callLLMRaw(
     [
       {
-        role: "system",
+        role: LlmRole.System,
         content: `${prompt}\n\n${availableTraitsLine}`,
       },
       {
-        role: "user",
+        role: LlmRole.User,
         content: formatTemplate(llmStrings.generateCharacter.userPrompt, { description }),
       },
     ],
@@ -142,8 +143,8 @@ export async function generateCharacterPart(
 
   const result = await callLLMRaw(
     [
-      { role: "system", content: prompt },
-      { role: "user", content: userContent },
+      { role: LlmRole.System, content: prompt },
+      { role: LlmRole.User, content: userContent },
     ],
     part === "appearance"
       ? "GenerateCharacterAppearanceResponse"

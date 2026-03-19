@@ -4,6 +4,7 @@ import type { ZodType } from "zod"
 import { callLLMRaw } from "@/llm/call"
 import { getGenerateStoryPrompt } from "@/llm/config"
 import { buildLlmContract } from "@/llm/contract"
+import { LlmRole } from "@/types/roles"
 import { formatTemplate, getLlmStrings, getServerDefaults } from "@/utils/text/strings"
 import { DEFAULT_STORY_MODULES, resolveModuleFlags } from "@/domain/story/schemas/story-modules"
 
@@ -40,6 +41,7 @@ export async function generateStory(
   })
   const responseSchema = contract.zodSchema as ZodType<GenerateStoryResponse>
   const llmStrings = getLlmStrings()
+  const selectedNpcPrompt = llmStrings.generateStory.selectedNpc
   const defaults = getServerDefaults()
   const unknown = defaults.unknown.value
   const noneTitle = defaults.format.noneTitle
@@ -77,35 +79,55 @@ export async function generateStory(
       ? ""
       : [
           "",
-          "User-selected NPCs (from library; already exist in this story):",
-          "Do NOT include these NPCs in character_introductions. Only generate additional NPCs not listed here.",
-          'If any user-selected NPC is missing or needs setup changes, return those values in a root-level object keyed by that exact name, for example: "Eliza": { "current_activity": "..." }.',
+          selectedNpcPrompt.header,
+          selectedNpcPrompt.excludeInstruction,
+          selectedNpcPrompt.missingChangesInstruction,
           ...selectedNpcs.map((npc) => {
             const name = (npc.name ?? "").trim() || unknown
             const race = (npc.race ?? "").trim() || unknown
             const gender = (npc.gender ?? "").trim() || unknown
             const desc = (npc.general_description ?? "").trim() || defaults.unknown.generalDescription
             const parts: string[] = []
-            parts.push(`- ${name} (${race}, ${gender}) — ${desc}`)
+            parts.push(formatTemplate(selectedNpcPrompt.summary, { name, race, gender, description: desc }))
             if (flags.useNpcLocation) {
               parts.push(
-                `  current_location: ${isMissingText(npc.current_location) ? "(missing)" : (npc.current_location ?? "").trim()}`,
+                formatTemplate(selectedNpcPrompt.fields.currentLocation, {
+                  value: isMissingText(npc.current_location)
+                    ? selectedNpcPrompt.missingValue
+                    : (npc.current_location ?? "").trim(),
+                }),
               )
             }
             if (flags.useNpcActivity) {
               parts.push(
-                `  current_activity: ${isMissingText(npc.current_activity) ? "(missing)" : (npc.current_activity ?? "").trim()}`,
+                formatTemplate(selectedNpcPrompt.fields.currentActivity, {
+                  value: isMissingText(npc.current_activity)
+                    ? selectedNpcPrompt.missingValue
+                    : (npc.current_activity ?? "").trim(),
+                }),
               )
             }
             if (flags.useNpcAppearance) {
               parts.push(
-                `  baseline_appearance: ${isMissingText(npc.baseline_appearance) ? "(missing)" : (npc.baseline_appearance ?? "").trim()}`,
+                formatTemplate(selectedNpcPrompt.fields.baselineAppearance, {
+                  value: isMissingText(npc.baseline_appearance)
+                    ? selectedNpcPrompt.missingValue
+                    : (npc.baseline_appearance ?? "").trim(),
+                }),
               )
               parts.push(
-                `  current_appearance: ${isMissingText(npc.current_appearance) ? "(missing)" : (npc.current_appearance ?? "").trim()}`,
+                formatTemplate(selectedNpcPrompt.fields.currentAppearance, {
+                  value: isMissingText(npc.current_appearance)
+                    ? selectedNpcPrompt.missingValue
+                    : (npc.current_appearance ?? "").trim(),
+                }),
               )
               parts.push(
-                `  current_clothing: ${isMissingText(npc.current_clothing) ? "(missing)" : (npc.current_clothing ?? "").trim()}`,
+                formatTemplate(selectedNpcPrompt.fields.currentClothing, {
+                  value: isMissingText(npc.current_clothing)
+                    ? selectedNpcPrompt.missingValue
+                    : (npc.current_clothing ?? "").trim(),
+                }),
               )
             }
             return parts.join("\n")
@@ -114,9 +136,9 @@ export async function generateStory(
         ].join("\n")
   const result = await callLLMRaw(
     [
-      { role: "system", content: promptLines.join("\n") },
+      { role: LlmRole.System, content: promptLines.join("\n") },
       {
-        role: "user",
+        role: LlmRole.User,
         content: [
           llmStrings.generateStory.characterHeader,
           formatTemplate(llmStrings.characterContextLabels.name, { value: character.name }),

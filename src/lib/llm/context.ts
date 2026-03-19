@@ -22,18 +22,19 @@ import { DEFAULT_STORY_MODULES } from "@/domain/story/schemas/story-modules"
 import { renderCharacterBook } from "@/utils/tavern/character-book"
 import type { CharacterBook } from "@/utils/converters/tavern"
 import type { ChatCompletionMessageParam } from "@/llm/openai-types"
+import { LlmRole } from "@/types/roles"
 import * as db from "@/db/core"
 import type { CustomFieldDef } from "@/types/api"
 
 // ─── Shared context block builder ─────────────────────────────────────────────
 
-function authorNoteRoleName(role: number): "system" | "user" | "assistant" {
-  if (role === 1) return "user"
-  if (role === 2) return "assistant"
-  return "system"
+function authorNoteRoleName(role: number): LlmRole {
+  if (role === 1) return LlmRole.User
+  if (role === 2) return LlmRole.Assistant
+  return LlmRole.System
 }
 
-function wrapAuthorNoteSection(tag: string, content: string, role: "system" | "user" | "assistant"): string {
+function wrapAuthorNoteSection(tag: string, content: string, role: LlmRole): string {
   const format = getSectionFormat()
   const llmStrings = getLlmStrings()
   const roleUpper = role.toUpperCase()
@@ -379,8 +380,8 @@ export function buildTurnMessages(
   })
 
   return [
-    { role: "system", content: getSystemPrompt(modules) },
-    { role: "user", content: contextBlock },
+    { role: LlmRole.System, content: getSystemPrompt(modules) },
+    { role: LlmRole.User, content: contextBlock },
   ]
 }
 
@@ -424,8 +425,8 @@ export function buildNpcCreationMessages(
   })
 
   return [
-    { role: "system", content: getNpcCreationPrompt(modules) },
-    { role: "user", content: contextBlock },
+    { role: LlmRole.System, content: getNpcCreationPrompt(modules) },
+    { role: LlmRole.User, content: contextBlock },
   ]
 }
 
@@ -472,7 +473,7 @@ export function buildImpersonateMessages(
   const prompt = `${contextBlock}\n\n${wrapSection(sections.playersAction, "")}`
 
   return [
-    { role: "system", content: getImpersonatePrompt(modules) },
-    { role: "user", content: prompt },
+    { role: LlmRole.System, content: getImpersonatePrompt(modules) },
+    { role: LlmRole.User, content: prompt },
   ]
 }

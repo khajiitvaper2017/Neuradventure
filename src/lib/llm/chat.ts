@@ -4,6 +4,8 @@ import type { GenerateChatResponse } from "@/types/api"
 import { getChatPrompt, getGenerateChatPrompt } from "@/llm/config"
 import { formatTemplate, getLlmStrings, getServerDefaults } from "@/utils/text/strings"
 import { callLLMRaw, callLLMText } from "@/llm/call"
+import type { ConversationRole } from "@/types/roles"
+import { LlmRole } from "@/types/roles"
 import type { TavernCard } from "@/utils/converters/tavern"
 import { renderCharacterBook } from "@/utils/tavern/character-book"
 import { wrapSection } from "@/llm/io/format"
@@ -13,7 +15,7 @@ export type ChatMemberState = Omit<MainCharacterState, "inventory"> | Omit<NPCSt
 
 export type ChatMember = {
   id: number
-  role: "player" | "ai"
+  role: ConversationRole
   state: ChatMemberState
   sort_order: number
 }
@@ -119,8 +121,8 @@ export function buildChatMessages(
   ].filter((line): line is string => line !== null)
 
   return [
-    { role: "system", content: effectiveSystemPrompt },
-    { role: "user", content: promptSections.join("\n") },
+    { role: LlmRole.System, content: effectiveSystemPrompt },
+    { role: LlmRole.User, content: promptSections.join("\n") },
   ]
 }
 
@@ -164,8 +166,8 @@ export async function generateChat(
   const prompt = getGenerateChatPrompt()
   const result = await callLLMRaw(
     [
-      { role: "system", content: prompt },
-      { role: "user", content: description.trim() },
+      { role: LlmRole.System, content: prompt },
+      { role: LlmRole.User, content: description.trim() },
     ],
     "GenerateChatResponse",
     GenerateChatResponseSchema,

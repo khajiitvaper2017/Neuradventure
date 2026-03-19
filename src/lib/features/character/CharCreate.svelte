@@ -12,6 +12,7 @@
   import { showError, showQuietNotice } from "@/stores/ui"
   import { cn } from "@/utils.js"
   import type { CustomFieldDef } from "@/types/api"
+  import { CharacterRole } from "@/types/roles"
   import { settings as settingsService } from "@/services/settings"
   import { isCustomFieldModuleEnabled } from "@/domain/story/custom-field-modules"
   import {
@@ -396,7 +397,7 @@
           d.enabled &&
           d.scope === "character" &&
           d.placement === "base" &&
-          isCustomFieldModuleEnabled(activeModules, d.id, "character"),
+          isCustomFieldModuleEnabled(activeModules, d.id, CharacterRole.Player),
       )
       .slice()
       .sort((a, b) => {
@@ -413,7 +414,7 @@
         d.enabled &&
         d.scope === "character" &&
         d.placement === "current" &&
-        isCustomFieldModuleEnabled(activeModules, d.id, "character"),
+        isCustomFieldModuleEnabled(activeModules, d.id, CharacterRole.Player),
     ),
   )
 

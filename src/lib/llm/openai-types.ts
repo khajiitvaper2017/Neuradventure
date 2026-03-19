@@ -1,4 +1,6 @@
-export type ChatRole = "system" | "user" | "assistant"
+import { LlmRole } from "@/types/roles"
+
+export type ChatRole = LlmRole
 
 export type ChatCompletionMessageParam = {
   role: ChatRole

@@ -31,7 +31,25 @@
   },
   "generateStory": {
     "characterHeader": "Character:",
-    "storyDescription": "Story description: \"{description}\""
+    "storyDescription": "Story description: \"{description}\"",
+    "selectedNpc": {
+      "header": "User-selected NPCs (from library; already exist in this story):",
+      "excludeInstruction": "Do NOT include these NPCs in character_introductions. Only generate additional NPCs not listed here.",
+      "missingChangesInstruction": "If any user-selected NPC is missing or needs setup changes, return those values in a root-level object keyed by that exact name, for example: \"Eliza\": { \"current_activity\": \"...\" }.",
+      "summary": "- {name} ({race}, {gender}) - {description}",
+      "missingValue": "(missing)",
+      "fields": {
+        "currentLocation": "  current_location: {value}",
+        "currentActivity": "  current_activity: {value}",
+        "baselineAppearance": "  baseline_appearance: {value}",
+        "currentAppearance": "  current_appearance: {value}",
+        "currentClothing": "  current_clothing: {value}"
+      }
+    }
+  },
+  "schemaPrompt": {
+    "outputRequirements": "OUTPUT REQUIREMENTS ({schemaName}): You must output a single JSON object that validates against the following JSON Schema. Do not output the schema. Do not include any surrounding text. Do not add extra keys.",
+    "draft07": "JSON_SCHEMA_DRAFT_07:{schemaText}"
   },
   "promptHints": {
     "outputContractHeader": "Output contract:",

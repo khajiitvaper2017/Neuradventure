@@ -1,5 +1,6 @@
 import { z } from "zod"
 import { MODULE_DEFS, STORY_MODULE_KEYS } from "@/domain/story/module-definitions"
+import { CharacterRole } from "@/types/roles"
 import type { StoryModules as SharedStoryModules } from "@/types/types"
 
 const storyModuleShape = Object.fromEntries(STORY_MODULE_KEYS.map((key) => [key, z.boolean()])) as Record<
@@ -15,8 +16,8 @@ export const StoryModulesSchema: z.ZodType<SharedStoryModules> = z
         z.string().trim().min(1),
         z
           .object({
-            character: z.boolean().optional(),
-            npc: z.boolean().optional(),
+            [CharacterRole.Player]: z.boolean().optional(),
+            [CharacterRole.Npc]: z.boolean().optional(),
           })
           .strip(),
       )
@@ -82,17 +83,17 @@ export function normalizeStoryModules(value: unknown, fallback: StoryModules): S
   const rawCustom = raw.custom_field_modules
   const custom_field_modules: StoryModules["custom_field_modules"] = (() => {
     if (!rawCustom || typeof rawCustom !== "object" || Array.isArray(rawCustom)) return {}
-    const out: Record<string, { character?: boolean; npc?: boolean }> = {}
+    const out: Record<string, { player?: boolean; npc?: boolean }> = {}
     for (const [id, entry] of Object.entries(rawCustom as Record<string, unknown>)) {
       if (!id || typeof id !== "string") continue
       if (!entry || typeof entry !== "object" || Array.isArray(entry)) continue
       const e = entry as Record<string, unknown>
-      const character = typeof e.character === "boolean" ? e.character : undefined
+      const player = typeof e.player === "boolean" ? e.player : undefined
       const npc = typeof e.npc === "boolean" ? e.npc : undefined
-      if (character === undefined && npc === undefined) continue
+      if (player === undefined && npc === undefined) continue
       out[id] = {
         ...(out[id] ?? {}),
-        ...(character !== undefined ? { character } : {}),
+        ...(player !== undefined ? { player } : {}),
         ...(npc !== undefined ? { npc } : {}),
       }
     }

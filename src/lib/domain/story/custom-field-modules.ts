@@ -1,4 +1,6 @@
-export type CustomFieldModuleTarget = "character" | "npc"
+import { CharacterRole } from "@/types/roles"
+
+export type CustomFieldModuleTarget = CharacterRole
 
 export type CustomFieldModuleEntry = Partial<Record<CustomFieldModuleTarget, boolean>>
 

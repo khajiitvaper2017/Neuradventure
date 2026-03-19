@@ -23,6 +23,7 @@
   import { ScrollArea } from "@/components/ui/scroll-area"
   import { generateChatFromDescription } from "@/features/chat/actions"
   import { streamingEnabled } from "@/stores/settings"
+  import { LlmRole, type ConversationRole } from "@/types/roles"
 
   let title = $state("")
   let description = $state("")
@@ -324,15 +325,20 @@
 
     submitting = true
     try {
-      const members = [
+      const members: Array<{
+        role: ConversationRole
+        member_kind: "character" | "npc"
+        character_id: number | null
+        state: PlayableOption["state"]
+      }> = [
         {
-          role: "player" as const,
+          role: LlmRole.User as ConversationRole,
           member_kind: player.kind,
           character_id: player.character_id,
           state: player.state,
         },
         ...aiMembers.map((member) => ({
-          role: "ai" as const,
+          role: LlmRole.Assistant as ConversationRole,
           member_kind: member.kind,
           character_id: member.character_id,
           state: member.state,

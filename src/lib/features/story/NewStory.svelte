@@ -4,6 +4,7 @@
   import type { MainCharacterState, NPCState, StoryModules } from "@/types/types"
   import type { CharacterCreation } from "@/types/models"
   import type { CustomFieldDef, StoryCharacterGroup, StoryNpcGroup } from "@/types/api"
+  import { CharacterRole } from "@/types/roles"
   import { stories as storiesService } from "@/services/stories"
   import { settings as settingsService } from "@/services/settings"
   import { subscribeStreamPreview } from "@/services/streamPreview"
@@ -194,7 +195,7 @@
           d.enabled &&
           d.scope === "character" &&
           d.placement === "current" &&
-          isCustomFieldModuleEnabled(activeModules, d.id, "character"),
+          isCustomFieldModuleEnabled(activeModules, d.id, CharacterRole.Player),
       )
       .slice()
       .sort((a, b) => {
