@@ -37,7 +37,7 @@ const CustomFieldSchema = z.object({
   scope: z.enum(["character", "world"]),
   value_type: z.enum(["text", "list"]),
   label: z.string().trim().min(1).max(120),
-  placement: z.enum(["base", "current", "context", "memory"]),
+  placement: z.enum(["base", "current", "context"]),
   prompt: z.string().optional().default(""),
   enabled: z.boolean().optional().default(true),
   sort_order: z.number().int().optional().default(0),
@@ -47,8 +47,8 @@ function validatePlacement(scope: CustomFieldDef["scope"], placement: CustomFiel
   if (scope === "character" && placement !== "base" && placement !== "current") {
     throw new AppError(400, "Character custom fields must use placement: base or current")
   }
-  if (scope === "world" && placement !== "context" && placement !== "memory") {
-    throw new AppError(400, "World custom fields must use placement: context or memory")
+  if (scope === "world" && placement !== "context") {
+    throw new AppError(400, "World custom fields must use placement: context")
   }
 }
 

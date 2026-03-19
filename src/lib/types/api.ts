@@ -291,7 +291,7 @@ export interface AppSettings extends SettingsState {
 export type CustomFieldScope = "character" | "world"
 export type CustomFieldValueType = "text" | "list"
 export type CharacterCustomFieldPlacement = "base" | "current"
-export type WorldCustomFieldPlacement = "context" | "memory"
+export type WorldCustomFieldPlacement = "context"
 export type CustomFieldPlacement = CharacterCustomFieldPlacement | WorldCustomFieldPlacement
 
 export interface CustomFieldDef {

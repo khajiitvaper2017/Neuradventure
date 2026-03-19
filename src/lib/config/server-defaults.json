@@ -16,8 +16,6 @@
     "item": "Unknown item",
     "npc": "Unknown NPC"
   },
-  "recentEventsSummary": "Nothing significant has happened yet. The situation remains stable.",
-  "furtherDetailsUnknown": "Further details are unknown.",
   "defaultTimeOfDay": "00:00",
   "fallbackTraits": ["Curious", "Honest"]
 }

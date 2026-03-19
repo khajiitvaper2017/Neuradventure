@@ -60,7 +60,6 @@
     "characterBookAfterChar": "character_book_after_char",
     "npcBaselines": "npc_baselines",
     "locations": "locations",
-    "memory": "memory",
     "authorNote": "author_note",
     "playerCharacterState": "player_character_state",
     "npcCurrentStates": "npc_current_states",

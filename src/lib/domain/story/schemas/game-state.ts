@@ -6,7 +6,6 @@ import {
   normalizeNonEmptyString,
   normalizeGender,
   normalizePersonalityTraits,
-  normalizeMemory,
   normalizeTimeOfDay,
   normalizeTraitList,
   normalizeCustomFields,
@@ -145,7 +144,6 @@ export const WorldStateSchema: z.ZodType<SharedWorldState> = z
   .object({
     current_location: z.string().min(1),
     time_of_day: z.string().regex(TIME_OF_DAY_REGEX, "time_of_day must be 24h HH:MM"),
-    memory: z.string().min(1),
     custom_fields: CustomFieldsSchema,
   })
   .strict()
@@ -154,7 +152,6 @@ export const WorldStateStoredSchema: z.ZodType<SharedWorldState> = z
   .object({
     current_location: z.string().optional(),
     time_of_day: z.string().optional(),
-    memory: z.string().optional(),
     custom_fields: z.unknown().optional(),
   })
   .passthrough()
@@ -163,7 +160,6 @@ export const WorldStateStoredSchema: z.ZodType<SharedWorldState> = z
     const normalized = {
       current_location: currentLocation,
       time_of_day: normalizeTimeOfDay(value.time_of_day),
-      memory: normalizeMemory(value.memory),
       custom_fields: normalizeCustomFields(value.custom_fields),
     }
     return WorldStateSchema.parse(normalized)

@@ -27,7 +27,7 @@ export type CharacterFieldId =
   | "perks"
   | "inventory"
 
-export type WorldFieldId = "current_location" | "time_of_day" | "memory"
+export type WorldFieldId = "current_location" | "time_of_day"
 
 export type FieldDefinition = {
   id: string
@@ -175,11 +175,6 @@ const WORLD_FIELD_DEFS: Record<WorldFieldId, FieldDefinition> = {
     kind: "time",
     renderLabel: { group: "contextLabels", key: "time" },
   },
-  memory: {
-    id: "memory",
-    descriptionKey: "llm.world_state_update.memory",
-    kind: "text",
-  },
 }
 
 const BASE_CHARACTER_FIELD_IDS: CharacterFieldId[] = [
@@ -318,15 +313,10 @@ export function compileCustomCharacterFields(
   return fields
 }
 
-export function compileCustomWorldFields(
-  defs: CustomFieldDef[],
-  options?: { placement?: "context" | "memory" },
-): CompiledFieldDefinition[] {
-  const placement = options?.placement
+export function compileCustomWorldFields(defs: CustomFieldDef[]): CompiledFieldDefinition[] {
   const fields: CompiledFieldDefinition[] = []
   for (const def of defs) {
     if (!def.enabled || def.scope !== "world") continue
-    if (placement && def.placement !== placement) continue
     const description = (def.prompt ?? "").trim() || `User-defined world field "${def.label}" (${def.id}).`
     fields.push({
       id: def.id,
@@ -428,7 +418,7 @@ export function renderWorldContextLine(fieldId: WorldFieldId, world: WorldState)
   const llmStrings = getLlmStrings()
   const defaults = getServerDefaults()
   const def = WORLD_FIELD_DEFS[fieldId]
-  if (!def.renderLabel) return fieldId === "memory" ? world.memory : null
+  if (!def.renderLabel) return null
 
   const labels = llmStrings[def.renderLabel.group]
   const template = labels[def.renderLabel.key as keyof typeof labels]
@@ -439,8 +429,6 @@ export function renderWorldContextLine(fieldId: WorldFieldId, world: WorldState)
       return formatTemplate(template, { value: world.current_location?.trim() || defaults.unknown.location })
     case "time_of_day":
       return formatTemplate(template, { value: world.time_of_day?.trim() || defaults.defaultTimeOfDay })
-    case "memory":
-      return world.memory
     default:
       return null
   }

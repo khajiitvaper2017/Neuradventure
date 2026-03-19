@@ -50,7 +50,6 @@ function buildWorldUpdate(
   return {
     current_location: nextCurrentLocation,
     time_of_day: nextTimeOfDay,
-    memory: baseWorld.memory,
     custom_fields: nextCustomFields,
   }
 }

@@ -19,7 +19,6 @@
   type Props = {
     flashLocation?: boolean
     onGoHome?: () => void
-    onOpenMemoryEditor?: () => void
     onOpenWorldFieldsEditor?: () => void
     onOpenAuthorNoteEditor?: () => void
     onOpenModulesEditor?: () => void
@@ -28,7 +27,6 @@
   let {
     flashLocation = false,
     onGoHome,
-    onOpenMemoryEditor,
     onOpenWorldFieldsEditor,
     onOpenAuthorNoteEditor,
     onOpenModulesEditor,
@@ -38,9 +36,6 @@
   const trackNpcs = $derived($currentStoryModules?.track_npcs ?? true)
   const approxPromptTokens = $derived.by(() => {
     const parts: string[] = []
-    const memory = $worldState?.memory?.trim()
-    if (memory) parts.push(memory)
-
     const recentTurns = $turns.slice(-12)
     for (const turn of recentTurns) {
       const player = turn.player_input?.trim()
@@ -142,7 +137,6 @@
         <EllipsisVertical size={15} strokeWidth={1.8} aria-hidden="true" />
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" class="w-48">
-        <DropdownMenuItem onSelect={() => onOpenMemoryEditor?.()}>Memory</DropdownMenuItem>
         <DropdownMenuItem onSelect={() => onOpenWorldFieldsEditor?.()}>World Fields</DropdownMenuItem>
         <DropdownMenuItem onSelect={() => onOpenAuthorNoteEditor?.()}>Author's Note</DropdownMenuItem>
         <DropdownMenuItem onSelect={() => onOpenModulesEditor?.()}>Story Modules</DropdownMenuItem>

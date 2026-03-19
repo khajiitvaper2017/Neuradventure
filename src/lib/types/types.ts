@@ -37,7 +37,6 @@ export type StoryModules = Record<StoryModuleKey, boolean> & {
 export interface WorldState {
   current_location: string
   time_of_day: string
-  memory: string
   custom_fields: Record<string, string | string[]>
 }
 

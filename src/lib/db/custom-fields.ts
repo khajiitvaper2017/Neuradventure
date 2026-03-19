@@ -24,7 +24,7 @@ const ValueTypeSchema = z.enum(["text", "list"] satisfies [CustomFieldValueType,
 function normalizePlacement(scope: CustomFieldScope, raw: string): CustomFieldPlacement {
   const trimmed = raw.trim()
   if (scope === "character") return (trimmed === "current" ? "current" : "base") satisfies CharacterCustomFieldPlacement
-  return (trimmed === "memory" ? "memory" : "context") satisfies WorldCustomFieldPlacement
+  return "context" satisfies WorldCustomFieldPlacement
 }
 
 function toDef(row: {

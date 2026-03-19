@@ -65,7 +65,6 @@ export interface ContextBlockOpts {
   ctxLimit: number
   initialCharacter?: MainCharacterState
   actionBlock?: string | null
-  memory?: string | null
   playerInput?: string | null
   authorNote?: {
     text: string
@@ -187,11 +186,7 @@ function buildContextBlock(opts: ContextBlockOpts): string {
         ? Math.min(characterBook.scan_depth, recentTurns.length)
         : recentTurns.length
     const scanTurns = scanDepth > 0 ? recentTurns.slice(-scanDepth) : []
-    const scanText = [
-      world.memory,
-      scanTurns.map((t) => `${t.player_input}\n${t.narrative_text}`).join("\n\n"),
-      actionBlock ?? "",
-    ]
+    const scanText = [scanTurns.map((t) => `${t.player_input}\n${t.narrative_text}`).join("\n\n"), actionBlock ?? ""]
       .filter(Boolean)
       .join("\n\n")
     const rendered = renderCharacterBook(characterBook, scanText)
@@ -213,18 +208,6 @@ function buildContextBlock(opts: ContextBlockOpts): string {
           ),
         )
       : null
-
-  // ── SEMI-STABLE ──
-  const memorySection = (() => {
-    const lines = renderWorldFieldLines(
-      world,
-      contract.fieldSet.world.memory,
-      contract.fieldSet.world.customMemory,
-      fieldDefsById,
-    )
-    if (lines.length === 0) return null
-    return wrapSection(sections.memory, lines.join("\n"))
-  })()
 
   // ── VOLATILE ──
   const currentSection = wrapSection(
@@ -270,7 +253,6 @@ function buildContextBlock(opts: ContextBlockOpts): string {
     baseSection,
     afterCharacterBookSection,
     npcBaselineSection,
-    memorySection,
   ])
 
   const volatileBlock = joinSections([currentSection, npcCurrentSection, storyContextSection])

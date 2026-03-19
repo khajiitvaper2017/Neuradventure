@@ -32,7 +32,6 @@ export function createNewStory(
   const world: WorldState = {
     current_location: currentLocation,
     time_of_day: timeCandidate && TIME_OF_DAY_REGEX.test(timeCandidate) ? timeCandidate : fallbackTime,
-    memory: opening_scenario.trim(),
     custom_fields: {},
   }
   return db.createStory(

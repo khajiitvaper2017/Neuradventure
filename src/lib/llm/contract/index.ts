@@ -42,9 +42,7 @@ export type CompiledFieldSet = {
   }
   world: {
     context: CompiledFieldDefinition[]
-    memory: CompiledFieldDefinition[]
     customContext: CompiledFieldDefinition[]
-    customMemory: CompiledFieldDefinition[]
     customUpdate: CompiledFieldDefinition[]
   }
 }
@@ -90,7 +88,7 @@ function getCustomFieldDefs(customFieldDefs?: CustomFieldDef[]): CustomFieldDef[
   return db.listCustomFields()
 }
 
-function buildContextField(fieldId: "current_location" | "time_of_day" | "memory"): CompiledFieldDefinition {
+function buildContextField(fieldId: "current_location" | "time_of_day"): CompiledFieldDefinition {
   const def = getWorldFieldDefinition(fieldId)
   return {
     id: def.id,
@@ -338,11 +336,7 @@ function buildPromptHints(
     ...fieldSet.npc.customBase,
     ...fieldSet.npc.customCurrent,
   ].map((field) => field.id)
-  const enabledWorldFields = [
-    ...fieldSet.world.context,
-    ...fieldSet.world.customContext,
-    ...fieldSet.world.customMemory,
-  ].map((field) => field.id)
+  const enabledWorldFields = [...fieldSet.world.context, ...fieldSet.world.customContext].map((field) => field.id)
 
   const outputShapeLines: string[] = []
   if (kind === "turn" || kind === "story_setup") {
@@ -382,8 +376,7 @@ export function buildLlmContract(kind: LlmRequestKind, input: BuildLlmContractIn
   const npcBaseCustom = compileCustomCharacterFields(customFieldDefs, "npc", modules, { placement: "base" })
   const npcCurrentCustom = compileCustomCharacterFields(customFieldDefs, "npc", modules, { placement: "current" })
   const npcCreationCustom = compileCustomCharacterFields(customFieldDefs, "npc", modules)
-  const worldContextCustom = compileCustomWorldFields(customFieldDefs, { placement: "context" })
-  const worldMemoryCustom = compileCustomWorldFields(customFieldDefs, { placement: "memory" })
+  const worldContextCustom = compileCustomWorldFields(customFieldDefs)
   const worldUpdateCustom = compileCustomWorldFields(customFieldDefs)
 
   const playerBase = compileBuiltInFields(listBaseCharacterFieldIds(), "player", moduleState)
@@ -409,9 +402,7 @@ export function buildLlmContract(kind: LlmRequestKind, input: BuildLlmContractIn
     },
     world: {
       context: [buildContextField("current_location"), buildContextField("time_of_day")],
-      memory: [buildContextField("memory")],
       customContext: worldContextCustom,
-      customMemory: worldMemoryCustom,
       customUpdate: worldUpdateCustom,
     },
   }
