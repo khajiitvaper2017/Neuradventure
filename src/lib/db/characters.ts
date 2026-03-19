@@ -17,6 +17,7 @@ export function normalizeCharacterBase(input: Partial<CharacterBase>): Character
   const baselineAppearance = input.baseline_appearance ?? ""
   // Current appearance is story-scoped state. Keep it empty in the character library.
   const currentAppearance = ""
+  const memories = Array.isArray(input.memories) ? input.memories.map((memory) => memory.trim()).filter(Boolean) : []
   const rawCustom = input.custom_fields
   const custom_fields =
     rawCustom && typeof rawCustom === "object" && !Array.isArray(rawCustom)
@@ -35,6 +36,7 @@ export function normalizeCharacterBase(input: Partial<CharacterBase>): Character
     personality_traits: Array.isArray(input.personality_traits) ? input.personality_traits : [],
     major_flaws: Array.isArray(input.major_flaws) ? input.major_flaws : [],
     perks: Array.isArray(input.perks) ? input.perks : [],
+    memories,
     custom_fields,
   }
 }

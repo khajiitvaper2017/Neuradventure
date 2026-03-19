@@ -32,6 +32,7 @@ function defaultMemberState(): db.ChatMemberState {
     personality_traits: [],
     major_flaws: [],
     perks: [],
+    memories: [],
     custom_fields: {},
   }
   return base

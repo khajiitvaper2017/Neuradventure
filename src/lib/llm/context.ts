@@ -17,7 +17,7 @@ import {
   estimateTokens,
   type TurnHistoryEntry,
 } from "@/llm/io/format"
-import { getLlmStrings } from "@/utils/text/strings"
+import { formatTemplate, getLlmStrings } from "@/utils/text/strings"
 import { DEFAULT_STORY_MODULES } from "@/domain/story/schemas/story-modules"
 import { renderCharacterBook } from "@/utils/tavern/character-book"
 import type { CharacterBook } from "@/utils/converters/tavern"
@@ -35,6 +35,7 @@ function authorNoteRoleName(role: number): "system" | "user" | "assistant" {
 
 function wrapAuthorNoteSection(tag: string, content: string, role: "system" | "user" | "assistant"): string {
   const format = getSectionFormat()
+  const llmStrings = getLlmStrings()
   const roleUpper = role.toUpperCase()
   const roleTitle = `${role.slice(0, 1).toUpperCase()}${role.slice(1)}`
 
@@ -43,7 +44,7 @@ function wrapAuthorNoteSection(tag: string, content: string, role: "system" | "u
   }
 
   if (format === "none") {
-    return `Author note (${roleUpper}):\n${content}`
+    return formatTemplate(llmStrings.authorNote.none, { role: roleUpper, content })
   }
 
   const wrapped = wrapSection(tag, content)

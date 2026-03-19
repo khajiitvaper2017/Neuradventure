@@ -19,6 +19,7 @@ export interface CharacterState {
   major_flaws: string[]
   perks: string[]
   inventory: InventoryItem[]
+  memories: string[]
   custom_fields: Record<string, string | string[]>
 }
 

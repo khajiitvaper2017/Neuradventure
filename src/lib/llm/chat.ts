@@ -2,10 +2,11 @@ import type { MainCharacterState, NPCState } from "@/types/models"
 import { GenerateChatResponseSchema } from "@/types/models"
 import type { GenerateChatResponse } from "@/types/api"
 import { getChatPrompt, getGenerateChatPrompt } from "@/llm/config"
-import { getServerDefaults } from "@/utils/text/strings"
+import { formatTemplate, getLlmStrings, getServerDefaults } from "@/utils/text/strings"
 import { callLLMRaw, callLLMText } from "@/llm/call"
 import type { TavernCard } from "@/utils/converters/tavern"
 import { renderCharacterBook } from "@/utils/tavern/character-book"
+import { wrapSection } from "@/llm/io/format"
 import type { ChatCompletionMessageParam } from "@/llm/openai-types"
 
 export type ChatMemberState = Omit<MainCharacterState, "inventory"> | Omit<NPCState, "inventory">
@@ -31,6 +32,8 @@ function getExampleDialogText(card: TavernCard | null | undefined): string {
 }
 
 function formatMemberSummary(member: ChatMemberState): string {
+  const llmStrings = getLlmStrings()
+  const labels = llmStrings.characterContextLabels
   const defaults = getServerDefaults()
   const name = member.name || defaults.unknown.value
   const race = member.race || defaults.unknown.value
@@ -45,13 +48,13 @@ function formatMemberSummary(member: ChatMemberState): string {
   const flaws = member.major_flaws?.join(", ") || defaults.unknown.value
 
   return [
-    `Name: ${name}`,
-    `Race: ${race}`,
-    `Gender: ${gender}`,
-    `Description: ${description}`,
-    `Personality: ${traits}`,
-    `Perks: ${perks}`,
-    `Flaws: ${flaws}`,
+    formatTemplate(labels.name, { value: name }),
+    formatTemplate(labels.race, { value: race }),
+    formatTemplate(labels.gender, { value: gender }),
+    formatTemplate(labels.generalDescription, { value: description }),
+    formatTemplate(labels.personalityTraits, { value: traits }),
+    formatTemplate(labels.perks, { value: perks }),
+    formatTemplate(labels.majorFlaws, { value: flaws }),
   ].join("\n")
 }
 
@@ -61,6 +64,8 @@ export function buildChatMessages(
   nextSpeakerName: string,
   options: { continueWithoutPlayer?: boolean; speakerCard?: TavernCard | null } = {},
 ): ChatCompletionMessageParam[] {
+  const llmStrings = getLlmStrings()
+  const { sections, chatPrompt } = llmStrings
   const trimmedHistory = history.slice(-MAX_CHAT_HISTORY)
   const participantBlock = members
     .sort((a, b) => a.sort_order - b.sort_order)
@@ -97,33 +102,20 @@ export function buildChatMessages(
 
   const historyBlock = trimmedHistory.length
     ? trimmedHistory.map((line) => `${line.speakerName}: ${line.content}`).join("\n")
-    : "(no messages yet)"
+    : chatPrompt.emptyHistory
 
   const promptSections = [
-    renderedBook.before_char ? "=== Character Book (Before Participants) ===" : null,
-    renderedBook.before_char ? renderedBook.before_char : null,
-    renderedBook.before_char ? "" : null,
-    "=== Participants ===",
-    participantBlock || "(none)",
-    "",
-    renderedBook.after_char ? "=== Character Book ===" : null,
-    renderedBook.after_char ? renderedBook.after_char : null,
-    renderedBook.after_char ? "" : null,
-    exampleDialog ? "=== Example Dialogs ===" : null,
-    exampleDialog ? exampleDialog : null,
-    exampleDialog ? "" : null,
-    "=== Chat History ===",
-    historyBlock,
-    "",
-    postHistory ? "=== Post-History Instructions ===" : null,
-    postHistory ? postHistory : null,
-    postHistory ? "" : null,
-    options.continueWithoutPlayer ? "Player sent no new message; continue the conversation naturally." : null,
-    options.continueWithoutPlayer ? "" : null,
-    "=== Next Speaker ===",
-    nextSpeakerName,
-    "",
-    `Reply as ${nextSpeakerName} with message text only.`,
+    renderedBook.before_char
+      ? wrapSection(sections.chatCharacterBookBeforeParticipants, renderedBook.before_char)
+      : null,
+    wrapSection(sections.chatParticipants, participantBlock || chatPrompt.emptyParticipants),
+    renderedBook.after_char ? wrapSection(sections.chatCharacterBookAfterParticipants, renderedBook.after_char) : null,
+    exampleDialog ? wrapSection(sections.chatExampleDialogs, exampleDialog) : null,
+    wrapSection(sections.chatHistory, historyBlock || chatPrompt.emptyHistory),
+    postHistory ? wrapSection(sections.chatPostHistoryInstructions, postHistory) : null,
+    options.continueWithoutPlayer ? chatPrompt.continueWithoutPlayer : null,
+    wrapSection(sections.chatNextSpeaker, nextSpeakerName),
+    wrapSection(sections.chatReplyInstruction, formatTemplate(chatPrompt.replyInstruction, { nextSpeakerName })),
   ].filter((line): line is string => line !== null)
 
   return [

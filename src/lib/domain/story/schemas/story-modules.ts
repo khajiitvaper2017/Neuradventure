@@ -42,6 +42,7 @@ export type ModuleFlags = {
   useCharMajorFlaws: boolean
   useCharPerks: boolean
   useCharInventory: boolean
+  useCharMemories: boolean
   useCharLocation: boolean
   useCharActivity: boolean
   useNpcAppearance: boolean
@@ -49,6 +50,7 @@ export type ModuleFlags = {
   useNpcMajorFlaws: boolean
   useNpcPerks: boolean
   useNpcInventory: boolean
+  useNpcMemories: boolean
   useNpcLocation: boolean
   useNpcActivity: boolean
 }
@@ -60,6 +62,7 @@ export function resolveModuleFlags(modules: StoryModules): ModuleFlags {
     useCharMajorFlaws: modules.character_major_flaws,
     useCharPerks: modules.character_perks,
     useCharInventory: modules.character_inventory,
+    useCharMemories: modules.character_memories,
     useCharLocation: modules.character_location,
     useCharActivity: modules.character_activity,
     useNpcAppearance: modules.npc_appearance_clothing,
@@ -67,6 +70,7 @@ export function resolveModuleFlags(modules: StoryModules): ModuleFlags {
     useNpcMajorFlaws: modules.npc_major_flaws,
     useNpcPerks: modules.npc_perks,
     useNpcInventory: modules.npc_inventory,
+    useNpcMemories: modules.npc_memories,
     useNpcLocation: modules.npc_location,
     useNpcActivity: modules.npc_activity,
   }

@@ -8,6 +8,7 @@ import {
   normalizePersonalityTraits,
   normalizeTimeOfDay,
   normalizeTraitList,
+  normalizeMemories,
   normalizeCustomFields,
 } from "@/domain/story/schemas/normalizers"
 import { getServerDefaults } from "@/utils/text/strings"
@@ -54,6 +55,7 @@ const CharacterStateBaseSchema = z
     major_flaws: MajorFlawsSchema.optional().default([]),
     perks: PerksSchema.optional().default([]),
     inventory: z.array(InventoryItemSchema).optional().default([]),
+    memories: z.array(z.string().min(1)).optional().default([]),
     custom_fields: CustomFieldsSchema,
   })
   .strict()
@@ -93,6 +95,7 @@ const CharacterStateStoredBaseSchema = z
     perks: z.unknown().optional(),
     current_activity: z.string().optional(),
     inventory: z.unknown().optional(),
+    memories: z.unknown().optional(),
     custom_fields: z.unknown().optional(),
   })
   .passthrough()
@@ -120,6 +123,7 @@ const normalizeCharacterStoredBase = (value: z.input<typeof CharacterStateStored
   major_flaws: normalizeTraitList(value.major_flaws),
   perks: normalizeTraitList(value.perks),
   inventory: normalizeInventoryItems(value.inventory),
+  memories: normalizeMemories(value.memories),
   custom_fields: normalizeCustomFields(value.custom_fields),
 })
 

@@ -563,6 +563,7 @@
       personality_traits: uniquePersonality([...selectedTraits, ...customPersonalityTraits]),
       major_flaws: majorFlaws,
       perks,
+      memories: [],
       custom_fields: customFields,
     }
   }

@@ -90,6 +90,10 @@ export function normalizeTraitList(value: unknown): string[] {
   return normalizeUniqueStringList(value)
 }
 
+export function normalizeMemories(value: unknown): string[] {
+  return normalizeUniqueStringList(value)
+}
+
 function normalizeUniqueStringList(value: unknown): string[] {
   const items: string[] = []
   if (Array.isArray(value)) {

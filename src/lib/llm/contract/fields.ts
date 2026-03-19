@@ -25,6 +25,7 @@ export type CharacterFieldId =
   | "personality_traits"
   | "major_flaws"
   | "perks"
+  | "memories"
   | "inventory"
 
 export type WorldFieldId = "current_location" | "time_of_day"
@@ -150,6 +151,16 @@ const CHARACTER_FIELD_DEFS: Record<CharacterFieldId, FieldDefinition> = {
     },
     renderLabel: { group: "contextLabels", key: "perks" },
   },
+  memories: {
+    id: "memories",
+    descriptionKey: "state.character.memories",
+    kind: "string_list",
+    moduleByRole: {
+      player: "character_memories",
+      npc: "npc_memories",
+    },
+    renderLabel: { group: "contextLabels", key: "memories" },
+  },
   inventory: {
     id: "inventory",
     descriptionKey: "state.character.inventory",
@@ -193,6 +204,7 @@ const CURRENT_CHARACTER_FIELD_IDS: CharacterFieldId[] = [
   "current_clothing",
   "current_location",
   "current_activity",
+  "memories",
   "inventory",
 ]
 
@@ -297,11 +309,14 @@ export function compileCustomCharacterFields(
 ): CompiledFieldDefinition[] {
   const placement = options?.placement
   const fields: CompiledFieldDefinition[] = []
+  const promptHints = getLlmStrings().promptHints
   for (const def of defs) {
     if (!def.enabled || def.scope !== "character") continue
     if (placement && def.placement !== placement) continue
     if (!isCustomFieldModuleEnabled(modules, def.id, role === "player" ? "character" : "npc")) continue
-    const description = (def.prompt ?? "").trim() || `User-defined character field "${def.label}" (${def.id}).`
+    const description =
+      (def.prompt ?? "").trim() ||
+      formatTemplate(promptHints.customFieldFallback.character, { label: def.label, id: def.id })
     fields.push({
       id: def.id,
       descriptionKey: `state.character.custom_fields.${def.id}`,
@@ -315,9 +330,12 @@ export function compileCustomCharacterFields(
 
 export function compileCustomWorldFields(defs: CustomFieldDef[]): CompiledFieldDefinition[] {
   const fields: CompiledFieldDefinition[] = []
+  const promptHints = getLlmStrings().promptHints
   for (const def of defs) {
     if (!def.enabled || def.scope !== "world") continue
-    const description = (def.prompt ?? "").trim() || `User-defined world field "${def.label}" (${def.id}).`
+    const description =
+      (def.prompt ?? "").trim() ||
+      formatTemplate(promptHints.customFieldFallback.world, { label: def.label, id: def.id })
     fields.push({
       id: def.id,
       descriptionKey: `llm.world_state_update.custom_fields.${def.id}`,
@@ -356,6 +374,12 @@ export function buildCustomFieldShape(
 function formatInventoryValue(inventory: MainCharacterState["inventory"] | NPCState["inventory"]): string {
   if (inventory.length === 0) return getServerDefaults().format.nothing
   return inventory.map((item) => `${item.name} (${item.description})`).join(", ")
+}
+
+function formatMemoriesValue(memories: MainCharacterState["memories"] | NPCState["memories"]): string {
+  const defaults = getServerDefaults()
+  if (memories.length === 0) return defaults.format.noneLower
+  return memories.map((memory) => `- ${memory}`).join("\n")
 }
 
 export function renderCharacterContextLine(
@@ -407,6 +431,8 @@ export function renderCharacterContextLine(
       return formatTemplate(template, {
         value: character[fieldId].join(", ") || defaults.format.noneLower,
       })
+    case "memories":
+      return formatTemplate(template, { value: formatMemoriesValue(character.memories) })
     case "inventory":
       return formatTemplate(template, { value: formatInventoryValue(character.inventory) })
     default:

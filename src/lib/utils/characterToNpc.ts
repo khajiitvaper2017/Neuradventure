@@ -16,6 +16,7 @@ export function characterToNpc(character: StoryCharacterGroup["character"]): NPC
     major_flaws: [...character.major_flaws],
     perks: [...character.perks],
     inventory: [],
+    memories: [...character.memories],
     custom_fields: { ...(character.custom_fields ?? {}) },
   }
 }

@@ -109,6 +109,17 @@ const STORY_MODULE_FIELD_ROW_DEFS = [
     sharedNote: "Shared prompts (same inventory guidance used for player + NPCs).",
   },
   {
+    id: "memories",
+    title: "Memories",
+    sub: "Track long-tail memories worth recalling 5-10 turns later",
+    characterKey: "character_memories",
+    npcKey: "npc_memories",
+    promptKey: "character_memories",
+    characterPromptKeys: ["state.character.memories", "llm.character_update.new_memories"],
+    npcPromptKeys: ["state.character.memories", "llm.character_update.new_memories"],
+    sharedNote: "Shared prompts (same memory guidance used for player + NPCs).",
+  },
+  {
     id: "location",
     title: "Location",
     sub: "Track and update current location",

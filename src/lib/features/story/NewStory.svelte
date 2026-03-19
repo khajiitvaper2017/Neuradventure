@@ -564,7 +564,7 @@
             <CardDescription>Optional: generate modules, character, and NPCs from a prompt.</CardDescription>
           </CardHeader>
           <CardContent class="space-y-3">
-            <div class="flex items-start gap-2">
+            <div class="space-y-2">
               <Textarea
                 id="story-generate"
                 bind:value={$pendingStoryGenerateDescription}
@@ -573,7 +573,7 @@
               />
               <Button
                 variant="outline"
-                class="shrink-0"
+                class="w-full sm:w-auto"
                 onclick={generate}
                 disabled={generating || !$pendingStoryGenerateDescription.trim()}
               >

@@ -15,6 +15,7 @@ export const CreateCharacterRequestSchema = z.object({
   personality_traits: z.array(z.string()).optional(),
   major_flaws: z.array(z.string()).optional(),
   perks: z.array(z.string()).optional(),
+  memories: z.array(z.string()).optional(),
 })
 
 export const UpdateCharacterRequestSchema = CreateCharacterRequestSchema.partial()
@@ -41,6 +42,7 @@ export const CreateStoryRequestSchema = z.object({
       personality_traits: z.array(z.string()).optional(),
       major_flaws: z.array(z.string()).optional(),
       perks: z.array(z.string()).optional(),
+      memories: z.array(z.string()).optional(),
     })
     .optional(),
   npcs: z.array(NPCStateStoredSchema).optional(),
