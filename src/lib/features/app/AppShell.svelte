@@ -43,6 +43,7 @@
   let appEl: HTMLDivElement | null = null
   const SIDEBAR_WIDTH = 350
   const GAME_WIDTH = 800
+  const HARD_RELOAD_GUARD_KEY = "neuradventure:hard-reload-reloaded"
 
   function isVisible(el: HTMLElement): boolean {
     return !!(el.offsetWidth || el.offsetHeight || el.getClientRects().length)
@@ -178,6 +179,75 @@
     })
   }
 
+  async function hardReload(options: { guarded: boolean } = { guarded: true }) {
+    if (typeof window === "undefined") return
+
+    if (options.guarded) {
+      try {
+        if (typeof sessionStorage !== "undefined") {
+          if (sessionStorage.getItem(HARD_RELOAD_GUARD_KEY)) return
+          sessionStorage.setItem(HARD_RELOAD_GUARD_KEY, "1")
+        }
+      } catch {
+        // Ignore storage failures and continue with cleanup.
+      }
+    } else if (typeof sessionStorage !== "undefined") {
+      try {
+        sessionStorage.removeItem(HARD_RELOAD_GUARD_KEY)
+      } catch {
+        // ignore
+      }
+    }
+
+    try {
+      if ("serviceWorker" in navigator) {
+        const registrations = await navigator.serviceWorker.getRegistrations()
+        await Promise.all(registrations.map((registration) => registration.unregister()))
+      }
+    } catch (err) {
+      console.warn("[cache] Failed to unregister service workers", err)
+    }
+
+    try {
+      if ("caches" in window) {
+        const keys = await caches.keys()
+        await Promise.all(keys.map((key) => caches.delete(key)))
+      }
+    } catch (err) {
+      console.warn("[cache] Failed to clear caches", err)
+    }
+
+    try {
+      if (typeof localStorage !== "undefined") {
+        const pendingKeys: string[] = []
+        for (let i = 0; i < localStorage.length; i += 1) {
+          const key = localStorage.key(i)
+          if (key?.startsWith("pending_request_v1:")) pendingKeys.push(key)
+        }
+        for (const key of pendingKeys) {
+          localStorage.removeItem(key)
+        }
+      }
+    } catch (err) {
+      console.warn("[cache] Failed to clear pending requests", err)
+    }
+
+    const nextUrl = new URL(location.href)
+    nextUrl.searchParams.set("reload", Date.now().toString())
+    location.replace(nextUrl.toString())
+  }
+
+  function handleVitePreloadError(event: Event) {
+    event.preventDefault()
+    void hardReload({ guarded: true })
+  }
+
+  async function forceHardReload() {
+    if (typeof window === "undefined") return
+
+    await hardReload({ guarded: false })
+  }
+
   async function bootstrap() {
     bootstrapped = false
     bootstrapError = null
@@ -205,6 +275,13 @@
     }
 
     bootstrapped = true
+    if (typeof sessionStorage !== "undefined") {
+      try {
+        sessionStorage.removeItem(HARD_RELOAD_GUARD_KEY)
+      } catch {
+        // ignore
+      }
+    }
 
     // Detect context length in the background (network-dependent).
     void initCtxLimit()
@@ -215,9 +292,14 @@
   }
 
   $effect(() => {
-    untrack(() => {
+    return untrack(() => {
+      const onVitePreloadError = (event: Event) => handleVitePreloadError(event)
+
+      window.addEventListener("vite:preloadError", onVitePreloadError)
       bootstrapPwa()
       void bootstrap()
+
+      return () => window.removeEventListener("vite:preloadError", onVitePreloadError)
     })
   })
 </script>
@@ -297,10 +379,10 @@
               type="button"
               variant="outline"
               onclick={() => {
-                if (typeof location !== "undefined") location.reload()
+                void forceHardReload()
               }}
             >
-              Reload
+              Hard reload
             </Button>
           </div>
         {:else}
