@@ -80,7 +80,9 @@ function applyTurnResponse(snapshot: TurnSnapshot, response: TurnResponse, modul
   const newCharacter = applyCharacterUpdate(snapshot.character, response, playerPolicy)
   const updatedNpcs = modules.track_npcs ? applyCharacterUpdates(snapshot.npcs, response, npcPolicy) : snapshot.npcs
   const characterIntroductions: CharacterCreation[] = modules.track_npcs ? (response.character_introductions ?? []) : []
-  const newNpcs = modules.track_npcs ? applyCharacterIntroductions(updatedNpcs, characterIntroductions) : updatedNpcs
+  const newNpcs = modules.track_npcs
+    ? applyCharacterIntroductions(updatedNpcs, characterIntroductions, [snapshot.character.name])
+    : updatedNpcs
   const newWorld = buildWorldUpdate(snapshot.world, response.world_state_update, newCharacter)
   return { character: newCharacter, world: newWorld, npcs: newNpcs }
 }

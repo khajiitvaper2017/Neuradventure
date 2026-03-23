@@ -12,3 +12,7 @@ World Consistency
 Relevance
 - Prioritize details that materially affect plot, character behavior, or the scenario.
 - Avoid gratuitous or trivial detail unless the premise makes it relevant.
+
+NPC Naming
+- If you introduce an NPC by name or mention a person in the description, use a full name rather than a nickname or first name only.
+- Never place the player character in character_introductions.

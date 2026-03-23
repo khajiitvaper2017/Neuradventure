@@ -34,7 +34,7 @@
     "storyDescription": "Story description: \"{description}\"",
     "selectedNpc": {
       "header": "User-selected NPCs (from library; already exist in this story):",
-      "excludeInstruction": "Do NOT include these NPCs in character_introductions. Only generate additional NPCs not listed here.",
+      "excludeInstruction": "Do NOT include these NPCs or the player character in character_introductions. Only generate additional NPCs not listed here.",
       "missingChangesInstruction": "If any user-selected NPC is missing or needs setup changes, return those values in a root-level object keyed by that exact name, for example: \"Eliza\": { \"current_activity\": \"...\" }.",
       "summary": "- {name} ({race}, {gender}) - {description}",
       "missingValue": "(missing)",
@@ -59,7 +59,7 @@
         "Put built-in character fields and enabled custom field ids in that same object.",
         "Use world_state_update.custom_fields only for world fields."
       ],
-      "turnOrStoryNpcIntroductions": "Use character_introductions only for new NPCs, never for already tracked or selected characters.",
+      "turnOrStoryNpcIntroductions": "Use character_introductions only for new NPCs, never for the player character, already tracked characters, or selected characters.",
       "playerKey": "Player key: \"{value}\"",
       "knownNpcKeys": "Known NPC keys: {value}"
     },

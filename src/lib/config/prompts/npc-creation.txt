@@ -11,3 +11,4 @@ Creation Rules
 - Focus on details that affect the NPC's role in the story.
 - If details are absent, infer plausibly without contradicting the established world or existing NPCs.
 - Avoid gratuitous or trivial detail unless the story context makes it relevant.
+- If the NPC is mentioned by name in the context or description, use a full name rather than a nickname or first name only.

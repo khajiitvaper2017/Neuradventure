@@ -22,7 +22,10 @@ export function createNewStory(
   const timeCandidate = startingTime?.trim()
   const currentLocation = startingLocation?.trim() || getServerDefaults().unknown.location
   const locationSyncedCharacter: MainCharacterState = { ...character, current_location: currentLocation, memories: [] }
-  const normalizedNpcs = npcs.map((npc) => ({ ...npc, memories: [] }))
+  const playerName = character.name.trim().toLowerCase()
+  const normalizedNpcs = npcs
+    .filter((npc) => npc.name.trim().toLowerCase() !== playerName)
+    .map((npc) => ({ ...npc, memories: [] }))
   if (modules.character_appearance_clothing) {
     if (!locationSyncedCharacter.current_appearance.trim()) {
       locationSyncedCharacter.current_appearance = locationSyncedCharacter.baseline_appearance.trim()

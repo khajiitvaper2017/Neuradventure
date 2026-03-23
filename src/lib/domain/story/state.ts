@@ -33,6 +33,10 @@ function mergeMemories(base: string[] | undefined, patch: unknown): string[] {
   return next
 }
 
+function normalizeName(value: string): string {
+  return value.trim().toLowerCase()
+}
+
 export type CharacterUpdatePolicy = {
   useAppearance: boolean
   useLocation: boolean
@@ -98,11 +102,19 @@ export function buildCharacterFromCreation(creation: CharacterCreation): NPCStat
   })
 }
 
-export function applyCharacterIntroductions(npcs: NPCState[], creations: CharacterCreation[]): NPCState[] {
+export function applyCharacterIntroductions(
+  npcs: NPCState[],
+  creations: CharacterCreation[],
+  excludedNames: string[] = [],
+): NPCState[] {
   if (creations.length === 0) return npcs
-  const existingNames = new Set(npcs.map((npc) => npc.name.toLowerCase()))
+  const existingNames = new Set(npcs.map((npc) => normalizeName(npc.name)))
+  const blockedNames = new Set(excludedNames.map(normalizeName).filter(Boolean))
   const newNPCs = creations
-    .filter((creation) => !existingNames.has(creation.name.toLowerCase()))
+    .filter((creation) => {
+      const name = normalizeName(creation.name)
+      return !!name && !existingNames.has(name) && !blockedNames.has(name)
+    })
     .map((creation) => buildCharacterFromCreation(creation))
   return [...npcs, ...newNPCs]
 }

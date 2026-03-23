@@ -73,6 +73,10 @@
 
   const STORY_PROMPT_HISTORY_KEY = "na:prompt_history:story"
 
+  function normalizeName(value: string | null | undefined): string {
+    return (value ?? "").trim().toLowerCase()
+  }
+
   async function loadCustomDefs() {
     if (customDefsLoaded) return
     customDefsError = null
@@ -370,11 +374,13 @@
       pendingStoryDate.set(result.starting_date)
       pendingStoryTime.set(result.starting_time)
       const playerPatch = getCharacterPatch(result, character.name)
-      const selectedNames = new Set(selectedNpcs.map((n) => (n.name || "").trim().toLowerCase()).filter(Boolean))
+      const blockedNames = new Set(
+        [character.name, ...selectedNpcs.map((n) => n.name)].map((name) => normalizeName(name)).filter(Boolean),
+      )
       pendingStoryNPCs.set(
         (result.character_introductions ?? [])
           .map((creation) => buildCharacterFromCreation(creation as CharacterCreation))
-          .filter((npc) => !selectedNames.has((npc.name || "").trim().toLowerCase())),
+          .filter((npc) => !blockedNames.has(normalizeName(npc.name))),
       )
       if (selectedNpcContext.length > 0) {
         const nameToId = new Map(
@@ -485,12 +491,14 @@
             })
         : []
       const npcCandidates = activeModules.track_npcs ? [...$pendingStoryNPCs, ...npcFromLibrary] : []
+      const playerName = normalizeName(charData?.name)
       const dedupedNpcs = (() => {
         const seen = new SvelteSet<string>()
         const out: NPCState[] = []
         for (const npc of npcCandidates) {
-          const key = (npc.name || "").trim().toLowerCase()
+          const key = normalizeName(npc.name)
           if (!key) continue
+          if (key === playerName) continue
           if (seen.has(key)) continue
           seen.add(key)
           out.push(npc)
