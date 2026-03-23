@@ -8,6 +8,9 @@ export default {
     adapter: adapter({
       precompress: true,
     }),
+    paths: {
+      relative: false,
+    },
     alias: {
       "@": "src/lib",
       "@/*": "./src/lib/*",
