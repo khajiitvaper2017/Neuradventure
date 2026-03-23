@@ -1,0 +1,21 @@
+{
+  "format": {
+    "noneLower": "none",
+    "noneTitle": "None",
+    "nothing": "nothing"
+  },
+  "unknown": {
+    "value": "Unknown",
+    "location": "Unknown location",
+    "locationDetails": "Unknown location details",
+    "appearance": "Unknown appearance",
+    "baselineAppearance": "Unknown baseline appearance",
+    "generalDescription": "Unknown description",
+    "clothing": "Unknown clothing",
+    "activity": "Unknown activity",
+    "item": "Unknown item",
+    "npc": "Unknown NPC"
+  },
+  "defaultTimeOfDay": "00:00",
+  "fallbackTraits": ["Curious", "Honest"]
+}

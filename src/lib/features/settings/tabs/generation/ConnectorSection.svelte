@@ -1,0 +1,571 @@
+<script lang="ts">
+  import type { GenerationParams, LLMConnector, ModelInfo } from "@/types/api"
+  import { HIDDEN_SECRET_PLACEHOLDER } from "@/secrets"
+  import { settings as settingsService } from "@/services/settings"
+  import * as Select from "@/components/ui/select"
+  import { Badge } from "@/components/ui/badge"
+  import { Button } from "@/components/ui/button"
+  import { Checkbox } from "@/components/ui/checkbox"
+  import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+  import * as InputGroup from "@/components/ui/input-group"
+  import { Switch } from "@/components/ui/switch"
+  import { toast } from "@/components/ui/sonner/index.js"
+  import { cn } from "@/utils.js"
+  import { isChatGenerating } from "@/stores/chat"
+  import { isGenerating } from "@/stores/game"
+  import { connector, ctxLimitDetected, generation, streamingEnabled } from "@/stores/settings"
+  import { repetitionParams, samplingParams } from "@/features/settings/lib/generationParamDefs"
+  import { getOpenRouterParamStatus } from "@/features/settings/lib/openrouterParams"
+  import { buildModelSelectOptions, filterModelResults } from "@/features/settings/lib/openrouterModels"
+  import { Search, TriangleAlert, Wrench } from "@lucide/svelte"
+
+  type Props = {
+    active?: boolean
+    modelSearchResults: ModelInfo[]
+  }
+
+  let { active = false, modelSearchResults = $bindable() }: Props = $props()
+
+  const OPENROUTER_DEFAULT_MODEL = "openrouter/free"
+  const OPENROUTER_PINNED_MODELS: Array<{ id: string; label: string }> = [
+    { id: OPENROUTER_DEFAULT_MODEL, label: `${OPENROUTER_DEFAULT_MODEL} · default` },
+    { id: "openrouter/auto", label: "openrouter/auto · auto" },
+  ]
+
+  const connectorTypeOptions = [
+    { value: "koboldcpp", label: "KoboldCpp" },
+    { value: "openrouter", label: "OpenRouter" },
+  ]
+  let connectorTypeLabel = $derived(connectorTypeOptions.find((o) => o.value === $connector.type)?.label ?? "Select…")
+
+  let generationLockActive = $derived($isGenerating || $isChatGenerating)
+
+  let connectorUrl = $derived($connector.url)
+  let connectorApiKey = $derived($connector.api_keys[$connector.type])
+  let showApiKey = $state(false)
+  let openrouterModelDraft = $derived($connector.type === "openrouter" ? $connector.model : OPENROUTER_DEFAULT_MODEL)
+  let modelSearchQuery = $state("")
+  let modelSearchLoading = $state(false)
+  let modelSearchError = $state<string | null>(null)
+  let modelSearchOnlyFree = $state(false)
+  let modelSearchOnlyJson = $state(false)
+  let modelLookupAttemptedKey: string | null = null
+
+  function commitConnector() {
+    const trimmedUrl = connectorUrl.trim()
+    const trimmedKey = connectorApiKey.trim()
+    if (!trimmedUrl) return
+
+    if ($connector.type === "openrouter") {
+      if (trimmedUrl !== $connector.url || trimmedKey !== $connector.api_keys.openrouter) {
+        connector.set({
+          ...$connector,
+          url: trimmedUrl,
+          api_keys: { ...$connector.api_keys, openrouter: trimmedKey },
+        })
+      }
+      return
+    }
+
+    if (trimmedUrl !== $connector.url || trimmedKey !== $connector.api_keys.koboldcpp) {
+      connector.set({
+        ...$connector,
+        url: trimmedUrl,
+        api_keys: { ...$connector.api_keys, koboldcpp: trimmedKey },
+      })
+    }
+  }
+
+  function setConnectorType(nextType: LLMConnector["type"]) {
+    if (nextType === $connector.type) return
+    if (nextType === "openrouter") {
+      connector.set({
+        type: "openrouter",
+        url: "https://openrouter.ai/api/v1",
+        api_keys: {
+          ...$connector.api_keys,
+          koboldcpp: $connector.api_keys.koboldcpp.trim(),
+          openrouter: $connector.api_keys.openrouter.trim(),
+        },
+        model: OPENROUTER_DEFAULT_MODEL,
+      })
+      return
+    }
+    connector.set({
+      type: "koboldcpp",
+      url: "http://localhost:5001/v1",
+      api_keys: {
+        ...$connector.api_keys,
+        koboldcpp: $connector.api_keys.koboldcpp.trim(),
+        openrouter: $connector.api_keys.openrouter.trim(),
+      },
+    })
+  }
+
+  function commitOpenRouterModel() {
+    if ($connector.type !== "openrouter") return
+    const trimmed = openrouterModelDraft.trim()
+    if (!trimmed) return
+    if (trimmed !== $connector.model) {
+      connector.set({ ...$connector, model: trimmed })
+    }
+  }
+
+  async function searchModels() {
+    modelSearchLoading = true
+    modelSearchError = null
+    try {
+      const res = await settingsService.models(modelSearchQuery, 200)
+      modelSearchResults = Array.isArray(res.models) ? res.models : []
+    } catch (err) {
+      modelSearchResults = []
+      modelSearchError = err instanceof Error ? err.message : String(err)
+    } finally {
+      modelSearchLoading = false
+    }
+  }
+
+  function mergeModels(existing: ModelInfo[], incoming: ModelInfo[]): ModelInfo[] {
+    if (!incoming.length) return existing
+    const seen: Record<string, true> = Object.create(null)
+    for (const m of existing) {
+      if (!m.id) continue
+      seen[m.id] = true
+    }
+    const out = [...existing]
+    let changed = false
+    for (const m of incoming) {
+      if (!m.id || seen[m.id]) continue
+      seen[m.id] = true
+      out.push(m)
+      changed = true
+    }
+    return changed ? out : existing
+  }
+
+  $effect(() => {
+    if (!active) return
+    if ($connector.type !== "openrouter") return
+
+    const currentId = $connector.model.trim()
+    if (!currentId) return
+    const currentKey = `${$connector.type}|${$connector.url.trim()}|${currentId}`
+    const existing = modelSearchResults.find((m) => m.id === currentId) ?? null
+    if (existing?.supported_parameters && existing.supported_parameters.length > 0) {
+      modelLookupAttemptedKey = currentKey
+      return
+    }
+    if (modelLookupAttemptedKey === currentKey) return
+    if (modelSearchLoading) return
+
+    modelLookupAttemptedKey = currentKey
+    modelSearchLoading = true
+    modelSearchError = null
+    void settingsService
+      .models(currentId, 25)
+      .then((res) => {
+        const liveKey =
+          $connector.type === "openrouter"
+            ? `${$connector.type}|${$connector.url.trim()}|${$connector.model.trim()}`
+            : null
+        if (liveKey !== currentKey) return
+        const models = Array.isArray(res.models) ? res.models : []
+        const nextResults = mergeModels(modelSearchResults, models)
+        if (nextResults !== modelSearchResults) {
+          modelSearchResults = nextResults
+        }
+        const resolved = nextResults.find((m) => m.id === currentId) ?? existing
+        if (resolved?.supported_parameters && resolved.supported_parameters.length > 0) return
+
+        toast.warning(`OpenRouter model "${currentId}" could not be resolved.`, {
+          id: currentKey,
+          description:
+            "The saved model stays in place, but parameter metadata and model-specific hints are unavailable.",
+          duration: 6000,
+        })
+      })
+      .catch((err) => {
+        const liveKey =
+          $connector.type === "openrouter"
+            ? `${$connector.type}|${$connector.url.trim()}|${$connector.model.trim()}`
+            : null
+        if (liveKey !== currentKey) return
+        modelSearchError = err instanceof Error ? err.message : String(err)
+      })
+      .finally(() => {
+        if (modelLookupAttemptedKey !== currentKey) return
+        modelSearchLoading = false
+      })
+  })
+
+  let ctxRefreshLoading = $state(false)
+  async function refreshCtxLimitDetected() {
+    ctxRefreshLoading = true
+    try {
+      const res = await settingsService.get()
+      ctxLimitDetected.set(res.ctx_limit_detected ?? 0)
+    } catch {
+      // ignore
+    } finally {
+      ctxRefreshLoading = false
+    }
+  }
+
+  const pinnedTags = (id: string): string[] => {
+    if (id === OPENROUTER_DEFAULT_MODEL) return ["default"]
+    if (id === "openrouter/auto") return ["auto"]
+    return []
+  }
+
+  let filteredModelSearchResults = $derived.by(() =>
+    filterModelResults(modelSearchResults, {
+      onlyFree: modelSearchOnlyFree,
+      onlyJson: modelSearchOnlyJson,
+    }),
+  )
+
+  let modelSelectOptions = $derived.by(() =>
+    buildModelSelectOptions({
+      models: modelSearchResults,
+      currentModel: $connector.type === "openrouter" ? $connector.model : "",
+      pinned: OPENROUTER_PINNED_MODELS,
+      pinnedTags,
+      onlyFree: modelSearchOnlyFree,
+      onlyJson: modelSearchOnlyJson,
+    }),
+  )
+
+  function pickOpenRouterModel(nextId: string) {
+    if ($connector.type !== "openrouter") return
+    const trimmed = nextId.trim()
+    if (!trimmed) return
+    openrouterModelDraft = trimmed
+    if (trimmed !== $connector.model) {
+      connector.set({ ...$connector, model: trimmed })
+    }
+  }
+
+  let unsupportedParamLabels = $derived.by(() => {
+    if ($connector.type !== "openrouter") return []
+    const model = modelSearchResults.find((m) => m.id === $connector.model)
+    if (!model?.supported_parameters) return []
+    const allParams = [...samplingParams, ...repetitionParams]
+    return allParams.filter((p) => getOpenRouterParamStatus(p.key, model) === "unsupported").map((p) => p.label)
+  })
+
+  function setGen<K extends keyof GenerationParams>(key: K, value: GenerationParams[K]) {
+    generation.set({ ...$generation, [key]: value })
+  }
+
+  function handleNumInput(key: keyof GenerationParams, e: Event, isInt = false) {
+    const input = e.target as HTMLInputElement
+    const raw = input.value.trim()
+    if (raw === "" || raw === "-") return
+    const val = isInt ? parseInt(raw, 10) : parseFloat(raw)
+    if (!isNaN(val)) setGen(key, val)
+  }
+</script>
+
+<Card>
+  <CardHeader>
+    <CardTitle class="flex items-center gap-2">
+      <Wrench class="size-4 text-muted-foreground" aria-hidden="true" />
+      Connection
+      {#if generationLockActive}
+        <Badge
+          variant="secondary"
+          class="ml-2 font-mono text-[11px]"
+          title="A generation is in progress; connection controls are locked until it completes"
+        >
+          Generating…
+        </Badge>
+      {/if}
+    </CardTitle>
+    <CardDescription>Configure the OpenAI-compatible backend and connection details.</CardDescription>
+  </CardHeader>
+
+  <CardContent class="space-y-4 pb-6">
+    {#if unsupportedParamLabels.length > 0}
+      <div class="rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 text-sm" role="note">
+        <div class="flex items-start gap-3">
+          <TriangleAlert class="mt-0.5 size-4 text-amber-600 dark:text-amber-400" aria-hidden="true" />
+          <div>
+            <div class="font-medium text-foreground">Unsupported parameters</div>
+            <div class="mt-1 text-sm text-muted-foreground">
+              <span class="font-mono text-foreground/90"
+                >{$connector.type === "openrouter" ? $connector.model : ""}</span
+              >
+              does not support: {unsupportedParamLabels.join(", ")}. These parameters will be ignored.
+            </div>
+          </div>
+        </div>
+      </div>
+    {/if}
+
+    <div
+      class={cn(
+        "divide-y divide-border overflow-hidden rounded-md border bg-card/50",
+        generationLockActive && "opacity-60",
+      )}
+    >
+      <div class="flex items-start justify-between gap-4 p-4">
+        <div class="min-w-0 flex-1 space-y-1">
+          <div class="text-sm font-medium text-foreground">Backend</div>
+          <div class="text-xs text-muted-foreground">Provider for the OpenAI-compatible API endpoint</div>
+        </div>
+        <Select.Root
+          type="single"
+          value={$connector.type}
+          items={connectorTypeOptions}
+          disabled={generationLockActive}
+          onValueChange={(next) => setConnectorType(next as LLMConnector["type"])}
+        >
+          <Select.Trigger class="w-[12rem]" aria-label="Backend">
+            {connectorTypeLabel}
+          </Select.Trigger>
+          <Select.Content>
+            {#each connectorTypeOptions as option (option.value)}
+              <Select.Item {...option} />
+            {/each}
+          </Select.Content>
+        </Select.Root>
+      </div>
+
+      <div class="flex items-start justify-between gap-4 p-4">
+        <div class="min-w-0 flex-1 space-y-1">
+          <div class="text-sm font-medium text-foreground">API URL</div>
+        </div>
+        <div class="w-[min(62%,22rem)]">
+          <InputGroup.Root data-disabled={generationLockActive ? "true" : undefined}>
+            <InputGroup.Input
+              type="text"
+              bind:value={connectorUrl}
+              disabled={generationLockActive}
+              onblur={commitConnector}
+              onkeydown={(e) => {
+                if (e.key === "Enter") (e.target as HTMLInputElement).blur()
+              }}
+            />
+          </InputGroup.Root>
+        </div>
+      </div>
+
+      <div class="flex items-start justify-between gap-4 p-4">
+        <div class="min-w-0 flex-1 space-y-1">
+          <div class="text-sm font-medium text-foreground">API Key</div>
+          <div class="text-xs text-muted-foreground">Stored locally. Never synced.</div>
+        </div>
+        <div class="w-[min(62%,22rem)]">
+          <InputGroup.Root data-disabled={generationLockActive ? "true" : undefined}>
+            <InputGroup.Input
+              class="min-w-0"
+              type={showApiKey ? "text" : "password"}
+              bind:value={connectorApiKey}
+              placeholder={$connector.api_keys[$connector.type] === HIDDEN_SECRET_PLACEHOLDER ? "Stored (hidden)" : ""}
+              autocomplete="new-password"
+              spellcheck="false"
+              disabled={generationLockActive}
+              onblur={commitConnector}
+              onkeydown={(e) => {
+                if (e.key === "Enter") (e.target as HTMLInputElement).blur()
+              }}
+            />
+            <InputGroup.Addon align="inline-end">
+              <InputGroup.Button
+                variant="ghost"
+                size="sm"
+                disabled={generationLockActive}
+                onclick={() => {
+                  showApiKey = !showApiKey
+                }}
+                title={showApiKey ? "Hide API key" : "Show API key"}
+              >
+                {showApiKey ? "Hide" : "Show"}
+              </InputGroup.Button>
+              <InputGroup.Button
+                variant="ghost"
+                size="sm"
+                disabled={generationLockActive}
+                onclick={() => {
+                  connectorApiKey = ""
+                  commitConnector()
+                }}
+                title="Clear API key"
+              >
+                Clear
+              </InputGroup.Button>
+            </InputGroup.Addon>
+          </InputGroup.Root>
+        </div>
+      </div>
+
+      {#if $connector.type === "openrouter"}
+        <div class="flex items-start justify-between gap-4 p-4">
+          <div class="min-w-0 flex-1 space-y-1">
+            <div class="text-sm font-medium text-foreground">Model ID</div>
+            <div class="text-xs text-muted-foreground">Example: openrouter/free</div>
+          </div>
+          <div class="w-[min(62%,22rem)]">
+            <InputGroup.Root data-disabled={generationLockActive ? "true" : undefined}>
+              <InputGroup.Input
+                class="font-mono"
+                type="text"
+                bind:value={openrouterModelDraft}
+                disabled={generationLockActive}
+                onblur={commitOpenRouterModel}
+                onkeydown={(e) => {
+                  if (e.key === "Enter") (e.target as HTMLInputElement).blur()
+                }}
+              />
+            </InputGroup.Root>
+          </div>
+        </div>
+
+        <div class="space-y-3 p-4">
+          <div class="space-y-1">
+            <div class="text-sm font-medium text-foreground">Search Models</div>
+            <div class="text-xs text-muted-foreground">Queries /models via server proxy (cached)</div>
+          </div>
+
+          <InputGroup.Root data-disabled={generationLockActive ? "true" : undefined}>
+            <InputGroup.Addon>
+              <Search class="size-4" aria-hidden="true" />
+            </InputGroup.Addon>
+            <InputGroup.Input
+              type="text"
+              placeholder="Search model id…"
+              bind:value={modelSearchQuery}
+              disabled={generationLockActive}
+              onkeydown={(e) => {
+                if (e.key === "Enter") void searchModels()
+              }}
+            />
+            <InputGroup.Addon align="inline-end">
+              <InputGroup.Button
+                size="sm"
+                disabled={modelSearchLoading || generationLockActive}
+                onclick={searchModels}
+                title="Search models"
+              >
+                {modelSearchLoading ? "Searching…" : "Search"}
+              </InputGroup.Button>
+            </InputGroup.Addon>
+          </InputGroup.Root>
+
+          <div class="flex flex-wrap items-center gap-4">
+            <div
+              class={cn(
+                "inline-flex items-center gap-2 text-sm text-foreground",
+                generationLockActive && "pointer-events-none",
+              )}
+            >
+              <Checkbox bind:checked={modelSearchOnlyFree} disabled={generationLockActive} />
+              <span>Free only</span>
+            </div>
+            <div
+              class={cn(
+                "inline-flex items-center gap-2 text-sm text-foreground",
+                generationLockActive && "pointer-events-none",
+              )}
+            >
+              <Checkbox bind:checked={modelSearchOnlyJson} disabled={generationLockActive} />
+              <span>JSON filter</span>
+              <span class="text-xs text-muted-foreground">(schema/object)</span>
+            </div>
+            {#if modelSearchResults.length > 0 && (modelSearchOnlyFree || modelSearchOnlyJson)}
+              <div class="ml-auto text-xs text-muted-foreground">
+                Showing {filteredModelSearchResults.length} / {modelSearchResults.length}
+              </div>
+            {/if}
+          </div>
+
+          <div class="overflow-hidden rounded-md border bg-card/50">
+            {#if modelSelectOptions.length === 0}
+              <div class="p-3 text-sm text-muted-foreground">No results yet. Search above.</div>
+            {:else}
+              <div class="max-h-72 overflow-auto">
+                {#each modelSelectOptions as option (option.value)}
+                  <Button
+                    variant="ghost"
+                    class={cn(
+                      "h-auto w-full justify-start gap-2 px-3 py-2 text-left whitespace-normal",
+                      option.value === $connector.model && "bg-accent",
+                    )}
+                    disabled={generationLockActive}
+                    onclick={() => pickOpenRouterModel(option.value)}
+                  >
+                    <span class={cn("min-w-0 flex-1 break-words", option.value === $connector.model && "font-medium")}>
+                      {option.label}
+                    </span>
+                    {#if option.value === $connector.model}
+                      <Badge variant="secondary" class="font-mono text-[11px]">selected</Badge>
+                    {/if}
+                  </Button>
+                {/each}
+              </div>
+            {/if}
+          </div>
+
+          {#if modelSearchError}
+            <div class="text-sm text-destructive">{modelSearchError}</div>
+          {/if}
+        </div>
+      {/if}
+
+      <div class="flex items-start justify-between gap-4 p-4">
+        <div class="min-w-0 flex-1 space-y-1">
+          <div class="text-sm font-medium text-foreground">Ctx Limit (Detected)</div>
+          <div class="text-xs text-muted-foreground">Fetched from the current provider (cached)</div>
+        </div>
+        <div class="flex items-center gap-2">
+          <Badge variant="outline" class="font-mono text-[11px] tabular-nums">
+            {$ctxLimitDetected > 0 ? $ctxLimitDetected : "Unknown"}
+          </Badge>
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={ctxRefreshLoading || generationLockActive}
+            onclick={refreshCtxLimitDetected}
+          >
+            {ctxRefreshLoading ? "Refreshing…" : "Refresh"}
+          </Button>
+        </div>
+      </div>
+
+      <div class="flex items-start justify-between gap-4 p-4">
+        <div class="min-w-0 flex-1 space-y-1">
+          <div class="text-sm font-medium text-foreground">Ctx Limit (Override)</div>
+          <div class="text-xs text-muted-foreground">
+            0 = auto-detect{#if $ctxLimitDetected > 0}
+              (currently: {$ctxLimitDetected}){/if}
+          </div>
+        </div>
+        <div class="w-28">
+          <InputGroup.Root data-disabled={generationLockActive ? "true" : undefined}>
+            <InputGroup.Input
+              type="number"
+              value={$generation.ctx_limit}
+              min="0"
+              max="32768"
+              step="1"
+              disabled={generationLockActive}
+              onchange={(e) => handleNumInput("ctx_limit", e, true)}
+            />
+          </InputGroup.Root>
+        </div>
+      </div>
+
+      <div class="flex items-start justify-between gap-4 p-4">
+        <div class="min-w-0 flex-1 space-y-1">
+          <div class="text-sm font-medium text-foreground">Use streaming</div>
+          <div class="text-xs text-muted-foreground">Stream model output while generating (enables partial output)</div>
+        </div>
+        <Switch
+          checked={$streamingEnabled}
+          disabled={generationLockActive}
+          onCheckedChange={(v) => streamingEnabled.set(v)}
+        />
+      </div>
+    </div>
+  </CardContent>
+</Card>
